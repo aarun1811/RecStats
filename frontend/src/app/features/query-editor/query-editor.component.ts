@@ -332,6 +332,7 @@ interface DataSource extends DataSourceResponse {
         background: var(--bg-hover);
         color: var(--text-primary);
         border-color: var(--color-primary);
+        box-shadow: 0 0 8px rgba(var(--color-primary-rgb), 0.25);
       }
     }
 
@@ -358,6 +359,7 @@ interface DataSource extends DataSourceResponse {
       &:hover {
         border-color: var(--color-primary);
         background: var(--bg-hover);
+        box-shadow: 0 0 8px rgba(var(--color-primary-rgb), 0.25);
       }
 
       app-icon.rotated {
@@ -505,9 +507,10 @@ interface DataSource extends DataSourceResponse {
       transition: all 0.2s ease;
       position: relative;
 
-      &:hover {
+      &:hover:not(.active) {
         color: var(--text-primary);
         background: var(--bg-hover);
+        box-shadow: inset 0 -2px 8px rgba(var(--color-primary-rgb), 0.15);
       }
 
       &.active {
@@ -655,13 +658,16 @@ interface DataSource extends DataSourceResponse {
       border-bottom: 2px solid transparent;
       transition: all 0.2s ease;
 
-      &:hover {
+      &:hover:not(.active) {
         color: var(--text-primary);
+        background: rgba(var(--color-primary-rgb), 0.05);
+        box-shadow: inset 0 -4px 8px rgba(var(--color-primary-rgb), 0.1);
       }
 
       &.active {
         color: var(--color-primary-light);
         border-bottom-color: var(--color-primary);
+        box-shadow: inset 0 -4px 12px rgba(var(--color-primary-rgb), 0.15);
       }
 
       .badge {
