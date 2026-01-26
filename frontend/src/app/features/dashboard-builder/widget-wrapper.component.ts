@@ -1,6 +1,7 @@
 import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges, inject } from '@angular/core';
 import { DashboardWidget } from './dashboard-builder.component';
 import { ApiService } from '../../core/services/api.service';
+import { DataLoaderService } from '../../core/services/data-loader.service';
 import { firstValueFrom } from 'rxjs';
 
 export interface CrossFilter {
@@ -306,6 +307,7 @@ export interface CrossFilter {
 })
 export class WidgetWrapperComponent implements OnInit, OnChanges {
   private api = inject(ApiService);
+  private dataLoader = inject(DataLoaderService);
 
   @Input() widget!: DashboardWidget;
   @Input() editMode = true;
@@ -343,19 +345,30 @@ export class WidgetWrapperComponent implements OnInit, OnChanges {
     if (this.widget.sql) {
       this.kpiLoading = true;
       try {
-        // Apply cross-filters to SQL
+        // Apply cross-filters to SQL and use DuckDB
         const filteredSql = this.applyFiltersToSql(this.widget.sql);
-        const response = await firstValueFrom(
-          this.api.post<{ data: any[] }>('/queries/direct', { sql: filteredSql })
-        );
-        if (response.data && response.data.length > 0) {
-          const firstRow = response.data[0];
+        const result = await this.dataLoader.executeQuery(filteredSql);
+        if (result.rows && result.rows.length > 0) {
+          const firstRow = result.rows[0];
           const valueKey = Object.keys(firstRow).find(k => k.toLowerCase() === 'value') || Object.keys(firstRow)[0];
           this.kpiValue = firstRow[valueKey] || 0;
         }
       } catch (error) {
-        console.error('Failed to load KPI data:', error);
-        this.kpiValue = this.widget.config.value || 0;
+        console.error('Failed to load KPI data (DuckDB):', error);
+        // Fallback to backend API
+        try {
+          const filteredSql = this.applyFiltersToSql(this.widget.sql);
+          const response = await firstValueFrom(
+            this.api.post<{ data: any[] }>('/queries/direct', { sql: filteredSql })
+          );
+          if (response.data && response.data.length > 0) {
+            const firstRow = response.data[0];
+            const valueKey = Object.keys(firstRow).find(k => k.toLowerCase() === 'value') || Object.keys(firstRow)[0];
+            this.kpiValue = firstRow[valueKey] || 0;
+          }
+        } catch {
+          this.kpiValue = this.widget.config.value || 0;
+        }
       } finally {
         this.kpiLoading = false;
       }
@@ -373,21 +386,37 @@ export class WidgetWrapperComponent implements OnInit, OnChanges {
         if (!sql.toUpperCase().includes(' LIMIT ')) {
           sql += ' LIMIT 100';
         }
-        const response = await firstValueFrom(
-          this.api.post<{ data: any[]; columns: any[] }>('/queries/direct', { sql })
-        );
-        if (response.data && response.data.length > 0) {
-          this.tableData = response.data;
-          // Get columns from response or from first row keys
-          this.tableColumns = response.columns?.map((c: any) => c.name) || Object.keys(response.data[0]);
+        // Use DuckDB for in-browser execution
+        const result = await this.dataLoader.executeQuery(sql);
+        if (result.rows && result.rows.length > 0) {
+          this.tableData = result.rows;
+          this.tableColumns = result.columns;
         } else {
           this.tableData = [];
           this.tableColumns = [];
         }
       } catch (error) {
-        console.error('Failed to load table data:', error);
-        this.tableData = [];
-        this.tableColumns = [];
+        console.error('Failed to load table data (DuckDB):', error);
+        // Fallback to backend API
+        try {
+          let sql = this.applyFiltersToSql(this.widget.sql);
+          if (!sql.toUpperCase().includes(' LIMIT ')) {
+            sql += ' LIMIT 100';
+          }
+          const response = await firstValueFrom(
+            this.api.post<{ data: any[]; columns: any[] }>('/queries/direct', { sql })
+          );
+          if (response.data && response.data.length > 0) {
+            this.tableData = response.data;
+            this.tableColumns = response.columns?.map((c: any) => c.name) || Object.keys(response.data[0]);
+          } else {
+            this.tableData = [];
+            this.tableColumns = [];
+          }
+        } catch {
+          this.tableData = [];
+          this.tableColumns = [];
+        }
       } finally {
         this.tableLoading = false;
       }

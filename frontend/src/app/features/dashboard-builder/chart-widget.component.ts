@@ -1,6 +1,7 @@
 import { Component, Input, OnInit, OnChanges, SimpleChanges, inject, Output, EventEmitter } from '@angular/core';
 import { EChartsOption } from 'echarts';
 import { ApiService } from '../../core/services/api.service';
+import { DataLoaderService } from '../../core/services/data-loader.service';
 import { firstValueFrom } from 'rxjs';
 import { CrossFilter } from './widget-wrapper.component';
 
@@ -71,6 +72,7 @@ interface QueryResult {
 })
 export class ChartWidgetComponent implements OnInit, OnChanges {
   private api = inject(ApiService);
+  private dataLoader = inject(DataLoaderService);
 
   @Input() chartType = 'bar';
   @Input() config: any = {};
@@ -134,12 +136,21 @@ export class ChartWidgetComponent implements OnInit, OnChanges {
       try {
         // Apply cross-filters to SQL
         const filteredSql = this.applyFiltersToSql(this.sql);
-        const response = await firstValueFrom(
-          this.api.post<QueryResult>('/queries/direct', { sql: filteredSql })
-        );
-        this.data = response.data;
+        // Use DuckDB for in-browser query execution
+        const result = await this.dataLoader.executeQuery(filteredSql);
+        this.data = result.rows;
       } catch (error) {
-        console.error('Chart query error:', error);
+        console.error('Chart query error (DuckDB):', error);
+        // Fallback to backend API if DuckDB fails
+        try {
+          const filteredSql = this.applyFiltersToSql(this.sql);
+          const response = await firstValueFrom(
+            this.api.post<QueryResult>('/queries/direct', { sql: filteredSql })
+          );
+          this.data = response.data;
+        } catch (fallbackError) {
+          console.error('Chart query fallback error:', fallbackError);
+        }
       } finally {
         this.loading = false;
       }
