@@ -496,7 +496,7 @@ export class ChartWidgetComponent implements OnInit, OnChanges {
       symbolSize: Math.max(20, Math.min(80, ((d.value as number) / maxValue) * 80)),
       itemStyle: {
         color: {
-          type: 'radial',
+          type: 'radial' as const,
           x: 0.5, y: 0.5, r: 0.5,
           colorStops: [
             { offset: 0, color: '#66ccff' },
