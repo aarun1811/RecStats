@@ -6,6 +6,10 @@
 @import 'styles/mixins';
 @import 'styles/animations';
 
+// AG-Grid styles
+@import 'ag-grid-community/styles/ag-grid.css';
+@import 'ag-grid-community/styles/ag-theme-alpine.css';
+
 // ========================================
 // CSS RESET & BASE
 // ========================================
