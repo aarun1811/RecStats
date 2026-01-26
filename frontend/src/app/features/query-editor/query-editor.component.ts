@@ -653,9 +653,9 @@ interface DataSource extends DataSourceResponse {
 
     .save-btn {
       &:hover {
-        color: var(--color-success);
-        background: rgba(46, 204, 113, 0.1);
-        box-shadow: 0 0 10px rgba(46, 204, 113, 0.25);
+        color: var(--color-primary-light);
+        background: rgba(var(--color-primary-rgb), 0.1);
+        box-shadow: 0 0 10px rgba(var(--color-primary-rgb), 0.25);
       }
     }
 
@@ -1184,6 +1184,7 @@ export class QueryEditorComponent implements OnInit {
 
   refreshSchema() {
     this.loadSchema();
+    this.loadSavedQueries();
   }
 
   insertTableName(tableName: string) {

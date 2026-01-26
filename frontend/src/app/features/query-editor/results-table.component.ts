@@ -98,7 +98,9 @@ export class ResultsTableComponent implements OnChanges {
     pagination: true,
     paginationPageSize: 100,
     suppressMenuHide: true,
-    rowSelection: 'multiple'
+    rowSelection: 'multiple',
+    enableRangeSelection: false,
+    suppressCellFocus: true
   };
 
   ngOnChanges(changes: SimpleChanges) {
