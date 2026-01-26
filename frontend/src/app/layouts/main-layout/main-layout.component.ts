@@ -1,4 +1,6 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy } from '@angular/core';
+import { Router, NavigationEnd } from '@angular/router';
+import { filter, Subscription } from 'rxjs';
 import { ThemeService } from '../../core/services/theme.service';
 
 interface NavItem {
@@ -87,17 +89,10 @@ interface NavItem {
             <div class="breadcrumb">
               <span class="breadcrumb-item">ResStats</span>
               <app-icon name="chevron-right" [size]="16"></app-icon>
-              <span class="breadcrumb-item active">Dashboard</span>
+              <span class="breadcrumb-item active">{{ currentPageTitle }}</span>
             </div>
           </div>
           <div class="header-right">
-            <div class="search-box">
-              <app-icon name="search" [size]="18"></app-icon>
-              <input type="text" placeholder="Search dashboards, charts..." />
-            </div>
-            <button class="header-btn">
-              <app-icon name="refresh" [size]="20"></app-icon>
-            </button>
             <button class="header-btn">
               <app-icon name="settings" [size]="20"></app-icon>
             </button>
@@ -522,10 +517,23 @@ interface NavItem {
     }
   `]
 })
-export class MainLayoutComponent {
+export class MainLayoutComponent implements OnInit, OnDestroy {
   private themeService = inject(ThemeService);
+  private router = inject(Router);
+  private routerSub?: Subscription;
 
   sidebarCollapsed = false;
+  currentPageTitle = 'Home';
+
+  private routeTitles: Record<string, string> = {
+    '/': 'Home',
+    '/dashboards': 'Dashboards',
+    '/charts': 'Charts',
+    '/queries': 'Query Editor',
+    '/datasources': 'Data Sources',
+    '/upload': 'Upload Files',
+    '/settings': 'Settings',
+  };
 
   mainNavItems: NavItem[] = [
     { icon: 'home', label: 'Home', route: '/', exactMatch: true },
@@ -539,6 +547,28 @@ export class MainLayoutComponent {
     { icon: 'upload', label: 'Upload Files', route: '/upload' },
     { icon: 'settings', label: 'Settings', route: '/settings' },
   ];
+
+  ngOnInit(): void {
+    // Set initial title
+    this.updatePageTitle(this.router.url);
+
+    // Subscribe to route changes
+    this.routerSub = this.router.events
+      .pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd))
+      .subscribe(event => {
+        this.updatePageTitle(event.urlAfterRedirects);
+      });
+  }
+
+  ngOnDestroy(): void {
+    this.routerSub?.unsubscribe();
+  }
+
+  private updatePageTitle(url: string): void {
+    // Extract base path (e.g., /dashboards/123 -> /dashboards)
+    const basePath = '/' + (url.split('/')[1] || '');
+    this.currentPageTitle = this.routeTitles[basePath] || this.routeTitles[url] || 'Home';
+  }
 
   get isDark(): boolean {
     return this.themeService.isDark();
