@@ -59,6 +59,11 @@ interface Column {
 
       .ag-row-hover {
         background: rgba(var(--color-primary-rgb), 0.08);
+        box-shadow: inset 0 0 12px rgba(var(--color-primary-rgb), 0.15);
+      }
+
+      .ag-row-selected {
+        box-shadow: inset 0 0 16px rgba(var(--color-primary-rgb), 0.2);
       }
 
       .ag-header-cell-resize {
