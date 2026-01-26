@@ -191,6 +191,18 @@ export class ChartPreviewComponent implements OnChanges {
   }
 
   private getBarChartOptions(): EChartsOption {
+    // Use actual data if available, otherwise use sample
+    const xField = this.config?.xAxis || 'category';
+    const yField = this.config?.yAxis || 'value';
+
+    let categories: string[] = this.sampleData.categories;
+    let values: number[] = this.sampleData.values;
+
+    if (this.data && this.data.length > 0) {
+      categories = this.data.map(row => String(row[xField] || ''));
+      values = this.data.map(row => Number(row[yField]) || 0);
+    }
+
     return {
       xAxis: {
         type: 'value',
@@ -199,12 +211,12 @@ export class ChartPreviewComponent implements OnChanges {
       },
       yAxis: {
         type: 'category',
-        data: this.sampleData.categories,
+        data: categories,
         axisLine: { lineStyle: { color: '#30363d' } }
       },
       series: [{
         type: 'bar',
-        data: this.sampleData.values,
+        data: values,
         itemStyle: {
           color: {
             type: 'linear',
@@ -221,11 +233,23 @@ export class ChartPreviewComponent implements OnChanges {
   }
 
   private getColumnChartOptions(): EChartsOption {
+    const xField = this.config?.xAxis || 'category';
+    const yField = this.config?.yAxis || 'value';
+
+    let categories: string[] = this.sampleData.categories;
+    let values: number[] = this.sampleData.values;
+
+    if (this.data && this.data.length > 0) {
+      categories = this.data.map(row => String(row[xField] || ''));
+      values = this.data.map(row => Number(row[yField]) || 0);
+    }
+
     return {
       xAxis: {
         type: 'category',
-        data: this.sampleData.categories,
-        axisLine: { lineStyle: { color: '#30363d' } }
+        data: categories,
+        axisLine: { lineStyle: { color: '#30363d' } },
+        axisLabel: { color: '#8b949e', rotate: categories.length > 5 ? 45 : 0 }
       },
       yAxis: {
         type: 'value',
@@ -234,7 +258,7 @@ export class ChartPreviewComponent implements OnChanges {
       },
       series: [{
         type: 'bar',
-        data: this.sampleData.values,
+        data: values,
         itemStyle: {
           color: {
             type: 'linear',
@@ -306,17 +330,31 @@ export class ChartPreviewComponent implements OnChanges {
   }
 
   private getPieChartOptions(): EChartsOption {
+    const xField = this.config?.xAxis || 'category';
+    const yField = this.config?.yAxis || 'value';
+    const colors = ['#0066b2', '#3399cc', '#2ecc71', '#f1c40f', '#e74c3c', '#9b59b6', '#3498db', '#1abc9c'];
+
+    let pieData: any[] = [
+      { value: 335, name: 'Matched' },
+      { value: 234, name: 'Unmatched' },
+      { value: 154, name: 'Breaks' },
+      { value: 135, name: 'Pending' }
+    ];
+
+    if (this.data && this.data.length > 0) {
+      pieData = this.data.map((row, i) => ({
+        value: Number(row[yField]) || 0,
+        name: String(row[xField] || ''),
+        itemStyle: { color: colors[i % colors.length] }
+      }));
+    }
+
     return {
       series: [{
         type: 'pie',
         radius: '65%',
         center: ['50%', '50%'],
-        data: [
-          { value: 335, name: 'Matched', itemStyle: { color: '#2ecc71' } },
-          { value: 234, name: 'Unmatched', itemStyle: { color: '#f1c40f' } },
-          { value: 154, name: 'Breaks', itemStyle: { color: '#e74c3c' } },
-          { value: 135, name: 'Pending', itemStyle: { color: '#3498db' } }
-        ],
+        data: pieData,
         label: { color: '#f0f6fc' },
         emphasis: {
           itemStyle: {
@@ -330,17 +368,31 @@ export class ChartPreviewComponent implements OnChanges {
   }
 
   private getDonutChartOptions(): EChartsOption {
+    const xField = this.config?.xAxis || 'category';
+    const yField = this.config?.yAxis || 'value';
+    const colors = ['#0066b2', '#3399cc', '#2ecc71', '#f1c40f', '#e74c3c', '#9b59b6', '#3498db', '#1abc9c'];
+
+    let donutData: any[] = [
+      { value: 335, name: 'Matched' },
+      { value: 234, name: 'Unmatched' },
+      { value: 154, name: 'Breaks' },
+      { value: 135, name: 'Pending' }
+    ];
+
+    if (this.data && this.data.length > 0) {
+      donutData = this.data.map((row, i) => ({
+        value: Number(row[yField]) || 0,
+        name: String(row[xField] || ''),
+        itemStyle: { color: colors[i % colors.length] }
+      }));
+    }
+
     return {
       series: [{
         type: 'pie',
         radius: ['40%', '65%'],
         center: ['50%', '50%'],
-        data: [
-          { value: 335, name: 'Matched', itemStyle: { color: '#2ecc71' } },
-          { value: 234, name: 'Unmatched', itemStyle: { color: '#f1c40f' } },
-          { value: 154, name: 'Breaks', itemStyle: { color: '#e74c3c' } },
-          { value: 135, name: 'Pending', itemStyle: { color: '#3498db' } }
-        ],
+        data: donutData,
         label: { color: '#f0f6fc' }
       }]
     };

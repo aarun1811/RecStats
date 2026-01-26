@@ -200,17 +200,7 @@ type Step = 'data' | 'chart' | 'configure';
             </div>
 
             <div class="step-content" *ngIf="currentStep() === 'configure'">
-              <div class="form-field">
-                <label>Chart Title</label>
-                <input type="text" [(ngModel)]="chartConfig.title" placeholder="Enter title">
-              </div>
-
-              <div class="form-field">
-                <label>Subtitle</label>
-                <input type="text" [(ngModel)]="chartConfig.subtitle" placeholder="Optional subtitle">
-              </div>
-
-              <div class="config-section">
+              <div class="config-section" style="margin-top: 0; padding-top: 0; border-top: none;">
                 <h4>Data Mapping</h4>
                 <div class="form-field">
                   <label>X-Axis / Category</label>
@@ -232,6 +222,19 @@ type Step = 'data' | 'chart' | 'configure';
                     <option value="">None</option>
                     <option *ngFor="let col of columns()" [value]="col.name">{{ col.name }}</option>
                   </select>
+                </div>
+              </div>
+
+              <div class="config-section">
+                <h4>Chart Info</h4>
+                <div class="form-field">
+                  <label>Chart Title</label>
+                  <input type="text" [(ngModel)]="chartConfig.title" placeholder="Enter title">
+                </div>
+
+                <div class="form-field">
+                  <label>Subtitle</label>
+                  <input type="text" [(ngModel)]="chartConfig.subtitle" placeholder="Optional subtitle">
                 </div>
               </div>
 
@@ -330,6 +333,7 @@ type Step = 'data' | 'chart' | 'configure';
             <app-chart-preview
               [chartType]="selectedChartType()"
               [config]="chartConfig"
+              [data]="previewData()"
               [title]="chartConfig.title">
             </app-chart-preview>
           </div>
@@ -1174,26 +1178,33 @@ export class ChartBuilderComponent implements OnInit {
   selectChartType(chartTypeId: string) {
     this.selectedChartType.set(chartTypeId);
 
-    // Auto-map axes based on data
+    // Auto-map axes based on data columns
     const cols = this.columns();
-    const dateCol = cols.find(c => c.data_type === 'date');
-    const stringCol = cols.find(c => c.data_type === 'string');
-    const numberCol = cols.find(c => c.data_type === 'number');
+    if (cols.length >= 2) {
+      // Smart mapping: look for common patterns first
+      const categoryCol = cols.find(c =>
+        c.name.toLowerCase().includes('category') ||
+        c.name.toLowerCase().includes('name') ||
+        c.name.toLowerCase().includes('label') ||
+        c.name.toLowerCase().includes('reason')
+      );
+      const valueCol = cols.find(c =>
+        c.name.toLowerCase().includes('value') ||
+        c.name.toLowerCase().includes('count') ||
+        c.name.toLowerCase().includes('amount') ||
+        c.name.toLowerCase().includes('total')
+      );
 
-    if (dateCol) {
-      this.chartConfig.xAxis = dateCol.name;
-    } else if (stringCol) {
-      this.chartConfig.xAxis = stringCol.name;
-    }
-
-    if (numberCol) {
-      this.chartConfig.yAxis = numberCol.name;
-    }
-
-    // Second string column for groupBy
-    const secondStringCol = cols.filter(c => c.data_type === 'string')[1];
-    if (secondStringCol && this.showGroupBy()) {
-      this.chartConfig.groupBy = secondStringCol.name;
+      if (categoryCol && valueCol) {
+        this.chartConfig.xAxis = categoryCol.name;
+        this.chartConfig.yAxis = valueCol.name;
+      } else {
+        // Fallback: first column = X, second column = Y
+        this.chartConfig.xAxis = cols[0].name;
+        this.chartConfig.yAxis = cols[1].name;
+      }
+    } else if (cols.length === 1) {
+      this.chartConfig.xAxis = cols[0].name;
     }
 
     // Mark step complete and move to configure
