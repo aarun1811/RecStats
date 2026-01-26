@@ -24,18 +24,18 @@ const routes: Routes = [
   },
   {
     path: 'datasources',
-    loadChildren: () => import('./features/dashboard-viewer/dashboard-viewer.module')
-      .then(m => m.DashboardViewerModule)
+    loadChildren: () => import('./features/placeholder/placeholder.module')
+      .then(m => m.PlaceholderModule)
   },
   {
     path: 'upload',
-    loadChildren: () => import('./features/dashboard-viewer/dashboard-viewer.module')
-      .then(m => m.DashboardViewerModule)
+    loadChildren: () => import('./features/placeholder/placeholder.module')
+      .then(m => m.PlaceholderModule)
   },
   {
     path: 'settings',
-    loadChildren: () => import('./features/dashboard-viewer/dashboard-viewer.module')
-      .then(m => m.DashboardViewerModule)
+    loadChildren: () => import('./features/placeholder/placeholder.module')
+      .then(m => m.PlaceholderModule)
   },
   {
     path: '**',
