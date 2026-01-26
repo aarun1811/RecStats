@@ -106,8 +106,7 @@ interface DataSource extends DataSourceResponse {
             [class.active]="sidebarTab() === 'saved'"
             (click)="switchSidebarTab('saved')">
             <app-icon name="file-code" [size]="14"></app-icon>
-            Saved
-            <span class="tab-badge" *ngIf="savedQueries().length > 0">{{ savedQueries().length }}</span>
+            Saved<span class="tab-count" *ngIf="savedQueries().length > 0">({{ savedQueries().length }})</span>
           </button>
         </div>
 
@@ -550,13 +549,12 @@ interface DataSource extends DataSourceResponse {
       }
     }
 
-    .tab-badge {
-      padding: 1px 6px;
-      background: var(--color-primary);
-      color: white;
-      border-radius: var(--radius-full);
+    .tab-count {
+      margin-left: 2px;
       font-size: var(--font-size-xs);
-      font-weight: var(--font-weight-semibold);
+      font-weight: var(--font-weight-normal);
+      color: var(--text-muted);
+      opacity: 0.8;
     }
 
     @keyframes tabGlow {
