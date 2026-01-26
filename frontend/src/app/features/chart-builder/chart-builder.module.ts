@@ -10,7 +10,8 @@ import { ChartListComponent } from './chart-list.component';
 
 const routes: Routes = [
   { path: '', component: ChartListComponent },
-  { path: 'new', component: ChartBuilderComponent }
+  { path: 'new', component: ChartBuilderComponent },
+  { path: ':id/edit', component: ChartBuilderComponent }
 ];
 
 @NgModule({

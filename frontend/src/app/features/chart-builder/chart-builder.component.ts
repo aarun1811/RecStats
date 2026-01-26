@@ -1,5 +1,5 @@
 import { Component, signal, computed, inject, OnInit, ViewChild, ElementRef, HostListener } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { ColDef, GridOptions, GridReadyEvent, GridApi } from 'ag-grid-community';
 import 'ag-grid-enterprise';
 import { NotificationService } from '../../core/services/notification.service';
@@ -83,7 +83,7 @@ type Step = 'data' | 'chart' | 'configure';
       <!-- Left Panel: Steps -->
       <aside class="config-panel">
         <div class="panel-header">
-          <h2>Chart Builder</h2>
+          <h2>{{ editMode() ? 'Edit Chart' : 'New Chart' }}</h2>
           <app-button variant="ghost" size="sm" (click)="cancel()">
             <app-icon name="x" [size]="18"></app-icon>
           </app-button>
@@ -282,7 +282,7 @@ type Step = 'data' | 'chart' | 'configure';
             (click)="saveChart()"
             class="save-btn">
             <app-icon [name]="savingChart() ? 'loader' : 'save'" [size]="16"></app-icon>
-            {{ savingChart() ? 'Saving...' : 'Save Chart' }}
+            {{ savingChart() ? 'Saving...' : (editMode() ? 'Update Chart' : 'Save Chart') }}
           </app-button>
         </div>
       </aside>
@@ -979,6 +979,12 @@ export class ChartBuilderComponent implements OnInit {
   private notifications = inject(NotificationService);
   private api = inject(ApiService);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
+
+  // Edit mode state
+  editMode = signal(false);
+  chartId = '';
+  loadingChart = signal(false);
 
   // Step management
   currentStep = signal<Step>('data');
@@ -1078,6 +1084,95 @@ export class ChartBuilderComponent implements OnInit {
   // Lifecycle
   ngOnInit() {
     this.fetchDataSources();
+
+    // Check if we're in edit mode
+    const chartId = this.route.snapshot.paramMap.get('id');
+    if (chartId) {
+      this.editMode.set(true);
+      this.chartId = chartId;
+      this.loadChart(chartId);
+    }
+  }
+
+  private loadChart(chartId: string) {
+    this.loadingChart.set(true);
+    this.api.get<any>(`/charts/${chartId}`).subscribe({
+      next: (chart) => {
+        // Map backend chart type back to frontend
+        const backendToFrontendType: Record<string, string> = {
+          'bar': 'bar',
+          'bar_horizontal': 'bar',
+          'line': 'line',
+          'area': 'area',
+          'pie': 'pie',
+          'donut': 'donut',
+          'scatter': 'scatter',
+          'gauge': 'gauge',
+          'heatmap': 'heatmap',
+          'radar': 'radar',
+          'funnel': 'funnel',
+          'treemap': 'treemap',
+          'kpi': 'kpiCard',
+          'map': 'worldMap'
+        };
+
+        // Set chart type
+        this.selectedChartType.set(backendToFrontendType[chart.chart_type] || chart.chart_type);
+
+        // Set query ID
+        this.selectedQueryId = chart.query_id || '';
+
+        // Extract config values
+        const config = chart.config || {};
+        this.chartConfig.set({
+          title: chart.name || '',
+          subtitle: chart.description || '',
+          xAxis: config.x_axis?.field || '',
+          yAxis: config.y_axis?.field || '',
+          groupBy: config.category_field || '',
+          colorScheme: config.custom_options?.color_scheme || 'citi',
+          showLegend: config.show_legend !== false,
+          showLabels: config.show_labels === true,
+          enableAnimation: config.custom_options?.enable_animation !== false,
+          enableTooltip: config.show_tooltip !== false
+        });
+
+        // Mark steps as completed
+        this.completedSteps.set(new Set(['data', 'chart']));
+        this.currentStep.set('configure');
+
+        // Load query to get data source and execute query
+        if (chart.query_id) {
+          this.loadQueryForEdit(chart.query_id);
+        }
+
+        this.loadingChart.set(false);
+      },
+      error: (err) => {
+        this.notifications.error('Failed to load chart: ' + err.message);
+        this.loadingChart.set(false);
+        this.router.navigate(['/charts']);
+      }
+    });
+  }
+
+  private loadQueryForEdit(queryId: string) {
+    this.api.get<SavedQuery>(`/queries/${queryId}`).subscribe({
+      next: (query) => {
+        this.selectedQuery.set(query);
+        this.selectedQueryId = queryId;
+        this.selectedDataSourceId = query.data_source_id;
+
+        // Find and set the data source
+        const ds = this.dataSources.find(d => d.id === query.data_source_id);
+        if (ds) {
+          this.selectedDataSource.set(ds);
+        }
+
+        // Load query data to populate preview
+        this.loadData();
+      }
+    });
   }
 
   private fetchDataSources() {
@@ -1341,14 +1436,21 @@ export class ChartBuilderComponent implements OnInit {
       }
     };
 
-    this.api.post<any>('/charts', chartPayload).subscribe({
+    // Use PUT for update, POST for create
+    const apiCall = this.editMode()
+      ? this.api.put<any>(`/charts/${this.chartId}`, chartPayload)
+      : this.api.post<any>('/charts', chartPayload);
+
+    apiCall.subscribe({
       next: (chart) => {
-        this.notifications.success(`Chart "${chart.name}" saved successfully`);
+        const action = this.editMode() ? 'updated' : 'saved';
+        this.notifications.success(`Chart "${chart.name}" ${action} successfully`);
         this.savingChart.set(false);
         this.router.navigate(['/charts']);  // Navigate to charts list
       },
       error: (err) => {
-        this.notifications.error('Failed to save chart: ' + (err.error?.detail || err.message));
+        const action = this.editMode() ? 'update' : 'save';
+        this.notifications.error(`Failed to ${action} chart: ` + (err.error?.detail || err.message));
         this.savingChart.set(false);
       }
     });
