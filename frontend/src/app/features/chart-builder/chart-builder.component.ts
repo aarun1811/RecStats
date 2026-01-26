@@ -50,7 +50,8 @@ export interface ChartTypeOption {
 
 export const CHART_TYPES: ChartTypeOption[] = [
   // Basic - Available
-  { id: 'bar', name: 'Bar', icon: 'bar-chart-2', description: 'Compare values across categories', category: 'Basic', available: true },
+  { id: 'bar', name: 'Bar', icon: 'align-left', description: 'Horizontal bars for comparison', category: 'Basic', available: true },
+  { id: 'column', name: 'Column', icon: 'bar-chart-2', description: 'Vertical bars for comparison', category: 'Basic', available: true },
   { id: 'line', name: 'Line', icon: 'trending-up', description: 'Show trends over time', category: 'Basic', available: true },
   { id: 'area', name: 'Area', icon: 'activity', description: 'Line chart with filled area', category: 'Basic', available: true },
   { id: 'scatter', name: 'Scatter', icon: 'git-commit', description: 'Show correlation between variables', category: 'Basic', available: true },
@@ -64,13 +65,13 @@ export const CHART_TYPES: ChartTypeOption[] = [
   // KPI - Available
   { id: 'gauge', name: 'Gauge', icon: 'activity', description: 'Speedometer-style KPI display', category: 'KPI', available: true },
   { id: 'radialBar', name: 'Radial Bar', icon: 'loader', description: 'Circular progress indicator', category: 'KPI', available: true },
+  { id: 'kpiCard', name: 'KPI Card', icon: 'hash', description: 'Big number with trend', category: 'KPI', available: true },
   // Coming Soon
-  { id: 'kpiCard', name: 'KPI Card', icon: 'hash', description: 'Big number with trend', category: 'KPI', available: false },
-  { id: 'sankey', name: 'Sankey', icon: 'git-merge', description: 'Show flow between nodes', category: 'Advanced', available: false },
   { id: 'worldMap', name: 'Map', icon: 'globe', description: 'Geographic data visualization', category: 'Advanced', available: false },
-  { id: 'histogram', name: 'Histogram', icon: 'bar-chart', description: 'Distribution of values', category: 'Advanced', available: false },
+  { id: 'sankey', name: 'Sankey', icon: 'git-merge', description: 'Show flow between nodes', category: 'Advanced', available: false },
+  { id: 'histogram', name: 'Histogram', icon: 'bar-chart', description: 'Distribution of continuous values', category: 'Advanced', available: false },
   { id: 'bubble', name: 'Bubble', icon: 'circle', description: 'Scatter with size dimension', category: 'Basic', available: false },
-  { id: 'waterfall', name: 'Waterfall', icon: 'bar-chart-2', description: 'Show cumulative effect', category: 'Advanced', available: false },
+  { id: 'waterfall', name: 'Waterfall', icon: 'git-pull-request', description: 'Show cumulative effect', category: 'Advanced', available: false },
 ];
 
 type Step = 'data' | 'chart' | 'configure';
@@ -1220,7 +1221,7 @@ export class ChartBuilderComponent implements OnInit {
   }
 
   showGroupBy(): boolean {
-    return ['bar', 'column', 'line', 'area'].includes(this.selectedChartType());
+    return ['bar', 'column', 'line', 'area', 'treemap', 'heatmap'].includes(this.selectedChartType());
   }
 
   canSave(): boolean {

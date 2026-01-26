@@ -199,6 +199,10 @@ export class ChartPreviewComponent implements OnChanges {
         return this.getFunnelChartOptions();
       case 'treemap':
         return this.getTreemapChartOptions();
+      case 'kpiCard':
+        return this.getKPICardOptions();
+      case 'worldMap':
+        return this.getWorldMapChartOptions();
       default:
         return {};
     }
@@ -505,7 +509,24 @@ export class ChartPreviewComponent implements OnChanges {
   }
 
   private getGaugeChartOptions(): EChartsOption {
+    const xField = this.config?.xAxis || 'name';
+    const yField = this.config?.yAxis || 'value';
     const colors = this.getColors();
+
+    // Default values
+    let value = 73;
+    let name = 'Value';
+
+    // Use real data if available (first row)
+    if (this.data && this.data.length > 0) {
+      const firstRow = this.data[0];
+      value = Number(firstRow[yField]) || 0;
+      name = String(firstRow[xField] || yField);
+    }
+
+    // Auto-detect max based on value magnitude
+    const max = value > 100 ? Math.ceil(value * 1.2 / 100) * 100 : 100;
+    const isPercentage = max <= 100;
 
     return {
       series: [{
@@ -513,7 +534,7 @@ export class ChartPreviewComponent implements OnChanges {
         startAngle: 180,
         endAngle: 0,
         min: 0,
-        max: 100,
+        max: max,
         splitNumber: 10,
         radius: '90%',
         center: ['50%', '65%'],
@@ -554,10 +575,10 @@ export class ChartPreviewComponent implements OnChanges {
           fontSize: 32,
           offsetCenter: [0, '-10%'],
           valueAnimation: true,
-          formatter: '{value}%',
+          formatter: isPercentage ? '{value}%' : '{value}',
           color: '#f0f6fc'
         },
-        data: [{ value: 73, name: 'Match Rate' }]
+        data: [{ value, name }]
       }]
     };
   }
@@ -629,16 +650,31 @@ export class ChartPreviewComponent implements OnChanges {
   }
 
   private getRadialBarChartOptions(): EChartsOption {
+    const xField = this.config?.xAxis || 'name';
+    const yField = this.config?.yAxis || 'value';
     const colors = this.getColors();
     const showLabels = this.config?.showLabels === true;
 
+    // Default sample data
+    let categories: string[] = ['Match Rate', 'SLA %', 'Automation'];
+    let values: number[] = [92, 87, 78];
+
+    // Use real data if available
+    if (this.data && this.data.length > 0) {
+      categories = this.data.map(row => String(row[xField] || ''));
+      values = this.data.map(row => Number(row[yField]) || 0);
+    }
+
+    // Calculate max for axis
+    const maxValue = Math.max(...values, 100);
+
     return {
       polar: { radius: ['30%', '80%'] },
-      radiusAxis: { max: 100, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { show: false } },
-      angleAxis: { type: 'category', data: ['Match Rate', 'SLA %', 'Automation'], startAngle: 90, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#8b949e' } },
+      radiusAxis: { max: maxValue, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { show: false } },
+      angleAxis: { type: 'category', data: categories, startAngle: 90, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#8b949e' } },
       series: [{
         type: 'bar',
-        data: [92, 87, 78],
+        data: values,
         coordinateSystem: 'polar',
         roundCap: true,
         label: {
@@ -654,35 +690,91 @@ export class ChartPreviewComponent implements OnChanges {
   }
 
   private getHeatmapChartOptions(): EChartsOption {
+    const xField = this.config?.xAxis || 'x';
+    const yField = this.config?.yAxis || 'y';
+    const groupField = this.config?.groupBy; // Value field
     const colors = this.getColors();
     const showLabels = this.config?.showLabels === true;
-    const hours = ['12a', '2a', '4a', '6a', '8a', '10a', '12p', '2p', '4p', '6p', '8p', '10p'];
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const data: number[][] = [];
+
+    // Default sample data
+    let xCategories = ['12a', '2a', '4a', '6a', '8a', '10a', '12p', '2p', '4p', '6p', '8p', '10p'];
+    let yCategories = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    let heatData: number[][] = [];
     for (let i = 0; i < 7; i++) {
       for (let j = 0; j < 12; j++) {
-        data.push([j, i, Math.round(Math.random() * 10)]);
+        heatData.push([j, i, Math.round(Math.random() * 10)]);
       }
     }
+    let maxValue = 10;
+
+    // Use real data if available
+    if (this.data && this.data.length > 0) {
+      // Get unique x and y values
+      const xSet = new Set<string>();
+      const ySet = new Set<string>();
+      this.data.forEach(row => {
+        xSet.add(String(row[xField] || ''));
+        ySet.add(String(row[yField] || ''));
+      });
+      xCategories = Array.from(xSet);
+      yCategories = Array.from(ySet);
+
+      // Build heatmap data: [xIndex, yIndex, value]
+      const valueField = groupField || 'value';
+      heatData = this.data.map(row => {
+        const xIndex = xCategories.indexOf(String(row[xField] || ''));
+        const yIndex = yCategories.indexOf(String(row[yField] || ''));
+        const value = Number(row[valueField]) || 0;
+        return [xIndex, yIndex, value];
+      }).filter(d => d[0] >= 0 && d[1] >= 0); // Filter out invalid indices
+
+      maxValue = Math.max(...heatData.map(d => d[2]), 1);
+    }
+
     return {
-      xAxis: { type: 'category', data: hours, splitArea: { show: true } },
-      yAxis: { type: 'category', data: days, splitArea: { show: true } },
-      visualMap: { min: 0, max: 10, calculable: true, orient: 'horizontal', left: 'center', bottom: 10, inRange: { color: ['#0d1117', colors[0], colors[1]] } },
-      series: [{ type: 'heatmap', data: data, label: { show: showLabels, color: '#f0f6fc' } }]
+      xAxis: { type: 'category', data: xCategories, splitArea: { show: true }, axisLabel: { color: '#8b949e' } },
+      yAxis: { type: 'category', data: yCategories, splitArea: { show: true }, axisLabel: { color: '#8b949e' } },
+      visualMap: { min: 0, max: maxValue, calculable: true, orient: 'horizontal', left: 'center', bottom: 10, inRange: { color: ['#0d1117', colors[0], colors[1]] }, textStyle: { color: '#8b949e' } },
+      series: [{ type: 'heatmap', data: heatData, label: { show: showLabels, color: '#f0f6fc' } }]
     };
   }
 
   private getScatterChartOptions(): EChartsOption {
+    const xField = this.config?.xAxis || 'x';
+    const yField = this.config?.yAxis || 'y';
     const colors = this.getColors();
     const showLabels = this.config?.showLabels === true;
 
+    // Default sample data
+    let scatterData: number[][] = [[10, 8.04], [8, 6.95], [13, 7.58], [9, 8.81], [11, 8.33], [14, 7.66], [6, 6.13], [4, 3.1], [12, 9.13], [7, 7.26]];
+
+    // Use real data if available
+    if (this.data && this.data.length > 0) {
+      scatterData = this.data.map(row => [
+        Number(row[xField]) || 0,
+        Number(row[yField]) || 0
+      ]);
+    }
+
     return {
-      xAxis: { axisLine: { lineStyle: { color: '#30363d' } }, splitLine: { lineStyle: { color: '#21262d' } } },
-      yAxis: { axisLine: { lineStyle: { color: '#30363d' } }, splitLine: { lineStyle: { color: '#21262d' } } },
+      xAxis: {
+        type: 'value',
+        name: xField,
+        nameTextStyle: { color: '#8b949e' },
+        axisLine: { lineStyle: { color: '#30363d' } },
+        splitLine: { lineStyle: { color: '#21262d' } }
+      },
+      yAxis: {
+        type: 'value',
+        name: yField,
+        nameTextStyle: { color: '#8b949e' },
+        axisLine: { lineStyle: { color: '#30363d' } },
+        splitLine: { lineStyle: { color: '#21262d' } }
+      },
       series: [{
         type: 'scatter',
         symbolSize: 15,
-        data: [[10, 8.04], [8, 6.95], [13, 7.58], [9, 8.81], [11, 8.33], [14, 7.66], [6, 6.13], [4, 3.1], [12, 9.13], [7, 7.26]],
+        data: scatterData,
         label: {
           show: showLabels,
           position: 'top',
@@ -696,18 +788,46 @@ export class ChartPreviewComponent implements OnChanges {
   }
 
   private getRadarChartOptions(): EChartsOption {
+    const xField = this.config?.xAxis || 'name';
+    const yField = this.config?.yAxis || 'value';
     const colors = this.getColors();
     const showLabels = this.config?.showLabels === true;
 
+    // Default indicators and data
+    let indicators: any[] = [
+      { name: 'Match Rate', max: 100 },
+      { name: 'SLA', max: 100 },
+      { name: 'Volume', max: 100 },
+      { name: 'Accuracy', max: 100 },
+      { name: 'Timeliness', max: 100 }
+    ];
+    let radarData: any[] = [{
+      value: [92, 88, 75, 95, 82],
+      name: 'Current'
+    }];
+
+    // Use real data if available
+    if (this.data && this.data.length > 0) {
+      // Use xAxis as category (indicator name), yAxis as value
+      // Each row becomes an indicator point
+      const categories = this.data.map(row => String(row[xField] || ''));
+      const values = this.data.map(row => Number(row[yField]) || 0);
+      const maxValue = Math.max(...values, 100);
+
+      indicators = categories.map(name => ({
+        name,
+        max: Math.ceil(maxValue * 1.1) // 10% headroom
+      }));
+
+      radarData = [{
+        value: values,
+        name: this.config?.title || 'Data'
+      }];
+    }
+
     return {
       radar: {
-        indicator: [
-          { name: 'Match Rate', max: 100 },
-          { name: 'SLA', max: 100 },
-          { name: 'Volume', max: 100 },
-          { name: 'Accuracy', max: 100 },
-          { name: 'Timeliness', max: 100 }
-        ],
+        indicator: indicators,
         axisName: { color: '#8b949e' },
         splitArea: { areaStyle: { color: ['#161b22', '#1a1f26'] } },
         axisLine: { lineStyle: { color: '#30363d' } },
@@ -715,24 +835,50 @@ export class ChartPreviewComponent implements OnChanges {
       },
       series: [{
         type: 'radar',
-        data: [{
-          value: [92, 88, 75, 95, 82],
-          name: 'Current',
-          areaStyle: { color: this.hexToRgba(colors[0], 0.3) },
-          lineStyle: { color: colors[0] },
+        data: radarData.map((item, i) => ({
+          ...item,
+          areaStyle: { color: this.hexToRgba(colors[i % colors.length], 0.3) },
+          lineStyle: { color: colors[i % colors.length] },
           label: {
             show: showLabels,
             color: '#f0f6fc',
             fontSize: 10
           }
-        }]
+        }))
       }]
     };
   }
 
   private getFunnelChartOptions(): EChartsOption {
+    const xField = this.config?.xAxis || 'name';
+    const yField = this.config?.yAxis || 'value';
     const colors = this.getColors();
     const showLabels = this.config?.showLabels !== false; // Show by default for funnel
+
+    // Default sample data
+    let funnelData: any[] = [
+      { value: 100, name: 'Total Transactions' },
+      { value: 80, name: 'Matched' },
+      { value: 60, name: 'Validated' },
+      { value: 40, name: 'Confirmed' },
+      { value: 20, name: 'Settled' }
+    ];
+
+    // Use real data if available
+    if (this.data && this.data.length > 0) {
+      funnelData = this.data.map(row => ({
+        value: Number(row[yField]) || 0,
+        name: String(row[xField] || '')
+      }));
+      // Sort by value descending (largest at top)
+      funnelData.sort((a, b) => b.value - a.value);
+    }
+
+    // Apply colors
+    funnelData = funnelData.map((item, i) => ({
+      ...item,
+      itemStyle: { color: colors[i % colors.length] }
+    }));
 
     return {
       series: [{
@@ -745,34 +891,222 @@ export class ChartPreviewComponent implements OnChanges {
           color: '#f0f6fc'
         },
         itemStyle: { borderWidth: 0 },
-        data: [
-          { value: 100, name: 'Total Transactions', itemStyle: { color: colors[0] } },
-          { value: 80, name: 'Matched', itemStyle: { color: colors[1] } },
-          { value: 60, name: 'Validated', itemStyle: { color: colors[2] } },
-          { value: 40, name: 'Confirmed', itemStyle: { color: colors[3] } },
-          { value: 20, name: 'Settled', itemStyle: { color: colors[4] || colors[0] } }
-        ]
+        data: funnelData
       }]
     };
   }
 
   private getTreemapChartOptions(): EChartsOption {
+    const xField = this.config?.xAxis || 'name';
+    const yField = this.config?.yAxis || 'value';
+    const groupField = this.config?.groupBy;
     const colors = this.getColors();
     const showLabels = this.config?.showLabels !== false; // Show by default for treemap
 
+    // Default sample data
+    let treemapData: any[] = [
+      { name: 'APAC', value: 35, children: [{ name: 'Japan', value: 15 }, { name: 'Singapore', value: 12 }, { name: 'Hong Kong', value: 8 }] },
+      { name: 'EMEA', value: 30, children: [{ name: 'UK', value: 12 }, { name: 'Germany', value: 10 }, { name: 'France', value: 8 }] },
+      { name: 'NAM', value: 25, children: [{ name: 'USA', value: 20 }, { name: 'Canada', value: 5 }] },
+      { name: 'LATAM', value: 10, children: [{ name: 'Brazil', value: 6 }, { name: 'Mexico', value: 4 }] }
+    ];
+
+    // Use real data if available
+    if (this.data && this.data.length > 0) {
+      if (groupField) {
+        // Group data by groupField for hierarchical structure
+        const groups = new Map<string, any[]>();
+        this.data.forEach(row => {
+          const group = String(row[groupField] || 'Other');
+          if (!groups.has(group)) groups.set(group, []);
+          groups.get(group)!.push({
+            name: String(row[xField] || ''),
+            value: Number(row[yField]) || 0
+          });
+        });
+
+        treemapData = Array.from(groups.entries()).map(([groupName, children]) => ({
+          name: groupName,
+          value: children.reduce((sum, c) => sum + c.value, 0),
+          children
+        }));
+      } else {
+        // Flat structure - each row is a block
+        treemapData = this.data.map(row => ({
+          name: String(row[xField] || ''),
+          value: Number(row[yField]) || 0
+        }));
+      }
+    }
+
+    // Apply colors
+    treemapData = treemapData.map((item, i) => ({
+      ...item,
+      itemStyle: { color: colors[i % colors.length] }
+    }));
+
     return {
+      legend: { show: false },
+      grid: { bottom: '3%' },
       series: [{
         type: 'treemap',
-        data: [
-          { name: 'APAC', value: 35, itemStyle: { color: colors[0] }, children: [{ name: 'Japan', value: 15 }, { name: 'Singapore', value: 12 }, { name: 'Hong Kong', value: 8 }] },
-          { name: 'EMEA', value: 30, itemStyle: { color: colors[1] }, children: [{ name: 'UK', value: 12 }, { name: 'Germany', value: 10 }, { name: 'France', value: 8 }] },
-          { name: 'NAM', value: 25, itemStyle: { color: colors[2] }, children: [{ name: 'USA', value: 20 }, { name: 'Canada', value: 5 }] },
-          { name: 'LATAM', value: 10, itemStyle: { color: colors[3] }, children: [{ name: 'Brazil', value: 6 }, { name: 'Mexico', value: 4 }] }
-        ],
+        data: treemapData,
+        top: 10,
+        left: 10,
+        right: 10,
+        bottom: 10,
+        breadcrumb: { show: false },
         label: { show: showLabels, color: '#f0f6fc' },
         levels: [{
           itemStyle: { borderColor: '#161b22', borderWidth: 2, gapWidth: 2 }
         }]
+      }]
+    };
+  }
+
+  private getKPICardOptions(): EChartsOption {
+    const xField = this.config?.xAxis || 'name';
+    const yField = this.config?.yAxis || 'value';
+    const colors = this.getColors();
+    const enableAnimation = this.config?.enableAnimation !== false;
+
+    // Default values
+    let value = 12345;
+    let label = 'Total Value';
+
+    // Use real data if available (first row)
+    if (this.data && this.data.length > 0) {
+      const firstRow = this.data[0];
+      value = Number(firstRow[yField]) || 0;
+      label = String(firstRow[xField] || this.config?.title || yField);
+    }
+
+    // Format large numbers
+    const formatNumber = (n: number): string => {
+      if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+      if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+      return n.toLocaleString();
+    };
+
+    // Use ECharts graphic for KPI display
+    return {
+      graphic: [
+        {
+          type: 'group',
+          left: 'center',
+          top: 'center',
+          children: [
+            {
+              type: 'text',
+              style: {
+                text: formatNumber(value),
+                fontSize: 72,
+                fontWeight: 'bold' as const,
+                fill: colors[0]
+              },
+              z: 100
+            },
+            {
+              type: 'text',
+              style: {
+                text: label,
+                fontSize: 18,
+                fill: '#8b949e'
+              },
+              top: 50,
+              z: 100
+            }
+          ]
+        }
+      ],
+      animation: enableAnimation
+    };
+  }
+
+  private getWorldMapChartOptions(): EChartsOption {
+    const xField = this.config?.xAxis || 'country';
+    const yField = this.config?.yAxis || 'value';
+    const colors = this.getColors();
+    const showLabels = this.config?.showLabels === true;
+    const enableAnimation = this.config?.enableAnimation !== false;
+
+    // Default sample data (country codes to values)
+    let mapData: any[] = [
+      { name: 'United States', value: 1000 },
+      { name: 'China', value: 800 },
+      { name: 'Japan', value: 600 },
+      { name: 'Germany', value: 400 },
+      { name: 'United Kingdom', value: 350 },
+      { name: 'France', value: 300 },
+      { name: 'India', value: 250 },
+      { name: 'Brazil', value: 200 },
+      { name: 'Canada', value: 180 },
+      { name: 'Australia', value: 150 }
+    ];
+
+    // Use real data if available
+    if (this.data && this.data.length > 0) {
+      mapData = this.data.map(row => ({
+        name: String(row[xField] || ''),
+        value: Number(row[yField]) || 0
+      }));
+    }
+
+    const maxValue = Math.max(...mapData.map(d => d.value), 1);
+
+    // Note: For world map to work, you need to register the map
+    // This creates a simplified scatter-geo visualization
+    return {
+      tooltip: {
+        trigger: 'item',
+        backgroundColor: '#21262d',
+        borderColor: '#30363d',
+        textStyle: { color: '#f0f6fc' },
+        formatter: (params: any) => {
+          return `${params.name}: ${params.value?.toLocaleString() || 0}`;
+        }
+      },
+      visualMap: {
+        min: 0,
+        max: maxValue,
+        calculable: true,
+        orient: 'horizontal',
+        left: 'center',
+        bottom: 20,
+        inRange: {
+          color: ['#0d1117', colors[0], colors[1]]
+        },
+        textStyle: { color: '#8b949e' }
+      },
+      geo: {
+        map: 'world',
+        roam: true,
+        zoom: 1.2,
+        label: {
+          show: showLabels,
+          color: '#f0f6fc',
+          fontSize: 10
+        },
+        itemStyle: {
+          areaColor: '#161b22',
+          borderColor: '#30363d'
+        },
+        emphasis: {
+          itemStyle: {
+            areaColor: colors[0]
+          },
+          label: {
+            show: true,
+            color: '#f0f6fc'
+          }
+        }
+      },
+      series: [{
+        type: 'map',
+        map: 'world',
+        geoIndex: 0,
+        data: mapData,
+        animation: enableAnimation
       }]
     };
   }
