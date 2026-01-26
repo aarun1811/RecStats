@@ -333,7 +333,7 @@ SAMPLE_QUERIES = [
         "id": "query-exec-daily-trend",
         "name": "Daily Transaction Trend",
         "description": "Daily transaction volumes for the last 30 days",
-        "sql_text": "SELECT date, total_transactions as value FROM daily_metrics ORDER BY date DESC LIMIT 30",
+        "sql_text": "SELECT date as category, total_transactions as value FROM daily_metrics ORDER BY date ASC LIMIT 30",
     },
     {
         "id": "query-exec-region-volume",
@@ -345,7 +345,7 @@ SAMPLE_QUERIES = [
         "id": "query-exec-status-pie",
         "name": "Status Distribution",
         "description": "Transaction count by status",
-        "sql_text": "SELECT status as name, COUNT(*) as value FROM transactions GROUP BY status ORDER BY value DESC",
+        "sql_text": "SELECT status as category, COUNT(*) as value FROM transactions GROUP BY status ORDER BY value DESC",
     },
     # Breaks Analysis queries
     {
@@ -358,7 +358,7 @@ SAMPLE_QUERIES = [
         "id": "query-breaks-by-category",
         "name": "Breaks by Category",
         "description": "Break count by severity category",
-        "sql_text": "SELECT category as name, COUNT(*) as value FROM breaks GROUP BY category ORDER BY CASE category WHEN 'Critical' THEN 1 WHEN 'High' THEN 2 WHEN 'Medium' THEN 3 ELSE 4 END",
+        "sql_text": "SELECT category, COUNT(*) as value FROM breaks GROUP BY category ORDER BY CASE category WHEN 'Critical' THEN 1 WHEN 'High' THEN 2 WHEN 'Medium' THEN 3 ELSE 4 END",
     },
     {
         "id": "query-breaks-by-lob",
@@ -414,12 +414,6 @@ SAMPLE_QUERIES = [
         "description": "Count of EMEA transactions",
         "sql_text": "SELECT COUNT(*) as value FROM transactions WHERE region = 'EMEA'",
     },
-    {
-        "id": "query-geo-world-map",
-        "name": "Transactions by Country (Map)",
-        "description": "Transaction count by country for world map",
-        "sql_text": "SELECT CASE country WHEN 'UK' THEN 'United Kingdom' WHEN 'USA' THEN 'United States' ELSE country END as country, COUNT(*) as value FROM transactions GROUP BY country ORDER BY value DESC",
-    },
     # Recon Status queries
     {
         "id": "query-recon-by-system",
@@ -451,140 +445,358 @@ SAMPLE_QUERIES = [
             SUM(total_transactions) as value
         FROM daily_metrics
         GROUP BY 1
-        ORDER BY 1 DESC
+        ORDER BY 1 ASC
         LIMIT 12""",
     },
     {
         "id": "query-trend-match-rate",
         "name": "Daily Match Rate Trend",
         "description": "Match rate over the last 30 days",
-        "sql_text": "SELECT date as category, match_rate as value FROM daily_metrics ORDER BY date DESC LIMIT 30",
+        "sql_text": "SELECT date as category, match_rate as value FROM daily_metrics ORDER BY date ASC LIMIT 30",
     },
     {
         "id": "query-trend-breaks",
         "name": "Daily Breaks Trend",
         "description": "Daily break count over the last 30 days",
-        "sql_text": "SELECT date as category, breaks as value FROM daily_metrics ORDER BY date DESC LIMIT 30",
+        "sql_text": "SELECT date as category, breaks as value FROM daily_metrics ORDER BY date ASC LIMIT 30",
+    },
+    # Area chart query - Match vs Unmatched over time
+    {
+        "id": "query-area-matched-unmatched",
+        "name": "Matched vs Unmatched Trend",
+        "description": "Daily matched and unmatched transactions",
+        "sql_text": "SELECT date as category, matched as value FROM daily_metrics ORDER BY date ASC LIMIT 30",
+    },
+    # Scatter chart query - Amount vs Age correlation
+    {
+        "id": "query-scatter-amount-age",
+        "name": "Break Amount vs Age",
+        "description": "Scatter plot of break amounts vs age in days",
+        "sql_text": "SELECT age_days as x, amount as y FROM breaks LIMIT 500",
+    },
+    # Radar chart query - Performance by region
+    {
+        "id": "query-radar-region-metrics",
+        "name": "Regional Performance Metrics",
+        "description": "Multi-dimensional metrics by region",
+        "sql_text": """SELECT
+            region as category,
+            COUNT(*) as volume,
+            ROUND(100.0 * SUM(CASE WHEN status = 'matched' THEN 1 ELSE 0 END) / COUNT(*), 1) as match_rate,
+            ROUND(AVG(amount), 0) as avg_amount
+        FROM transactions GROUP BY region""",
+    },
+    # Funnel chart query - Transaction processing stages
+    {
+        "id": "query-funnel-processing",
+        "name": "Transaction Processing Funnel",
+        "description": "Transaction flow through processing stages",
+        "sql_text": """SELECT 'Total Received' as category, COUNT(*) as value FROM transactions
+        UNION ALL
+        SELECT 'Validated' as category, CAST(COUNT(*) * 0.95 AS INTEGER) as value FROM transactions
+        UNION ALL
+        SELECT 'Matched' as category, COUNT(*) as value FROM transactions WHERE status = 'matched'
+        UNION ALL
+        SELECT 'Settled' as category, CAST(COUNT(*) * 0.80 AS INTEGER) as value FROM transactions WHERE status = 'matched'
+        ORDER BY value DESC""",
+    },
+    # Treemap query - Hierarchy by region and LOB
+    {
+        "id": "query-treemap-region-lob",
+        "name": "Volume by Region and LOB",
+        "description": "Hierarchical breakdown by region",
+        "sql_text": "SELECT region as category, COUNT(*) as value FROM transactions GROUP BY region ORDER BY value DESC",
+    },
+    # Radial bar query - LOB match rates
+    {
+        "id": "query-radialbar-lob-match",
+        "name": "LOB Match Rates",
+        "description": "Match rate percentage by line of business",
+        "sql_text": """SELECT lob as category,
+            ROUND(100.0 * SUM(CASE WHEN status = 'matched' THEN 1 ELSE 0 END) / COUNT(*), 1) as value
+        FROM transactions GROUP BY lob ORDER BY value DESC""",
+    },
+    # Currency distribution
+    {
+        "id": "query-currency-dist",
+        "name": "Volume by Currency",
+        "description": "Transaction count by currency",
+        "sql_text": "SELECT currency as category, COUNT(*) as value FROM transactions GROUP BY currency ORDER BY value DESC LIMIT 7",
+    },
+    # Top counterparties
+    {
+        "id": "query-top-counterparties",
+        "name": "Top Counterparties",
+        "description": "Top 10 counterparties by volume",
+        "sql_text": "SELECT counterparty as category, COUNT(*) as value FROM transactions GROUP BY counterparty ORDER BY value DESC LIMIT 10",
+    },
+    # Breaks by assignee
+    {
+        "id": "query-breaks-by-assignee",
+        "name": "Breaks by Assignee",
+        "description": "Break count by assigned person",
+        "sql_text": "SELECT assigned_to as category, COUNT(*) as value FROM breaks GROUP BY assigned_to ORDER BY value DESC",
+    },
+    # Daily volume and break rate correlation
+    {
+        "id": "query-volume-breakrate",
+        "name": "Volume vs Break Rate",
+        "description": "Daily volume and corresponding break count",
+        "sql_text": "SELECT total_transactions as x, breaks as y FROM daily_metrics ORDER BY date DESC LIMIT 30",
     },
 ]
 
 SAMPLE_CHARTS = [
-    # Executive Overview charts
+    # ==================== LINE CHARTS ====================
     {
         "id": "chart-exec-daily-trend",
         "name": "Daily Transaction Trend",
+        "description": "30-day transaction volume trend",
         "query_id": "query-exec-daily-trend",
         "chart_type": "line",
-        "config": {"categoryField": "date", "valueField": "value"},
+        "config": {"xAxis": "category", "yAxis": "value", "colorScheme": "citi", "showLabels": False},
     },
-    {
-        "id": "chart-exec-region-bar",
-        "name": "Volume by Region",
-        "query_id": "query-exec-region-volume",
-        "chart_type": "bar",
-        "config": {"categoryField": "category", "valueField": "value"},
-    },
-    {
-        "id": "chart-exec-status-donut",
-        "name": "Status Distribution",
-        "query_id": "query-exec-status-pie",
-        "chart_type": "donut",
-        "config": {"nameField": "name", "valueField": "value"},
-    },
-    {
-        "id": "chart-exec-match-gauge",
-        "name": "Match Rate Gauge",
-        "query_id": "query-exec-match-rate",
-        "chart_type": "gauge",
-        "config": {"valueField": "value"},
-    },
-    # Breaks Analysis charts
-    {
-        "id": "chart-breaks-by-reason",
-        "name": "Breaks by Reason",
-        "query_id": "query-breaks-by-reason",
-        "chart_type": "bar",
-        "config": {"categoryField": "category", "valueField": "value"},
-    },
-    {
-        "id": "chart-breaks-by-category",
-        "name": "Breaks by Category",
-        "query_id": "query-breaks-by-category",
-        "chart_type": "donut",
-        "config": {"nameField": "name", "valueField": "value"},
-    },
-    {
-        "id": "chart-breaks-by-lob",
-        "name": "Breaks by LOB",
-        "query_id": "query-breaks-by-lob",
-        "chart_type": "bar",
-        "config": {"categoryField": "category", "valueField": "value"},
-    },
-    {
-        "id": "chart-breaks-aging",
-        "name": "Break Aging Analysis",
-        "query_id": "query-breaks-aging",
-        "chart_type": "bar",
-        "config": {"categoryField": "category", "valueField": "value"},
-    },
-    # Geographic charts
-    {
-        "id": "chart-geo-region",
-        "name": "Transactions by Region",
-        "query_id": "query-geo-region-bar",
-        "chart_type": "bar",
-        "config": {"categoryField": "category", "valueField": "value"},
-    },
-    {
-        "id": "chart-geo-country-top",
-        "name": "Top 10 Countries",
-        "query_id": "query-geo-country-top",
-        "chart_type": "bar",
-        "config": {"categoryField": "category", "valueField": "value"},
-    },
-    {
-        "id": "chart-geo-world-map",
-        "name": "Global Transaction Map",
-        "query_id": "query-geo-world-map",
-        "chart_type": "map",
-        "config": {"nameField": "country", "valueField": "value"},
-    },
-    # Recon Status charts
-    {
-        "id": "chart-recon-by-system",
-        "name": "Volume by Source System",
-        "query_id": "query-recon-by-system",
-        "chart_type": "bar",
-        "config": {"categoryField": "category", "valueField": "value"},
-    },
-    {
-        "id": "chart-recon-match-rate",
-        "name": "Match Rate by System",
-        "query_id": "query-recon-match-by-system",
-        "chart_type": "bar",
-        "config": {"categoryField": "category", "valueField": "value"},
-    },
-    # Trend Analytics charts
     {
         "id": "chart-trend-weekly",
         "name": "Weekly Transaction Volume",
+        "description": "Weekly aggregated volumes",
         "query_id": "query-trend-weekly",
         "chart_type": "line",
-        "config": {"categoryField": "category", "valueField": "value"},
+        "config": {"xAxis": "category", "yAxis": "value", "colorScheme": "ocean", "showLabels": False},
     },
     {
         "id": "chart-trend-match-rate",
         "name": "Daily Match Rate",
+        "description": "Match rate trend over 30 days",
         "query_id": "query-trend-match-rate",
         "chart_type": "line",
-        "config": {"categoryField": "category", "valueField": "value"},
+        "config": {"xAxis": "category", "yAxis": "value", "colorScheme": "emerald", "showLabels": False},
     },
     {
         "id": "chart-trend-breaks",
-        "name": "Daily Breaks Count",
+        "name": "Daily Breaks Trend",
+        "description": "Break count over time",
         "query_id": "query-trend-breaks",
         "chart_type": "line",
-        "config": {"categoryField": "category", "valueField": "value"},
+        "config": {"xAxis": "category", "yAxis": "value", "colorScheme": "sunset", "showLabels": False},
+    },
+    # ==================== AREA CHARTS ====================
+    {
+        "id": "chart-area-matched",
+        "name": "Matched Transactions Trend",
+        "description": "Daily matched transaction volume as area chart",
+        "query_id": "query-area-matched-unmatched",
+        "chart_type": "area",
+        "config": {"xAxis": "category", "yAxis": "value", "colorScheme": "emerald", "showLabels": False},
+    },
+    # ==================== BAR CHARTS ====================
+    {
+        "id": "chart-exec-region-bar",
+        "name": "Volume by Region",
+        "description": "Transaction distribution across regions",
+        "query_id": "query-exec-region-volume",
+        "chart_type": "bar",
+        "config": {"xAxis": "category", "yAxis": "value", "colorScheme": "citi", "showLabels": True},
+    },
+    {
+        "id": "chart-breaks-by-reason",
+        "name": "Breaks by Reason",
+        "description": "Top 10 break reasons",
+        "query_id": "query-breaks-by-reason",
+        "chart_type": "bar",
+        "config": {"xAxis": "category", "yAxis": "value", "colorScheme": "sunset", "showLabels": True},
+    },
+    {
+        "id": "chart-breaks-by-lob",
+        "name": "Breaks by LOB",
+        "description": "Break distribution by line of business",
+        "query_id": "query-breaks-by-lob",
+        "chart_type": "bar",
+        "config": {"xAxis": "category", "yAxis": "value", "colorScheme": "lavender", "showLabels": True},
+    },
+    {
+        "id": "chart-breaks-aging",
+        "name": "Break Aging Analysis",
+        "description": "Breaks grouped by age buckets",
+        "query_id": "query-breaks-aging",
+        "chart_type": "bar",
+        "config": {"xAxis": "category", "yAxis": "value", "colorScheme": "sunset", "showLabels": True},
+    },
+    {
+        "id": "chart-geo-region",
+        "name": "Transactions by Region",
+        "description": "Regional transaction volumes",
+        "query_id": "query-geo-region-bar",
+        "chart_type": "bar",
+        "config": {"xAxis": "category", "yAxis": "value", "colorScheme": "ocean", "showLabels": True},
+    },
+    {
+        "id": "chart-geo-country-top",
+        "name": "Top 10 Countries",
+        "description": "Countries with highest transaction volumes",
+        "query_id": "query-geo-country-top",
+        "chart_type": "bar",
+        "config": {"xAxis": "category", "yAxis": "value", "colorScheme": "citi", "showLabels": True},
+    },
+    {
+        "id": "chart-recon-by-system",
+        "name": "Volume by Source System",
+        "description": "Transaction distribution by source system",
+        "query_id": "query-recon-by-system",
+        "chart_type": "bar",
+        "config": {"xAxis": "category", "yAxis": "value", "colorScheme": "lavender", "showLabels": True},
+    },
+    {
+        "id": "chart-recon-match-rate",
+        "name": "Match Rate by System",
+        "description": "Match rate comparison across systems",
+        "query_id": "query-recon-match-by-system",
+        "chart_type": "bar",
+        "config": {"xAxis": "category", "yAxis": "value", "colorScheme": "emerald", "showLabels": True},
+    },
+    {
+        "id": "chart-currency-dist",
+        "name": "Volume by Currency",
+        "description": "Transaction distribution by currency",
+        "query_id": "query-currency-dist",
+        "chart_type": "bar",
+        "config": {"xAxis": "category", "yAxis": "value", "colorScheme": "ocean", "showLabels": True},
+    },
+    {
+        "id": "chart-top-counterparties",
+        "name": "Top Counterparties",
+        "description": "Most active counterparties",
+        "query_id": "query-top-counterparties",
+        "chart_type": "bar",
+        "config": {"xAxis": "category", "yAxis": "value", "colorScheme": "citi", "showLabels": True},
+    },
+    {
+        "id": "chart-breaks-by-assignee",
+        "name": "Breaks by Assignee",
+        "description": "Break workload distribution",
+        "query_id": "query-breaks-by-assignee",
+        "chart_type": "bar",
+        "config": {"xAxis": "category", "yAxis": "value", "colorScheme": "lavender", "showLabels": True},
+    },
+    # ==================== PIE CHARTS ====================
+    {
+        "id": "chart-status-pie",
+        "name": "Status Distribution (Pie)",
+        "description": "Transaction status breakdown as pie chart",
+        "query_id": "query-exec-status-pie",
+        "chart_type": "pie",
+        "config": {"xAxis": "category", "yAxis": "value", "colorScheme": "citi", "showLabels": True},
+    },
+    {
+        "id": "chart-region-pie",
+        "name": "Regional Distribution (Pie)",
+        "description": "Transaction share by region",
+        "query_id": "query-geo-region-bar",
+        "chart_type": "pie",
+        "config": {"xAxis": "category", "yAxis": "value", "colorScheme": "ocean", "showLabels": True},
+    },
+    # ==================== DONUT CHARTS ====================
+    {
+        "id": "chart-exec-status-donut",
+        "name": "Status Distribution",
+        "description": "Transaction status as donut chart",
+        "query_id": "query-exec-status-pie",
+        "chart_type": "donut",
+        "config": {"xAxis": "category", "yAxis": "value", "colorScheme": "citi", "showLabels": True},
+    },
+    {
+        "id": "chart-breaks-by-category",
+        "name": "Breaks by Category",
+        "description": "Severity distribution of breaks",
+        "query_id": "query-breaks-by-category",
+        "chart_type": "donut",
+        "config": {"xAxis": "category", "yAxis": "value", "colorScheme": "sunset", "showLabels": True},
+    },
+    {
+        "id": "chart-lob-donut",
+        "name": "LOB Distribution",
+        "description": "Transaction share by line of business",
+        "query_id": "query-breaks-by-lob",
+        "chart_type": "donut",
+        "config": {"xAxis": "category", "yAxis": "value", "colorScheme": "lavender", "showLabels": True},
+    },
+    # ==================== GAUGE CHARTS ====================
+    {
+        "id": "chart-exec-match-gauge",
+        "name": "Match Rate Gauge",
+        "description": "Overall match rate as gauge",
+        "query_id": "query-exec-match-rate",
+        "chart_type": "gauge",
+        "config": {"yAxis": "value", "colorScheme": "emerald", "title": "Match Rate"},
+    },
+    # ==================== SCATTER CHARTS ====================
+    {
+        "id": "chart-scatter-amount-age",
+        "name": "Amount vs Age Scatter",
+        "description": "Correlation between break amount and age",
+        "query_id": "query-scatter-amount-age",
+        "chart_type": "scatter",
+        "config": {"xAxis": "x", "yAxis": "y", "colorScheme": "sunset", "showLabels": False},
+    },
+    {
+        "id": "chart-scatter-volume-breaks",
+        "name": "Volume vs Breaks",
+        "description": "Correlation between daily volume and breaks",
+        "query_id": "query-volume-breakrate",
+        "chart_type": "scatter",
+        "config": {"xAxis": "x", "yAxis": "y", "colorScheme": "citi", "showLabels": False},
+    },
+    # ==================== FUNNEL CHARTS ====================
+    {
+        "id": "chart-funnel-processing",
+        "name": "Processing Funnel",
+        "description": "Transaction processing stages",
+        "query_id": "query-funnel-processing",
+        "chart_type": "funnel",
+        "config": {"xAxis": "category", "yAxis": "value", "colorScheme": "ocean", "showLabels": True},
+    },
+    # ==================== TREEMAP CHARTS ====================
+    {
+        "id": "chart-treemap-region",
+        "name": "Regional Treemap",
+        "description": "Volume distribution as treemap",
+        "query_id": "query-treemap-region-lob",
+        "chart_type": "treemap",
+        "config": {"xAxis": "category", "yAxis": "value", "colorScheme": "citi", "showLabels": True},
+    },
+    {
+        "id": "chart-treemap-country",
+        "name": "Country Treemap",
+        "description": "Top countries as treemap",
+        "query_id": "query-geo-country-top",
+        "chart_type": "treemap",
+        "config": {"xAxis": "category", "yAxis": "value", "colorScheme": "ocean", "showLabels": True},
+    },
+    # ==================== RADIAL BAR CHARTS ====================
+    {
+        "id": "chart-radialbar-lob",
+        "name": "LOB Match Rates",
+        "description": "Match rate by LOB as radial bar",
+        "query_id": "query-radialbar-lob-match",
+        "chart_type": "radialBar",
+        "config": {"xAxis": "category", "yAxis": "value", "colorScheme": "emerald", "showLabels": True},
+    },
+    {
+        "id": "chart-radialbar-system",
+        "name": "System Match Rates",
+        "description": "Match rate by system as radial bar",
+        "query_id": "query-recon-match-by-system",
+        "chart_type": "radialBar",
+        "config": {"xAxis": "category", "yAxis": "value", "colorScheme": "citi", "showLabels": True},
+    },
+    # ==================== RADAR CHARTS ====================
+    {
+        "id": "chart-radar-region",
+        "name": "Regional Performance Radar",
+        "description": "Multi-dimensional regional comparison",
+        "query_id": "query-radar-region-metrics",
+        "chart_type": "radar",
+        "config": {"xAxis": "category", "yAxis": "volume", "colorScheme": "lavender", "showLabels": True},
     },
 ]
 

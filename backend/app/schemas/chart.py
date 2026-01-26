@@ -10,23 +10,23 @@ from pydantic import BaseModel, Field
 class ChartType(str, Enum):
     """Supported chart types."""
 
+    # Basic
     BAR = "bar"
-    BAR_HORIZONTAL = "bar_horizontal"
+    COLUMN = "column"
     LINE = "line"
     AREA = "area"
+    SCATTER = "scatter"
     PIE = "pie"
     DONUT = "donut"
-    SCATTER = "scatter"
-    BUBBLE = "bubble"
-    GAUGE = "gauge"
+    # Advanced
     HEATMAP = "heatmap"
     TREEMAP = "treemap"
     FUNNEL = "funnel"
     RADAR = "radar"
-    MAP = "map"
-    SANKEY = "sankey"
-    KPI = "kpi"
-    TABLE = "table"
+    # KPI
+    GAUGE = "gauge"
+    RADIAL_BAR = "radialBar"
+    KPI_CARD = "kpiCard"
 
 
 class AxisConfig(BaseModel):
