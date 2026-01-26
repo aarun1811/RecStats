@@ -204,21 +204,21 @@ type Step = 'data' | 'chart' | 'configure';
                 <h4>Data Mapping</h4>
                 <div class="form-field">
                   <label>X-Axis / Category</label>
-                  <select [(ngModel)]="chartConfig.xAxis">
+                  <select [ngModel]="chartConfig().xAxis" (ngModelChange)="updateConfig('xAxis', $event)">
                     <option value="">Select field</option>
                     <option *ngFor="let col of columns()" [value]="col.name">{{ col.name }}</option>
                   </select>
                 </div>
                 <div class="form-field">
                   <label>Y-Axis / Value</label>
-                  <select [(ngModel)]="chartConfig.yAxis">
+                  <select [ngModel]="chartConfig().yAxis" (ngModelChange)="updateConfig('yAxis', $event)">
                     <option value="">Select field</option>
                     <option *ngFor="let col of columns()" [value]="col.name">{{ col.name }}</option>
                   </select>
                 </div>
                 <div class="form-field" *ngIf="showGroupBy()">
                   <label>Group By (Series)</label>
-                  <select [(ngModel)]="chartConfig.groupBy">
+                  <select [ngModel]="chartConfig().groupBy" (ngModelChange)="updateConfig('groupBy', $event)">
                     <option value="">None</option>
                     <option *ngFor="let col of columns()" [value]="col.name">{{ col.name }}</option>
                   </select>
@@ -229,12 +229,12 @@ type Step = 'data' | 'chart' | 'configure';
                 <h4>Chart Info</h4>
                 <div class="form-field">
                   <label>Chart Title</label>
-                  <input type="text" [(ngModel)]="chartConfig.title" placeholder="Enter title">
+                  <input type="text" [ngModel]="chartConfig().title" (ngModelChange)="updateConfig('title', $event)" placeholder="Enter title">
                 </div>
 
                 <div class="form-field">
                   <label>Subtitle</label>
-                  <input type="text" [(ngModel)]="chartConfig.subtitle" placeholder="Optional subtitle">
+                  <input type="text" [ngModel]="chartConfig().subtitle" (ngModelChange)="updateConfig('subtitle', $event)" placeholder="Optional subtitle">
                 </div>
               </div>
 
@@ -250,8 +250,8 @@ type Step = 'data' | 'chart' | 'configure';
                       <button
                         *ngFor="let scheme of colorSchemes"
                         class="color-scheme-btn"
-                        [class.active]="chartConfig.colorScheme === scheme.id"
-                        (click)="chartConfig.colorScheme = scheme.id">
+                        [class.active]="chartConfig().colorScheme === scheme.id"
+                        (click)="updateConfig('colorScheme', scheme.id)">
                         <div class="scheme-preview">
                           <span *ngFor="let color of scheme.colors.slice(0, 4)" [style.background]="color"></span>
                         </div>
@@ -260,12 +260,12 @@ type Step = 'data' | 'chart' | 'configure';
                     </div>
                   </div>
                   <div class="checkbox-row">
-                    <label><input type="checkbox" [(ngModel)]="chartConfig.showLegend"> Show Legend</label>
-                    <label><input type="checkbox" [(ngModel)]="chartConfig.showLabels"> Show Labels</label>
+                    <label><input type="checkbox" [ngModel]="chartConfig().showLegend" (ngModelChange)="updateConfig('showLegend', $event)"> Show Legend</label>
+                    <label><input type="checkbox" [ngModel]="chartConfig().showLabels" (ngModelChange)="updateConfig('showLabels', $event)"> Show Labels</label>
                   </div>
                   <div class="checkbox-row">
-                    <label><input type="checkbox" [(ngModel)]="chartConfig.enableAnimation"> Animation</label>
-                    <label><input type="checkbox" [(ngModel)]="chartConfig.enableTooltip"> Tooltips</label>
+                    <label><input type="checkbox" [ngModel]="chartConfig().enableAnimation" (ngModelChange)="updateConfig('enableAnimation', $event)"> Animation</label>
+                    <label><input type="checkbox" [ngModel]="chartConfig().enableTooltip" (ngModelChange)="updateConfig('enableTooltip', $event)"> Tooltips</label>
                   </div>
                 </div>
               </div>
@@ -332,9 +332,9 @@ type Step = 'data' | 'chart' | 'configure';
           <div class="chart-area">
             <app-chart-preview
               [chartType]="selectedChartType()"
-              [config]="chartConfig"
+              [config]="chartConfig()"
               [data]="previewData()"
-              [title]="chartConfig.title">
+              [title]="chartConfig().title">
             </app-chart-preview>
           </div>
           <div class="data-area" [class.collapsed]="dataTableCollapsed">
@@ -955,8 +955,8 @@ export class ChartBuilderComponent implements OnInit {
   // Chart state
   selectedChartType = signal<string>('');
 
-  // Config state
-  chartConfig: any = {
+  // Config state - use signal for reactivity
+  chartConfig = signal<any>({
     title: '',
     subtitle: '',
     xAxis: '',
@@ -967,7 +967,12 @@ export class ChartBuilderComponent implements OnInit {
     showLabels: false,
     enableAnimation: true,
     enableTooltip: true
-  };
+  });
+
+  // Helper to update config and trigger change detection
+  updateConfig(key: string, value: any) {
+    this.chartConfig.update(config => ({ ...config, [key]: value }));
+  }
 
   // UI state
   showAppearance = false;
@@ -1196,15 +1201,13 @@ export class ChartBuilderComponent implements OnInit {
       );
 
       if (categoryCol && valueCol) {
-        this.chartConfig.xAxis = categoryCol.name;
-        this.chartConfig.yAxis = valueCol.name;
+        this.chartConfig.update(c => ({ ...c, xAxis: categoryCol.name, yAxis: valueCol.name }));
       } else {
         // Fallback: first column = X, second column = Y
-        this.chartConfig.xAxis = cols[0].name;
-        this.chartConfig.yAxis = cols[1].name;
+        this.chartConfig.update(c => ({ ...c, xAxis: cols[0].name, yAxis: cols[1].name }));
       }
     } else if (cols.length === 1) {
-      this.chartConfig.xAxis = cols[0].name;
+      this.chartConfig.update(c => ({ ...c, xAxis: cols[0].name }));
     }
 
     // Mark step complete and move to configure
@@ -1221,28 +1224,30 @@ export class ChartBuilderComponent implements OnInit {
   }
 
   canSave(): boolean {
-    return this.isStepCompleted('chart') && !!this.chartConfig.xAxis && !!this.chartConfig.yAxis;
+    const config = this.chartConfig();
+    return this.isStepCompleted('chart') && !!config.xAxis && !!config.yAxis;
   }
 
   saveChart() {
     if (!this.canSave()) return;
 
     this.savingChart.set(true);
+    const config = this.chartConfig();
 
     const chartPayload = {
-      name: this.chartConfig.title || 'Untitled Chart',
-      description: this.chartConfig.subtitle || '',
+      name: config.title || 'Untitled Chart',
+      description: config.subtitle || '',
       query_id: this.selectedQueryId,
       chart_type: this.selectedChartType(),
       config: {
-        x_axis: this.chartConfig.xAxis,
-        y_axis: this.chartConfig.yAxis,
-        group_by: this.chartConfig.groupBy || null,
-        color_scheme: this.chartConfig.colorScheme,
-        show_legend: this.chartConfig.showLegend,
-        show_labels: this.chartConfig.showLabels,
-        enable_animation: this.chartConfig.enableAnimation,
-        enable_tooltip: this.chartConfig.enableTooltip
+        x_axis: config.xAxis,
+        y_axis: config.yAxis,
+        group_by: config.groupBy || null,
+        color_scheme: config.colorScheme,
+        show_legend: config.showLegend,
+        show_labels: config.showLabels,
+        enable_animation: config.enableAnimation,
+        enable_tooltip: config.enableTooltip
       }
     };
 

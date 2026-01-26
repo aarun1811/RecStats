@@ -1,5 +1,6 @@
 import { Component, Input, OnChanges, SimpleChanges } from '@angular/core';
 import { EChartsOption } from 'echarts';
+import { getColorScheme, ChartConfig } from './chart-config';
 
 @Component({
   selector: 'app-chart-preview',
@@ -84,12 +85,17 @@ import { EChartsOption } from 'echarts';
 export class ChartPreviewComponent implements OnChanges {
   @Input() chartType: string = '';
   @Input() data: any[] = [];
-  @Input() config: any = {};
+  @Input() config: ChartConfig = {};
   @Input() title: string = '';
 
   chartOptions: EChartsOption = {};
   updateOptions: EChartsOption = {};
   private chartInstance: any;
+
+  /** Get colors from current color scheme */
+  private getColors(): string[] {
+    return getColorScheme(this.config?.colorScheme || 'citi');
+  }
 
   // Sample data for preview
   private sampleData = {
@@ -129,26 +135,34 @@ export class ChartPreviewComponent implements OnChanges {
   }
 
   private getBaseOptions(): EChartsOption {
+    const showTooltip = this.config?.enableTooltip !== false;
+    const showLegend = this.config?.showLegend !== false;
+    const enableAnimation = this.config?.enableAnimation !== false;
+
     return {
       backgroundColor: 'transparent',
+      animation: enableAnimation,
+      animationDuration: enableAnimation ? 1000 : 0,
+      animationEasing: 'cubicOut',
       textStyle: {
         fontFamily: 'Inter, sans-serif',
         color: '#8b949e'
       },
-      tooltip: {
+      tooltip: showTooltip ? {
         trigger: 'item',
         backgroundColor: '#21262d',
         borderColor: '#30363d',
         textStyle: { color: '#f0f6fc' }
-      },
-      legend: {
+      } : { show: false },
+      legend: showLegend ? {
         textStyle: { color: '#8b949e' },
         bottom: 10
-      },
+      } : { show: false },
+      color: this.getColors(),
       grid: {
         left: '3%',
         right: '4%',
-        bottom: '15%',
+        bottom: showLegend ? '15%' : '10%',
         top: '10%',
         containLabel: true
       }
@@ -191,9 +205,10 @@ export class ChartPreviewComponent implements OnChanges {
   }
 
   private getBarChartOptions(): EChartsOption {
-    // Use actual data if available, otherwise use sample
     const xField = this.config?.xAxis || 'category';
     const yField = this.config?.yAxis || 'value';
+    const colors = this.getColors();
+    const showLabels = this.config?.showLabels === true;
 
     let categories: string[] = this.sampleData.categories;
     let values: number[] = this.sampleData.values;
@@ -217,13 +232,19 @@ export class ChartPreviewComponent implements OnChanges {
       series: [{
         type: 'bar',
         data: values,
+        label: {
+          show: showLabels,
+          position: 'right',
+          color: '#f0f6fc',
+          fontSize: 11
+        },
         itemStyle: {
           color: {
             type: 'linear',
             x: 0, y: 0, x2: 1, y2: 0,
             colorStops: [
-              { offset: 0, color: '#0066b2' },
-              { offset: 1, color: '#3399cc' }
+              { offset: 0, color: colors[0] },
+              { offset: 1, color: colors[1] }
             ]
           },
           borderRadius: [0, 4, 4, 0]
@@ -235,6 +256,8 @@ export class ChartPreviewComponent implements OnChanges {
   private getColumnChartOptions(): EChartsOption {
     const xField = this.config?.xAxis || 'category';
     const yField = this.config?.yAxis || 'value';
+    const colors = this.getColors();
+    const showLabels = this.config?.showLabels === true;
 
     let categories: string[] = this.sampleData.categories;
     let values: number[] = this.sampleData.values;
@@ -259,13 +282,19 @@ export class ChartPreviewComponent implements OnChanges {
       series: [{
         type: 'bar',
         data: values,
+        label: {
+          show: showLabels,
+          position: 'top',
+          color: '#f0f6fc',
+          fontSize: 11
+        },
         itemStyle: {
           color: {
             type: 'linear',
             x: 0, y: 0, x2: 0, y2: 1,
             colorStops: [
-              { offset: 0, color: '#3399cc' },
-              { offset: 1, color: '#0066b2' }
+              { offset: 0, color: colors[1] },
+              { offset: 1, color: colors[0] }
             ]
           },
           borderRadius: [4, 4, 0, 0]
@@ -275,10 +304,24 @@ export class ChartPreviewComponent implements OnChanges {
   }
 
   private getLineChartOptions(): EChartsOption {
+    const xField = this.config?.xAxis || 'category';
+    const yField = this.config?.yAxis || 'value';
+    const colors = this.getColors();
+    const showLabels = this.config?.showLabels === true;
+    const primaryColor = colors[0];
+
+    let categories: string[] = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+    let values: number[] = [820, 932, 901, 934, 1290, 1330];
+
+    if (this.data && this.data.length > 0) {
+      categories = this.data.map(row => String(row[xField] || ''));
+      values = this.data.map(row => Number(row[yField]) || 0);
+    }
+
     return {
       xAxis: {
         type: 'category',
-        data: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+        data: categories,
         axisLine: { lineStyle: { color: '#30363d' } }
       },
       yAxis: {
@@ -288,17 +331,23 @@ export class ChartPreviewComponent implements OnChanges {
       },
       series: [{
         type: 'line',
-        data: [820, 932, 901, 934, 1290, 1330],
+        data: values,
         smooth: true,
-        lineStyle: { color: '#0066b2', width: 3 },
-        itemStyle: { color: '#3399cc' },
+        lineStyle: { color: primaryColor, width: 3 },
+        itemStyle: { color: colors[1] },
+        label: {
+          show: showLabels,
+          position: 'top',
+          color: '#f0f6fc',
+          fontSize: 11
+        },
         areaStyle: {
           color: {
             type: 'linear',
             x: 0, y: 0, x2: 0, y2: 1,
             colorStops: [
-              { offset: 0, color: 'rgba(0, 102, 178, 0.3)' },
-              { offset: 1, color: 'rgba(0, 102, 178, 0)' }
+              { offset: 0, color: this.hexToRgba(primaryColor, 0.3) },
+              { offset: 1, color: this.hexToRgba(primaryColor, 0) }
             ]
           }
         }
@@ -306,22 +355,59 @@ export class ChartPreviewComponent implements OnChanges {
     };
   }
 
+  /** Convert hex color to rgba string */
+  private hexToRgba(hex: string, alpha: number): string {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+
   private getAreaChartOptions(): EChartsOption {
+    const xField = this.config?.xAxis || 'category';
+    const yField = this.config?.yAxis || 'value';
+    const colors = this.getColors();
+    const showLabels = this.config?.showLabels === true;
+    const primaryColor = colors[0];
+
+    let categories: string[] = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+    let values: number[] = [820, 932, 901, 934, 1290, 1330];
+
+    if (this.data && this.data.length > 0) {
+      categories = this.data.map(row => String(row[xField] || ''));
+      values = this.data.map(row => Number(row[yField]) || 0);
+    }
+
     return {
-      ...this.getLineChartOptions(),
+      xAxis: {
+        type: 'category',
+        data: categories,
+        axisLine: { lineStyle: { color: '#30363d' } }
+      },
+      yAxis: {
+        type: 'value',
+        axisLine: { lineStyle: { color: '#30363d' } },
+        splitLine: { lineStyle: { color: '#21262d' } }
+      },
       series: [{
         type: 'line',
-        data: [820, 932, 901, 934, 1290, 1330],
+        data: values,
         smooth: true,
-        lineStyle: { color: '#0066b2', width: 2 },
-        itemStyle: { color: '#3399cc' },
+        lineStyle: { color: primaryColor, width: 2 },
+        itemStyle: { color: colors[1] },
+        label: {
+          show: showLabels,
+          position: 'top',
+          color: '#f0f6fc',
+          fontSize: 11
+        },
         areaStyle: {
           color: {
             type: 'linear',
             x: 0, y: 0, x2: 0, y2: 1,
             colorStops: [
-              { offset: 0, color: 'rgba(0, 102, 178, 0.5)' },
-              { offset: 1, color: 'rgba(0, 102, 178, 0.1)' }
+              { offset: 0, color: this.hexToRgba(primaryColor, 0.5) },
+              { offset: 1, color: this.hexToRgba(primaryColor, 0.1) }
             ]
           }
         }
@@ -332,7 +418,8 @@ export class ChartPreviewComponent implements OnChanges {
   private getPieChartOptions(): EChartsOption {
     const xField = this.config?.xAxis || 'category';
     const yField = this.config?.yAxis || 'value';
-    const colors = ['#0066b2', '#3399cc', '#2ecc71', '#f1c40f', '#e74c3c', '#9b59b6', '#3498db', '#1abc9c'];
+    const colors = this.getColors();
+    const showLabels = this.config?.showLabels !== false; // Show by default for pie
 
     let pieData: any[] = [
       { value: 335, name: 'Matched' },
@@ -347,6 +434,11 @@ export class ChartPreviewComponent implements OnChanges {
         name: String(row[xField] || ''),
         itemStyle: { color: colors[i % colors.length] }
       }));
+    } else {
+      pieData = pieData.map((item, i) => ({
+        ...item,
+        itemStyle: { color: colors[i % colors.length] }
+      }));
     }
 
     return {
@@ -355,7 +447,11 @@ export class ChartPreviewComponent implements OnChanges {
         radius: '65%',
         center: ['50%', '50%'],
         data: pieData,
-        label: { color: '#f0f6fc' },
+        label: {
+          show: showLabels,
+          color: '#f0f6fc',
+          formatter: '{b}: {d}%'
+        },
         emphasis: {
           itemStyle: {
             shadowBlur: 10,
@@ -370,7 +466,8 @@ export class ChartPreviewComponent implements OnChanges {
   private getDonutChartOptions(): EChartsOption {
     const xField = this.config?.xAxis || 'category';
     const yField = this.config?.yAxis || 'value';
-    const colors = ['#0066b2', '#3399cc', '#2ecc71', '#f1c40f', '#e74c3c', '#9b59b6', '#3498db', '#1abc9c'];
+    const colors = this.getColors();
+    const showLabels = this.config?.showLabels !== false; // Show by default for donut
 
     let donutData: any[] = [
       { value: 335, name: 'Matched' },
@@ -385,6 +482,11 @@ export class ChartPreviewComponent implements OnChanges {
         name: String(row[xField] || ''),
         itemStyle: { color: colors[i % colors.length] }
       }));
+    } else {
+      donutData = donutData.map((item, i) => ({
+        ...item,
+        itemStyle: { color: colors[i % colors.length] }
+      }));
     }
 
     return {
@@ -393,12 +495,18 @@ export class ChartPreviewComponent implements OnChanges {
         radius: ['40%', '65%'],
         center: ['50%', '50%'],
         data: donutData,
-        label: { color: '#f0f6fc' }
+        label: {
+          show: showLabels,
+          color: '#f0f6fc',
+          formatter: '{b}: {d}%'
+        }
       }]
     };
   }
 
   private getGaugeChartOptions(): EChartsOption {
+    const colors = this.getColors();
+
     return {
       series: [{
         type: 'gauge',
@@ -415,14 +523,14 @@ export class ChartPreviewComponent implements OnChanges {
             color: [
               [0.3, '#e74c3c'],
               [0.7, '#f1c40f'],
-              [1, '#2ecc71']
+              [1, colors[0]]
             ]
           }
         },
         pointer: {
           length: '60%',
           width: 6,
-          itemStyle: { color: '#0066b2' }
+          itemStyle: { color: colors[0] }
         },
         axisTick: {
           length: 12,
@@ -455,6 +563,8 @@ export class ChartPreviewComponent implements OnChanges {
   }
 
   private getSpeedometerChartOptions(): EChartsOption {
+    const colors = this.getColors();
+
     return {
       series: [{
         type: 'gauge',
@@ -469,8 +579,8 @@ export class ChartPreviewComponent implements OnChanges {
               [0.2, '#e74c3c'],
               [0.4, '#e67e22'],
               [0.6, '#f1c40f'],
-              [0.8, '#27ae60'],
-              [1, '#2ecc71']
+              [0.8, colors[1]],
+              [1, colors[0]]
             ]
           }
         },
@@ -519,6 +629,9 @@ export class ChartPreviewComponent implements OnChanges {
   }
 
   private getRadialBarChartOptions(): EChartsOption {
+    const colors = this.getColors();
+    const showLabels = this.config?.showLabels === true;
+
     return {
       polar: { radius: ['30%', '80%'] },
       radiusAxis: { max: 100, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { show: false } },
@@ -528,14 +641,21 @@ export class ChartPreviewComponent implements OnChanges {
         data: [92, 87, 78],
         coordinateSystem: 'polar',
         roundCap: true,
+        label: {
+          show: showLabels,
+          position: 'middle',
+          color: '#f0f6fc'
+        },
         itemStyle: {
-          color: (params: any) => ['#2ecc71', '#3498db', '#9b59b6'][params.dataIndex]
+          color: (params: any) => colors[params.dataIndex % colors.length]
         }
       }]
     };
   }
 
   private getHeatmapChartOptions(): EChartsOption {
+    const colors = this.getColors();
+    const showLabels = this.config?.showLabels === true;
     const hours = ['12a', '2a', '4a', '6a', '8a', '10a', '12p', '2p', '4p', '6p', '8p', '10p'];
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     const data: number[][] = [];
@@ -547,12 +667,15 @@ export class ChartPreviewComponent implements OnChanges {
     return {
       xAxis: { type: 'category', data: hours, splitArea: { show: true } },
       yAxis: { type: 'category', data: days, splitArea: { show: true } },
-      visualMap: { min: 0, max: 10, calculable: true, orient: 'horizontal', left: 'center', bottom: 10, inRange: { color: ['#0d1117', '#0066b2', '#3399cc'] } },
-      series: [{ type: 'heatmap', data: data, label: { show: false } }]
+      visualMap: { min: 0, max: 10, calculable: true, orient: 'horizontal', left: 'center', bottom: 10, inRange: { color: ['#0d1117', colors[0], colors[1]] } },
+      series: [{ type: 'heatmap', data: data, label: { show: showLabels, color: '#f0f6fc' } }]
     };
   }
 
   private getScatterChartOptions(): EChartsOption {
+    const colors = this.getColors();
+    const showLabels = this.config?.showLabels === true;
+
     return {
       xAxis: { axisLine: { lineStyle: { color: '#30363d' } }, splitLine: { lineStyle: { color: '#21262d' } } },
       yAxis: { axisLine: { lineStyle: { color: '#30363d' } }, splitLine: { lineStyle: { color: '#21262d' } } },
@@ -560,12 +683,22 @@ export class ChartPreviewComponent implements OnChanges {
         type: 'scatter',
         symbolSize: 15,
         data: [[10, 8.04], [8, 6.95], [13, 7.58], [9, 8.81], [11, 8.33], [14, 7.66], [6, 6.13], [4, 3.1], [12, 9.13], [7, 7.26]],
-        itemStyle: { color: '#0066b2', shadowBlur: 10, shadowColor: 'rgba(0, 102, 178, 0.5)' }
+        label: {
+          show: showLabels,
+          position: 'top',
+          color: '#f0f6fc',
+          fontSize: 10,
+          formatter: (params: any) => `${params.value[1]}`
+        },
+        itemStyle: { color: colors[0], shadowBlur: 10, shadowColor: this.hexToRgba(colors[0], 0.5) }
       }]
     };
   }
 
   private getRadarChartOptions(): EChartsOption {
+    const colors = this.getColors();
+    const showLabels = this.config?.showLabels === true;
+
     return {
       radar: {
         indicator: [
@@ -582,41 +715,61 @@ export class ChartPreviewComponent implements OnChanges {
       },
       series: [{
         type: 'radar',
-        data: [{ value: [92, 88, 75, 95, 82], name: 'Current', areaStyle: { color: 'rgba(0, 102, 178, 0.3)' }, lineStyle: { color: '#0066b2' } }]
+        data: [{
+          value: [92, 88, 75, 95, 82],
+          name: 'Current',
+          areaStyle: { color: this.hexToRgba(colors[0], 0.3) },
+          lineStyle: { color: colors[0] },
+          label: {
+            show: showLabels,
+            color: '#f0f6fc',
+            fontSize: 10
+          }
+        }]
       }]
     };
   }
 
   private getFunnelChartOptions(): EChartsOption {
+    const colors = this.getColors();
+    const showLabels = this.config?.showLabels !== false; // Show by default for funnel
+
     return {
       series: [{
         type: 'funnel',
         left: '10%',
         width: '80%',
-        label: { position: 'inside', color: '#f0f6fc' },
+        label: {
+          show: showLabels,
+          position: 'inside',
+          color: '#f0f6fc'
+        },
         itemStyle: { borderWidth: 0 },
         data: [
-          { value: 100, name: 'Total Transactions', itemStyle: { color: '#3498db' } },
-          { value: 80, name: 'Matched', itemStyle: { color: '#2ecc71' } },
-          { value: 60, name: 'Validated', itemStyle: { color: '#27ae60' } },
-          { value: 40, name: 'Confirmed', itemStyle: { color: '#1abc9c' } },
-          { value: 20, name: 'Settled', itemStyle: { color: '#16a085' } }
+          { value: 100, name: 'Total Transactions', itemStyle: { color: colors[0] } },
+          { value: 80, name: 'Matched', itemStyle: { color: colors[1] } },
+          { value: 60, name: 'Validated', itemStyle: { color: colors[2] } },
+          { value: 40, name: 'Confirmed', itemStyle: { color: colors[3] } },
+          { value: 20, name: 'Settled', itemStyle: { color: colors[4] || colors[0] } }
         ]
       }]
     };
   }
 
   private getTreemapChartOptions(): EChartsOption {
+    const colors = this.getColors();
+    const showLabels = this.config?.showLabels !== false; // Show by default for treemap
+
     return {
       series: [{
         type: 'treemap',
         data: [
-          { name: 'APAC', value: 35, children: [{ name: 'Japan', value: 15 }, { name: 'Singapore', value: 12 }, { name: 'Hong Kong', value: 8 }] },
-          { name: 'EMEA', value: 30, children: [{ name: 'UK', value: 12 }, { name: 'Germany', value: 10 }, { name: 'France', value: 8 }] },
-          { name: 'NAM', value: 25, children: [{ name: 'USA', value: 20 }, { name: 'Canada', value: 5 }] },
-          { name: 'LATAM', value: 10, children: [{ name: 'Brazil', value: 6 }, { name: 'Mexico', value: 4 }] }
+          { name: 'APAC', value: 35, itemStyle: { color: colors[0] }, children: [{ name: 'Japan', value: 15 }, { name: 'Singapore', value: 12 }, { name: 'Hong Kong', value: 8 }] },
+          { name: 'EMEA', value: 30, itemStyle: { color: colors[1] }, children: [{ name: 'UK', value: 12 }, { name: 'Germany', value: 10 }, { name: 'France', value: 8 }] },
+          { name: 'NAM', value: 25, itemStyle: { color: colors[2] }, children: [{ name: 'USA', value: 20 }, { name: 'Canada', value: 5 }] },
+          { name: 'LATAM', value: 10, itemStyle: { color: colors[3] }, children: [{ name: 'Brazil', value: 6 }, { name: 'Mexico', value: 4 }] }
         ],
-        label: { show: true, color: '#f0f6fc' },
+        label: { show: showLabels, color: '#f0f6fc' },
         levels: [{
           itemStyle: { borderColor: '#161b22', borderWidth: 2, gapWidth: 2 }
         }]
