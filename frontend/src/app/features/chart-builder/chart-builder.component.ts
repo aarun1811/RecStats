@@ -1102,10 +1102,13 @@ export class ChartBuilderComponent implements OnInit {
   loadData() {
     if (!this.selectedQueryId) return;
 
+    const query = this.selectedQuery();
+    if (!query) return;
+
     this.loadingData.set(true);
 
-    // Execute the saved query via backend API
-    this.api.post<QueryExecuteResponse>(`/queries/${this.selectedQueryId}/execute`, {}).subscribe({
+    // Execute SQL directly - same as Query Editor does
+    this.api.post<QueryExecuteResponse>('/queries/direct', { sql: query.sql_text }).subscribe({
       next: (response) => {
         this.columns.set(response.columns);
         this.previewData.set(response.data);
