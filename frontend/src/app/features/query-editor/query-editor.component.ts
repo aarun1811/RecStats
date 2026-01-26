@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { ApiService } from '../../core/services/api.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { firstValueFrom } from 'rxjs';
@@ -122,8 +122,16 @@ interface DataSource extends DataSourceResponse {
 
         <!-- Saved Queries Tab Content -->
         <div *ngIf="sidebarTab() === 'saved'" class="sidebar-content saved-content">
+          <div class="saved-search">
+            <app-icon name="search" [size]="14"></app-icon>
+            <input
+              type="text"
+              placeholder="Search queries..."
+              [(ngModel)]="savedQuerySearch"
+              class="saved-search-input">
+          </div>
           <div
-            *ngFor="let query of savedQueries()"
+            *ngFor="let query of filteredSavedQueries()"
             class="sidebar-saved-item"
             (click)="loadSavedQuery(query)">
             <div class="sidebar-saved-header">
@@ -134,10 +142,10 @@ interface DataSource extends DataSourceResponse {
             </div>
             <div class="sidebar-saved-sql">{{ query.sql_text.substring(0, 60) }}{{ query.sql_text.length > 60 ? '...' : '' }}</div>
           </div>
-          <div *ngIf="savedQueries().length === 0" class="sidebar-empty">
+          <div *ngIf="filteredSavedQueries().length === 0" class="sidebar-empty">
             <app-icon name="file-code" [size]="32"></app-icon>
-            <p>No saved queries</p>
-            <span class="hint">Click "Save" to save your query</span>
+            <p>{{ savedQuerySearch ? 'No matching queries' : 'No saved queries' }}</p>
+            <span class="hint">{{ savedQuerySearch ? 'Try a different search' : 'Click "Save" to save your query' }}</span>
           </div>
         </div>
       </aside>
@@ -572,6 +580,42 @@ interface DataSource extends DataSourceResponse {
 
     .saved-content {
       padding: var(--spacing-2);
+    }
+
+    .saved-search {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-2);
+      padding: var(--spacing-2) var(--spacing-3);
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      margin-bottom: var(--spacing-2);
+      transition: all 0.2s ease;
+
+      &:focus-within {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 8px rgba(var(--color-primary-rgb), 0.2);
+      }
+
+      app-icon {
+        color: var(--text-muted);
+        flex-shrink: 0;
+      }
+    }
+
+    .saved-search-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text-primary);
+      font-size: var(--font-size-sm);
+      min-width: 0;
+
+      &::placeholder {
+        color: var(--text-muted);
+      }
     }
 
     .datasource-info {
@@ -1106,9 +1150,21 @@ export class QueryEditorComponent implements OnInit {
   queryHistory = signal<{ sql: string; timestamp: Date; rowCount: number }[]>([]);
   isLoadingSchema = signal(false);
   savedQueries = signal<SavedQuery[]>([]);
+  savedQuerySearch = '';
   showSaveModal = signal(false);
   saveQueryName = '';
   saveQueryDescription = '';
+
+  // Computed filtered queries based on search
+  filteredSavedQueries = computed(() => {
+    const search = this.savedQuerySearch.toLowerCase().trim();
+    if (!search) return this.savedQueries();
+    return this.savedQueries().filter(q =>
+      q.name.toLowerCase().includes(search) ||
+      q.sql_text.toLowerCase().includes(search) ||
+      (q.description?.toLowerCase().includes(search))
+    );
+  });
 
   // Data Sources
   dataSources = signal<DataSource[]>([]);
