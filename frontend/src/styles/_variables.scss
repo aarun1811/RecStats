@@ -1,0 +1,234 @@
+// ResStats Design System - CSS Variables
+// Premium dark theme with Citi Blue accent and neon glow effects
+
+:root {
+  // ========================================
+  // BRAND COLORS
+  // ========================================
+  --color-primary: #0066b2;
+  --color-primary-rgb: 0, 102, 178;
+  --color-primary-light: #3399cc;
+  --color-primary-lighter: #66b3d9;
+  --color-primary-dark: #004d80;
+  --color-primary-darker: #003359;
+
+  // ========================================
+  // SEMANTIC COLORS
+  // ========================================
+  --color-success: #2ecc71;
+  --color-success-rgb: 46, 204, 113;
+  --color-warning: #f1c40f;
+  --color-warning-rgb: 241, 196, 15;
+  --color-danger: #e74c3c;
+  --color-danger-rgb: 231, 76, 60;
+  --color-info: #3498db;
+  --color-info-rgb: 52, 152, 219;
+
+  // ========================================
+  // CHART COLORS (Professional palette)
+  // ========================================
+  --chart-color-1: #0066b2;
+  --chart-color-2: #2ecc71;
+  --chart-color-3: #9b59b6;
+  --chart-color-4: #f39c12;
+  --chart-color-5: #1abc9c;
+  --chart-color-6: #e74c3c;
+  --chart-color-7: #3498db;
+  --chart-color-8: #e91e63;
+  --chart-color-9: #00bcd4;
+  --chart-color-10: #8bc34a;
+
+  // ========================================
+  // TYPOGRAPHY
+  // ========================================
+  --font-family-primary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  --font-family-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+
+  --font-size-xs: 0.75rem;    // 12px
+  --font-size-sm: 0.875rem;   // 14px
+  --font-size-base: 1rem;     // 16px
+  --font-size-lg: 1.125rem;   // 18px
+  --font-size-xl: 1.25rem;    // 20px
+  --font-size-2xl: 1.5rem;    // 24px
+  --font-size-3xl: 1.875rem;  // 30px
+  --font-size-4xl: 2.25rem;   // 36px
+  --font-size-5xl: 3rem;      // 48px
+
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.75;
+
+  // ========================================
+  // SPACING
+  // ========================================
+  --spacing-0: 0;
+  --spacing-1: 0.25rem;   // 4px
+  --spacing-2: 0.5rem;    // 8px
+  --spacing-3: 0.75rem;   // 12px
+  --spacing-4: 1rem;      // 16px
+  --spacing-5: 1.25rem;   // 20px
+  --spacing-6: 1.5rem;    // 24px
+  --spacing-8: 2rem;      // 32px
+  --spacing-10: 2.5rem;   // 40px
+  --spacing-12: 3rem;     // 48px
+  --spacing-16: 4rem;     // 64px
+
+  // ========================================
+  // BORDER RADIUS
+  // ========================================
+  --radius-sm: 0.25rem;   // 4px
+  --radius-md: 0.5rem;    // 8px
+  --radius-lg: 0.75rem;   // 12px
+  --radius-xl: 1rem;      // 16px
+  --radius-2xl: 1.5rem;   // 24px
+  --radius-full: 9999px;
+
+  // ========================================
+  // SHADOWS
+  // ========================================
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.4);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
+
+  // ========================================
+  // TRANSITIONS
+  // ========================================
+  --transition-fast: 150ms ease;
+  --transition-normal: 250ms ease;
+  --transition-slow: 350ms ease;
+  --transition-bounce: 500ms cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+  // ========================================
+  // Z-INDEX LAYERS
+  // ========================================
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-fixed: 300;
+  --z-modal-backdrop: 400;
+  --z-modal: 500;
+  --z-popover: 600;
+  --z-tooltip: 700;
+  --z-notification: 800;
+
+  // ========================================
+  // LAYOUT
+  // ========================================
+  --sidebar-width: 260px;
+  --sidebar-collapsed-width: 72px;
+  --header-height: 64px;
+  --content-max-width: 1600px;
+}
+
+// ========================================
+// DARK THEME (Default)
+// ========================================
+[data-theme="dark"], :root {
+  // Backgrounds
+  --bg-primary: #0d1117;
+  --bg-secondary: #161b22;
+  --bg-tertiary: #21262d;
+  --bg-elevated: #2d333b;
+  --bg-hover: #30363d;
+  --bg-active: #3c444d;
+
+  // Text
+  --text-primary: #f0f6fc;
+  --text-secondary: #8b949e;
+  --text-muted: #6e7681;
+  --text-disabled: #484f58;
+  --text-inverse: #0d1117;
+
+  // Borders
+  --border-color: #30363d;
+  --border-color-light: #21262d;
+  --border-color-focus: var(--color-primary);
+
+  // Glow effects (neon)
+  --glow-primary: 0 0 20px rgba(var(--color-primary-rgb), 0.4);
+  --glow-primary-intense: 0 0 30px rgba(var(--color-primary-rgb), 0.6), 0 0 60px rgba(var(--color-primary-rgb), 0.3);
+  --glow-success: 0 0 20px rgba(var(--color-success-rgb), 0.4);
+  --glow-warning: 0 0 20px rgba(var(--color-warning-rgb), 0.4);
+  --glow-danger: 0 0 20px rgba(var(--color-danger-rgb), 0.4);
+
+  // Scrollbar
+  --scrollbar-track: var(--bg-secondary);
+  --scrollbar-thumb: var(--bg-elevated);
+  --scrollbar-thumb-hover: var(--bg-hover);
+
+  // Input
+  --input-bg: var(--bg-secondary);
+  --input-border: var(--border-color);
+  --input-focus-border: var(--color-primary);
+  --input-placeholder: var(--text-muted);
+
+  // Card
+  --card-bg: var(--bg-secondary);
+  --card-border: var(--border-color);
+  --card-shadow: var(--shadow-md);
+
+  // Code/Monaco
+  --code-bg: #1e1e1e;
+}
+
+// ========================================
+// LIGHT THEME
+// ========================================
+[data-theme="light"] {
+  // Backgrounds
+  --bg-primary: #ffffff;
+  --bg-secondary: #f6f8fa;
+  --bg-tertiary: #ebeef1;
+  --bg-elevated: #ffffff;
+  --bg-hover: #f3f4f6;
+  --bg-active: #e5e7eb;
+
+  // Text
+  --text-primary: #1f2937;
+  --text-secondary: #4b5563;
+  --text-muted: #6b7280;
+  --text-disabled: #9ca3af;
+  --text-inverse: #ffffff;
+
+  // Borders
+  --border-color: #e5e7eb;
+  --border-color-light: #f3f4f6;
+  --border-color-focus: var(--color-primary);
+
+  // Glow effects (softer for light mode)
+  --glow-primary: 0 0 15px rgba(var(--color-primary-rgb), 0.25);
+  --glow-primary-intense: 0 0 25px rgba(var(--color-primary-rgb), 0.35), 0 0 50px rgba(var(--color-primary-rgb), 0.15);
+  --glow-success: 0 0 15px rgba(var(--color-success-rgb), 0.25);
+  --glow-warning: 0 0 15px rgba(var(--color-warning-rgb), 0.25);
+  --glow-danger: 0 0 15px rgba(var(--color-danger-rgb), 0.25);
+
+  // Shadows (softer)
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+
+  // Scrollbar
+  --scrollbar-track: var(--bg-tertiary);
+  --scrollbar-thumb: #c4c4c4;
+  --scrollbar-thumb-hover: #a8a8a8;
+
+  // Input
+  --input-bg: #ffffff;
+  --input-border: var(--border-color);
+  --input-focus-border: var(--color-primary);
+  --input-placeholder: var(--text-muted);
+
+  // Card
+  --card-bg: #ffffff;
+  --card-border: var(--border-color);
+  --card-shadow: var(--shadow-md);
+
+  // Code/Monaco
+  --code-bg: #f6f8fa;
+}

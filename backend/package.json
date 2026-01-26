@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "ag-grid-angular": "^35.0.1",
+    "ag-grid-community": "^35.0.1",
+    "ngx-monaco-editor-v2": "^20.3.0"
+  }
+}
