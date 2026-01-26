@@ -6,15 +6,18 @@ import { AgGridModule } from 'ag-grid-angular';
 
 import { ChartBuilderComponent } from './chart-builder.component';
 import { ChartPreviewComponent } from './chart-preview.component';
+import { ChartListComponent } from './chart-list.component';
 
 const routes: Routes = [
-  { path: '', component: ChartBuilderComponent }
+  { path: '', component: ChartListComponent },
+  { path: 'new', component: ChartBuilderComponent }
 ];
 
 @NgModule({
   declarations: [
     ChartBuilderComponent,
-    ChartPreviewComponent
+    ChartPreviewComponent,
+    ChartListComponent
   ],
   imports: [
     SharedModule,

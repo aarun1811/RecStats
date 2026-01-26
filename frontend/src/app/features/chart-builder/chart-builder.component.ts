@@ -1343,9 +1343,9 @@ export class ChartBuilderComponent implements OnInit {
 
     this.api.post<any>('/charts', chartPayload).subscribe({
       next: (chart) => {
-        this.notifications.success('Chart saved successfully');
+        this.notifications.success(`Chart "${chart.name}" saved successfully`);
         this.savingChart.set(false);
-        this.router.navigate(['/']);  // Navigate to home dashboard
+        this.router.navigate(['/charts']);  // Navigate to charts list
       },
       error: (err) => {
         this.notifications.error('Failed to save chart: ' + (err.error?.detail || err.message));
@@ -1355,7 +1355,7 @@ export class ChartBuilderComponent implements OnInit {
   }
 
   cancel() {
-    this.router.navigate(['/']);  // Navigate to home dashboard
+    this.router.navigate(['/charts']);  // Navigate to charts list
   }
 
   @HostListener('document:fullscreenchange')
