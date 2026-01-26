@@ -75,7 +75,7 @@ interface SavedQuery {
             </app-button>
           </div>
           <div class="toolbar-right">
-            <app-button variant="ghost" (click)="loadSavedQueries()">
+            <app-button variant="ghost" (click)="showLoadDropdown()">
               <app-icon name="folder" [size]="16"></app-icon>
               Load
             </app-button>
@@ -90,7 +90,8 @@ interface SavedQuery {
         <div class="editor-container">
           <app-sql-editor
             [(sql)]="sqlText"
-            [readOnly]="isExecuting()">
+            [readOnly]="isExecuting()"
+            [schema]="schemaTables()">
           </app-sql-editor>
         </div>
 
@@ -797,5 +798,11 @@ export class QueryEditorComponent implements OnInit {
 
   formatDate(date: Date | string): string {
     return new Date(date).toLocaleString();
+  }
+
+  showLoadDropdown() {
+    // Switch to Saved tab and load queries
+    this.activeTab.set('saved');
+    this.loadSavedQueries();
   }
 }

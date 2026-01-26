@@ -1,5 +1,12 @@
-import { Component, Input, Output, EventEmitter, OnInit, forwardRef } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges, forwardRef } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
+
+declare const monaco: any;
+
+interface TableSchema {
+  name: string;
+  columns: { name: string; type: string }[];
+}
 
 @Component({
   selector: 'app-sql-editor',
@@ -8,7 +15,8 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
       class="sql-monaco-editor"
       [options]="editorOptions"
       [(ngModel)]="sql"
-      (ngModelChange)="onSqlChange($event)">
+      (ngModelChange)="onSqlChange($event)"
+      (onInit)="onEditorInit($event)">
     </ngx-monaco-editor>
   `,
   styles: [`
@@ -66,12 +74,15 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
     }
   ]
 })
-export class SqlEditorComponent implements OnInit, ControlValueAccessor {
+export class SqlEditorComponent implements OnInit, OnChanges, ControlValueAccessor {
   @Input() sql = '';
   @Output() sqlChange = new EventEmitter<string>();
   @Input() readOnly = false;
+  @Input() schema: TableSchema[] = [];
 
   editorOptions: any;
+  private editor: any;
+  private completionDisposable: any;
 
   private onChange: (value: string) => void = () => {};
   private onTouched: () => void = () => {};
@@ -131,5 +142,94 @@ export class SqlEditorComponent implements OnInit, ControlValueAccessor {
     if (this.editorOptions) {
       this.editorOptions = { ...this.editorOptions, readOnly: isDisabled };
     }
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['schema'] && this.editor) {
+      this.registerCompletionProvider();
+    }
+  }
+
+  onEditorInit(editor: any): void {
+    this.editor = editor;
+    this.registerCompletionProvider();
+  }
+
+  private registerCompletionProvider(): void {
+    // Dispose previous provider if exists
+    if (this.completionDisposable) {
+      this.completionDisposable.dispose();
+    }
+
+    if (typeof monaco === 'undefined') return;
+
+    const schema = this.schema;
+
+    this.completionDisposable = monaco.languages.registerCompletionItemProvider('sql', {
+      provideCompletionItems: (model: any, position: any) => {
+        const word = model.getWordUntilPosition(position);
+        const range = {
+          startLineNumber: position.lineNumber,
+          endLineNumber: position.lineNumber,
+          startColumn: word.startColumn,
+          endColumn: word.endColumn
+        };
+
+        const suggestions: any[] = [];
+
+        // SQL Keywords
+        const keywords = [
+          'SELECT', 'FROM', 'WHERE', 'AND', 'OR', 'NOT', 'IN', 'LIKE', 'BETWEEN',
+          'JOIN', 'LEFT JOIN', 'RIGHT JOIN', 'INNER JOIN', 'OUTER JOIN', 'ON',
+          'GROUP BY', 'ORDER BY', 'HAVING', 'LIMIT', 'OFFSET', 'AS', 'DISTINCT',
+          'COUNT', 'SUM', 'AVG', 'MIN', 'MAX', 'CASE', 'WHEN', 'THEN', 'ELSE', 'END',
+          'INSERT INTO', 'UPDATE', 'DELETE', 'CREATE TABLE', 'DROP TABLE', 'ALTER TABLE',
+          'NULL', 'IS NULL', 'IS NOT NULL', 'ASC', 'DESC', 'UNION', 'UNION ALL'
+        ];
+
+        keywords.forEach(kw => {
+          suggestions.push({
+            label: kw,
+            kind: monaco.languages.CompletionItemKind.Keyword,
+            insertText: kw,
+            detail: 'SQL Keyword',
+            range
+          });
+        });
+
+        // Tables from schema
+        schema.forEach(table => {
+          suggestions.push({
+            label: table.name,
+            kind: monaco.languages.CompletionItemKind.Class,
+            insertText: table.name,
+            detail: `Table (${table.columns?.length || 0} columns)`,
+            range
+          });
+
+          // Columns for each table
+          table.columns?.forEach(col => {
+            suggestions.push({
+              label: col.name,
+              kind: monaco.languages.CompletionItemKind.Field,
+              insertText: col.name,
+              detail: `${table.name}.${col.name} (${col.type})`,
+              range
+            });
+
+            // Also add table.column format
+            suggestions.push({
+              label: `${table.name}.${col.name}`,
+              kind: monaco.languages.CompletionItemKind.Field,
+              insertText: `${table.name}.${col.name}`,
+              detail: `Column (${col.type})`,
+              range
+            });
+          });
+        });
+
+        return { suggestions };
+      }
+    });
   }
 }
