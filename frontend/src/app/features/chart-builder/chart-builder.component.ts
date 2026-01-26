@@ -1345,7 +1345,7 @@ export class ChartBuilderComponent implements OnInit {
       next: (chart) => {
         this.notifications.success('Chart saved successfully');
         this.savingChart.set(false);
-        this.router.navigate(['/charts']);
+        this.router.navigate(['/']);  // Navigate to home dashboard
       },
       error: (err) => {
         this.notifications.error('Failed to save chart: ' + (err.error?.detail || err.message));
@@ -1355,7 +1355,7 @@ export class ChartBuilderComponent implements OnInit {
   }
 
   cancel() {
-    this.router.navigate(['/charts']);
+    this.router.navigate(['/']);  // Navigate to home dashboard
   }
 
   @HostListener('document:fullscreenchange')
