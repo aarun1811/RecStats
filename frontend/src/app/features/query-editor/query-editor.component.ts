@@ -105,7 +105,7 @@ interface DataSource extends DataSourceResponse {
             class="sidebar-tab"
             [class.active]="sidebarTab() === 'saved'"
             (click)="switchSidebarTab('saved')">
-            <app-icon name="folder" [size]="14"></app-icon>
+            <app-icon name="file-code" [size]="14"></app-icon>
             Saved
             <span class="tab-badge" *ngIf="savedQueries().length > 0">{{ savedQueries().length }}</span>
           </button>
@@ -135,7 +135,7 @@ interface DataSource extends DataSourceResponse {
             <div class="sidebar-saved-sql">{{ query.sql_text.substring(0, 60) }}{{ query.sql_text.length > 60 ? '...' : '' }}</div>
           </div>
           <div *ngIf="savedQueries().length === 0" class="sidebar-empty">
-            <app-icon name="folder" [size]="32"></app-icon>
+            <app-icon name="file-code" [size]="32"></app-icon>
             <p>No saved queries</p>
             <span class="hint">Click "Save" to save your query</span>
           </div>
@@ -155,16 +155,28 @@ interface DataSource extends DataSourceResponse {
               <app-icon name="code" [size]="16"></app-icon>
               Format
             </app-button>
-            <app-button variant="ghost" (click)="clearQuery()">
-              <app-icon name="trash" [size]="16"></app-icon>
-              Clear
-            </app-button>
           </div>
           <div class="toolbar-right">
-            <app-button variant="ghost" (click)="openSaveModal()">
+            <button class="toolbar-btn save-btn" (click)="openSaveModal()">
               <app-icon name="save" [size]="16"></app-icon>
               Save
-            </app-button>
+            </button>
+            <button class="toolbar-btn clear-btn" (click)="confirmClear()">
+              <app-icon name="trash" [size]="16"></app-icon>
+              Clear
+            </button>
+          </div>
+        </div>
+
+        <!-- Clear Confirmation Popup -->
+        <div class="confirm-popup" *ngIf="showClearConfirm()">
+          <div class="confirm-content">
+            <app-icon name="alert-triangle" [size]="20"></app-icon>
+            <span>Clear editor?</span>
+            <div class="confirm-actions">
+              <button class="confirm-yes" (click)="clearQuery()">Yes</button>
+              <button class="confirm-no" (click)="showClearConfirm.set(false)">No</button>
+            </div>
           </div>
         </div>
 
@@ -616,6 +628,121 @@ interface DataSource extends DataSourceResponse {
       gap: var(--spacing-2);
     }
 
+    // Custom toolbar buttons
+    .toolbar-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--spacing-2);
+      padding: var(--spacing-2) var(--spacing-4);
+      font-family: var(--font-family-primary);
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-medium);
+      border-radius: var(--radius-md);
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background: transparent;
+      color: var(--text-secondary);
+
+      &:hover {
+        background: var(--bg-hover);
+        color: var(--text-primary);
+      }
+    }
+
+    .save-btn {
+      &:hover {
+        color: var(--color-success);
+        background: rgba(46, 204, 113, 0.1);
+        box-shadow: 0 0 10px rgba(46, 204, 113, 0.25);
+      }
+    }
+
+    .clear-btn {
+      &:hover {
+        color: var(--color-danger);
+        background: rgba(231, 76, 60, 0.1);
+        box-shadow: 0 0 10px rgba(231, 76, 60, 0.25);
+      }
+    }
+
+    // Confirm popup
+    .confirm-popup {
+      position: fixed;
+      top: 100px;
+      right: 24px;
+      z-index: 1000;
+      animation: slideIn 0.2s ease;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .confirm-content {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-3);
+      padding: var(--spacing-3) var(--spacing-4);
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+
+      app-icon {
+        color: var(--color-warning);
+      }
+
+      span {
+        font-size: var(--font-size-sm);
+        color: var(--text-primary);
+      }
+    }
+
+    .confirm-actions {
+      display: flex;
+      gap: var(--spacing-2);
+
+      button {
+        padding: var(--spacing-1) var(--spacing-3);
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-medium);
+        border-radius: var(--radius-sm);
+        border: none;
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+
+      .confirm-yes {
+        background: var(--color-danger);
+        color: white;
+
+        &:hover {
+          background: #c0392b;
+          box-shadow: 0 0 8px rgba(231, 76, 60, 0.4);
+        }
+      }
+
+      .confirm-no {
+        background: var(--bg-tertiary);
+        color: var(--text-secondary);
+        border: 1px solid var(--border-color);
+
+        &:hover {
+          background: var(--bg-hover);
+          color: var(--text-primary);
+        }
+      }
+    }
+
     .editor-container {
       flex: 1;
       min-height: 200px;
@@ -988,6 +1115,7 @@ export class QueryEditorComponent implements OnInit {
   selectedDataSource = signal<DataSource | null>(null);
   showDataSourceDropdown = signal(false);
   isLoadingDataSources = signal(false);
+  showClearConfirm = signal(false);
 
   ngOnInit() {
     this.loadDataSources();
@@ -1118,9 +1246,18 @@ export class QueryEditorComponent implements OnInit {
       .trim();
   }
 
+  confirmClear() {
+    if (this.sqlText.trim()) {
+      this.showClearConfirm.set(true);
+    } else {
+      this.clearQuery();
+    }
+  }
+
   clearQuery() {
     this.sqlText = '';
     this.queryResult.set(null);
+    this.showClearConfirm.set(false);
   }
 
   openSaveModal() {
