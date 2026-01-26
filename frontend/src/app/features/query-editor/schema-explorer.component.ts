@@ -36,7 +36,7 @@ interface TableSchema {
               {{ table.name }}
             </span>
             <span class="column-count" *ngIf="table.row_count">{{ formatRowCount(table.row_count) }} rows</span>
-            <span class="column-count" *ngIf="!table.row_count">{{ table.columns?.length || 0 }} cols</span>
+            <span class="column-count" *ngIf="!table.row_count">{{ table.columns.length }} cols</span>
           </div>
 
           <div class="columns-list" *ngIf="expandedTables[table.name]">

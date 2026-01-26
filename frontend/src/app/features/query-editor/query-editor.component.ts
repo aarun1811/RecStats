@@ -1,7 +1,6 @@
-import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { ApiService } from '../../core/services/api.service';
 import { NotificationService } from '../../core/services/notification.service';
-import { DataLoaderService } from '../../core/services/data-loader.service';
 import { firstValueFrom } from 'rxjs';
 
 interface Column {
@@ -44,16 +43,10 @@ interface SavedQuery {
           </app-button>
         </div>
         <div class="datasource-info">
-          <div class="datasource-badge" [class.loading]="duckdbStatus().loading">
+          <div class="datasource-badge" [class.loading]="isLoadingSchema()">
             <app-icon name="database" [size]="14"></app-icon>
-            <span *ngIf="duckdbStatus().loading">Loading DuckDB...</span>
-            <span *ngIf="duckdbStatus().initialized && !duckdbStatus().loading">
-              DuckDB ({{ duckdbStatus().totalRows.toLocaleString() }} rows)
-            </span>
-            <span *ngIf="!duckdbStatus().initialized && !duckdbStatus().loading">DuckDB (Initializing...)</span>
-          </div>
-          <div class="duckdb-tables" *ngIf="duckdbStatus().initialized">
-            <span class="table-tag" *ngFor="let t of duckdbStatus().tablesLoaded">{{ t }}</span>
+            <span *ngIf="isLoadingSchema()">Loading schema...</span>
+            <span *ngIf="!isLoadingSchema()">SQLite Database</span>
           </div>
         </div>
         <app-schema-explorer
@@ -310,21 +303,6 @@ interface SavedQuery {
     @keyframes pulse {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.6; }
-    }
-
-    .duckdb-tables {
-      display: flex;
-      flex-wrap: wrap;
-      gap: var(--spacing-1);
-      margin-top: var(--spacing-2);
-    }
-
-    .table-tag {
-      padding: 2px 6px;
-      background: var(--bg-tertiary);
-      border-radius: var(--radius-sm);
-      font-size: var(--font-size-xs);
-      color: var(--text-muted);
     }
 
     .editor-main {
@@ -646,7 +624,6 @@ interface SavedQuery {
 export class QueryEditorComponent implements OnInit {
   private api = inject(ApiService);
   private notifications = inject(NotificationService);
-  private dataLoader = inject(DataLoaderService);
 
   // State
   schemaTables = signal<TableSchema[]>([]);
@@ -662,9 +639,6 @@ export class QueryEditorComponent implements OnInit {
   saveQueryName = '';
   saveQueryDescription = '';
 
-  // DuckDB status
-  duckdbStatus = computed(() => this.dataLoader.status());
-
   ngOnInit() {
     this.loadSchema();
   }
@@ -672,29 +646,13 @@ export class QueryEditorComponent implements OnInit {
   async loadSchema() {
     this.isLoadingSchema.set(true);
     try {
-      // Get schema from DuckDB
-      const schema = await this.dataLoader.getSchema();
-      const tables: TableSchema[] = schema.map(t => ({
-        name: t.name,
-        columns: t.columns.map(c => ({
-          name: c.name,
-          type: c.type,
-          nullable: true,
-          primary_key: false
-        }))
-      }));
-      this.schemaTables.set(tables);
+      const response = await firstValueFrom(
+        this.api.get<{ tables: TableSchema[] }>('/queries/schema')
+      );
+      this.schemaTables.set(response.tables || []);
     } catch (error) {
-      // Fallback to backend API if DuckDB not ready
-      try {
-        const response = await firstValueFrom(
-          this.api.get<{ tables: TableSchema[] }>('/queries/schema')
-        );
-        this.schemaTables.set(response.tables || []);
-      } catch {
-        this.notifications.error('Failed to load schema');
-        this.schemaTables.set([]);
-      }
+      this.notifications.error('Failed to load schema');
+      this.schemaTables.set([]);
     } finally {
       this.isLoadingSchema.set(false);
     }
@@ -722,25 +680,22 @@ export class QueryEditorComponent implements OnInit {
     this.queryResult.set(null);
 
     try {
-      // Execute query using DuckDB in-browser
-      const result = await this.dataLoader.executeQuery(this.sqlText);
+      // Execute query via backend API
+      const result = await firstValueFrom(
+        this.api.post<QueryResult>('/queries/direct', { sql: this.sqlText })
+      );
 
-      this.executionTime.set(result.executionTime);
-      this.queryResult.set({
-        columns: result.columns.map(c => ({ name: c, data_type: 'VARCHAR' })),
-        data: result.rows,
-        row_count: result.rowCount,
-        execution_time_ms: result.executionTime
-      });
+      this.executionTime.set(result.execution_time_ms || 0);
+      this.queryResult.set(result);
 
       // Add to history
       this.queryHistory.update(history => [{
         sql: this.sqlText,
         timestamp: new Date(),
-        rowCount: result.rowCount
+        rowCount: result.row_count || 0
       }, ...history.slice(0, 19)]);
 
-      this.notifications.success(`Query executed: ${result.rowCount} rows in ${result.executionTime}ms (DuckDB)`);
+      this.notifications.success(`Query executed: ${result.row_count} rows in ${result.execution_time_ms}ms`);
     } catch (error: any) {
       this.notifications.error(error.message || 'Query execution failed');
     } finally {
