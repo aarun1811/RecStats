@@ -1,10 +1,13 @@
 """Dashboards API endpoints."""
 
 import json
+from datetime import datetime, timedelta
+from typing import Optional
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from pydantic import BaseModel
+from sqlalchemy import select, text, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -22,6 +25,116 @@ from app.schemas.dashboard import (
 from app.connectors.mock import MockConnector
 
 router = APIRouter()
+
+
+# KPI Response schemas
+class TrendInfo(BaseModel):
+    value: float
+    direction: str  # "up", "down", "flat"
+
+
+class KPISummaryResponse(BaseModel):
+    total_transactions: int
+    match_rate: float
+    open_breaks: int
+    avg_break_age: float
+    trends: dict[str, TrendInfo]
+
+
+@router.get("/kpis/summary", response_model=KPISummaryResponse)
+async def get_kpi_summary(db: AsyncSession = Depends(get_db)):
+    """Get KPI summary for the home page.
+
+    Returns aggregated metrics from the mock data tables.
+    """
+    try:
+        # Get total transactions
+        result = await db.execute(text("SELECT COUNT(*) FROM transactions"))
+        total_transactions = result.scalar() or 0
+
+        # Get match rate (percentage of matched transactions)
+        result = await db.execute(text("""
+            SELECT
+                ROUND(100.0 * SUM(CASE WHEN status = 'matched' THEN 1 ELSE 0 END) / COUNT(*), 2)
+            FROM transactions
+        """))
+        match_rate = result.scalar() or 0.0
+
+        # Get open breaks count
+        result = await db.execute(text("SELECT COUNT(*) FROM breaks"))
+        open_breaks = result.scalar() or 0
+
+        # Get average break age
+        result = await db.execute(text("SELECT ROUND(AVG(age_days), 1) FROM breaks"))
+        avg_break_age = result.scalar() or 0.0
+
+        # Calculate trends (compare to previous period - using daily_metrics)
+        today = datetime.now().date()
+        week_ago = today - timedelta(days=7)
+        two_weeks_ago = today - timedelta(days=14)
+
+        # Current week metrics
+        result = await db.execute(text("""
+            SELECT
+                SUM(total_transactions) as txns,
+                AVG(match_rate) as match_rate,
+                SUM(breaks) as breaks,
+                AVG(avg_break_age) as break_age
+            FROM daily_metrics
+            WHERE date >= :start_date
+        """), {"start_date": week_ago})
+        current = result.fetchone()
+
+        # Previous week metrics
+        result = await db.execute(text("""
+            SELECT
+                SUM(total_transactions) as txns,
+                AVG(match_rate) as match_rate,
+                SUM(breaks) as breaks,
+                AVG(avg_break_age) as break_age
+            FROM daily_metrics
+            WHERE date >= :start_date AND date < :end_date
+        """), {"start_date": two_weeks_ago, "end_date": week_ago})
+        previous = result.fetchone()
+
+        def calc_trend(current_val: Optional[float], prev_val: Optional[float]) -> TrendInfo:
+            if not current_val or not prev_val or prev_val == 0:
+                return TrendInfo(value=0, direction="flat")
+            change = ((current_val - prev_val) / prev_val) * 100
+            direction = "up" if change > 0 else "down" if change < 0 else "flat"
+            return TrendInfo(value=round(abs(change), 1), direction=direction)
+
+        trends = {
+            "total_transactions": calc_trend(current[0] if current else 0, previous[0] if previous else 0),
+            "match_rate": calc_trend(current[1] if current else 0, previous[1] if previous else 0),
+            "open_breaks": calc_trend(current[2] if current else 0, previous[2] if previous else 0),
+            "avg_break_age": calc_trend(current[3] if current else 0, previous[3] if previous else 0),
+        }
+
+        # For breaks and age, "up" is bad, so invert the direction display logic
+        # (but keep the actual calculation the same)
+
+        return KPISummaryResponse(
+            total_transactions=total_transactions,
+            match_rate=match_rate,
+            open_breaks=open_breaks,
+            avg_break_age=avg_break_age,
+            trends=trends,
+        )
+    except Exception as e:
+        # If tables don't exist yet, return zeros
+        return KPISummaryResponse(
+            total_transactions=0,
+            match_rate=0.0,
+            open_breaks=0,
+            avg_break_age=0.0,
+            trends={
+                "total_transactions": TrendInfo(value=0, direction="flat"),
+                "match_rate": TrendInfo(value=0, direction="flat"),
+                "open_breaks": TrendInfo(value=0, direction="flat"),
+                "avg_break_age": TrendInfo(value=0, direction="flat"),
+            },
+        )
 
 
 def get_connector(data_source: DataSource):

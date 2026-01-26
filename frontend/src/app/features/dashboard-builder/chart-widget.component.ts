@@ -1,6 +1,21 @@
 import { Component, Input, OnInit, OnChanges, SimpleChanges, inject, Output, EventEmitter } from '@angular/core';
 import { EChartsOption } from 'echarts';
-import { DataCacheService } from '../../core/services/data-cache.service';
+import { ApiService } from '../../core/services/api.service';
+import { firstValueFrom } from 'rxjs';
+import { CrossFilter } from './widget-wrapper.component';
+
+interface ChartDataResponse {
+  chart: any;
+  data: any[];
+  columns: { name: string; data_type: string }[];
+}
+
+interface QueryResult {
+  columns: { name: string; data_type: string }[];
+  data: any[];
+  row_count?: number;
+  execution_time_ms?: number;
+}
 
 @Component({
   selector: 'app-chart-widget',
@@ -55,12 +70,14 @@ import { DataCacheService } from '../../core/services/data-cache.service';
   `]
 })
 export class ChartWidgetComponent implements OnInit, OnChanges {
-  private dataCache = inject(DataCacheService);
+  private api = inject(ApiService);
 
   @Input() chartType = 'bar';
   @Input() config: any = {};
   @Input() data: any[] = [];
-  @Input() query?: string;
+  @Input() sql?: string;  // Direct SQL to execute
+  @Input() chartId?: string;  // Chart ID to fetch from API
+  @Input() filters: CrossFilter[] = [];  // Cross-filters from other widgets
   @Output() filterApply = new EventEmitter<{ field: string; value: any }>();
 
   chartOptions: EChartsOption = {};
@@ -72,7 +89,7 @@ export class ChartWidgetComponent implements OnInit, OnChanges {
   }
 
   ngOnChanges(changes: SimpleChanges) {
-    if (changes['chartType'] || changes['data'] || changes['config'] || changes['query']) {
+    if (changes['chartType'] || changes['data'] || changes['config'] || changes['sql'] || changes['chartId'] || changes['filters']) {
       this.loadData();
     }
   }
@@ -92,11 +109,35 @@ export class ChartWidgetComponent implements OnInit, OnChanges {
   }
 
   private async loadData() {
-    if (this.query) {
+    // Priority: chartId > sql > static data
+    if (this.chartId) {
       this.loading = true;
       try {
-        const result = await this.dataCache.query(this.query);
-        this.data = result.rows;
+        const response = await firstValueFrom(
+          this.api.get<ChartDataResponse>(`/charts/${this.chartId}/data/direct`)
+        );
+        this.data = response.data;
+        // Use chart config from API if available
+        if (response.chart?.config) {
+          this.config = { ...this.config, ...response.chart.config };
+        }
+        if (response.chart?.chart_type) {
+          this.chartType = response.chart.chart_type;
+        }
+      } catch (error) {
+        console.error('Chart data fetch error:', error);
+      } finally {
+        this.loading = false;
+      }
+    } else if (this.sql) {
+      this.loading = true;
+      try {
+        // Apply cross-filters to SQL
+        const filteredSql = this.applyFiltersToSql(this.sql);
+        const response = await firstValueFrom(
+          this.api.post<QueryResult>('/queries/direct', { sql: filteredSql })
+        );
+        this.data = response.data;
       } catch (error) {
         console.error('Chart query error:', error);
       } finally {
@@ -104,6 +145,30 @@ export class ChartWidgetComponent implements OnInit, OnChanges {
       }
     }
     this.updateChart();
+  }
+
+  private applyFiltersToSql(sql: string): string {
+    if (!this.filters || this.filters.length === 0) return sql;
+
+    // Build WHERE clause additions
+    const filterConditions = this.filters.map(f => {
+      const value = typeof f.value === 'string' ? `'${f.value.replace(/'/g, "''")}'` : f.value;
+      return `${f.field} = ${value}`;
+    }).join(' AND ');
+
+    // Inject filters into SQL
+    const upperSql = sql.toUpperCase();
+    if (upperSql.includes(' WHERE ')) {
+      return sql.replace(/ WHERE /i, ` WHERE (${filterConditions}) AND `);
+    } else if (upperSql.includes(' GROUP BY ')) {
+      return sql.replace(/ GROUP BY /i, ` WHERE ${filterConditions} GROUP BY `);
+    } else if (upperSql.includes(' ORDER BY ')) {
+      return sql.replace(/ ORDER BY /i, ` WHERE ${filterConditions} ORDER BY `);
+    } else if (upperSql.includes(' LIMIT ')) {
+      return sql.replace(/ LIMIT /i, ` WHERE ${filterConditions} LIMIT `);
+    } else {
+      return `${sql} WHERE ${filterConditions}`;
+    }
   }
 
   private updateChart() {
@@ -147,16 +212,37 @@ export class ChartWidgetComponent implements OnInit, OnChanges {
         return this.getGaugeOptions();
       case 'speedometer':
         return this.getSpeedometerOptions();
+      case 'map':
+      case 'worldMap':
+        return this.getMapOptions();
+      case 'pie':
+        return this.getPieOptions();
+      case 'area':
+        return this.getAreaOptions();
+      case 'heatmap':
+        return this.getHeatmapOptions();
       default:
         return this.getBarOptions();
     }
   }
 
   private getBarOptions(): EChartsOption {
+    // Extract data from API response
+    const categoryField = this.config.categoryField || this.config.xAxis || 'category';
+    const valueField = this.config.valueField || this.config.yAxis || 'value';
+
+    // Use data from API if available
+    const categories = this.data.length > 0
+      ? this.data.map(d => d[categoryField] || d[Object.keys(d)[0]])
+      : ['APAC', 'EMEA', 'NAM', 'LATAM'];
+    const values = this.data.length > 0
+      ? this.data.map(d => d[valueField] || d[Object.keys(d)[1]])
+      : [42, 35, 58, 28];
+
     return {
       xAxis: {
         type: 'category',
-        data: ['APAC', 'EMEA', 'NAM', 'LATAM'],
+        data: categories,
         axisLine: { lineStyle: { color: '#30363d' } }
       },
       yAxis: {
@@ -166,7 +252,7 @@ export class ChartWidgetComponent implements OnInit, OnChanges {
       },
       series: [{
         type: 'bar',
-        data: [42, 35, 58, 28],
+        data: values,
         itemStyle: {
           color: {
             type: 'linear',
@@ -183,10 +269,20 @@ export class ChartWidgetComponent implements OnInit, OnChanges {
   }
 
   private getLineOptions(): EChartsOption {
+    const categoryField = this.config.categoryField || this.config.xAxis || 'category';
+    const valueField = this.config.valueField || this.config.yAxis || 'value';
+
+    const categories = this.data.length > 0
+      ? this.data.map(d => d[categoryField] || d[Object.keys(d)[0]])
+      : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+    const values = this.data.length > 0
+      ? this.data.map(d => d[valueField] || d[Object.keys(d)[1]])
+      : [820, 932, 901, 934, 1290, 1330];
+
     return {
       xAxis: {
         type: 'category',
-        data: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+        data: categories,
         axisLine: { lineStyle: { color: '#30363d' } }
       },
       yAxis: {
@@ -196,7 +292,7 @@ export class ChartWidgetComponent implements OnInit, OnChanges {
       },
       series: [{
         type: 'line',
-        data: [820, 932, 901, 934, 1290, 1330],
+        data: values,
         smooth: true,
         lineStyle: { color: '#0066b2', width: 3 },
         itemStyle: { color: '#3399cc' },
@@ -215,16 +311,28 @@ export class ChartWidgetComponent implements OnInit, OnChanges {
   }
 
   private getDonutOptions(): EChartsOption {
+    const nameField = this.config.nameField || this.config.categoryField || 'name';
+    const valueField = this.config.valueField || 'value';
+    const colors = ['#2ecc71', '#f1c40f', '#e74c3c', '#3498db', '#9b59b6', '#e67e22'];
+
+    const pieData = this.data.length > 0
+      ? this.data.map((d, i) => ({
+          value: d[valueField] || d[Object.keys(d)[1]],
+          name: d[nameField] || d[Object.keys(d)[0]],
+          itemStyle: { color: colors[i % colors.length] }
+        }))
+      : [
+          { value: 335, name: 'Matched', itemStyle: { color: '#2ecc71' } },
+          { value: 234, name: 'Unmatched', itemStyle: { color: '#f1c40f' } },
+          { value: 154, name: 'Breaks', itemStyle: { color: '#e74c3c' } }
+        ];
+
     return {
       series: [{
         type: 'pie',
         radius: ['45%', '70%'],
         center: ['50%', '50%'],
-        data: [
-          { value: 335, name: 'Matched', itemStyle: { color: '#2ecc71' } },
-          { value: 234, name: 'Unmatched', itemStyle: { color: '#f1c40f' } },
-          { value: 154, name: 'Breaks', itemStyle: { color: '#e74c3c' } }
-        ],
+        data: pieData,
         label: { show: false },
         emphasis: {
           itemStyle: {
@@ -243,6 +351,11 @@ export class ChartWidgetComponent implements OnInit, OnChanges {
   }
 
   private getGaugeOptions(): EChartsOption {
+    const valueField = this.config.valueField || 'value';
+    const gaugeValue = this.data.length > 0
+      ? (this.data[0][valueField] || this.data[0][Object.keys(this.data[0])[0]])
+      : 87;
+
     return {
       series: [{
         type: 'gauge',
@@ -278,7 +391,7 @@ export class ChartWidgetComponent implements OnInit, OnChanges {
           formatter: '{value}%',
           color: '#f0f6fc'
         },
-        data: [{ value: 87 }]
+        data: [{ value: gaugeValue }]
       }]
     };
   }
@@ -326,6 +439,289 @@ export class ChartWidgetComponent implements OnInit, OnChanges {
           color: '#f0f6fc'
         },
         data: [{ value: 85 }]
+      }]
+    };
+  }
+
+  private getMapOptions(): EChartsOption {
+    const nameField = this.config.nameField || this.config.categoryField || 'country';
+    const valueField = this.config.valueField || 'value';
+
+    // Map data from API or use demo data
+    const rawData = this.data.length > 0
+      ? this.data.map(d => ({
+          name: d[nameField] || d[Object.keys(d)[0]],
+          value: d[valueField] || d[Object.keys(d)[1]] || 0
+        }))
+      : [
+          { name: 'United States', value: 28500 },
+          { name: 'United Kingdom', value: 18200 },
+          { name: 'Germany', value: 12400 },
+          { name: 'Japan', value: 15600 },
+          { name: 'China', value: 22300 },
+          { name: 'Singapore', value: 9800 },
+          { name: 'Hong Kong', value: 11200 },
+          { name: 'Australia', value: 7500 },
+          { name: 'France', value: 8900 },
+          { name: 'India', value: 6200 },
+          { name: 'Brazil', value: 4100 },
+          { name: 'Canada', value: 5800 },
+          { name: 'Switzerland', value: 7200 },
+          { name: 'Mexico', value: 3400 }
+        ];
+
+    // Sort by value descending and take top entries
+    const sortedData = rawData.sort((a, b) => (b.value as number) - (a.value as number));
+    const maxValue = Math.max(...sortedData.map(d => d.value as number), 1);
+
+    // Create bubble scatter data with x as index, y as region group, size as value
+    const regionGroups: { [key: string]: string[] } = {
+      'APAC': ['Japan', 'China', 'India', 'Australia', 'Singapore', 'Hong Kong', 'South Korea'],
+      'EMEA': ['United Kingdom', 'UK', 'Germany', 'France', 'Switzerland', 'Netherlands', 'Italy', 'Spain'],
+      'NAM': ['United States', 'USA', 'Canada', 'Mexico'],
+      'LATAM': ['Brazil', 'Argentina', 'Chile', 'Colombia', 'Peru']
+    };
+
+    const getRegion = (country: string): number => {
+      if (regionGroups['APAC'].includes(country)) return 3;
+      if (regionGroups['EMEA'].includes(country)) return 2;
+      if (regionGroups['NAM'].includes(country)) return 1;
+      if (regionGroups['LATAM'].includes(country)) return 0;
+      return 2; // Default to EMEA
+    };
+
+    const scatterData = sortedData.slice(0, 15).map((d, i) => ({
+      name: d.name,
+      value: [i, getRegion(d.name), d.value],
+      symbolSize: Math.max(20, Math.min(80, ((d.value as number) / maxValue) * 80)),
+      itemStyle: {
+        color: {
+          type: 'radial',
+          x: 0.5, y: 0.5, r: 0.5,
+          colorStops: [
+            { offset: 0, color: '#66ccff' },
+            { offset: 0.7, color: '#3399cc' },
+            { offset: 1, color: '#0066b2' }
+          ]
+        },
+        shadowBlur: 15,
+        shadowColor: 'rgba(51, 153, 204, 0.6)'
+      }
+    }));
+
+    return {
+      backgroundColor: 'transparent',
+      title: {
+        text: 'Transaction Volume by Country',
+        left: 'center',
+        top: 5,
+        textStyle: { color: '#8b949e', fontSize: 12, fontWeight: 'normal' }
+      },
+      tooltip: {
+        trigger: 'item',
+        formatter: (params: any) => {
+          return `<b>${params.name}</b><br/>Transactions: ${params.value[2]?.toLocaleString() || 0}`;
+        },
+        backgroundColor: '#21262d',
+        borderColor: '#30363d',
+        textStyle: { color: '#f0f6fc' }
+      },
+      grid: {
+        left: '8%',
+        right: '8%',
+        top: '15%',
+        bottom: '15%'
+      },
+      xAxis: {
+        type: 'category',
+        data: sortedData.slice(0, 15).map(d => d.name),
+        axisLine: { lineStyle: { color: '#30363d' } },
+        axisLabel: {
+          color: '#8b949e',
+          fontSize: 9,
+          rotate: 45,
+          interval: 0
+        },
+        splitLine: { show: false }
+      },
+      yAxis: {
+        type: 'category',
+        data: ['LATAM', 'NAM', 'EMEA', 'APAC'],
+        axisLine: { lineStyle: { color: '#30363d' } },
+        axisLabel: { color: '#8b949e', fontSize: 10 },
+        splitLine: { lineStyle: { color: '#21262d' } }
+      },
+      series: [{
+        type: 'scatter',
+        data: scatterData,
+        label: {
+          show: false
+        },
+        emphasis: {
+          itemStyle: {
+            borderColor: '#fff',
+            borderWidth: 2
+          },
+          label: {
+            show: true,
+            formatter: (params: any) => params.value[2]?.toLocaleString(),
+            position: 'top',
+            color: '#f0f6fc',
+            fontSize: 11
+          }
+        }
+      }]
+    };
+  }
+
+  private getPieOptions(): EChartsOption {
+    const nameField = this.config.nameField || this.config.categoryField || 'name';
+    const valueField = this.config.valueField || 'value';
+    const colors = ['#0066b2', '#3399cc', '#66ccff', '#2ecc71', '#f1c40f', '#e74c3c'];
+
+    const pieData = this.data.length > 0
+      ? this.data.map((d, i) => ({
+          value: d[valueField] || d[Object.keys(d)[1]],
+          name: d[nameField] || d[Object.keys(d)[0]],
+          itemStyle: { color: colors[i % colors.length] }
+        }))
+      : [
+          { value: 335, name: 'Markets', itemStyle: { color: colors[0] } },
+          { value: 234, name: 'Banking', itemStyle: { color: colors[1] } },
+          { value: 154, name: 'Securities', itemStyle: { color: colors[2] } },
+          { value: 135, name: 'Treasury', itemStyle: { color: colors[3] } }
+        ];
+
+    return {
+      series: [{
+        type: 'pie',
+        radius: '70%',
+        center: ['50%', '50%'],
+        data: pieData,
+        label: {
+          show: true,
+          color: '#8b949e',
+          formatter: '{b}: {d}%'
+        },
+        emphasis: {
+          itemStyle: {
+            shadowBlur: 10,
+            shadowOffsetX: 0,
+            shadowColor: 'rgba(0, 0, 0, 0.5)'
+          }
+        }
+      }]
+    };
+  }
+
+  private getAreaOptions(): EChartsOption {
+    const categoryField = this.config.categoryField || this.config.xAxis || 'category';
+    const valueField = this.config.valueField || this.config.yAxis || 'value';
+
+    const categories = this.data.length > 0
+      ? this.data.map(d => d[categoryField] || d[Object.keys(d)[0]])
+      : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const values = this.data.length > 0
+      ? this.data.map(d => d[valueField] || d[Object.keys(d)[1]])
+      : [150, 230, 224, 218, 135, 147, 260];
+
+    return {
+      xAxis: {
+        type: 'category',
+        boundaryGap: false,
+        data: categories,
+        axisLine: { lineStyle: { color: '#30363d' } }
+      },
+      yAxis: {
+        type: 'value',
+        axisLine: { lineStyle: { color: '#30363d' } },
+        splitLine: { lineStyle: { color: '#21262d' } }
+      },
+      series: [{
+        type: 'line',
+        data: values,
+        smooth: true,
+        areaStyle: {
+          color: {
+            type: 'linear',
+            x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [
+              { offset: 0, color: 'rgba(0, 102, 178, 0.6)' },
+              { offset: 1, color: 'rgba(0, 102, 178, 0.1)' }
+            ]
+          }
+        },
+        lineStyle: { color: '#0066b2', width: 2 },
+        itemStyle: { color: '#3399cc' }
+      }]
+    };
+  }
+
+  private getHeatmapOptions(): EChartsOption {
+    // Generate heatmap data: [x, y, value]
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+    const hours = ['9am', '10am', '11am', '12pm', '1pm', '2pm', '3pm', '4pm'];
+
+    let heatmapData: number[][] = [];
+    if (this.data.length > 0) {
+      // Try to use provided data
+      const xField = this.config.xField || 'x';
+      const yField = this.config.yField || 'y';
+      const valueField = this.config.valueField || 'value';
+      heatmapData = this.data.map(d => [d[xField], d[yField], d[valueField]]);
+    } else {
+      // Generate demo heatmap data
+      for (let i = 0; i < days.length; i++) {
+        for (let j = 0; j < hours.length; j++) {
+          heatmapData.push([i, j, Math.floor(Math.random() * 100)]);
+        }
+      }
+    }
+
+    return {
+      tooltip: {
+        position: 'top'
+      },
+      grid: {
+        top: '10%',
+        left: '15%',
+        right: '10%',
+        bottom: '15%'
+      },
+      xAxis: {
+        type: 'category',
+        data: days,
+        splitArea: { show: true },
+        axisLine: { lineStyle: { color: '#30363d' } }
+      },
+      yAxis: {
+        type: 'category',
+        data: hours,
+        splitArea: { show: true },
+        axisLine: { lineStyle: { color: '#30363d' } }
+      },
+      visualMap: {
+        min: 0,
+        max: 100,
+        calculable: true,
+        orient: 'horizontal',
+        left: 'center',
+        bottom: '0%',
+        inRange: {
+          color: ['#21262d', '#1a3a52', '#0066b2', '#3399cc']
+        },
+        textStyle: { color: '#8b949e' }
+      },
+      series: [{
+        type: 'heatmap',
+        data: heatmapData,
+        label: { show: false },
+        emphasis: {
+          itemStyle: {
+            shadowBlur: 10,
+            shadowColor: 'rgba(0, 0, 0, 0.5)'
+          }
+        }
       }]
     };
   }

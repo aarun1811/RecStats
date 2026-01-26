@@ -1,6 +1,27 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import { DataCacheService } from '../../core/services/data-cache.service';
+import { ApiService } from '../../core/services/api.service';
+import { firstValueFrom } from 'rxjs';
+
+type TrendDirection = 'up' | 'down' | 'neutral';
+
+interface TrendInfo {
+  value: number;
+  direction: 'up' | 'down' | 'flat';
+}
+
+interface KPISummaryResponse {
+  total_transactions: number;
+  match_rate: number;
+  open_breaks: number;
+  avg_break_age: number;
+  trends: {
+    total_transactions: TrendInfo;
+    match_rate: TrendInfo;
+    open_breaks: TrendInfo;
+    avg_break_age: TrendInfo;
+  };
+}
 
 @Component({
   selector: 'app-home',
@@ -20,50 +41,51 @@ import { DataCacheService } from '../../core/services/data-cache.service';
       </header>
 
       <!-- Loading State -->
-      <div class="loading-banner" *ngIf="loading">
+      <div class="loading-banner" *ngIf="loading()">
         <div class="spinner"></div>
-        <span>Loading data from DuckDB-WASM...</span>
+        <span>Loading data from SQLite...</span>
       </div>
 
       <!-- KPI Cards -->
       <section class="kpi-section">
         <app-kpi-card
           label="Total Transactions"
-          [value]="kpis.totalTransactions"
+          [value]="kpis().totalTransactions"
           format="number"
           [showTrend]="true"
-          trend="up"
-          trendValue="+12.5%"
-          trendLabel="vs last month"
+          [trend]="getTrendDirection(kpis().trends.totalTransactions.direction)"
+          [trendValue]="formatTrend(kpis().trends.totalTransactions)"
+          trendLabel="vs last week"
         ></app-kpi-card>
         <app-kpi-card
           label="Match Rate"
-          [value]="kpis.matchRate"
+          [value]="kpis().matchRate"
           suffix="%"
           format="none"
           variant="success"
           [showTrend]="true"
-          trend="up"
-          trendValue="+2.1%"
+          [trend]="getTrendDirection(kpis().trends.matchRate.direction)"
+          [trendValue]="formatTrend(kpis().trends.matchRate)"
         ></app-kpi-card>
         <app-kpi-card
           label="Open Breaks"
-          [value]="kpis.openBreaks"
+          [value]="kpis().openBreaks"
           format="number"
           variant="warning"
           [showTrend]="true"
-          trend="down"
-          trendValue="-8.3%"
-          trendLabel="improving"
+          [trend]="getInverseTrendDirection(kpis().trends.openBreaks.direction)"
+          [trendValue]="formatTrend(kpis().trends.openBreaks)"
+          [trendLabel]="kpis().trends.openBreaks.direction === 'down' ? 'improving' : 'needs attention'"
         ></app-kpi-card>
         <app-kpi-card
           label="Avg Break Age"
-          [value]="kpis.avgBreakAge"
+          [value]="kpis().avgBreakAge"
           suffix=" days"
           format="none"
           [showTrend]="true"
-          trend="down"
-          trendValue="-1.5 days"
+          [trend]="getInverseTrendDirection(kpis().trends.avgBreakAge.direction)"
+          [trendValue]="formatTrend(kpis().trends.avgBreakAge)"
+          [trendLabel]="kpis().trends.avgBreakAge.direction === 'down' ? 'improving' : 'needs attention'"
         ></app-kpi-card>
       </section>
 
@@ -128,18 +150,18 @@ import { DataCacheService } from '../../core/services/data-cache.service';
       </section>
 
       <!-- Data Status -->
-      <section class="section data-status" *ngIf="!loading">
+      <section class="section data-status" *ngIf="!loading()">
         <app-card [glow]="true">
           <div class="status-content">
             <div class="status-icon">
               <app-icon name="database" [size]="24"></app-icon>
             </div>
             <div class="status-text">
-              <h4>DuckDB-WASM Active</h4>
-              <p>10K+ transactions and 1.5K breaks loaded in-browser for ultra-fast filtering</p>
+              <h4>SQLite Backend Active</h4>
+              <p>100K+ transactions and 15K breaks loaded for comprehensive reconciliation analytics</p>
             </div>
             <div class="status-badge">
-              <span class="badge success">Ready</span>
+              <span class="badge success">Connected</span>
             </div>
           </div>
         </app-card>
@@ -384,15 +406,32 @@ import { DataCacheService } from '../../core/services/data-cache.service';
 })
 export class HomeComponent implements OnInit {
   private router = inject(Router);
-  private dataCache = inject(DataCacheService);
+  private api = inject(ApiService);
 
-  loading = true;
-  kpis = {
+  loading = signal(true);
+  kpis = signal<{
+    totalTransactions: number;
+    matchRate: number;
+    openBreaks: number;
+    avgBreakAge: number;
+    trends: {
+      totalTransactions: TrendInfo;
+      matchRate: TrendInfo;
+      openBreaks: TrendInfo;
+      avgBreakAge: TrendInfo;
+    };
+  }>({
     totalTransactions: 0,
     matchRate: 0,
     openBreaks: 0,
-    avgBreakAge: 0
-  };
+    avgBreakAge: 0,
+    trends: {
+      totalTransactions: { value: 0, direction: 'flat' },
+      matchRate: { value: 0, direction: 'flat' },
+      openBreaks: { value: 0, direction: 'flat' },
+      avgBreakAge: { value: 0, direction: 'flat' },
+    }
+  });
 
   recentDashboards = [
     { id: 'executive', name: 'Executive Overview', chartCount: 6, lastUpdated: '2 hours ago', icon: 'bar-chart-2' },
@@ -407,17 +446,45 @@ export class HomeComponent implements OnInit {
   }
 
   async loadKPIs() {
-    this.dataCache.isReady$.subscribe(async (ready) => {
-      if (ready) {
-        try {
-          this.kpis = await this.dataCache.getKPIs();
-        } catch (error) {
-          console.error('Failed to load KPIs:', error);
-        } finally {
-          this.loading = false;
+    try {
+      const response = await firstValueFrom(
+        this.api.get<KPISummaryResponse>('/dashboards/kpis/summary')
+      );
+      this.kpis.set({
+        totalTransactions: response.total_transactions,
+        matchRate: response.match_rate,
+        openBreaks: response.open_breaks,
+        avgBreakAge: response.avg_break_age,
+        trends: {
+          totalTransactions: response.trends.total_transactions,
+          matchRate: response.trends.match_rate,
+          openBreaks: response.trends.open_breaks,
+          avgBreakAge: response.trends.avg_break_age,
         }
-      }
-    });
+      });
+    } catch (error) {
+      console.error('Failed to load KPIs:', error);
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  formatTrend(trend: TrendInfo): string {
+    if (trend.direction === 'flat' || trend.value === 0) return '0%';
+    const sign = trend.direction === 'up' ? '+' : '-';
+    return `${sign}${trend.value}%`;
+  }
+
+  getTrendDirection(direction: 'up' | 'down' | 'flat'): TrendDirection {
+    // Convert API 'flat' to component 'neutral'
+    if (direction === 'flat') return 'neutral';
+    return direction;
+  }
+
+  getInverseTrendDirection(direction: 'up' | 'down' | 'flat'): TrendDirection {
+    // For breaks and age, "down" is good (shows as "up" arrow in green)
+    if (direction === 'flat') return 'neutral';
+    return direction === 'down' ? 'up' : 'down';
   }
 
   createDashboard() {

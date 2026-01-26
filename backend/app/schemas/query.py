@@ -65,3 +65,34 @@ class QueryExecuteResponse(BaseModel):
     total_count: Optional[int] = None
     execution_time_ms: float
     truncated: bool = False
+
+
+class DirectQueryRequest(BaseModel):
+    """Schema for direct SQL execution (no data source required)."""
+
+    sql: str = Field(..., min_length=1)
+    limit: int = Field(default=1000, ge=1, le=100000)
+    offset: int = Field(default=0, ge=0)
+
+
+class TableColumnSchema(BaseModel):
+    """Schema for a table column."""
+
+    name: str
+    type: str
+    nullable: bool
+    primary_key: bool = False
+
+
+class TableSchema(BaseModel):
+    """Schema for a table."""
+
+    name: str
+    columns: list[TableColumnSchema]
+    row_count: Optional[int] = None
+
+
+class SchemaResponse(BaseModel):
+    """Schema for database schema response."""
+
+    tables: list[TableSchema]

@@ -15,15 +15,19 @@ interface QueryResult {
   execution_time_ms?: number;
 }
 
-interface DataSource {
-  id: string;
-  name: string;
-  type: string;
-}
-
 interface TableSchema {
   name: string;
-  columns: { name: string; data_type: string }[];
+  columns: { name: string; type: string; nullable: boolean; primary_key: boolean }[];
+  row_count?: number;
+}
+
+interface SavedQuery {
+  id: string;
+  name: string;
+  description?: string;
+  sql_text: string;
+  created_at: string;
+  updated_at: string;
 }
 
 @Component({
@@ -38,13 +42,11 @@ interface TableSchema {
             <app-icon name="refresh" [size]="16"></app-icon>
           </app-button>
         </div>
-        <div class="datasource-select">
-          <select [(ngModel)]="selectedDataSourceId" (ngModelChange)="onDataSourceChange()">
-            <option value="">Select Data Source</option>
-            <option *ngFor="let ds of dataSources()" [value]="ds.id">
-              {{ ds.name }} ({{ ds.type }})
-            </option>
-          </select>
+        <div class="datasource-info">
+          <div class="datasource-badge">
+            <app-icon name="database" [size]="14"></app-icon>
+            <span>SQLite (Mock Data)</span>
+          </div>
         </div>
         <app-schema-explorer
           [tables]="schemaTables()"
@@ -72,9 +74,13 @@ interface TableSchema {
             </app-button>
           </div>
           <div class="toolbar-right">
-            <app-button variant="ghost" (click)="saveQuery()">
+            <app-button variant="ghost" (click)="loadSavedQueries()">
+              <app-icon name="folder" [size]="16"></app-icon>
+              Load
+            </app-button>
+            <app-button variant="ghost" (click)="openSaveModal()">
               <app-icon name="save" [size]="16"></app-icon>
-              Save Query
+              Save
             </app-button>
           </div>
         </div>
@@ -105,6 +111,15 @@ interface TableSchema {
                 [class.active]="activeTab() === 'history'"
                 (click)="activeTab.set('history')">
                 History
+              </button>
+              <button
+                class="tab"
+                [class.active]="activeTab() === 'saved'"
+                (click)="activeTab.set('saved'); loadSavedQueries()">
+                Saved
+                <span class="badge" *ngIf="savedQueries().length > 0">
+                  {{ savedQueries().length }}
+                </span>
               </button>
             </div>
             <div class="results-info" *ngIf="queryResult() && executionTime()">
@@ -151,9 +166,80 @@ interface TableSchema {
                 <p>No query history yet</p>
               </div>
             </div>
+
+            <!-- Saved Queries -->
+            <div *ngIf="activeTab() === 'saved'" class="saved-container">
+              <div
+                *ngFor="let query of savedQueries()"
+                class="saved-item">
+                <div class="saved-header">
+                  <div class="saved-name">{{ query.name }}</div>
+                  <div class="saved-actions">
+                    <app-button variant="ghost" size="sm" (click)="loadSavedQuery(query)">
+                      <app-icon name="play" [size]="14"></app-icon>
+                    </app-button>
+                    <app-button variant="ghost" size="sm" (click)="deleteSavedQuery(query.id)">
+                      <app-icon name="trash" [size]="14"></app-icon>
+                    </app-button>
+                  </div>
+                </div>
+                <div class="saved-sql">{{ query.sql_text.substring(0, 80) }}...</div>
+                <div class="saved-meta">
+                  <span *ngIf="query.description">{{ query.description }}</span>
+                  <span>Created {{ formatDate(query.created_at) }}</span>
+                </div>
+              </div>
+              <div *ngIf="savedQueries().length === 0" class="empty-state">
+                <app-icon name="folder" [size]="48"></app-icon>
+                <p>No saved queries yet</p>
+                <p class="hint">Click "Save" to save your current query</p>
+              </div>
+            </div>
           </div>
         </div>
       </main>
+
+      <!-- Save Query Modal -->
+      <div class="modal-overlay" *ngIf="showSaveModal()" (click)="closeSaveModal()">
+        <div class="modal" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h3>Save Query</h3>
+            <app-button variant="ghost" size="sm" (click)="closeSaveModal()">
+              <app-icon name="x" [size]="18"></app-icon>
+            </app-button>
+          </div>
+          <div class="modal-body">
+            <div class="form-group">
+              <label>Query Name *</label>
+              <input
+                type="text"
+                class="form-input"
+                [(ngModel)]="saveQueryName"
+                placeholder="Enter query name">
+            </div>
+            <div class="form-group">
+              <label>Description (optional)</label>
+              <textarea
+                class="form-input"
+                [(ngModel)]="saveQueryDescription"
+                rows="2"
+                placeholder="Brief description of what this query does">
+              </textarea>
+            </div>
+            <div class="form-group">
+              <label>SQL Preview</label>
+              <pre class="sql-preview">{{ sqlText.substring(0, 200) }}{{ sqlText.length > 200 ? '...' : '' }}</pre>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <app-button variant="ghost" (click)="closeSaveModal()">Cancel</app-button>
+            <app-button variant="primary" (click)="saveQuery()" [disabled]="!saveQueryName.trim()">
+              <app-icon name="save" [size]="16"></app-icon>
+              Save Query
+            </app-button>
+          </div>
+        </div>
+      </div>
     </div>
   `,
   styles: [`
@@ -189,30 +275,22 @@ interface TableSchema {
       }
     }
 
-    .datasource-select {
+    .datasource-info {
       padding: var(--spacing-3);
       border-bottom: 1px solid var(--border-color);
+    }
 
-      select {
-        width: 100%;
-        padding: var(--spacing-2) var(--spacing-3);
-        background: var(--bg-tertiary);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-md);
-        color: var(--text-primary);
-        font-size: var(--font-size-sm);
-        cursor: pointer;
-
-        &:focus {
-          outline: none;
-          border-color: var(--color-primary);
-        }
-
-        option {
-          background: var(--bg-secondary);
-          color: var(--text-primary);
-        }
-      }
+    .datasource-badge {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-2);
+      padding: var(--spacing-2) var(--spacing-3);
+      background: rgba(var(--color-primary-rgb), 0.15);
+      border: 1px solid var(--color-primary);
+      border-radius: var(--radius-md);
+      color: var(--color-primary-light);
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-medium);
     }
 
     .editor-main {
@@ -370,6 +448,165 @@ interface TableSchema {
       font-size: var(--font-size-xs);
       color: var(--text-muted);
     }
+
+    .saved-container {
+      padding: var(--spacing-3);
+      overflow-y: auto;
+      height: 100%;
+    }
+
+    .saved-item {
+      padding: var(--spacing-3);
+      background: var(--bg-secondary);
+      border-radius: var(--radius-md);
+      margin-bottom: var(--spacing-2);
+      transition: all 0.2s ease;
+
+      &:hover {
+        background: var(--bg-tertiary);
+      }
+    }
+
+    .saved-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--spacing-2);
+    }
+
+    .saved-name {
+      font-weight: var(--font-weight-semibold);
+      color: var(--text-primary);
+    }
+
+    .saved-actions {
+      display: flex;
+      gap: var(--spacing-1);
+    }
+
+    .saved-sql {
+      font-family: var(--font-mono);
+      font-size: var(--font-size-xs);
+      color: var(--text-secondary);
+      margin-bottom: var(--spacing-2);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .saved-meta {
+      display: flex;
+      gap: var(--spacing-3);
+      font-size: var(--font-size-xs);
+      color: var(--text-muted);
+    }
+
+    .hint {
+      font-size: var(--font-size-xs);
+      color: var(--text-muted);
+    }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      width: 100%;
+      max-width: 500px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--spacing-4);
+      border-bottom: 1px solid var(--border-color);
+
+      h3 {
+        margin: 0;
+        font-size: var(--font-size-lg);
+        font-weight: var(--font-weight-semibold);
+        color: var(--text-primary);
+      }
+    }
+
+    .modal-body {
+      padding: var(--spacing-4);
+    }
+
+    .modal-footer {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: var(--spacing-2);
+      padding: var(--spacing-4);
+      border-top: 1px solid var(--border-color);
+    }
+
+    .form-group {
+      margin-bottom: var(--spacing-4);
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+
+      label {
+        display: block;
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-medium);
+        color: var(--text-secondary);
+        margin-bottom: var(--spacing-2);
+      }
+    }
+
+    .form-input {
+      width: 100%;
+      padding: var(--spacing-3);
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font-size: var(--font-size-sm);
+      font-family: inherit;
+      resize: vertical;
+      transition: border-color 0.2s ease;
+
+      &:focus {
+        outline: none;
+        border-color: var(--color-primary);
+      }
+
+      &::placeholder {
+        color: var(--text-muted);
+      }
+    }
+
+    .sql-preview {
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: var(--spacing-3);
+      font-family: var(--font-mono);
+      font-size: var(--font-size-xs);
+      color: var(--text-secondary);
+      overflow-x: auto;
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
   `]
 })
 export class QueryEditorComponent implements OnInit {
@@ -377,52 +614,35 @@ export class QueryEditorComponent implements OnInit {
   private notifications = inject(NotificationService);
 
   // State
-  dataSources = signal<DataSource[]>([]);
-  selectedDataSourceId = '';
   schemaTables = signal<TableSchema[]>([]);
   sqlText = 'SELECT * FROM transactions LIMIT 100';
   queryResult = signal<QueryResult | null>(null);
   isExecuting = signal(false);
   executionTime = signal<number | null>(null);
-  activeTab = signal<'results' | 'history'>('results');
+  activeTab = signal<'results' | 'history' | 'saved'>('results');
   queryHistory = signal<{ sql: string; timestamp: Date; rowCount: number }[]>([]);
+  isLoadingSchema = signal(false);
+  savedQueries = signal<SavedQuery[]>([]);
+  showSaveModal = signal(false);
+  saveQueryName = '';
+  saveQueryDescription = '';
 
   ngOnInit() {
-    this.loadDataSources();
-  }
-
-  async loadDataSources() {
-    try {
-      const response = await firstValueFrom(this.api.get<DataSource[]>('/datasources'));
-      this.dataSources.set(response);
-
-      // Auto-select first data source
-      if (response.length > 0) {
-        this.selectedDataSourceId = response[0].id;
-        this.loadSchema();
-      }
-    } catch (error) {
-      this.notifications.error('Failed to load data sources');
-    }
-  }
-
-  async onDataSourceChange() {
-    if (this.selectedDataSourceId) {
-      await this.loadSchema();
-    }
+    this.loadSchema();
   }
 
   async loadSchema() {
-    if (!this.selectedDataSourceId) return;
-
+    this.isLoadingSchema.set(true);
     try {
       const response = await firstValueFrom(
-        this.api.get<{ tables: TableSchema[] }>(`/datasources/${this.selectedDataSourceId}/schema`)
+        this.api.get<{ tables: TableSchema[] }>('/queries/schema')
       );
       this.schemaTables.set(response.tables || []);
     } catch (error) {
-      // Schema might not be available for all data sources
+      this.notifications.error('Failed to load schema');
       this.schemaTables.set([]);
+    } finally {
+      this.isLoadingSchema.set(false);
     }
   }
 
@@ -439,8 +659,8 @@ export class QueryEditorComponent implements OnInit {
   }
 
   async executeQuery() {
-    if (!this.selectedDataSourceId || !this.sqlText.trim()) {
-      this.notifications.warning('Please select a data source and enter a query');
+    if (!this.sqlText.trim()) {
+      this.notifications.warning('Please enter a SQL query');
       return;
     }
 
@@ -450,14 +670,13 @@ export class QueryEditorComponent implements OnInit {
 
     try {
       const response = await firstValueFrom(
-        this.api.post<QueryResult>('/queries/execute', {
-          data_source_id: this.selectedDataSourceId,
+        this.api.post<QueryResult>('/queries/direct', {
           sql: this.sqlText
         })
       );
 
-      const execTime = Date.now() - startTime;
-      this.executionTime.set(execTime);
+      const execTime = response.execution_time_ms || (Date.now() - startTime);
+      this.executionTime.set(Math.round(execTime));
       this.queryResult.set(response);
 
       // Add to history
@@ -467,7 +686,7 @@ export class QueryEditorComponent implements OnInit {
         rowCount: response.data?.length || 0
       }, ...history.slice(0, 19)]);
 
-      this.notifications.success(`Query executed in ${execTime}ms`);
+      this.notifications.success(`Query executed: ${response.row_count} rows in ${Math.round(execTime)}ms`);
     } catch (error: any) {
       this.notifications.error(error.message || 'Query execution failed');
     } finally {
@@ -499,9 +718,67 @@ export class QueryEditorComponent implements OnInit {
     this.queryResult.set(null);
   }
 
-  saveQuery() {
-    // TODO: Implement save query modal
-    this.notifications.info('Save query feature coming soon');
+  openSaveModal() {
+    if (!this.sqlText.trim()) {
+      this.notifications.warning('Please enter a SQL query to save');
+      return;
+    }
+    this.saveQueryName = '';
+    this.saveQueryDescription = '';
+    this.showSaveModal.set(true);
+  }
+
+  closeSaveModal() {
+    this.showSaveModal.set(false);
+  }
+
+  async saveQuery() {
+    if (!this.saveQueryName.trim()) {
+      this.notifications.warning('Please enter a query name');
+      return;
+    }
+
+    try {
+      await firstValueFrom(
+        this.api.post<SavedQuery>('/queries', {
+          name: this.saveQueryName.trim(),
+          description: this.saveQueryDescription.trim() || null,
+          sql_text: this.sqlText
+        })
+      );
+      this.notifications.success('Query saved successfully');
+      this.closeSaveModal();
+      this.loadSavedQueries();
+    } catch (error: any) {
+      this.notifications.error(error.message || 'Failed to save query');
+    }
+  }
+
+  async loadSavedQueries() {
+    try {
+      const queries = await firstValueFrom(
+        this.api.get<SavedQuery[]>('/queries')
+      );
+      this.savedQueries.set(queries || []);
+    } catch (error) {
+      console.error('Failed to load saved queries:', error);
+    }
+  }
+
+  loadSavedQuery(query: SavedQuery) {
+    this.sqlText = query.sql_text;
+    this.activeTab.set('results');
+    this.notifications.info(`Loaded query: ${query.name}`);
+  }
+
+  async deleteSavedQuery(id: string) {
+    try {
+      await firstValueFrom(this.api.delete(`/queries/${id}`));
+      this.notifications.success('Query deleted');
+      this.loadSavedQueries();
+    } catch (error: any) {
+      this.notifications.error(error.message || 'Failed to delete query');
+    }
   }
 
   loadHistoryItem(item: { sql: string; timestamp: Date; rowCount: number }) {
@@ -509,7 +786,7 @@ export class QueryEditorComponent implements OnInit {
     this.activeTab.set('results');
   }
 
-  formatDate(date: Date): string {
+  formatDate(date: Date | string): string {
     return new Date(date).toLocaleString();
   }
 }

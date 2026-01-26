@@ -4,18 +4,13 @@ import { RouterModule, Routes } from '@angular/router';
 const routes: Routes = [
   {
     path: '',
-    redirectTo: 'dashboards',
-    pathMatch: 'full'
+    loadChildren: () => import('./features/dashboard-viewer/dashboard-viewer.module')
+      .then(m => m.DashboardViewerModule)
   },
   {
     path: 'dashboards',
     loadChildren: () => import('./features/dashboard-builder/dashboard-builder.module')
       .then(m => m.DashboardBuilderModule)
-  },
-  {
-    path: 'view',
-    loadChildren: () => import('./features/dashboard-viewer/dashboard-viewer.module')
-      .then(m => m.DashboardViewerModule)
   },
   {
     path: 'queries',
@@ -44,7 +39,7 @@ const routes: Routes = [
   },
   {
     path: '**',
-    redirectTo: 'dashboards'
+    redirectTo: ''
   }
 ];
 

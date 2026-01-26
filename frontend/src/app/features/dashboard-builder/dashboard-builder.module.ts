@@ -4,6 +4,7 @@ import { SharedModule } from '../../shared/shared.module';
 import { GridsterModule } from 'angular-gridster2';
 import { NgxEchartsModule } from 'ngx-echarts';
 
+import { DashboardListComponent } from './dashboard-list.component';
 import { DashboardBuilderComponent } from './dashboard-builder.component';
 import { DashboardGridComponent } from './dashboard-grid.component';
 import { WidgetWrapperComponent } from './widget-wrapper.component';
@@ -12,12 +13,14 @@ import { FilterBarComponent } from './filter-bar.component';
 import { AddWidgetModalComponent } from './add-widget-modal.component';
 
 const routes: Routes = [
-  { path: '', component: DashboardBuilderComponent },
+  { path: '', component: DashboardListComponent },
+  { path: 'new', component: DashboardBuilderComponent },
   { path: ':id', component: DashboardBuilderComponent }
 ];
 
 @NgModule({
   declarations: [
+    DashboardListComponent,
     DashboardBuilderComponent,
     DashboardGridComponent,
     WidgetWrapperComponent,

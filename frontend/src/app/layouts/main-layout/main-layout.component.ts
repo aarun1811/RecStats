@@ -520,8 +520,9 @@ export class MainLayoutComponent {
   sidebarCollapsed = false;
 
   mainNavItems: NavItem[] = [
-    { icon: 'dashboard', label: 'Dashboards', route: '/dashboards', badge: 5 },
-    { icon: 'chart-bar', label: 'Charts', route: '/charts' },
+    { icon: 'home', label: 'Home', route: '/' },
+    { icon: 'layout-dashboard', label: 'Dashboards', route: '/dashboards', badge: 5 },
+    { icon: 'bar-chart-2', label: 'Charts', route: '/charts' },
     { icon: 'code', label: 'Query Editor', route: '/queries' },
   ];
 

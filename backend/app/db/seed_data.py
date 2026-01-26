@@ -1,0 +1,711 @@
+"""Mock data generator for ResStats demo.
+
+Generates:
+- 100,000 transactions
+- 15,000 breaks
+- 365 daily metrics
+- 5 sample dashboards with queries and charts
+"""
+
+import json
+import random
+import logging
+from datetime import datetime, timedelta
+from typing import List
+from uuid import uuid4
+
+from sqlalchemy import select, func
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.db.models import Transaction, Break, DailyMetric, Query, Chart, Dashboard, DashboardChart
+
+logger = logging.getLogger(__name__)
+
+# Configuration
+NUM_TRANSACTIONS = 100_000
+NUM_BREAKS = 15_000
+NUM_DAYS_METRICS = 365
+
+# Reference data
+REGIONS = ["APAC", "EMEA", "NAM", "LATAM"]
+
+REGION_COUNTRIES = {
+    "APAC": ["Japan", "Singapore", "Hong Kong", "Australia", "China", "India", "South Korea"],
+    "EMEA": ["UK", "Germany", "France", "Switzerland", "Netherlands", "Italy", "Spain"],
+    "NAM": ["USA", "Canada", "Mexico"],
+    "LATAM": ["Brazil", "Argentina", "Chile", "Colombia", "Peru"],
+}
+
+CURRENCIES = ["USD", "EUR", "GBP", "JPY", "CHF", "SGD", "HKD"]
+
+LOBS = ["Markets", "Banking", "Securities Services", "Treasury"]
+
+SOURCE_SYSTEMS = ["System A", "System B", "System C", "System D"]
+
+STATUSES = ["matched", "unmatched", "break"]
+STATUS_WEIGHTS = [0.85, 0.10, 0.05]  # 85% matched, 10% unmatched, 5% break
+
+BREAK_REASONS = [
+    "Amount Mismatch",
+    "Date Mismatch",
+    "Missing Trade",
+    "Duplicate Trade",
+    "Currency Mismatch",
+    "Counterparty Mismatch",
+    "Settlement Date Mismatch",
+    "Reference Mismatch",
+    "Price Difference",
+    "Quantity Mismatch",
+]
+
+BREAK_CATEGORIES = ["Critical", "High", "Medium", "Low"]
+BREAK_CATEGORY_WEIGHTS = [0.05, 0.15, 0.40, 0.40]
+
+ASSIGNEES = [
+    "John Smith",
+    "Jane Doe",
+    "Michael Johnson",
+    "Sarah Williams",
+    "David Brown",
+    "Emily Davis",
+    "Robert Wilson",
+    "Lisa Anderson",
+    "Unassigned",
+]
+
+
+def generate_transactions(num: int, base_date: datetime) -> List[dict]:
+    """Generate mock transaction records."""
+    transactions = []
+
+    for i in range(num):
+        txn_id = f"TXN{i+1:08d}"
+        region = random.choice(REGIONS)
+        country = random.choice(REGION_COUNTRIES[region])
+        days_ago = random.randint(0, 89)  # Last 90 days
+
+        transactions.append({
+            "id": txn_id,
+            "date": base_date - timedelta(days=days_ago),
+            "amount": round(random.uniform(100, 100000), 2),
+            "currency": random.choice(CURRENCIES),
+            "region": region,
+            "country": country,
+            "lob": random.choice(LOBS),
+            "source_system": random.choice(SOURCE_SYSTEMS),
+            "counterparty": f"CPTY{random.randint(1, 500):04d}",
+            "status": random.choices(STATUSES, weights=STATUS_WEIGHTS)[0],
+        })
+
+        if (i + 1) % 10000 == 0:
+            logger.info(f"Generated {i + 1:,} transactions...")
+
+    return transactions
+
+
+def generate_breaks(num: int, base_date: datetime) -> List[dict]:
+    """Generate mock break records."""
+    breaks = []
+
+    for i in range(num):
+        brk_id = f"BRK{i+1:06d}"
+        region = random.choice(REGIONS)
+        days_ago = random.randint(0, 29)  # Last 30 days
+        age_days = random.randint(0, 30)
+        category = random.choices(BREAK_CATEGORIES, weights=BREAK_CATEGORY_WEIGHTS)[0]
+
+        # Priority maps to category
+        priority_map = {"Critical": 1, "High": 2, "Medium": 3, "Low": 4}
+
+        breaks.append({
+            "id": brk_id,
+            "transaction_id": f"TXN{random.randint(1, NUM_TRANSACTIONS):08d}",
+            "reason": random.choice(BREAK_REASONS),
+            "category": category,
+            "amount": round(random.uniform(10, 10000), 2),
+            "age_days": age_days,
+            "assigned_to": random.choice(ASSIGNEES),
+            "region": region,
+            "lob": random.choice(LOBS),
+            "created_date": base_date - timedelta(days=days_ago),
+            "priority": priority_map[category],
+        })
+
+        if (i + 1) % 5000 == 0:
+            logger.info(f"Generated {i + 1:,} breaks...")
+
+    return breaks
+
+
+def generate_daily_metrics(num_days: int, base_date: datetime) -> List[dict]:
+    """Generate daily metric records."""
+    metrics = []
+
+    for i in range(num_days):
+        date = base_date - timedelta(days=i)
+
+        # Base volume with some variation
+        base_volume = 50000 + random.randint(-20000, 20000)
+
+        # Weekends have lower volume
+        if date.weekday() >= 5:
+            base_volume = int(base_volume * 0.3)
+
+        # Match rate varies between 90-98%
+        match_rate = 90 + random.uniform(0, 8)
+
+        matched = int(base_volume * (match_rate / 100))
+        unmatched = base_volume - matched
+        breaks = int(unmatched * random.uniform(0.2, 0.4))
+
+        metrics.append({
+            "date": date,
+            "total_transactions": base_volume,
+            "matched": matched,
+            "unmatched": unmatched,
+            "breaks": breaks,
+            "match_rate": round(match_rate, 2),
+            "avg_break_age": round(random.uniform(2, 7), 1),
+        })
+
+    return metrics
+
+
+async def check_data_exists(session: AsyncSession) -> bool:
+    """Check if mock data already exists."""
+    result = await session.execute(select(func.count()).select_from(Transaction))
+    count = result.scalar()
+    return count is not None and count > 0
+
+
+async def seed_transactions(session: AsyncSession, transactions: List[dict]) -> None:
+    """Insert transactions in batches."""
+    batch_size = 5000
+
+    for i in range(0, len(transactions), batch_size):
+        batch = transactions[i:i + batch_size]
+        session.add_all([Transaction(**t) for t in batch])
+        await session.flush()
+        logger.info(f"Inserted transactions batch {i // batch_size + 1}")
+
+    await session.commit()
+
+
+async def seed_breaks(session: AsyncSession, breaks: List[dict]) -> None:
+    """Insert breaks in batches."""
+    batch_size = 2000
+
+    for i in range(0, len(breaks), batch_size):
+        batch = breaks[i:i + batch_size]
+        session.add_all([Break(**b) for b in batch])
+        await session.flush()
+        logger.info(f"Inserted breaks batch {i // batch_size + 1}")
+
+    await session.commit()
+
+
+async def seed_daily_metrics(session: AsyncSession, metrics: List[dict]) -> None:
+    """Insert daily metrics."""
+    session.add_all([DailyMetric(**m) for m in metrics])
+    await session.commit()
+    logger.info(f"Inserted {len(metrics)} daily metrics")
+
+
+async def seed_mock_data(session: AsyncSession, force: bool = False) -> None:
+    """Main seeding function.
+
+    Args:
+        session: Database session
+        force: If True, skip existence check and seed anyway
+    """
+    if not force:
+        exists = await check_data_exists(session)
+        if exists:
+            logger.info("Mock data already exists. Skipping seed.")
+            return
+
+    logger.info("=" * 60)
+    logger.info("Starting mock data generation...")
+    logger.info("=" * 60)
+
+    base_date = datetime.now()
+
+    # Generate data
+    logger.info(f"Generating {NUM_TRANSACTIONS:,} transactions...")
+    transactions = generate_transactions(NUM_TRANSACTIONS, base_date)
+
+    logger.info(f"Generating {NUM_BREAKS:,} breaks...")
+    breaks = generate_breaks(NUM_BREAKS, base_date)
+
+    logger.info(f"Generating {NUM_DAYS_METRICS} days of metrics...")
+    metrics = generate_daily_metrics(NUM_DAYS_METRICS, base_date)
+
+    # Insert data
+    logger.info("Inserting transactions into database...")
+    await seed_transactions(session, transactions)
+
+    logger.info("Inserting breaks into database...")
+    await seed_breaks(session, breaks)
+
+    logger.info("Inserting daily metrics into database...")
+    await seed_daily_metrics(session, metrics)
+
+    logger.info("=" * 60)
+    logger.info("Mock data seeding complete!")
+    logger.info(f"  - Transactions: {NUM_TRANSACTIONS:,}")
+    logger.info(f"  - Breaks: {NUM_BREAKS:,}")
+    logger.info(f"  - Daily Metrics: {NUM_DAYS_METRICS}")
+    logger.info("=" * 60)
+
+    # Seed dashboards
+    await seed_sample_dashboards(session)
+
+
+# ============================================================================
+# SAMPLE DASHBOARDS, CHARTS, AND QUERIES
+# ============================================================================
+
+SAMPLE_QUERIES = [
+    # Executive Overview queries
+    {
+        "id": "query-exec-total-txns",
+        "name": "Total Transactions",
+        "description": "Count of all transactions",
+        "sql_text": "SELECT COUNT(*) as value FROM transactions",
+    },
+    {
+        "id": "query-exec-match-rate",
+        "name": "Match Rate",
+        "description": "Percentage of matched transactions",
+        "sql_text": "SELECT ROUND(100.0 * SUM(CASE WHEN status = 'matched' THEN 1 ELSE 0 END) / COUNT(*), 1) as value FROM transactions",
+    },
+    {
+        "id": "query-exec-open-breaks",
+        "name": "Open Breaks",
+        "description": "Count of open breaks",
+        "sql_text": "SELECT COUNT(*) as value FROM breaks",
+    },
+    {
+        "id": "query-exec-avg-age",
+        "name": "Average Break Age",
+        "description": "Average age of breaks in days",
+        "sql_text": "SELECT ROUND(AVG(age_days), 1) as value FROM breaks",
+    },
+    {
+        "id": "query-exec-daily-trend",
+        "name": "Daily Transaction Trend",
+        "description": "Daily transaction volumes for the last 30 days",
+        "sql_text": "SELECT date, total_transactions as value FROM daily_metrics ORDER BY date DESC LIMIT 30",
+    },
+    {
+        "id": "query-exec-region-volume",
+        "name": "Volume by Region",
+        "description": "Transaction count by region",
+        "sql_text": "SELECT region as category, COUNT(*) as value FROM transactions GROUP BY region ORDER BY value DESC",
+    },
+    {
+        "id": "query-exec-status-pie",
+        "name": "Status Distribution",
+        "description": "Transaction count by status",
+        "sql_text": "SELECT status as name, COUNT(*) as value FROM transactions GROUP BY status ORDER BY value DESC",
+    },
+    # Breaks Analysis queries
+    {
+        "id": "query-breaks-by-reason",
+        "name": "Breaks by Reason",
+        "description": "Break count by reason",
+        "sql_text": "SELECT reason as category, COUNT(*) as value FROM breaks GROUP BY reason ORDER BY value DESC LIMIT 10",
+    },
+    {
+        "id": "query-breaks-by-category",
+        "name": "Breaks by Category",
+        "description": "Break count by severity category",
+        "sql_text": "SELECT category as name, COUNT(*) as value FROM breaks GROUP BY category ORDER BY CASE category WHEN 'Critical' THEN 1 WHEN 'High' THEN 2 WHEN 'Medium' THEN 3 ELSE 4 END",
+    },
+    {
+        "id": "query-breaks-by-lob",
+        "name": "Breaks by LOB",
+        "description": "Break count by line of business",
+        "sql_text": "SELECT lob as category, COUNT(*) as value FROM breaks GROUP BY lob ORDER BY value DESC",
+    },
+    {
+        "id": "query-breaks-aging",
+        "name": "Breaks by Age Bucket",
+        "description": "Breaks grouped by age",
+        "sql_text": """SELECT
+            CASE
+                WHEN age_days <= 1 THEN '0-1 days'
+                WHEN age_days <= 5 THEN '2-5 days'
+                WHEN age_days <= 10 THEN '6-10 days'
+                WHEN age_days <= 20 THEN '11-20 days'
+                ELSE '20+ days'
+            END as category,
+            COUNT(*) as value
+        FROM breaks
+        GROUP BY 1
+        ORDER BY MIN(age_days)""",
+    },
+    {
+        "id": "query-breaks-critical",
+        "name": "Critical Breaks Count",
+        "description": "Number of critical priority breaks",
+        "sql_text": "SELECT COUNT(*) as value FROM breaks WHERE category = 'Critical'",
+    },
+    # Geographic queries
+    {
+        "id": "query-geo-region-bar",
+        "name": "Transactions by Region",
+        "description": "Transaction distribution by region",
+        "sql_text": "SELECT region as category, COUNT(*) as value FROM transactions GROUP BY region ORDER BY value DESC",
+    },
+    {
+        "id": "query-geo-country-top",
+        "name": "Top Countries",
+        "description": "Top 10 countries by transaction volume",
+        "sql_text": "SELECT country as category, COUNT(*) as value FROM transactions GROUP BY country ORDER BY value DESC LIMIT 10",
+    },
+    {
+        "id": "query-geo-apac",
+        "name": "APAC Transactions",
+        "description": "Count of APAC transactions",
+        "sql_text": "SELECT COUNT(*) as value FROM transactions WHERE region = 'APAC'",
+    },
+    {
+        "id": "query-geo-emea",
+        "name": "EMEA Transactions",
+        "description": "Count of EMEA transactions",
+        "sql_text": "SELECT COUNT(*) as value FROM transactions WHERE region = 'EMEA'",
+    },
+    {
+        "id": "query-geo-world-map",
+        "name": "Transactions by Country (Map)",
+        "description": "Transaction count by country for world map",
+        "sql_text": "SELECT CASE country WHEN 'UK' THEN 'United Kingdom' WHEN 'USA' THEN 'United States' ELSE country END as country, COUNT(*) as value FROM transactions GROUP BY country ORDER BY value DESC",
+    },
+    # Recon Status queries
+    {
+        "id": "query-recon-by-system",
+        "name": "Transactions by Source System",
+        "description": "Transaction distribution by source system",
+        "sql_text": "SELECT source_system as category, COUNT(*) as value FROM transactions GROUP BY source_system ORDER BY value DESC",
+    },
+    {
+        "id": "query-recon-match-by-system",
+        "name": "Match Rate by System",
+        "description": "Match rate for each source system",
+        "sql_text": """SELECT source_system as category,
+            ROUND(100.0 * SUM(CASE WHEN status = 'matched' THEN 1 ELSE 0 END) / COUNT(*), 1) as value
+        FROM transactions GROUP BY source_system ORDER BY value DESC""",
+    },
+    {
+        "id": "query-recon-unmatched",
+        "name": "Unmatched Transactions",
+        "description": "Count of unmatched transactions",
+        "sql_text": "SELECT COUNT(*) as value FROM transactions WHERE status = 'unmatched'",
+    },
+    # Trend Analytics queries
+    {
+        "id": "query-trend-weekly",
+        "name": "Weekly Transaction Trend",
+        "description": "Weekly aggregated transaction volumes",
+        "sql_text": """SELECT
+            strftime('%Y-W%W', date) as category,
+            SUM(total_transactions) as value
+        FROM daily_metrics
+        GROUP BY 1
+        ORDER BY 1 DESC
+        LIMIT 12""",
+    },
+    {
+        "id": "query-trend-match-rate",
+        "name": "Daily Match Rate Trend",
+        "description": "Match rate over the last 30 days",
+        "sql_text": "SELECT date as category, match_rate as value FROM daily_metrics ORDER BY date DESC LIMIT 30",
+    },
+    {
+        "id": "query-trend-breaks",
+        "name": "Daily Breaks Trend",
+        "description": "Daily break count over the last 30 days",
+        "sql_text": "SELECT date as category, breaks as value FROM daily_metrics ORDER BY date DESC LIMIT 30",
+    },
+]
+
+SAMPLE_CHARTS = [
+    # Executive Overview charts
+    {
+        "id": "chart-exec-daily-trend",
+        "name": "Daily Transaction Trend",
+        "query_id": "query-exec-daily-trend",
+        "chart_type": "line",
+        "config": {"categoryField": "date", "valueField": "value"},
+    },
+    {
+        "id": "chart-exec-region-bar",
+        "name": "Volume by Region",
+        "query_id": "query-exec-region-volume",
+        "chart_type": "bar",
+        "config": {"categoryField": "category", "valueField": "value"},
+    },
+    {
+        "id": "chart-exec-status-donut",
+        "name": "Status Distribution",
+        "query_id": "query-exec-status-pie",
+        "chart_type": "donut",
+        "config": {"nameField": "name", "valueField": "value"},
+    },
+    {
+        "id": "chart-exec-match-gauge",
+        "name": "Match Rate Gauge",
+        "query_id": "query-exec-match-rate",
+        "chart_type": "gauge",
+        "config": {"valueField": "value"},
+    },
+    # Breaks Analysis charts
+    {
+        "id": "chart-breaks-by-reason",
+        "name": "Breaks by Reason",
+        "query_id": "query-breaks-by-reason",
+        "chart_type": "bar",
+        "config": {"categoryField": "category", "valueField": "value"},
+    },
+    {
+        "id": "chart-breaks-by-category",
+        "name": "Breaks by Category",
+        "query_id": "query-breaks-by-category",
+        "chart_type": "donut",
+        "config": {"nameField": "name", "valueField": "value"},
+    },
+    {
+        "id": "chart-breaks-by-lob",
+        "name": "Breaks by LOB",
+        "query_id": "query-breaks-by-lob",
+        "chart_type": "bar",
+        "config": {"categoryField": "category", "valueField": "value"},
+    },
+    {
+        "id": "chart-breaks-aging",
+        "name": "Break Aging Analysis",
+        "query_id": "query-breaks-aging",
+        "chart_type": "bar",
+        "config": {"categoryField": "category", "valueField": "value"},
+    },
+    # Geographic charts
+    {
+        "id": "chart-geo-region",
+        "name": "Transactions by Region",
+        "query_id": "query-geo-region-bar",
+        "chart_type": "bar",
+        "config": {"categoryField": "category", "valueField": "value"},
+    },
+    {
+        "id": "chart-geo-country-top",
+        "name": "Top 10 Countries",
+        "query_id": "query-geo-country-top",
+        "chart_type": "bar",
+        "config": {"categoryField": "category", "valueField": "value"},
+    },
+    {
+        "id": "chart-geo-world-map",
+        "name": "Global Transaction Map",
+        "query_id": "query-geo-world-map",
+        "chart_type": "map",
+        "config": {"nameField": "country", "valueField": "value"},
+    },
+    # Recon Status charts
+    {
+        "id": "chart-recon-by-system",
+        "name": "Volume by Source System",
+        "query_id": "query-recon-by-system",
+        "chart_type": "bar",
+        "config": {"categoryField": "category", "valueField": "value"},
+    },
+    {
+        "id": "chart-recon-match-rate",
+        "name": "Match Rate by System",
+        "query_id": "query-recon-match-by-system",
+        "chart_type": "bar",
+        "config": {"categoryField": "category", "valueField": "value"},
+    },
+    # Trend Analytics charts
+    {
+        "id": "chart-trend-weekly",
+        "name": "Weekly Transaction Volume",
+        "query_id": "query-trend-weekly",
+        "chart_type": "line",
+        "config": {"categoryField": "category", "valueField": "value"},
+    },
+    {
+        "id": "chart-trend-match-rate",
+        "name": "Daily Match Rate",
+        "query_id": "query-trend-match-rate",
+        "chart_type": "line",
+        "config": {"categoryField": "category", "valueField": "value"},
+    },
+    {
+        "id": "chart-trend-breaks",
+        "name": "Daily Breaks Count",
+        "query_id": "query-trend-breaks",
+        "chart_type": "line",
+        "config": {"categoryField": "category", "valueField": "value"},
+    },
+]
+
+SAMPLE_DASHBOARDS = [
+    {
+        "id": "dashboard-executive",
+        "name": "Executive Overview",
+        "description": "High-level KPIs and trends for executive stakeholders",
+        "layout": {
+            "columns": 12,
+            "widgets": [
+                {"id": "w1", "type": "kpi", "x": 0, "y": 0, "cols": 3, "rows": 2, "title": "Total Transactions", "sql": "SELECT COUNT(*) as value FROM transactions", "config": {"variant": "default"}},
+                {"id": "w2", "type": "kpi", "x": 3, "y": 0, "cols": 3, "rows": 2, "title": "Match Rate", "sql": "SELECT ROUND(100.0 * SUM(CASE WHEN status = 'matched' THEN 1 ELSE 0 END) / COUNT(*), 1) as value FROM transactions", "config": {"suffix": "%", "variant": "success"}},
+                {"id": "w3", "type": "kpi", "x": 6, "y": 0, "cols": 3, "rows": 2, "title": "Open Breaks", "sql": "SELECT COUNT(*) as value FROM breaks", "config": {"variant": "warning"}},
+                {"id": "w4", "type": "kpi", "x": 9, "y": 0, "cols": 3, "rows": 2, "title": "Avg Break Age", "sql": "SELECT ROUND(AVG(age_days), 1) as value FROM breaks", "config": {"suffix": " days", "variant": "default"}},
+                {"id": "w5", "type": "chart", "x": 0, "y": 2, "cols": 8, "rows": 4, "title": "Daily Transaction Trend", "chartId": "chart-exec-daily-trend", "chartType": "line"},
+                {"id": "w6", "type": "chart", "x": 8, "y": 2, "cols": 4, "rows": 4, "title": "Match Rate", "chartId": "chart-exec-match-gauge", "chartType": "gauge"},
+                {"id": "w7", "type": "chart", "x": 0, "y": 6, "cols": 6, "rows": 4, "title": "Volume by Region", "chartId": "chart-exec-region-bar", "chartType": "bar"},
+                {"id": "w8", "type": "chart", "x": 6, "y": 6, "cols": 6, "rows": 4, "title": "Status Distribution", "chartId": "chart-exec-status-donut", "chartType": "donut"},
+            ]
+        },
+        "filters": None,
+    },
+    {
+        "id": "dashboard-breaks",
+        "name": "Break Analysis",
+        "description": "Detailed analysis of reconciliation breaks and exceptions",
+        "layout": {
+            "columns": 12,
+            "widgets": [
+                {"id": "w1", "type": "kpi", "x": 0, "y": 0, "cols": 3, "rows": 2, "title": "Total Breaks", "sql": "SELECT COUNT(*) as value FROM breaks", "config": {"variant": "danger"}},
+                {"id": "w2", "type": "kpi", "x": 3, "y": 0, "cols": 3, "rows": 2, "title": "Critical Breaks", "sql": "SELECT COUNT(*) as value FROM breaks WHERE category = 'Critical'", "config": {"variant": "danger"}},
+                {"id": "w3", "type": "kpi", "x": 6, "y": 0, "cols": 3, "rows": 2, "title": "Avg Age (days)", "sql": "SELECT ROUND(AVG(age_days), 1) as value FROM breaks", "config": {"variant": "warning"}},
+                {"id": "w4", "type": "kpi", "x": 9, "y": 0, "cols": 3, "rows": 2, "title": "High Priority", "sql": "SELECT COUNT(*) as value FROM breaks WHERE category IN ('Critical', 'High')", "config": {"variant": "warning"}},
+                {"id": "w5", "type": "chart", "x": 0, "y": 2, "cols": 6, "rows": 4, "title": "Breaks by Reason", "chartId": "chart-breaks-by-reason", "chartType": "bar"},
+                {"id": "w6", "type": "chart", "x": 6, "y": 2, "cols": 6, "rows": 4, "title": "Breaks by Category", "chartId": "chart-breaks-by-category", "chartType": "donut"},
+                {"id": "w7", "type": "chart", "x": 0, "y": 6, "cols": 6, "rows": 4, "title": "Breaks by LOB", "chartId": "chart-breaks-by-lob", "chartType": "bar"},
+                {"id": "w8", "type": "chart", "x": 6, "y": 6, "cols": 6, "rows": 4, "title": "Break Aging", "chartId": "chart-breaks-aging", "chartType": "bar"},
+            ]
+        },
+        "filters": None,
+    },
+    {
+        "id": "dashboard-geo",
+        "name": "Geographic View",
+        "description": "Regional distribution of transactions and breaks",
+        "layout": {
+            "columns": 12,
+            "widgets": [
+                {"id": "w1", "type": "kpi", "x": 0, "y": 0, "cols": 3, "rows": 2, "title": "APAC", "sql": "SELECT COUNT(*) as value FROM transactions WHERE region = 'APAC'", "config": {"variant": "default"}},
+                {"id": "w2", "type": "kpi", "x": 3, "y": 0, "cols": 3, "rows": 2, "title": "EMEA", "sql": "SELECT COUNT(*) as value FROM transactions WHERE region = 'EMEA'", "config": {"variant": "default"}},
+                {"id": "w3", "type": "kpi", "x": 6, "y": 0, "cols": 3, "rows": 2, "title": "NAM", "sql": "SELECT COUNT(*) as value FROM transactions WHERE region = 'NAM'", "config": {"variant": "default"}},
+                {"id": "w4", "type": "kpi", "x": 9, "y": 0, "cols": 3, "rows": 2, "title": "LATAM", "sql": "SELECT COUNT(*) as value FROM transactions WHERE region = 'LATAM'", "config": {"variant": "default"}},
+                {"id": "w5", "type": "chart", "x": 0, "y": 2, "cols": 12, "rows": 6, "title": "Global Transaction Map", "chartId": "chart-geo-world-map", "chartType": "map"},
+                {"id": "w6", "type": "chart", "x": 0, "y": 8, "cols": 6, "rows": 4, "title": "Transactions by Region", "chartId": "chart-geo-region", "chartType": "bar"},
+                {"id": "w7", "type": "chart", "x": 6, "y": 8, "cols": 6, "rows": 4, "title": "Top 10 Countries", "chartId": "chart-geo-country-top", "chartType": "bar"},
+            ]
+        },
+        "filters": None,
+    },
+    {
+        "id": "dashboard-recon",
+        "name": "Reconciliation Status",
+        "description": "Source system reconciliation overview",
+        "layout": {
+            "columns": 12,
+            "widgets": [
+                {"id": "w1", "type": "kpi", "x": 0, "y": 0, "cols": 4, "rows": 2, "title": "Matched", "sql": "SELECT COUNT(*) as value FROM transactions WHERE status = 'matched'", "config": {"variant": "success"}},
+                {"id": "w2", "type": "kpi", "x": 4, "y": 0, "cols": 4, "rows": 2, "title": "Unmatched", "sql": "SELECT COUNT(*) as value FROM transactions WHERE status = 'unmatched'", "config": {"variant": "warning"}},
+                {"id": "w3", "type": "kpi", "x": 8, "y": 0, "cols": 4, "rows": 2, "title": "Breaks", "sql": "SELECT COUNT(*) as value FROM transactions WHERE status = 'break'", "config": {"variant": "danger"}},
+                {"id": "w4", "type": "chart", "x": 0, "y": 2, "cols": 6, "rows": 5, "title": "Volume by Source System", "chartId": "chart-recon-by-system", "chartType": "bar"},
+                {"id": "w5", "type": "chart", "x": 6, "y": 2, "cols": 6, "rows": 5, "title": "Match Rate by System", "chartId": "chart-recon-match-rate", "chartType": "bar"},
+            ]
+        },
+        "filters": None,
+    },
+    {
+        "id": "dashboard-trends",
+        "name": "Trend Analytics",
+        "description": "Historical trends and time-series analysis",
+        "layout": {
+            "columns": 12,
+            "widgets": [
+                {"id": "w1", "type": "kpi", "x": 0, "y": 0, "cols": 4, "rows": 2, "title": "7-Day Volume", "sql": "SELECT SUM(total_transactions) as value FROM daily_metrics WHERE date >= date('now', '-7 days')", "config": {"variant": "default"}},
+                {"id": "w2", "type": "kpi", "x": 4, "y": 0, "cols": 4, "rows": 2, "title": "7-Day Avg Match", "sql": "SELECT ROUND(AVG(match_rate), 1) as value FROM daily_metrics WHERE date >= date('now', '-7 days')", "config": {"suffix": "%", "variant": "success"}},
+                {"id": "w3", "type": "kpi", "x": 8, "y": 0, "cols": 4, "rows": 2, "title": "7-Day Breaks", "sql": "SELECT SUM(breaks) as value FROM daily_metrics WHERE date >= date('now', '-7 days')", "config": {"variant": "warning"}},
+                {"id": "w4", "type": "chart", "x": 0, "y": 2, "cols": 12, "rows": 4, "title": "Weekly Transaction Volume", "chartId": "chart-trend-weekly", "chartType": "line"},
+                {"id": "w5", "type": "chart", "x": 0, "y": 6, "cols": 6, "rows": 4, "title": "Daily Match Rate Trend", "chartId": "chart-trend-match-rate", "chartType": "line"},
+                {"id": "w6", "type": "chart", "x": 6, "y": 6, "cols": 6, "rows": 4, "title": "Daily Breaks Trend", "chartId": "chart-trend-breaks", "chartType": "line"},
+            ]
+        },
+        "filters": None,
+    },
+]
+
+
+async def check_dashboards_exist(session: AsyncSession) -> bool:
+    """Check if sample dashboards already exist."""
+    result = await session.execute(select(func.count()).select_from(Dashboard))
+    count = result.scalar()
+    return count is not None and count > 0
+
+
+async def seed_sample_dashboards(session: AsyncSession) -> None:
+    """Seed sample queries, charts, and dashboards."""
+    exists = await check_dashboards_exist(session)
+    if exists:
+        logger.info("Sample dashboards already exist. Skipping dashboard seed.")
+        return
+
+    logger.info("=" * 60)
+    logger.info("Seeding sample dashboards...")
+    logger.info("=" * 60)
+
+    # Seed queries
+    logger.info(f"Creating {len(SAMPLE_QUERIES)} sample queries...")
+    for q in SAMPLE_QUERIES:
+        query = Query(
+            id=q["id"],
+            name=q["name"],
+            description=q.get("description"),
+            sql_text=q["sql_text"],
+            data_source_id=None,  # Direct execution, no data source needed
+        )
+        session.add(query)
+    await session.flush()
+
+    # Seed charts
+    logger.info(f"Creating {len(SAMPLE_CHARTS)} sample charts...")
+    for c in SAMPLE_CHARTS:
+        chart = Chart(
+            id=c["id"],
+            name=c["name"],
+            description=c.get("description"),
+            query_id=c["query_id"],
+            chart_type=c["chart_type"],
+            config=json.dumps(c["config"]),
+        )
+        session.add(chart)
+    await session.flush()
+
+    # Seed dashboards
+    logger.info(f"Creating {len(SAMPLE_DASHBOARDS)} sample dashboards...")
+    for d in SAMPLE_DASHBOARDS:
+        dashboard = Dashboard(
+            id=d["id"],
+            name=d["name"],
+            description=d.get("description"),
+            layout=json.dumps(d["layout"]),
+            filters=json.dumps(d["filters"]) if d.get("filters") else None,
+        )
+        session.add(dashboard)
+    await session.flush()
+
+    await session.commit()
+
+    logger.info("=" * 60)
+    logger.info("Sample dashboards seeding complete!")
+    logger.info(f"  - Queries: {len(SAMPLE_QUERIES)}")
+    logger.info(f"  - Charts: {len(SAMPLE_CHARTS)}")
+    logger.info(f"  - Dashboards: {len(SAMPLE_DASHBOARDS)}")
+    logger.info("=" * 60)

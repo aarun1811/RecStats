@@ -1,13 +1,15 @@
 """Queries API endpoints."""
 
 import json
+import re
+import time
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
+from app.core.database import get_db, engine
 from app.db.models import Query, DataSource
 from app.schemas.query import (
     QueryCreate,
@@ -16,10 +18,41 @@ from app.schemas.query import (
     QueryExecuteRequest,
     QueryExecuteResponse,
     ColumnMetadata,
+    DirectQueryRequest,
+    TableColumnSchema,
+    TableSchema,
+    SchemaResponse,
 )
 from app.connectors.mock import MockConnector
 
 router = APIRouter()
+
+# Tables allowed for direct querying (mock data tables)
+ALLOWED_TABLES = {"transactions", "breaks", "daily_metrics"}
+
+# Forbidden SQL patterns (for safety)
+FORBIDDEN_PATTERNS = [
+    r"\bDROP\b",
+    r"\bDELETE\b",
+    r"\bINSERT\b",
+    r"\bUPDATE\b",
+    r"\bALTER\b",
+    r"\bCREATE\b",
+    r"\bTRUNCATE\b",
+    r"\bGRANT\b",
+    r"\bREVOKE\b",
+]
+
+
+def validate_sql(sql: str) -> None:
+    """Validate SQL query for safety."""
+    sql_upper = sql.upper()
+    for pattern in FORBIDDEN_PATTERNS:
+        if re.search(pattern, sql_upper, re.IGNORECASE):
+            raise HTTPException(
+                status_code=400,
+                detail=f"SQL contains forbidden keyword: {pattern.replace(chr(92), '').replace('b', '')}"
+            )
 
 
 def get_connector(data_source: DataSource):
@@ -28,6 +61,101 @@ def get_connector(data_source: DataSource):
     if data_source.type == "mock":
         return MockConnector(config)
     return MockConnector(config)  # Fallback to mock
+
+
+@router.post("/direct", response_model=QueryExecuteResponse)
+async def execute_direct_query(
+    request: DirectQueryRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Execute SQL directly against the mock data tables.
+
+    This endpoint allows querying the transactions, breaks, and daily_metrics tables
+    without requiring a data source configuration.
+    """
+    # Validate SQL for safety
+    validate_sql(request.sql)
+
+    start_time = time.time()
+
+    try:
+        # Execute the query
+        result = await db.execute(text(request.sql))
+        rows = result.fetchall()
+
+        # Get column names and types
+        columns = []
+        if result.keys():
+            for key in result.keys():
+                columns.append(ColumnMetadata(name=key, data_type="TEXT"))
+
+        # Convert rows to list of dicts
+        data = []
+        for row in rows:
+            row_dict = {}
+            for i, key in enumerate(result.keys()):
+                value = row[i]
+                # Handle datetime serialization
+                if hasattr(value, "isoformat"):
+                    value = value.isoformat()
+                row_dict[key] = value
+            data.append(row_dict)
+
+        execution_time = (time.time() - start_time) * 1000
+
+        return QueryExecuteResponse(
+            columns=columns,
+            data=data,
+            row_count=len(data),
+            total_count=len(data),
+            execution_time_ms=round(execution_time, 2),
+            truncated=False,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Query execution failed: {str(e)}")
+
+
+@router.get("/schema", response_model=SchemaResponse)
+async def get_schema(db: AsyncSession = Depends(get_db)):
+    """Get database schema for the mock data tables.
+
+    Returns table names, columns, and types for transactions, breaks, and daily_metrics.
+    """
+    tables = []
+
+    for table_name in ALLOWED_TABLES:
+        try:
+            # Get column info using PRAGMA
+            result = await db.execute(text(f"PRAGMA table_info({table_name})"))
+            columns_info = result.fetchall()
+
+            columns = []
+            for col in columns_info:
+                # PRAGMA table_info returns: cid, name, type, notnull, dflt_value, pk
+                columns.append(TableColumnSchema(
+                    name=col[1],
+                    type=col[2] or "TEXT",
+                    nullable=not bool(col[3]),
+                    primary_key=bool(col[5]),
+                ))
+
+            # Get row count
+            count_result = await db.execute(text(f"SELECT COUNT(*) FROM {table_name}"))
+            row_count = count_result.scalar()
+
+            tables.append(TableSchema(
+                name=table_name,
+                columns=columns,
+                row_count=row_count,
+            ))
+        except Exception:
+            # Table might not exist yet
+            pass
+
+    # Sort tables for consistent ordering
+    tables.sort(key=lambda t: t.name)
+
+    return SchemaResponse(tables=tables)
 
 
 @router.post("/execute", response_model=QueryExecuteResponse)

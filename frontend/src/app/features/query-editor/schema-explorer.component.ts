@@ -2,7 +2,8 @@ import { Component, Input, Output, EventEmitter } from '@angular/core';
 
 interface TableSchema {
   name: string;
-  columns: { name: string; data_type: string }[];
+  columns: { name: string; type: string; nullable: boolean; primary_key: boolean }[];
+  row_count?: number;
 }
 
 @Component({
@@ -12,7 +13,7 @@ interface TableSchema {
       <div *ngIf="tables.length === 0" class="empty-state">
         <app-icon name="database" [size]="32"></app-icon>
         <p>No tables available</p>
-        <p class="hint">Select a data source to explore schema</p>
+        <p class="hint">Loading schema...</p>
       </div>
 
       <div class="table-list">
@@ -34,17 +35,20 @@ interface TableSchema {
             <span class="table-name" (dblclick)="onTableClick(table.name)">
               {{ table.name }}
             </span>
-            <span class="column-count">{{ table.columns?.length || 0 }}</span>
+            <span class="column-count" *ngIf="table.row_count">{{ formatRowCount(table.row_count) }} rows</span>
+            <span class="column-count" *ngIf="!table.row_count">{{ table.columns?.length || 0 }} cols</span>
           </div>
 
           <div class="columns-list" *ngIf="expandedTables[table.name]">
             <div
               *ngFor="let column of table.columns"
               class="column-item"
+              [class.primary-key]="column.primary_key"
               (dblclick)="onColumnClick(column.name)">
-              <app-icon [name]="getColumnIcon(column.data_type)" [size]="14"></app-icon>
+              <app-icon [name]="getColumnIcon(column.type)" [size]="14"></app-icon>
               <span class="column-name">{{ column.name }}</span>
-              <span class="column-type">{{ column.data_type }}</span>
+              <span class="column-type">{{ column.type }}</span>
+              <app-icon *ngIf="column.primary_key" name="key" [size]="12" class="pk-icon"></app-icon>
             </div>
           </div>
         </div>
@@ -173,6 +177,15 @@ interface TableSchema {
       color: var(--text-muted);
       text-transform: lowercase;
     }
+
+    .column-item.primary-key .column-name {
+      color: var(--color-primary-light);
+    }
+
+    .pk-icon {
+      color: var(--color-warning);
+      margin-left: auto;
+    }
   `]
 })
 export class SchemaExplorerComponent {
@@ -195,22 +208,26 @@ export class SchemaExplorerComponent {
   }
 
   getColumnIcon(dataType: string): string {
-    switch (dataType?.toLowerCase()) {
-      case 'number':
-      case 'int':
-      case 'integer':
-      case 'float':
-      case 'decimal':
-        return 'hash';
-      case 'date':
-      case 'datetime':
-      case 'timestamp':
-        return 'calendar';
-      case 'boolean':
-      case 'bool':
-        return 'toggle-left';
-      default:
-        return 'type';
+    const type = dataType?.toLowerCase() || '';
+    if (type.includes('int') || type.includes('float') || type.includes('decimal') || type.includes('number')) {
+      return 'hash';
     }
+    if (type.includes('date') || type.includes('time')) {
+      return 'calendar';
+    }
+    if (type.includes('bool')) {
+      return 'toggle-left';
+    }
+    return 'type';
+  }
+
+  formatRowCount(count: number): string {
+    if (count >= 1000000) {
+      return (count / 1000000).toFixed(1) + 'M';
+    }
+    if (count >= 1000) {
+      return (count / 1000).toFixed(0) + 'K';
+    }
+    return count.toString();
   }
 }

@@ -8,7 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import api_router
 from app.core.config import get_settings
-from app.core.database import init_db, close_db
+from app.core.database import init_db, close_db, async_session_maker
+from app.db.seed_data import seed_mock_data
 
 # Configure logging
 logging.basicConfig(
@@ -27,6 +28,10 @@ async def lifespan(app: FastAPI):
     logger.info(f"Starting {settings.app_name} v{settings.app_version}")
     await init_db()
     logger.info("Database initialized")
+
+    # Seed mock data if tables are empty
+    async with async_session_maker() as session:
+        await seed_mock_data(session)
 
     yield
 

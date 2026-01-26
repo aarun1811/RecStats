@@ -1,10 +1,11 @@
 """Charts API endpoints."""
 
 import json
+import time
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -220,3 +221,66 @@ async def delete_chart(
 
     await db.delete(chart)
     await db.commit()
+
+
+@router.get("/{chart_id}/data/direct", response_model=ChartDataResponse)
+async def get_chart_data_direct(
+    chart_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get a chart with data executed directly against SQLite.
+
+    This endpoint executes the chart's query SQL directly against the mock data tables,
+    without requiring a data source configuration.
+    """
+    result = await db.execute(
+        select(Chart).options(selectinload(Chart.query)).where(Chart.id == chart_id)
+    )
+    chart = result.scalar_one_or_none()
+    if not chart:
+        raise HTTPException(status_code=404, detail="Chart not found")
+
+    if not chart.query:
+        raise HTTPException(status_code=400, detail="Chart has no query")
+
+    start_time = time.time()
+
+    try:
+        # Execute query directly against SQLite
+        result = await db.execute(text(chart.query.sql_text))
+        rows = result.fetchall()
+
+        # Build column metadata
+        columns = []
+        if result.keys():
+            columns = [{"name": key, "data_type": "TEXT"} for key in result.keys()]
+
+        # Convert rows to list of dicts
+        data = []
+        for row in rows:
+            row_dict = {}
+            for i, key in enumerate(result.keys()):
+                value = row[i]
+                if hasattr(value, "isoformat"):
+                    value = value.isoformat()
+                row_dict[key] = value
+            data.append(row_dict)
+
+        chart_response = ChartResponse(
+            id=chart.id,
+            name=chart.name,
+            description=chart.description,
+            query_id=chart.query_id,
+            chart_type=chart.chart_type,
+            config=json.loads(chart.config) if chart.config else {},
+            created_at=chart.created_at,
+            updated_at=chart.updated_at,
+        )
+
+        return ChartDataResponse(
+            chart=chart_response,
+            data=data,
+            columns=columns,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Query execution failed: {str(e)}")

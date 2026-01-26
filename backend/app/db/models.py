@@ -142,3 +142,59 @@ class UploadedFile(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False
     )
+
+
+# ============================================================================
+# MOCK DATA TABLES (for demo/prototype)
+# ============================================================================
+
+from sqlalchemy import Float, Date
+
+
+class Transaction(Base):
+    """Mock transaction records for reconciliation demo."""
+
+    __tablename__ = "transactions"
+
+    id: Mapped[str] = mapped_column(String(20), primary_key=True)  # TXN00000001
+    date: Mapped[datetime] = mapped_column(Date, nullable=False)
+    amount: Mapped[float] = mapped_column(Float, nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    region: Mapped[str] = mapped_column(String(10), nullable=False)
+    country: Mapped[str] = mapped_column(String(50), nullable=False)
+    lob: Mapped[str] = mapped_column(String(50), nullable=False)  # Line of business
+    source_system: Mapped[str] = mapped_column(String(20), nullable=False)
+    counterparty: Mapped[str] = mapped_column(String(20), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False)  # matched, unmatched, break
+
+
+class Break(Base):
+    """Mock reconciliation breaks/exceptions."""
+
+    __tablename__ = "breaks"
+
+    id: Mapped[str] = mapped_column(String(20), primary_key=True)  # BRK000001
+    transaction_id: Mapped[str] = mapped_column(String(20), nullable=False)
+    reason: Mapped[str] = mapped_column(String(100), nullable=False)
+    category: Mapped[str] = mapped_column(String(20), nullable=False)  # Critical, High, Medium, Low
+    amount: Mapped[float] = mapped_column(Float, nullable=False)
+    age_days: Mapped[int] = mapped_column(Integer, nullable=False)
+    assigned_to: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    region: Mapped[str] = mapped_column(String(10), nullable=False)
+    lob: Mapped[str] = mapped_column(String(50), nullable=False)
+    created_date: Mapped[datetime] = mapped_column(Date, nullable=False)
+    priority: Mapped[int] = mapped_column(Integer, nullable=False)  # 1-4
+
+
+class DailyMetric(Base):
+    """Daily aggregated metrics for trends."""
+
+    __tablename__ = "daily_metrics"
+
+    date: Mapped[datetime] = mapped_column(Date, primary_key=True)
+    total_transactions: Mapped[int] = mapped_column(Integer, nullable=False)
+    matched: Mapped[int] = mapped_column(Integer, nullable=False)
+    unmatched: Mapped[int] = mapped_column(Integer, nullable=False)
+    breaks: Mapped[int] = mapped_column(Integer, nullable=False)
+    match_rate: Mapped[float] = mapped_column(Float, nullable=False)
+    avg_break_age: Mapped[float] = mapped_column(Float, nullable=False)
