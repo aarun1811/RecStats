@@ -25,58 +25,23 @@ import {
   selector: 'app-chart-preview',
   template: `
     <div class="chart-preview">
-      <div class="preview-header">
-        <span class="preview-title">{{ title || 'Chart Preview' }}</span>
-        <div class="preview-actions">
-          <app-button variant="ghost" size="sm" (click)="toggleFullscreen()">
-            <app-icon name="maximize" [size]="16"></app-icon>
-          </app-button>
-        </div>
+      <div
+        echarts
+        [options]="chartOptions"
+        [merge]="updateOptions"
+        class="chart-instance"
+        (chartInit)="onChartInit($event)">
       </div>
-      <div class="preview-container">
-        <div
-          echarts
-          [options]="chartOptions"
-          [merge]="updateOptions"
-          class="chart-instance"
-          (chartInit)="onChartInit($event)">
-        </div>
-        <div class="chart-empty" *ngIf="!chartType">
-          <app-icon name="chart-bar" [size]="48"></app-icon>
-          <p>Select a chart type to preview</p>
-        </div>
+      <div class="chart-empty" *ngIf="!chartType">
+        <app-icon name="chart-bar" [size]="48"></app-icon>
+        <p>Select a chart type to preview</p>
       </div>
     </div>
   `,
   styles: [`
     .chart-preview {
-      display: flex;
-      flex-direction: column;
       height: 100%;
-      background: var(--bg-secondary);
-      border-radius: var(--radius-lg);
-      overflow: hidden;
-    }
-
-    .preview-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: var(--spacing-3) var(--spacing-4);
-      background: var(--bg-tertiary);
-      border-bottom: 1px solid var(--border-color);
-    }
-
-    .preview-title {
-      font-size: var(--font-size-sm);
-      font-weight: var(--font-weight-semibold);
-      color: var(--text-secondary);
-    }
-
-    .preview-container {
-      flex: 1;
       position: relative;
-      min-height: 300px;
     }
 
     .chart-instance {
@@ -105,7 +70,6 @@ export class ChartPreviewComponent implements OnChanges {
   @Input() chartType: string = '';
   @Input() data: any[] = [];
   @Input() config: ChartConfig = {};
-  @Input() title: string = '';
 
   chartOptions: EChartsOption = {};
   updateOptions: EChartsOption = {};
@@ -119,10 +83,6 @@ export class ChartPreviewComponent implements OnChanges {
 
   onChartInit(chart: any) {
     this.chartInstance = chart;
-  }
-
-  toggleFullscreen() {
-    // TODO: Implement fullscreen
   }
 
   private updateChart() {

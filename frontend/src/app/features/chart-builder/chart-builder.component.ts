@@ -1,4 +1,4 @@
-import { Component, signal, computed, inject, OnInit } from '@angular/core';
+import { Component, signal, computed, inject, OnInit, ViewChild, ElementRef, HostListener } from '@angular/core';
 import { Router } from '@angular/router';
 import { ColDef, GridOptions, GridReadyEvent, GridApi } from 'ag-grid-community';
 import 'ag-grid-enterprise';
@@ -295,8 +295,8 @@ type Step = 'data' | 'chart' | 'configure';
           </span>
           <div class="preview-actions" *ngIf="isStepCompleted('chart')">
             <app-button variant="ghost" size="sm" (click)="toggleFullscreen()">
-              <app-icon name="maximize" [size]="16"></app-icon>
-              Fullscreen
+              <app-icon [name]="isFullscreen() ? 'minimize' : 'maximize'" [size]="16"></app-icon>
+              {{ isFullscreen() ? 'Exit' : 'Fullscreen' }}
             </app-button>
           </div>
         </div>
@@ -330,12 +330,14 @@ type Step = 'data' | 'chart' | 'configure';
 
         <!-- Chart + Data Table (Step 2+ complete) -->
         <div class="preview-with-chart" *ngIf="isStepCompleted('chart')">
-          <div class="chart-area">
+          <div class="chart-area" #chartContainer>
+            <button class="fullscreen-close-btn" (click)="toggleFullscreen()" title="Exit Fullscreen (Esc)">
+              <app-icon name="x" [size]="24"></app-icon>
+            </button>
             <app-chart-preview
               [chartType]="selectedChartType()"
               [config]="chartConfig()"
-              [data]="previewData()"
-              [title]="chartConfig().title">
+              [data]="previewData()">
             </app-chart-preview>
           </div>
           <div class="data-area" [class.collapsed]="dataTableCollapsed">
@@ -825,6 +827,44 @@ type Step = 'data' | 'chart' | 'configure';
         flex: 1;
         min-height: 300px;
         padding: var(--spacing-4);
+        position: relative;
+
+        .fullscreen-close-btn {
+          display: none;
+        }
+
+        &:fullscreen {
+          background: var(--bg-primary);
+          padding: var(--spacing-6);
+
+          app-chart-preview {
+            width: 100%;
+            height: 100%;
+          }
+
+          .fullscreen-close-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            cursor: pointer;
+            z-index: 1000;
+            transition: all 0.2s ease;
+
+            &:hover {
+              background: var(--bg-tertiary);
+              color: var(--text-primary);
+            }
+          }
+        }
       }
 
       .data-area {
@@ -955,6 +995,10 @@ export class ChartBuilderComponent implements OnInit {
 
   // Chart state
   selectedChartType = signal<string>('');
+
+  // Fullscreen state
+  @ViewChild('chartContainer') chartContainer!: ElementRef;
+  isFullscreen = signal<boolean>(false);
 
   // Config state - use signal for reactivity
   chartConfig = signal<any>({
@@ -1292,8 +1336,24 @@ export class ChartBuilderComponent implements OnInit {
     this.router.navigate(['/charts']);
   }
 
+  @HostListener('document:fullscreenchange')
+  onFullscreenChange() {
+    this.isFullscreen.set(!!document.fullscreenElement);
+  }
+
   toggleFullscreen() {
-    this.notifications.info('Fullscreen mode coming soon');
+    if (!this.chartContainer?.nativeElement) {
+      this.notifications.info('Chart container not available');
+      return;
+    }
+
+    if (!document.fullscreenElement) {
+      this.chartContainer.nativeElement.requestFullscreen().catch((err: Error) => {
+        this.notifications.error(`Fullscreen error: ${err.message}`);
+      });
+    } else {
+      document.exitFullscreen();
+    }
   }
 
   viewAllData() {
