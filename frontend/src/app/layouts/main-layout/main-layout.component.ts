@@ -1,6 +1,5 @@
-import { Component, inject, computed, OnInit } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { ThemeService } from '../../core/services/theme.service';
-import { DataLoaderService } from '../../core/services/data-loader.service';
 
 interface NavItem {
   icon: string;
@@ -90,15 +89,6 @@ interface NavItem {
             </div>
           </div>
           <div class="header-right">
-            <!-- DuckDB Status Indicator -->
-            <div class="duckdb-status" [class.loading]="duckdbStatus().loading" [class.ready]="duckdbStatus().initialized && !duckdbStatus().loading">
-              <div class="status-dot"></div>
-              <span class="status-text" *ngIf="duckdbStatus().loading">Syncing data...</span>
-              <span class="status-text" *ngIf="duckdbStatus().initialized && !duckdbStatus().loading">
-                DuckDB: {{ duckdbStatus().totalRows.toLocaleString() }} rows
-              </span>
-              <span class="status-text" *ngIf="!duckdbStatus().initialized && !duckdbStatus().loading">DuckDB: Initializing...</span>
-            </div>
             <div class="search-box">
               <app-icon name="search" [size]="18"></app-icon>
               <input type="text" placeholder="Search dashboards, charts..." />
@@ -402,55 +392,6 @@ interface NavItem {
       gap: var(--spacing-3);
     }
 
-    .duckdb-status {
-      display: flex;
-      align-items: center;
-      gap: var(--spacing-2);
-      padding: var(--spacing-2) var(--spacing-3);
-      background: var(--bg-tertiary);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-md);
-      font-size: var(--font-size-xs);
-      color: var(--text-muted);
-
-      .status-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: var(--text-muted);
-      }
-
-      &.loading {
-        border-color: var(--color-warning);
-
-        .status-dot {
-          background: var(--color-warning);
-          animation: pulse 1.5s ease-in-out infinite;
-        }
-
-        .status-text {
-          color: var(--color-warning);
-        }
-      }
-
-      &.ready {
-        border-color: var(--color-success);
-
-        .status-dot {
-          background: var(--color-success);
-        }
-
-        .status-text {
-          color: var(--color-success);
-        }
-      }
-    }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.4; }
-    }
-
     .search-box {
       display: flex;
       align-items: center;
@@ -573,19 +514,10 @@ interface NavItem {
     }
   `]
 })
-export class MainLayoutComponent implements OnInit {
+export class MainLayoutComponent {
   private themeService = inject(ThemeService);
-  private dataLoader = inject(DataLoaderService);
 
   sidebarCollapsed = false;
-  duckdbStatus = computed(() => this.dataLoader.status());
-
-  ngOnInit() {
-    // Initialize DuckDB data loading on app start
-    this.dataLoader.initialize().catch(err => {
-      console.error('Failed to initialize DuckDB:', err);
-    });
-  }
 
   mainNavItems: NavItem[] = [
     { icon: 'home', label: 'Home', route: '/' },
