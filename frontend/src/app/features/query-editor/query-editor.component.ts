@@ -51,40 +51,45 @@ interface DataSource extends DataSourceResponse {
     <div class="query-editor-page">
       <!-- Left Sidebar: Schema/Saved Tabs -->
       <aside class="schema-sidebar">
-        <!-- Data Source Selector -->
-        <div class="datasource-selector" (clickOutside)="showDataSourceDropdown.set(false)">
-          <button class="datasource-trigger" (click)="showDataSourceDropdown.set(!showDataSourceDropdown())" [disabled]="isLoadingDataSources()">
-            <div class="datasource-selected" *ngIf="selectedDataSource(); else loadingDs">
-              <app-icon [name]="selectedDataSource()!.icon" [size]="16"></app-icon>
-              <span class="datasource-name">{{ selectedDataSource()!.name }}</span>
-              <span class="datasource-status" [class]="selectedDataSource()!.status">
-                {{ selectedDataSource()!.status === 'connected' ? '' : selectedDataSource()!.status }}
-              </span>
-            </div>
-            <ng-template #loadingDs>
-              <span class="datasource-name">{{ isLoadingDataSources() ? 'Loading...' : 'No data sources' }}</span>
-            </ng-template>
-            <app-icon name="chevron-down" [size]="14" [class.rotated]="showDataSourceDropdown()"></app-icon>
-          </button>
+        <!-- Data Source Selector Row -->
+        <div class="datasource-row">
+          <div class="datasource-selector" (clickOutside)="showDataSourceDropdown.set(false)">
+            <button class="datasource-trigger" (click)="showDataSourceDropdown.set(!showDataSourceDropdown())" [disabled]="isLoadingDataSources()">
+              <div class="datasource-selected" *ngIf="selectedDataSource(); else loadingDs">
+                <app-icon [name]="selectedDataSource()!.icon" [size]="16"></app-icon>
+                <span class="datasource-name">{{ selectedDataSource()!.name }}</span>
+                <span class="datasource-status" [class]="selectedDataSource()!.status">
+                  {{ selectedDataSource()!.status === 'connected' ? '' : selectedDataSource()!.status }}
+                </span>
+              </div>
+              <ng-template #loadingDs>
+                <span class="datasource-name">{{ isLoadingDataSources() ? 'Loading...' : 'No data sources' }}</span>
+              </ng-template>
+              <app-icon name="chevron-down" [size]="14" [class.rotated]="showDataSourceDropdown()"></app-icon>
+            </button>
 
-          <div class="datasource-dropdown" *ngIf="showDataSourceDropdown() && dataSources().length > 0">
-            <div
-              *ngFor="let ds of dataSources()"
-              class="datasource-option"
-              [class.selected]="selectedDataSource() && ds.id === selectedDataSource()!.id"
-              (click)="selectDataSource(ds)">
-              <app-icon [name]="ds.icon" [size]="16"></app-icon>
-              <span class="option-name">{{ ds.name }}</span>
-              <span class="option-status" [class]="ds.status">
-                <span class="status-dot"></span>
-                {{ ds.status }}
-              </span>
-            </div>
-            <div class="datasource-add" routerLink="/datasources">
-              <app-icon name="plus" [size]="14"></app-icon>
-              Add Data Source
+            <div class="datasource-dropdown" *ngIf="showDataSourceDropdown() && dataSources().length > 0">
+              <div
+                *ngFor="let ds of dataSources()"
+                class="datasource-option"
+                [class.selected]="selectedDataSource() && ds.id === selectedDataSource()!.id"
+                (click)="selectDataSource(ds)">
+                <app-icon [name]="ds.icon" [size]="16"></app-icon>
+                <span class="option-name">{{ ds.name }}</span>
+                <span class="option-status" [class]="ds.status">
+                  <span class="status-dot"></span>
+                  {{ ds.status }}
+                </span>
+              </div>
+              <div class="datasource-add" routerLink="/datasources">
+                <app-icon name="plus" [size]="14"></app-icon>
+                Add Data Source
+              </div>
             </div>
           </div>
+          <button class="refresh-btn" (click)="refreshSchema()" title="Refresh schema">
+            <app-icon name="refresh" [size]="16"></app-icon>
+          </button>
         </div>
 
         <!-- Sidebar Tabs -->
@@ -104,9 +109,6 @@ interface DataSource extends DataSourceResponse {
             Saved
             <span class="tab-badge" *ngIf="savedQueries().length > 0">{{ savedQueries().length }}</span>
           </button>
-          <app-button class="refresh-btn" variant="ghost" size="sm" (click)="refreshSchema()" title="Refresh">
-            <app-icon name="refresh" [size]="14"></app-icon>
-          </app-button>
         </div>
 
         <!-- Schema Tab Content -->
@@ -303,11 +305,40 @@ interface DataSource extends DataSourceResponse {
       overflow: hidden;
     }
 
+    // Data Source Row (dropdown + refresh)
+    .datasource-row {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-2);
+      padding: var(--spacing-3);
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .datasource-row > .refresh-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      flex-shrink: 0;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s ease;
+
+      &:hover {
+        background: var(--bg-hover);
+        color: var(--text-primary);
+        border-color: var(--color-primary);
+      }
+    }
+
     // Data Source Selector
     .datasource-selector {
       position: relative;
-      padding: var(--spacing-3);
-      border-bottom: 1px solid var(--border-color);
+      flex: 1;
     }
 
     .datasource-trigger {
@@ -456,19 +487,6 @@ interface DataSource extends DataSourceResponse {
     .sidebar-tabs {
       display: flex;
       border-bottom: 1px solid var(--border-color);
-
-      .refresh-btn {
-        padding: var(--spacing-2);
-        margin-left: auto;
-        margin-right: var(--spacing-2);
-        align-self: center;
-        opacity: 0.6;
-        transition: opacity 0.2s ease;
-
-        &:hover {
-          opacity: 1;
-        }
-      }
     }
 
     .sidebar-tab {
