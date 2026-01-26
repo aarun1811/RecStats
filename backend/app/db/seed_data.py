@@ -585,6 +585,7 @@ SAMPLE_DASHBOARDS = [
                 {"id": "w6", "type": "chart", "x": 6, "y": 2, "cols": 6, "rows": 4, "title": "Breaks by Category", "chartId": "chart-breaks-by-category", "chartType": "donut"},
                 {"id": "w7", "type": "chart", "x": 0, "y": 6, "cols": 6, "rows": 4, "title": "Breaks by LOB", "chartId": "chart-breaks-by-lob", "chartType": "bar"},
                 {"id": "w8", "type": "chart", "x": 6, "y": 6, "cols": 6, "rows": 4, "title": "Break Aging", "chartId": "chart-breaks-aging", "chartType": "bar"},
+                {"id": "w9", "type": "table", "x": 0, "y": 10, "cols": 12, "rows": 5, "title": "Recent Critical Breaks", "sql": "SELECT id, reason, category, amount, age_days, assigned_to, region, lob FROM breaks WHERE category IN ('Critical', 'High') ORDER BY created_date DESC LIMIT 20", "config": {}},
             ]
         },
         "filters": None,
@@ -619,6 +620,7 @@ SAMPLE_DASHBOARDS = [
                 {"id": "w3", "type": "kpi", "x": 8, "y": 0, "cols": 4, "rows": 2, "title": "Breaks", "sql": "SELECT COUNT(*) as value FROM transactions WHERE status = 'break'", "config": {"variant": "danger"}},
                 {"id": "w4", "type": "chart", "x": 0, "y": 2, "cols": 6, "rows": 5, "title": "Volume by Source System", "chartId": "chart-recon-by-system", "chartType": "bar"},
                 {"id": "w5", "type": "chart", "x": 6, "y": 2, "cols": 6, "rows": 5, "title": "Match Rate by System", "chartId": "chart-recon-match-rate", "chartType": "bar"},
+                {"id": "w6", "type": "table", "x": 0, "y": 7, "cols": 12, "rows": 5, "title": "Recent Unmatched Transactions", "sql": "SELECT id, date, amount, currency, region, lob, source_system, counterparty, status FROM transactions WHERE status IN ('unmatched', 'break') ORDER BY date DESC LIMIT 25", "config": {}},
             ]
         },
         "filters": None,

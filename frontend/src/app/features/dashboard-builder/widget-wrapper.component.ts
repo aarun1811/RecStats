@@ -58,6 +58,31 @@ export interface CrossFilter {
           [filters]="filters"
           (filterApply)="onChartFilter($event)">
         </app-chart-widget>
+
+        <!-- Table Widget -->
+        <div *ngIf="widget.type === 'table'" class="table-widget">
+          <div class="table-loading" *ngIf="tableLoading">
+            <div class="spinner-small"></div>
+            <span>Loading data...</span>
+          </div>
+          <div class="table-container" *ngIf="!tableLoading">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th *ngFor="let col of tableColumns">{{ col }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let row of tableData">
+                  <td *ngFor="let col of tableColumns">{{ formatCellValue(row[col]) }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="table-footer" *ngIf="tableData.length > 0">
+              <span>{{ tableData.length }} rows</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   `,
@@ -200,6 +225,83 @@ export interface CrossFilter {
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
+
+    /* Table Widget Styles */
+    .table-widget {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .table-loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      gap: var(--spacing-2);
+      color: var(--text-muted);
+      font-size: var(--font-size-sm);
+    }
+
+    .table-container {
+      height: 100%;
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: var(--font-size-sm);
+    }
+
+    .data-table thead {
+      position: sticky;
+      top: 0;
+      background: var(--bg-tertiary);
+      z-index: 1;
+    }
+
+    .data-table th {
+      padding: var(--spacing-2) var(--spacing-3);
+      text-align: left;
+      font-weight: var(--font-weight-semibold);
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--border-color);
+      white-space: nowrap;
+      text-transform: uppercase;
+      font-size: 10px;
+      letter-spacing: 0.5px;
+    }
+
+    .data-table td {
+      padding: var(--spacing-2) var(--spacing-3);
+      color: var(--text-primary);
+      border-bottom: 1px solid var(--border-subtle);
+      white-space: nowrap;
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .data-table tbody tr:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .data-table tbody tr:nth-child(even) {
+      background: rgba(0, 0, 0, 0.1);
+    }
+
+    .table-footer {
+      padding: var(--spacing-2) var(--spacing-3);
+      border-top: 1px solid var(--border-color);
+      font-size: var(--font-size-xs);
+      color: var(--text-muted);
+      background: var(--bg-tertiary);
+      flex-shrink: 0;
+    }
   `]
 })
 export class WidgetWrapperComponent implements OnInit, OnChanges {
@@ -214,10 +316,15 @@ export class WidgetWrapperComponent implements OnInit, OnChanges {
 
   kpiValue = 0;
   kpiLoading = false;
+  tableData: any[] = [];
+  tableColumns: string[] = [];
+  tableLoading = false;
 
   ngOnInit() {
     if (this.widget.type === 'kpi') {
       this.loadKpiData();
+    } else if (this.widget.type === 'table') {
+      this.loadTableData();
     }
   }
 
@@ -226,6 +333,8 @@ export class WidgetWrapperComponent implements OnInit, OnChanges {
     if (changes['filters'] && !changes['filters'].firstChange) {
       if (this.widget.type === 'kpi') {
         this.loadKpiData();
+      } else if (this.widget.type === 'table') {
+        this.loadTableData();
       }
     }
   }
@@ -253,6 +362,52 @@ export class WidgetWrapperComponent implements OnInit, OnChanges {
     } else {
       this.kpiValue = this.widget.config.value || 0;
     }
+  }
+
+  async loadTableData() {
+    if (this.widget.sql) {
+      this.tableLoading = true;
+      try {
+        // Apply cross-filters to SQL and add limit if not present
+        let sql = this.applyFiltersToSql(this.widget.sql);
+        if (!sql.toUpperCase().includes(' LIMIT ')) {
+          sql += ' LIMIT 100';
+        }
+        const response = await firstValueFrom(
+          this.api.post<{ data: any[]; columns: any[] }>('/queries/direct', { sql })
+        );
+        if (response.data && response.data.length > 0) {
+          this.tableData = response.data;
+          // Get columns from response or from first row keys
+          this.tableColumns = response.columns?.map((c: any) => c.name) || Object.keys(response.data[0]);
+        } else {
+          this.tableData = [];
+          this.tableColumns = [];
+        }
+      } catch (error) {
+        console.error('Failed to load table data:', error);
+        this.tableData = [];
+        this.tableColumns = [];
+      } finally {
+        this.tableLoading = false;
+      }
+    }
+  }
+
+  formatCellValue(value: any): string {
+    if (value === null || value === undefined) return '-';
+    if (typeof value === 'number') {
+      if (Number.isInteger(value) && value >= 1000) {
+        return value.toLocaleString();
+      }
+      if (!Number.isInteger(value)) {
+        return value.toFixed(2);
+      }
+    }
+    if (typeof value === 'string' && value.length > 50) {
+      return value.substring(0, 47) + '...';
+    }
+    return String(value);
   }
 
   onChartFilter(event: { field: string; value: any }) {
@@ -309,6 +464,8 @@ export class WidgetWrapperComponent implements OnInit, OnChanges {
   onRefresh() {
     if (this.widget.type === 'kpi') {
       this.loadKpiData();
+    } else if (this.widget.type === 'table') {
+      this.loadTableData();
     }
   }
 

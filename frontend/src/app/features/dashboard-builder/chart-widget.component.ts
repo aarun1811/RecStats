@@ -233,21 +233,57 @@ export class ChartWidgetComponent implements OnInit, OnChanges {
 
     // Use data from API if available
     const categories = this.data.length > 0
-      ? this.data.map(d => d[categoryField] || d[Object.keys(d)[0]])
+      ? this.data.map(d => {
+          const label = d[categoryField] || d[Object.keys(d)[0]];
+          // Truncate long labels
+          return typeof label === 'string' && label.length > 12 ? label.substring(0, 10) + '..' : label;
+        })
       : ['APAC', 'EMEA', 'NAM', 'LATAM'];
     const values = this.data.length > 0
       ? this.data.map(d => d[valueField] || d[Object.keys(d)[1]])
       : [42, 35, 58, 28];
 
+    // Store full labels for tooltips
+    const fullLabels = this.data.length > 0
+      ? this.data.map(d => d[categoryField] || d[Object.keys(d)[0]])
+      : categories;
+
     return {
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: { type: 'shadow' },
+        formatter: (params: any) => {
+          const idx = params[0]?.dataIndex ?? 0;
+          const fullLabel = fullLabels[idx] || categories[idx];
+          const value = params[0]?.value ?? 0;
+          return `<b>${fullLabel}</b><br/>Value: ${Number(value).toLocaleString()}`;
+        },
+        backgroundColor: '#21262d',
+        borderColor: '#30363d',
+        textStyle: { color: '#f0f6fc' }
+      },
+      grid: {
+        left: '3%',
+        right: '4%',
+        bottom: '15%',
+        top: '8%',
+        containLabel: true
+      },
       xAxis: {
         type: 'category',
         data: categories,
-        axisLine: { lineStyle: { color: '#30363d' } }
+        axisLine: { lineStyle: { color: '#30363d' } },
+        axisLabel: {
+          color: '#8b949e',
+          fontSize: 10,
+          rotate: categories.length > 6 ? 30 : 0,
+          interval: 0
+        }
       },
       yAxis: {
         type: 'value',
         axisLine: { lineStyle: { color: '#30363d' } },
+        axisLabel: { color: '#8b949e', fontSize: 10 },
         splitLine: { lineStyle: { color: '#21262d' } }
       },
       series: [{
@@ -263,6 +299,13 @@ export class ChartWidgetComponent implements OnInit, OnChanges {
             ]
           },
           borderRadius: [4, 4, 0, 0]
+        },
+        label: {
+          show: values.length <= 8,
+          position: 'top',
+          fontSize: 10,
+          color: '#8b949e',
+          formatter: (params: any) => params.value >= 1000 ? (params.value / 1000).toFixed(1) + 'K' : params.value
         }
       }]
     };
@@ -470,11 +513,7 @@ export class ChartWidgetComponent implements OnInit, OnChanges {
           { name: 'Mexico', value: 3400 }
         ];
 
-    // Sort by value descending and take top entries
-    const sortedData = rawData.sort((a, b) => (b.value as number) - (a.value as number));
-    const maxValue = Math.max(...sortedData.map(d => d.value as number), 1);
-
-    // Create bubble scatter data with x as index, y as region group, size as value
+    // Group countries by region for treemap
     const regionGroups: { [key: string]: string[] } = {
       'APAC': ['Japan', 'China', 'India', 'Australia', 'Singapore', 'Hong Kong', 'South Korea'],
       'EMEA': ['United Kingdom', 'UK', 'Germany', 'France', 'Switzerland', 'Netherlands', 'Italy', 'Spain'],
@@ -482,93 +521,111 @@ export class ChartWidgetComponent implements OnInit, OnChanges {
       'LATAM': ['Brazil', 'Argentina', 'Chile', 'Colombia', 'Peru']
     };
 
-    const getRegion = (country: string): number => {
-      if (regionGroups['APAC'].includes(country)) return 3;
-      if (regionGroups['EMEA'].includes(country)) return 2;
-      if (regionGroups['NAM'].includes(country)) return 1;
-      if (regionGroups['LATAM'].includes(country)) return 0;
-      return 2; // Default to EMEA
+    const regionColors: { [key: string]: string } = {
+      'APAC': '#0066b2',
+      'EMEA': '#3399cc',
+      'NAM': '#2ecc71',
+      'LATAM': '#f1c40f'
     };
 
-    const scatterData = sortedData.slice(0, 15).map((d, i) => ({
-      name: d.name,
-      value: [i, getRegion(d.name), d.value],
-      symbolSize: Math.max(20, Math.min(80, ((d.value as number) / maxValue) * 80)),
-      itemStyle: {
-        color: {
-          type: 'radial' as const,
-          x: 0.5, y: 0.5, r: 0.5,
-          colorStops: [
-            { offset: 0, color: '#66ccff' },
-            { offset: 0.7, color: '#3399cc' },
-            { offset: 1, color: '#0066b2' }
-          ]
-        },
-        shadowBlur: 15,
-        shadowColor: 'rgba(51, 153, 204, 0.6)'
+    const getRegion = (country: string): string => {
+      for (const [region, countries] of Object.entries(regionGroups)) {
+        if (countries.includes(country)) return region;
       }
-    }));
+      return 'EMEA';
+    };
+
+    // Build treemap data structure
+    const regionData: { [key: string]: { name: string; value: number }[] } = {
+      'APAC': [], 'EMEA': [], 'NAM': [], 'LATAM': []
+    };
+
+    rawData.forEach(d => {
+      const region = getRegion(d.name as string);
+      regionData[region].push({ name: d.name as string, value: d.value as number });
+    });
+
+    const treemapData = Object.entries(regionData)
+      .filter(([_, countries]) => countries.length > 0)
+      .map(([region, countries]) => ({
+        name: region,
+        itemStyle: { borderColor: '#161b22', borderWidth: 2 },
+        children: countries.map(c => ({
+          name: c.name,
+          value: c.value,
+          itemStyle: {
+            color: regionColors[region],
+            borderColor: '#21262d',
+            borderWidth: 1
+          }
+        }))
+      }));
 
     return {
       backgroundColor: 'transparent',
-      title: {
-        text: 'Transaction Volume by Country',
-        left: 'center',
-        top: 5,
-        textStyle: { color: '#8b949e', fontSize: 12, fontWeight: 'normal' }
-      },
       tooltip: {
         trigger: 'item',
         formatter: (params: any) => {
-          return `<b>${params.name}</b><br/>Transactions: ${params.value[2]?.toLocaleString() || 0}`;
+          if (params.data.children) {
+            const total = params.data.children.reduce((sum: number, c: any) => sum + c.value, 0);
+            return `<b>${params.name}</b><br/>Total: ${total.toLocaleString()} transactions`;
+          }
+          return `<b>${params.name}</b><br/>Transactions: ${params.value?.toLocaleString() || 0}`;
         },
         backgroundColor: '#21262d',
         borderColor: '#30363d',
         textStyle: { color: '#f0f6fc' }
       },
-      grid: {
-        left: '8%',
-        right: '8%',
-        top: '15%',
-        bottom: '15%'
-      },
-      xAxis: {
-        type: 'category',
-        data: sortedData.slice(0, 15).map(d => d.name),
-        axisLine: { lineStyle: { color: '#30363d' } },
-        axisLabel: {
-          color: '#8b949e',
-          fontSize: 9,
-          rotate: 45,
-          interval: 0
-        },
-        splitLine: { show: false }
-      },
-      yAxis: {
-        type: 'category',
-        data: ['LATAM', 'NAM', 'EMEA', 'APAC'],
-        axisLine: { lineStyle: { color: '#30363d' } },
-        axisLabel: { color: '#8b949e', fontSize: 10 },
-        splitLine: { lineStyle: { color: '#21262d' } }
-      },
       series: [{
-        type: 'scatter',
-        data: scatterData,
-        label: {
-          show: false
-        },
-        emphasis: {
-          itemStyle: {
-            borderColor: '#fff',
-            borderWidth: 2
+        type: 'treemap',
+        data: treemapData,
+        width: '95%',
+        height: '90%',
+        top: '5%',
+        left: '2.5%',
+        roam: false,
+        nodeClick: false,
+        breadcrumb: { show: false },
+        levels: [
+          {
+            itemStyle: {
+              borderColor: '#30363d',
+              borderWidth: 3,
+              gapWidth: 3
+            },
+            upperLabel: {
+              show: true,
+              height: 24,
+              color: '#f0f6fc',
+              fontSize: 12,
+              fontWeight: 'bold',
+              backgroundColor: 'rgba(0,0,0,0.3)',
+              padding: [4, 8]
+            }
           },
-          label: {
-            show: true,
-            formatter: (params: any) => params.value[2]?.toLocaleString(),
-            position: 'top',
-            color: '#f0f6fc',
-            fontSize: 11
+          {
+            itemStyle: {
+              borderColor: '#21262d',
+              borderWidth: 1,
+              gapWidth: 1
+            },
+            label: {
+              show: true,
+              formatter: (params: any) => {
+                const name = params.name.length > 10 ? params.name.substring(0, 8) + '..' : params.name;
+                return `${name}\n${(params.value / 1000).toFixed(1)}K`;
+              },
+              fontSize: 10,
+              color: '#f0f6fc',
+              lineHeight: 14
+            }
           }
+        ],
+        label: {
+          show: true,
+          formatter: '{b}',
+          color: '#f0f6fc',
+          fontSize: 10
         }
       }]
     };
