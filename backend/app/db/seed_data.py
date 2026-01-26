@@ -17,7 +17,7 @@ from uuid import uuid4
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import Transaction, Break, DailyMetric, Query, Chart, Dashboard, DashboardChart
+from app.db.models import Transaction, Break, DailyMetric, Query, Chart, Dashboard, DashboardChart, DataSource
 
 logger = logging.getLogger(__name__)
 
@@ -259,6 +259,44 @@ async def seed_mock_data(session: AsyncSession, force: bool = False) -> None:
 
     # Seed dashboards
     await seed_sample_dashboards(session)
+
+
+# ============================================================================
+# DEFAULT DATA SOURCE
+# ============================================================================
+
+DEFAULT_DATA_SOURCE = {
+    "id": "ds-sqlite-local",
+    "name": "SQLite Database",
+    "type": "sqlite",
+    "description": "Local SQLite database with demo transaction data",
+    "connection_config": json.dumps({"database": "resstats.db"}),
+}
+
+
+async def seed_default_data_source(session: AsyncSession) -> str:
+    """Seed the default SQLite data source. Returns the data source ID."""
+    # Check if it already exists
+    result = await session.execute(
+        select(DataSource).where(DataSource.id == DEFAULT_DATA_SOURCE["id"])
+    )
+    existing = result.scalar_one_or_none()
+    if existing:
+        logger.info("Default data source already exists.")
+        return existing.id
+
+    logger.info("Creating default SQLite data source...")
+    data_source = DataSource(
+        id=DEFAULT_DATA_SOURCE["id"],
+        name=DEFAULT_DATA_SOURCE["name"],
+        type=DEFAULT_DATA_SOURCE["type"],
+        description=DEFAULT_DATA_SOURCE["description"],
+        connection_config=DEFAULT_DATA_SOURCE["connection_config"],
+    )
+    session.add(data_source)
+    await session.flush()
+    logger.info(f"Created data source: {data_source.name} ({data_source.id})")
+    return data_source.id
 
 
 # ============================================================================
@@ -654,6 +692,9 @@ async def check_dashboards_exist(session: AsyncSession) -> bool:
 
 async def seed_sample_dashboards(session: AsyncSession) -> None:
     """Seed sample queries, charts, and dashboards."""
+    # First, seed the default data source
+    data_source_id = await seed_default_data_source(session)
+
     exists = await check_dashboards_exist(session)
     if exists:
         logger.info("Sample dashboards already exist. Skipping dashboard seed.")
@@ -663,7 +704,7 @@ async def seed_sample_dashboards(session: AsyncSession) -> None:
     logger.info("Seeding sample dashboards...")
     logger.info("=" * 60)
 
-    # Seed queries
+    # Seed queries (linked to the default data source)
     logger.info(f"Creating {len(SAMPLE_QUERIES)} sample queries...")
     for q in SAMPLE_QUERIES:
         query = Query(
@@ -671,7 +712,7 @@ async def seed_sample_dashboards(session: AsyncSession) -> None:
             name=q["name"],
             description=q.get("description"),
             sql_text=q["sql_text"],
-            data_source_id=None,  # Direct execution, no data source needed
+            data_source_id=data_source_id,  # Link to default SQLite data source
         )
         session.add(query)
     await session.flush()

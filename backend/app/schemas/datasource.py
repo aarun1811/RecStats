@@ -10,8 +10,10 @@ from pydantic import BaseModel, Field
 class DataSourceType(str, Enum):
     """Supported data source types."""
 
+    SQLITE = "sqlite"  # Local SQLite database
     ORACLE = "oracle"
     HIVE = "hive"
+    POSTGRES = "postgres"
     CSV = "csv"
     EXCEL = "excel"
     MOCK = "mock"  # For development/demo

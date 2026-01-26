@@ -26,34 +26,118 @@ interface SavedQuery {
   name: string;
   description?: string;
   sql_text: string;
+  data_source_id?: string;
   created_at: string;
   updated_at: string;
+}
+
+interface DataSourceResponse {
+  id: string;
+  name: string;
+  type: 'sqlite' | 'oracle' | 'hive' | 'postgres' | 'csv' | 'excel' | 'mock';
+  description?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface DataSource extends DataSourceResponse {
+  icon: string;
+  status: 'connected' | 'disconnected' | 'loading';
 }
 
 @Component({
   selector: 'app-query-editor',
   template: `
     <div class="query-editor-page">
-      <!-- Left Sidebar: Schema Explorer -->
+      <!-- Left Sidebar: Schema/Saved Tabs -->
       <aside class="schema-sidebar">
-        <div class="sidebar-header">
-          <h3>Schema Explorer</h3>
-          <app-button variant="ghost" size="sm" (click)="refreshSchema()">
-            <app-icon name="refresh" [size]="16"></app-icon>
-          </app-button>
-        </div>
-        <div class="datasource-info">
-          <div class="datasource-badge" [class.loading]="isLoadingSchema()">
-            <app-icon name="database" [size]="14"></app-icon>
-            <span *ngIf="isLoadingSchema()">Loading schema...</span>
-            <span *ngIf="!isLoadingSchema()">SQLite Database</span>
+        <!-- Data Source Selector -->
+        <div class="datasource-selector" (clickOutside)="showDataSourceDropdown.set(false)">
+          <button class="datasource-trigger" (click)="showDataSourceDropdown.set(!showDataSourceDropdown())" [disabled]="isLoadingDataSources()">
+            <div class="datasource-selected" *ngIf="selectedDataSource(); else loadingDs">
+              <app-icon [name]="selectedDataSource()!.icon" [size]="16"></app-icon>
+              <span class="datasource-name">{{ selectedDataSource()!.name }}</span>
+              <span class="datasource-status" [class]="selectedDataSource()!.status">
+                {{ selectedDataSource()!.status === 'connected' ? '' : selectedDataSource()!.status }}
+              </span>
+            </div>
+            <ng-template #loadingDs>
+              <span class="datasource-name">{{ isLoadingDataSources() ? 'Loading...' : 'No data sources' }}</span>
+            </ng-template>
+            <app-icon name="chevron-down" [size]="14" [class.rotated]="showDataSourceDropdown()"></app-icon>
+          </button>
+
+          <div class="datasource-dropdown" *ngIf="showDataSourceDropdown() && dataSources().length > 0">
+            <div
+              *ngFor="let ds of dataSources()"
+              class="datasource-option"
+              [class.selected]="selectedDataSource() && ds.id === selectedDataSource()!.id"
+              (click)="selectDataSource(ds)">
+              <app-icon [name]="ds.icon" [size]="16"></app-icon>
+              <span class="option-name">{{ ds.name }}</span>
+              <span class="option-status" [class]="ds.status">
+                <span class="status-dot"></span>
+                {{ ds.status }}
+              </span>
+            </div>
+            <div class="datasource-add" routerLink="/datasources">
+              <app-icon name="plus" [size]="14"></app-icon>
+              Add Data Source
+            </div>
           </div>
         </div>
-        <app-schema-explorer
-          [tables]="schemaTables()"
-          (tableClick)="insertTableName($event)"
-          (columnClick)="insertColumnName($event)">
-        </app-schema-explorer>
+
+        <!-- Sidebar Tabs -->
+        <div class="sidebar-tabs">
+          <button
+            class="sidebar-tab"
+            [class.active]="sidebarTab() === 'schema'"
+            (click)="switchSidebarTab('schema')">
+            <app-icon name="table" [size]="14"></app-icon>
+            Schema
+          </button>
+          <button
+            class="sidebar-tab"
+            [class.active]="sidebarTab() === 'saved'"
+            (click)="switchSidebarTab('saved')">
+            <app-icon name="folder" [size]="14"></app-icon>
+            Saved
+            <span class="tab-badge" *ngIf="savedQueries().length > 0">{{ savedQueries().length }}</span>
+          </button>
+          <app-button class="refresh-btn" variant="ghost" size="sm" (click)="refreshSchema()" title="Refresh">
+            <app-icon name="refresh" [size]="14"></app-icon>
+          </app-button>
+        </div>
+
+        <!-- Schema Tab Content -->
+        <div *ngIf="sidebarTab() === 'schema'" class="sidebar-content">
+          <app-schema-explorer
+            [tables]="schemaTables()"
+            (tableClick)="insertTableName($event)"
+            (columnClick)="insertColumnName($event)">
+          </app-schema-explorer>
+        </div>
+
+        <!-- Saved Queries Tab Content -->
+        <div *ngIf="sidebarTab() === 'saved'" class="sidebar-content saved-content">
+          <div
+            *ngFor="let query of savedQueries()"
+            class="sidebar-saved-item"
+            (click)="loadSavedQuery(query)">
+            <div class="sidebar-saved-header">
+              <div class="sidebar-saved-name">{{ query.name }}</div>
+              <app-button variant="ghost" size="sm" (click)="deleteSavedQuery(query.id); $event.stopPropagation()">
+                <app-icon name="trash" [size]="12"></app-icon>
+              </app-button>
+            </div>
+            <div class="sidebar-saved-sql">{{ query.sql_text.substring(0, 60) }}{{ query.sql_text.length > 60 ? '...' : '' }}</div>
+          </div>
+          <div *ngIf="savedQueries().length === 0" class="sidebar-empty">
+            <app-icon name="folder" [size]="32"></app-icon>
+            <p>No saved queries</p>
+            <span class="hint">Click "Save" to save your query</span>
+          </div>
+        </div>
       </aside>
 
       <!-- Main Content -->
@@ -75,10 +159,6 @@ interface SavedQuery {
             </app-button>
           </div>
           <div class="toolbar-right">
-            <app-button variant="ghost" (click)="showLoadDropdown()">
-              <app-icon name="folder" [size]="16"></app-icon>
-              Load
-            </app-button>
             <app-button variant="ghost" (click)="openSaveModal()">
               <app-icon name="save" [size]="16"></app-icon>
               Save
@@ -113,15 +193,6 @@ interface SavedQuery {
                 [class.active]="activeTab() === 'history'"
                 (click)="activeTab.set('history')">
                 History
-              </button>
-              <button
-                class="tab"
-                [class.active]="activeTab() === 'saved'"
-                (click)="activeTab.set('saved'); loadSavedQueries()">
-                Saved
-                <span class="badge" *ngIf="savedQueries().length > 0">
-                  {{ savedQueries().length }}
-                </span>
               </button>
             </div>
             <div class="results-info" *ngIf="queryResult() && executionTime()">
@@ -169,34 +240,6 @@ interface SavedQuery {
               </div>
             </div>
 
-            <!-- Saved Queries -->
-            <div *ngIf="activeTab() === 'saved'" class="saved-container">
-              <div
-                *ngFor="let query of savedQueries()"
-                class="saved-item">
-                <div class="saved-header">
-                  <div class="saved-name">{{ query.name }}</div>
-                  <div class="saved-actions">
-                    <app-button variant="ghost" size="sm" (click)="loadSavedQuery(query)">
-                      <app-icon name="play" [size]="14"></app-icon>
-                    </app-button>
-                    <app-button variant="ghost" size="sm" (click)="deleteSavedQuery(query.id)">
-                      <app-icon name="trash" [size]="14"></app-icon>
-                    </app-button>
-                  </div>
-                </div>
-                <div class="saved-sql">{{ query.sql_text.substring(0, 80) }}...</div>
-                <div class="saved-meta">
-                  <span *ngIf="query.description">{{ query.description }}</span>
-                  <span>Created {{ formatDate(query.created_at) }}</span>
-                </div>
-              </div>
-              <div *ngIf="savedQueries().length === 0" class="empty-state">
-                <app-icon name="folder" [size]="48"></app-icon>
-                <p>No saved queries yet</p>
-                <p class="hint">Click "Save" to save your current query</p>
-              </div>
-            </div>
           </div>
         </div>
       </main>
@@ -260,24 +303,248 @@ interface SavedQuery {
       overflow: hidden;
     }
 
-    .sidebar-header {
+    // Data Source Selector
+    .datasource-selector {
+      position: relative;
+      padding: var(--spacing-3);
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .datasource-trigger {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: var(--spacing-4);
-      border-bottom: 1px solid var(--border-color);
+      width: 100%;
+      padding: var(--spacing-2) var(--spacing-3);
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font-size: var(--font-size-sm);
+      cursor: pointer;
+      transition: all 0.2s ease;
 
-      h3 {
-        font-size: var(--font-size-sm);
-        font-weight: var(--font-weight-semibold);
-        color: var(--text-secondary);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin: 0;
+      &:hover {
+        border-color: var(--color-primary);
+        background: var(--bg-hover);
+      }
+
+      app-icon.rotated {
+        transform: rotate(180deg);
       }
     }
 
+    .datasource-selected {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-2);
+    }
+
+    .datasource-name {
+      font-weight: var(--font-weight-medium);
+    }
+
+    .datasource-status {
+      font-size: var(--font-size-xs);
+      padding: 1px 6px;
+      border-radius: var(--radius-full);
+
+      &.connected {
+        display: none;
+      }
+
+      &.disconnected {
+        background: rgba(var(--color-danger-rgb), 0.15);
+        color: var(--color-danger);
+      }
+
+      &.loading {
+        background: rgba(var(--color-warning-rgb), 0.15);
+        color: var(--color-warning);
+      }
+    }
+
+    .datasource-dropdown {
+      position: absolute;
+      top: calc(100% - var(--spacing-1));
+      left: var(--spacing-3);
+      right: var(--spacing-3);
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-lg);
+      z-index: 100;
+      overflow: hidden;
+    }
+
+    .datasource-option {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-2);
+      padding: var(--spacing-3);
+      cursor: pointer;
+      transition: all 0.15s ease;
+
+      &:hover {
+        background: var(--bg-hover);
+      }
+
+      &.selected {
+        background: rgba(var(--color-primary-rgb), 0.1);
+        color: var(--color-primary-light);
+      }
+
+      .option-name {
+        flex: 1;
+        font-size: var(--font-size-sm);
+      }
+
+      .option-status {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: var(--font-size-xs);
+        color: var(--text-muted);
+
+        .status-dot {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: var(--text-muted);
+        }
+
+        &.connected {
+          color: var(--color-success);
+          .status-dot {
+            background: var(--color-success);
+          }
+        }
+
+        &.disconnected {
+          color: var(--color-danger);
+          .status-dot {
+            background: var(--color-danger);
+          }
+        }
+
+        &.loading {
+          color: var(--color-warning);
+          .status-dot {
+            background: var(--color-warning);
+            animation: pulse 1.5s ease-in-out infinite;
+          }
+        }
+      }
+    }
+
+    .datasource-add {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-2);
+      padding: var(--spacing-3);
+      border-top: 1px solid var(--border-color);
+      color: var(--color-primary);
+      font-size: var(--font-size-sm);
+      cursor: pointer;
+      transition: all 0.15s ease;
+
+      &:hover {
+        background: rgba(var(--color-primary-rgb), 0.1);
+      }
+    }
+
+    .sidebar-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border-color);
+
+      .refresh-btn {
+        padding: var(--spacing-2);
+        margin-left: auto;
+        margin-right: var(--spacing-2);
+        align-self: center;
+        opacity: 0.6;
+        transition: opacity 0.2s ease;
+
+        &:hover {
+          opacity: 1;
+        }
+      }
+    }
+
+    .sidebar-tab {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--spacing-2);
+      padding: var(--spacing-3);
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-medium);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+
+      &:hover {
+        color: var(--text-primary);
+        background: var(--bg-hover);
+      }
+
+      &.active {
+        color: var(--color-primary-light);
+        background: rgba(var(--color-primary-rgb), 0.1);
+        animation: tabGlow 0.4s ease-out;
+
+        &::after {
+          content: '';
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          height: 2px;
+          background: var(--color-primary);
+        }
+      }
+    }
+
+    .tab-badge {
+      padding: 1px 6px;
+      background: var(--color-primary);
+      color: white;
+      border-radius: var(--radius-full);
+      font-size: var(--font-size-xs);
+      font-weight: var(--font-weight-semibold);
+    }
+
+    @keyframes tabGlow {
+      0% {
+        box-shadow: 0 0 0 0 rgba(var(--color-primary-rgb), 0.4);
+      }
+      50% {
+        box-shadow: 0 0 12px 2px rgba(var(--color-primary-rgb), 0.3);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(var(--color-primary-rgb), 0);
+      }
+    }
+
+    .sidebar-content {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .saved-content {
+      padding: var(--spacing-2);
+    }
+
     .datasource-info {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       padding: var(--spacing-3);
       border-bottom: 1px solid var(--border-color);
     }
@@ -519,6 +786,57 @@ interface SavedQuery {
       color: var(--text-muted);
     }
 
+    .sidebar-saved-item {
+      padding: var(--spacing-2) var(--spacing-3);
+      background: var(--bg-tertiary);
+      border-radius: var(--radius-md);
+      margin-bottom: var(--spacing-2);
+      cursor: pointer;
+      transition: all 0.2s ease;
+
+      &:hover {
+        background: var(--bg-hover);
+        box-shadow: 0 0 8px rgba(var(--color-primary-rgb), 0.2);
+      }
+    }
+
+    .sidebar-saved-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+
+    .sidebar-saved-name {
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-medium);
+      color: var(--text-primary);
+    }
+
+    .sidebar-saved-sql {
+      font-family: var(--font-mono);
+      font-size: var(--font-size-xs);
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .sidebar-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: var(--spacing-6);
+      color: var(--text-muted);
+      text-align: center;
+
+      p {
+        margin: var(--spacing-2) 0 0;
+        font-size: var(--font-size-sm);
+      }
+    }
+
     .modal-overlay {
       position: fixed;
       top: 0;
@@ -632,7 +950,8 @@ export class QueryEditorComponent implements OnInit {
   queryResult = signal<QueryResult | null>(null);
   isExecuting = signal(false);
   executionTime = signal<number | null>(null);
-  activeTab = signal<'results' | 'history' | 'saved'>('results');
+  activeTab = signal<'results' | 'history'>('results');
+  sidebarTab = signal<'schema' | 'saved'>('schema');
   queryHistory = signal<{ sql: string; timestamp: Date; rowCount: number }[]>([]);
   isLoadingSchema = signal(false);
   savedQueries = signal<SavedQuery[]>([]);
@@ -640,8 +959,60 @@ export class QueryEditorComponent implements OnInit {
   saveQueryName = '';
   saveQueryDescription = '';
 
+  // Data Sources
+  dataSources = signal<DataSource[]>([]);
+  selectedDataSource = signal<DataSource | null>(null);
+  showDataSourceDropdown = signal(false);
+  isLoadingDataSources = signal(false);
+
   ngOnInit() {
-    this.loadSchema();
+    this.loadDataSources();
+  }
+
+  async loadDataSources() {
+    this.isLoadingDataSources.set(true);
+    try {
+      const response = await firstValueFrom(
+        this.api.get<DataSourceResponse[]>('/datasources')
+      );
+      // Transform API response to include icon and status
+      const dataSources = (response || []).map(ds => this.transformDataSource(ds));
+      this.dataSources.set(dataSources);
+
+      // Select first data source by default
+      if (dataSources.length > 0 && !this.selectedDataSource()) {
+        this.selectedDataSource.set(dataSources[0]);
+      }
+
+      // Load schema and saved queries after data sources are loaded
+      this.loadSchema();
+      this.loadSavedQueries();
+    } catch (error) {
+      this.notifications.error('Failed to load data sources');
+      // Fallback to empty state
+      this.dataSources.set([]);
+    } finally {
+      this.isLoadingDataSources.set(false);
+    }
+  }
+
+  private transformDataSource(ds: DataSourceResponse): DataSource {
+    // Map type to icon
+    const iconMap: Record<string, string> = {
+      sqlite: 'database',
+      oracle: 'database',
+      hive: 'database',
+      postgres: 'database',
+      csv: 'file-text',
+      excel: 'file-spreadsheet',
+      mock: 'database',
+    };
+
+    return {
+      ...ds,
+      icon: iconMap[ds.type] || 'database',
+      status: 'connected', // Default to connected for now
+    };
   }
 
   async loadSchema() {
@@ -748,12 +1119,19 @@ export class QueryEditorComponent implements OnInit {
       return;
     }
 
+    const dsId = this.selectedDataSource()?.id;
+    if (!dsId) {
+      this.notifications.warning('Please select a data source');
+      return;
+    }
+
     try {
       await firstValueFrom(
         this.api.post<SavedQuery>('/queries', {
           name: this.saveQueryName.trim(),
           description: this.saveQueryDescription.trim() || null,
-          sql_text: this.sqlText
+          sql_text: this.sqlText,
+          data_source_id: dsId
         })
       );
       this.notifications.success('Query saved successfully');
@@ -765,9 +1143,11 @@ export class QueryEditorComponent implements OnInit {
   }
 
   async loadSavedQueries() {
+    const dsId = this.selectedDataSource()?.id;
     try {
+      const endpoint = dsId ? `/queries?data_source_id=${dsId}` : '/queries';
       const queries = await firstValueFrom(
-        this.api.get<SavedQuery[]>('/queries')
+        this.api.get<SavedQuery[]>(endpoint)
       );
       this.savedQueries.set(queries || []);
     } catch (error) {
@@ -800,9 +1180,19 @@ export class QueryEditorComponent implements OnInit {
     return new Date(date).toLocaleString();
   }
 
-  showLoadDropdown() {
-    // Switch to Saved tab and load queries
-    this.activeTab.set('saved');
+  switchSidebarTab(tab: 'schema' | 'saved') {
+    this.sidebarTab.set(tab);
+    if (tab === 'saved') {
+      this.loadSavedQueries();
+    }
+  }
+
+  selectDataSource(ds: DataSource) {
+    this.selectedDataSource.set(ds);
+    this.showDataSourceDropdown.set(false);
+    // Refresh data for the selected data source
+    this.loadSchema();
     this.loadSavedQueries();
+    this.notifications.info(`Switched to ${ds.name}`);
   }
 }

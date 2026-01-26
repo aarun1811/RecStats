@@ -6,6 +6,7 @@ interface NavItem {
   label: string;
   route: string;
   badge?: number;
+  exactMatch?: boolean;
 }
 
 @Component({
@@ -42,6 +43,7 @@ interface NavItem {
               *ngFor="let item of mainNavItems"
               [routerLink]="item.route"
               routerLinkActive="active"
+              [routerLinkActiveOptions]="{ exact: item.exactMatch || false }"
               class="nav-item"
               [title]="sidebarCollapsed ? item.label : ''"
             >
@@ -235,10 +237,16 @@ interface NavItem {
       text-decoration: none;
       transition: all var(--transition-fast);
       position: relative;
+      outline: none;
 
       &:hover {
         background: var(--bg-hover);
         color: var(--text-primary);
+      }
+
+      &:focus-visible {
+        outline: 2px solid var(--color-primary);
+        outline-offset: -2px;
       }
 
       &.active {
@@ -520,7 +528,7 @@ export class MainLayoutComponent {
   sidebarCollapsed = false;
 
   mainNavItems: NavItem[] = [
-    { icon: 'home', label: 'Home', route: '/' },
+    { icon: 'home', label: 'Home', route: '/', exactMatch: true },
     { icon: 'layout-dashboard', label: 'Dashboards', route: '/dashboards', badge: 5 },
     { icon: 'bar-chart-2', label: 'Charts', route: '/charts' },
     { icon: 'code', label: 'Query Editor', route: '/queries' },
