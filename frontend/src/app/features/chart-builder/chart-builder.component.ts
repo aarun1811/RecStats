@@ -203,15 +203,15 @@ type Step = 'data' | 'chart' | 'configure';
             <div class="step-content" *ngIf="currentStep() === 'configure'">
               <div class="config-section" style="margin-top: 0; padding-top: 0; border-top: none;">
                 <h4>Data Mapping</h4>
-                <div class="form-field">
-                  <label>X-Axis / Category</label>
+                <div class="form-field" *ngIf="showXAxis()">
+                  <label>{{ getXAxisLabel() }}</label>
                   <select [ngModel]="chartConfig().xAxis" (ngModelChange)="updateConfig('xAxis', $event)">
                     <option value="">Select field</option>
                     <option *ngFor="let col of columns()" [value]="col.name">{{ col.name }}</option>
                   </select>
                 </div>
                 <div class="form-field">
-                  <label>Y-Axis / Value</label>
+                  <label>{{ getYAxisLabel() }}</label>
                   <select [ngModel]="chartConfig().yAxis" (ngModelChange)="updateConfig('yAxis', $event)">
                     <option value="">Select field</option>
                     <option *ngFor="let col of columns()" [value]="col.name">{{ col.name }}</option>
@@ -1222,6 +1222,28 @@ export class ChartBuilderComponent implements OnInit {
 
   showGroupBy(): boolean {
     return ['bar', 'column', 'line', 'area', 'treemap', 'heatmap'].includes(this.selectedChartType());
+  }
+
+  // KPI-type charts don't need X-Axis (category) field
+  showXAxis(): boolean {
+    return !['kpiCard', 'gauge', 'radialBar'].includes(this.selectedChartType());
+  }
+
+  // Dynamic labels based on chart type
+  getXAxisLabel(): string {
+    const type = this.selectedChartType();
+    if (['scatter'].includes(type)) return 'X Value';
+    if (['heatmap'].includes(type)) return 'X Category';
+    if (['radar'].includes(type)) return 'Indicator';
+    return 'X-Axis / Category';
+  }
+
+  getYAxisLabel(): string {
+    const type = this.selectedChartType();
+    if (['kpiCard', 'gauge', 'radialBar'].includes(type)) return 'Value Field';
+    if (['scatter'].includes(type)) return 'Y Value';
+    if (['heatmap'].includes(type)) return 'Heat Value';
+    return 'Y-Axis / Value';
   }
 
   canSave(): boolean {
