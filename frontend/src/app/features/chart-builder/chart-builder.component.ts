@@ -1301,20 +1301,43 @@ export class ChartBuilderComponent implements OnInit {
     this.savingChart.set(true);
     const config = this.chartConfig();
 
+    // Map frontend chart types to backend enum values
+    const chartTypeMap: Record<string, string> = {
+      'bar': 'bar',
+      'column': 'bar',  // Column is vertical bar
+      'line': 'line',
+      'area': 'area',
+      'pie': 'pie',
+      'donut': 'donut',
+      'scatter': 'scatter',
+      'gauge': 'gauge',
+      'speedometer': 'gauge',
+      'radialBar': 'gauge',
+      'heatmap': 'heatmap',
+      'radar': 'radar',
+      'funnel': 'funnel',
+      'treemap': 'treemap',
+      'kpiCard': 'kpi',
+      'worldMap': 'map'
+    };
+
     const chartPayload = {
       name: config.title || 'Untitled Chart',
       description: config.subtitle || '',
       query_id: this.selectedQueryId,
-      chart_type: this.selectedChartType(),
+      chart_type: chartTypeMap[this.selectedChartType()] || this.selectedChartType(),
       config: {
-        x_axis: config.xAxis,
-        y_axis: config.yAxis,
-        group_by: config.groupBy || null,
-        color_scheme: config.colorScheme,
+        x_axis: config.xAxis ? { field: config.xAxis } : null,
+        y_axis: config.yAxis ? { field: config.yAxis } : null,
+        category_field: config.groupBy || null,
+        color_palette: null,
         show_legend: config.showLegend,
+        show_tooltip: config.enableTooltip,
         show_labels: config.showLabels,
-        enable_animation: config.enableAnimation,
-        enable_tooltip: config.enableTooltip
+        custom_options: {
+          color_scheme: config.colorScheme,
+          enable_animation: config.enableAnimation
+        }
       }
     };
 
@@ -1322,11 +1345,10 @@ export class ChartBuilderComponent implements OnInit {
       next: (chart) => {
         this.notifications.success('Chart saved successfully');
         this.savingChart.set(false);
-        // Navigate to charts page
         this.router.navigate(['/charts']);
       },
       error: (err) => {
-        this.notifications.error('Failed to save chart: ' + err.message);
+        this.notifications.error('Failed to save chart: ' + (err.error?.detail || err.message));
         this.savingChart.set(false);
       }
     });
