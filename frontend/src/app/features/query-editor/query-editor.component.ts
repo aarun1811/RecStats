@@ -105,7 +105,7 @@ interface DataSource extends DataSourceResponse {
             class="sidebar-tab"
             [class.active]="sidebarTab() === 'saved'"
             (click)="switchSidebarTab('saved')">
-            <app-icon name="file-code" [size]="14"></app-icon>
+            <app-icon name="sql" [size]="14"></app-icon>
             Saved<span class="tab-count" *ngIf="savedQueries().length > 0">({{ savedQueries().length }})</span>
           </button>
         </div>
@@ -129,20 +129,35 @@ interface DataSource extends DataSourceResponse {
               [(ngModel)]="savedQuerySearch"
               class="saved-search-input">
           </div>
-          <div
-            *ngFor="let query of filteredSavedQueries()"
-            class="sidebar-saved-item"
-            (click)="loadSavedQuery(query)">
-            <div class="sidebar-saved-header">
-              <div class="sidebar-saved-name">{{ query.name }}</div>
-              <app-button variant="ghost" size="sm" (click)="deleteSavedQuery(query.id); $event.stopPropagation()">
-                <app-icon name="trash" [size]="12"></app-icon>
-              </app-button>
+          <div class="saved-list">
+            <div
+              *ngFor="let query of filteredSavedQueries()"
+              class="sidebar-saved-item"
+              [class.active]="activeQuery()?.id === query.id"
+              (click)="loadSavedQuery(query)">
+              <!-- Delete Confirmation State -->
+              <div class="delete-confirm-inline" *ngIf="deleteConfirmId() === query.id">
+                <app-icon name="alert-triangle" [size]="16"></app-icon>
+                <span>Delete?</span>
+                <div class="confirm-actions">
+                  <button class="confirm-yes" (click)="confirmDeleteQuery(query.id); $event.stopPropagation()">Yes</button>
+                  <button class="confirm-no" (click)="cancelDelete(); $event.stopPropagation()">No</button>
+                </div>
+              </div>
+              <!-- Normal State -->
+              <div class="sidebar-saved-content" *ngIf="deleteConfirmId() !== query.id">
+                <div class="sidebar-saved-icon">
+                  <app-icon name="sql" [size]="14"></app-icon>
+                </div>
+                <div class="sidebar-saved-name">{{ query.name }}</div>
+                <button class="sidebar-delete-btn" (click)="requestDelete(query.id); $event.stopPropagation()" title="Delete query">
+                  <app-icon name="trash" [size]="14"></app-icon>
+                </button>
+              </div>
             </div>
-            <div class="sidebar-saved-sql">{{ query.sql_text.substring(0, 60) }}{{ query.sql_text.length > 60 ? '...' : '' }}</div>
           </div>
           <div *ngIf="filteredSavedQueries().length === 0" class="sidebar-empty">
-            <app-icon name="file-code" [size]="32"></app-icon>
+            <app-icon name="sql" [size]="32"></app-icon>
             <p>{{ savedQuerySearch ? 'No matching queries' : 'No saved queries' }}</p>
             <span class="hint">{{ savedQuerySearch ? 'Try a different search' : 'Click "Save" to save your query' }}</span>
           </div>
@@ -162,11 +177,23 @@ interface DataSource extends DataSourceResponse {
               <app-icon name="code" [size]="16"></app-icon>
               Format
             </app-button>
+            <!-- Active Query Indicator -->
+            <div class="active-query-badge" *ngIf="activeQuery()">
+              <app-icon name="sql" [size]="14"></app-icon>
+              <span>{{ activeQuery()!.name }}</span>
+              <button class="badge-close" (click)="clearActiveQuery()" title="Unload query">
+                <app-icon name="x" [size]="12"></app-icon>
+              </button>
+            </div>
           </div>
           <div class="toolbar-right">
             <button class="toolbar-btn save-btn" (click)="openSaveModal()">
               <app-icon name="save" [size]="16"></app-icon>
-              Save
+              {{ activeQuery() ? 'Save As' : 'Save' }}
+            </button>
+            <button class="toolbar-btn update-btn" *ngIf="activeQuery()" (click)="updateActiveQuery()">
+              <app-icon name="check" [size]="16"></app-icon>
+              Update
             </button>
             <button class="toolbar-btn clear-btn" (click)="confirmClear()">
               <app-icon name="trash" [size]="16"></app-icon>
@@ -314,11 +341,23 @@ interface DataSource extends DataSourceResponse {
       grid-template-columns: 280px 1fr;
       height: calc(100vh - 64px);
       gap: 0;
+      animation: contentFade 250ms ease-out;
+    }
+
+    @keyframes contentFade {
+      from {
+        opacity: 0;
+      }
+      to {
+        opacity: 1;
+      }
     }
 
     .schema-sidebar {
-      background: var(--bg-secondary);
-      border-right: 1px solid var(--border-color);
+      background: var(--glass-bg);
+      backdrop-filter: blur(var(--glass-blur));
+      -webkit-backdrop-filter: blur(var(--glass-blur));
+      border-right: 1px solid var(--glass-border);
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -330,7 +369,8 @@ interface DataSource extends DataSourceResponse {
       align-items: center;
       gap: var(--spacing-2);
       padding: var(--spacing-3);
-      border-bottom: 1px solid var(--border-color);
+      border-bottom: 1px solid var(--glass-border);
+      background: var(--gradient-glow);
     }
 
     .datasource-row > .refresh-btn {
@@ -347,15 +387,38 @@ interface DataSource extends DataSourceResponse {
       cursor: pointer;
       transition: all 0.2s ease;
 
+      app-icon {
+        transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), filter 0.2s ease;
+      }
+
       &:hover {
         background: var(--bg-hover);
-        color: var(--text-primary);
+        color: var(--color-primary-light);
         border-color: var(--color-primary);
-        box-shadow: 0 0 8px rgba(var(--color-primary-rgb), 0.25);
+        box-shadow: var(--shadow-glow-sm);
+
+        app-icon {
+          transform: rotate(180deg);
+          filter: drop-shadow(0 0 4px rgba(var(--color-primary-rgb), 0.5));
+        }
+      }
+
+      &:active {
+        transform: scale(0.95);
+
+        app-icon {
+          transform: rotate(360deg);
+          animation: refreshSpin 0.6s ease-out;
+        }
       }
     }
 
-    // Data Source Selector
+    @keyframes refreshSpin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    // Data Source Selector - Glassmorphism
     .datasource-selector {
       position: relative;
       flex: 1;
@@ -378,7 +441,11 @@ interface DataSource extends DataSourceResponse {
       &:hover {
         border-color: var(--color-primary);
         background: var(--bg-hover);
-        box-shadow: 0 0 8px rgba(var(--color-primary-rgb), 0.25);
+        box-shadow: var(--shadow-glow-sm);
+      }
+
+      app-icon {
+        transition: transform 0.2s ease;
       }
 
       app-icon.rotated {
@@ -418,15 +485,29 @@ interface DataSource extends DataSourceResponse {
 
     .datasource-dropdown {
       position: absolute;
-      top: calc(100% - var(--spacing-1));
-      left: var(--spacing-3);
-      right: var(--spacing-3);
-      background: var(--bg-elevated);
-      border: 1px solid var(--border-color);
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      background: var(--glass-bg);
+      backdrop-filter: blur(var(--glass-blur-lg));
+      -webkit-backdrop-filter: blur(var(--glass-blur-lg));
+      border: 1px solid var(--glass-border);
       border-radius: var(--radius-md);
-      box-shadow: var(--shadow-lg);
+      box-shadow: var(--shadow-lg), var(--shadow-glow-sm);
       z-index: 100;
       overflow: hidden;
+      animation: dropdownOpen 0.2s ease-out;
+    }
+
+    @keyframes dropdownOpen {
+      from {
+        opacity: 0;
+        transform: translateY(-8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     .datasource-option {
@@ -438,11 +519,11 @@ interface DataSource extends DataSourceResponse {
       transition: all 0.15s ease;
 
       &:hover {
-        background: var(--bg-hover);
+        background: rgba(var(--color-primary-rgb), 0.1);
       }
 
       &.selected {
-        background: rgba(var(--color-primary-rgb), 0.1);
+        background: rgba(var(--color-primary-rgb), 0.15);
         color: var(--color-primary-light);
       }
 
@@ -459,16 +540,18 @@ interface DataSource extends DataSourceResponse {
         color: var(--text-muted);
 
         .status-dot {
-          width: 6px;
-          height: 6px;
+          width: 8px;
+          height: 8px;
           border-radius: 50%;
           background: var(--text-muted);
+          transition: box-shadow 0.2s ease;
         }
 
         &.connected {
           color: var(--color-success);
           .status-dot {
             background: var(--color-success);
+            box-shadow: 0 0 8px rgba(var(--color-success-rgb), 0.6);
           }
         }
 
@@ -476,6 +559,7 @@ interface DataSource extends DataSourceResponse {
           color: var(--color-danger);
           .status-dot {
             background: var(--color-danger);
+            box-shadow: 0 0 8px rgba(var(--color-danger-rgb), 0.4);
           }
         }
 
@@ -483,6 +567,7 @@ interface DataSource extends DataSourceResponse {
           color: var(--color-warning);
           .status-dot {
             background: var(--color-warning);
+            box-shadow: 0 0 8px rgba(var(--color-warning-rgb), 0.4);
             animation: pulse 1.5s ease-in-out infinite;
           }
         }
@@ -494,7 +579,7 @@ interface DataSource extends DataSourceResponse {
       align-items: center;
       gap: var(--spacing-2);
       padding: var(--spacing-3);
-      border-top: 1px solid var(--border-color);
+      border-top: 1px solid var(--glass-border);
       color: var(--color-primary);
       font-size: var(--font-size-sm);
       cursor: pointer;
@@ -502,12 +587,14 @@ interface DataSource extends DataSourceResponse {
 
       &:hover {
         background: rgba(var(--color-primary-rgb), 0.1);
+        box-shadow: inset 0 0 20px rgba(var(--color-primary-rgb), 0.05);
       }
     }
 
     .sidebar-tabs {
       display: flex;
-      border-bottom: 1px solid var(--border-color);
+      border-bottom: 1px solid var(--glass-border);
+      position: relative;
     }
 
     .sidebar-tab {
@@ -526,16 +613,32 @@ interface DataSource extends DataSourceResponse {
       transition: all 0.2s ease;
       position: relative;
 
+      app-icon {
+        transition: transform 0.2s ease, filter 0.2s ease;
+      }
+
       &:hover:not(.active) {
         color: var(--text-primary);
-        background: var(--bg-hover);
-        box-shadow: inset 0 -2px 8px rgba(var(--color-primary-rgb), 0.15);
+        background: rgba(var(--color-primary-rgb), 0.05);
+
+        app-icon {
+          transform: scale(1.15);
+          filter: drop-shadow(0 0 3px rgba(var(--color-primary-rgb), 0.3));
+        }
+      }
+
+      &:active app-icon {
+        transform: scale(0.9);
       }
 
       &.active {
         color: var(--color-primary-light);
-        background: rgba(var(--color-primary-rgb), 0.1);
-        animation: tabGlow 0.4s ease-out;
+        background: linear-gradient(180deg, rgba(var(--color-primary-rgb), 0.1) 0%, transparent 100%);
+
+        app-icon {
+          filter: drop-shadow(0 0 4px rgba(var(--color-primary-rgb), 0.5));
+          animation: activeTabIcon 0.3s ease-out;
+        }
 
         &::after {
           content: '';
@@ -545,8 +648,15 @@ interface DataSource extends DataSourceResponse {
           right: 0;
           height: 2px;
           background: var(--color-primary);
+          box-shadow: 0 0 10px rgba(var(--color-primary-rgb), 0.5);
         }
       }
+    }
+
+    @keyframes activeTabIcon {
+      0% { transform: scale(1) translateY(0); }
+      50% { transform: scale(1.2) translateY(-2px); }
+      100% { transform: scale(1) translateY(0); }
     }
 
     .tab-count {
@@ -555,18 +665,6 @@ interface DataSource extends DataSourceResponse {
       font-weight: var(--font-weight-normal);
       color: var(--text-muted);
       opacity: 0.8;
-    }
-
-    @keyframes tabGlow {
-      0% {
-        box-shadow: 0 0 0 0 rgba(var(--color-primary-rgb), 0.4);
-      }
-      50% {
-        box-shadow: 0 0 12px 2px rgba(var(--color-primary-rgb), 0.3);
-      }
-      100% {
-        box-shadow: 0 0 0 0 rgba(var(--color-primary-rgb), 0);
-      }
     }
 
     .sidebar-content {
@@ -578,6 +676,24 @@ interface DataSource extends DataSourceResponse {
 
     .saved-content {
       padding: var(--spacing-2);
+
+      // Custom scrollbar for dark mode
+      &::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      &::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      &::-webkit-scrollbar-thumb {
+        background: var(--border-color);
+        border-radius: 3px;
+
+        &:hover {
+          background: var(--text-muted);
+        }
+      }
     }
 
     .saved-search {
@@ -593,12 +709,18 @@ interface DataSource extends DataSourceResponse {
 
       &:focus-within {
         border-color: var(--color-primary);
-        box-shadow: 0 0 8px rgba(var(--color-primary-rgb), 0.2);
+        box-shadow: var(--shadow-glow-sm);
+        background: var(--bg-secondary);
       }
 
       app-icon {
         color: var(--text-muted);
         flex-shrink: 0;
+        transition: color 0.2s ease;
+      }
+
+      &:focus-within app-icon {
+        color: var(--color-primary);
       }
     }
 
@@ -659,15 +781,170 @@ interface DataSource extends DataSourceResponse {
       align-items: center;
       justify-content: space-between;
       padding: var(--spacing-3) var(--spacing-4);
-      background: var(--bg-secondary);
-      border-bottom: 1px solid var(--border-color);
+      background: var(--glass-bg);
+      backdrop-filter: blur(var(--glass-blur));
+      -webkit-backdrop-filter: blur(var(--glass-blur));
+      border-bottom: 1px solid var(--glass-border);
       gap: var(--spacing-3);
+      position: relative;
+
+      &::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(var(--color-primary-rgb), 0.2), transparent);
+      }
     }
 
     .toolbar-left, .toolbar-right {
       display: flex;
       align-items: center;
       gap: var(--spacing-2);
+    }
+
+    // Active Query Badge
+    .active-query-badge {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-2);
+      padding: var(--spacing-1) var(--spacing-2) var(--spacing-1) var(--spacing-3);
+      background: rgba(var(--color-primary-rgb), 0.15);
+      border: 1px solid rgba(var(--color-primary-rgb), 0.3);
+      border-radius: var(--radius-full);
+      font-size: var(--font-size-sm);
+      color: var(--color-primary-light);
+      animation: badgeSlideIn 0.25s ease-out;
+
+      @keyframes badgeSlideIn {
+        from {
+          opacity: 0;
+          transform: translateX(-10px) scale(0.9);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0) scale(1);
+        }
+      }
+
+      app-icon {
+        opacity: 0.8;
+      }
+
+      span {
+        font-weight: var(--font-weight-medium);
+        max-width: 150px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .badge-close {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+        padding: 0;
+        background: transparent;
+        border: none;
+        border-radius: 50%;
+        color: var(--color-primary-light);
+        cursor: pointer;
+        opacity: 0.6;
+        transition: all 0.15s ease;
+
+        &:hover {
+          opacity: 1;
+          background: rgba(var(--color-primary-rgb), 0.2);
+        }
+      }
+    }
+
+    // Update button
+    .update-btn {
+      app-icon {
+        transition: transform 0.2s ease, filter 0.2s ease;
+      }
+
+      &:hover {
+        color: var(--color-success);
+        background: rgba(var(--color-success-rgb), 0.1);
+        border-color: rgba(var(--color-success-rgb), 0.2);
+        box-shadow: 0 0 10px rgba(var(--color-success-rgb), 0.2);
+
+        app-icon {
+          transform: scale(1.15);
+          filter: drop-shadow(0 0 4px rgba(var(--color-success-rgb), 0.5));
+        }
+      }
+
+      &:active app-icon {
+        transform: scale(0.9);
+      }
+    }
+
+    // Enhanced Run button with pulsing glow and icon animation
+    .toolbar-left ::ng-deep app-button[variant="primary"] button {
+      position: relative;
+
+      &:not(:disabled) {
+        animation: runButtonPulse 2s ease-in-out infinite;
+      }
+
+      &:disabled {
+        animation: none;
+
+        app-icon {
+          animation: spinIcon 1s linear infinite;
+        }
+      }
+
+      app-icon {
+        transition: transform 0.2s ease, filter 0.2s ease;
+      }
+
+      &:hover:not(:disabled) app-icon {
+        transform: scale(1.2) translateX(2px);
+        filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.5));
+      }
+
+      &:active:not(:disabled) app-icon {
+        transform: scale(0.9);
+      }
+    }
+
+    @keyframes spinIcon {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes runButtonPulse {
+      0%, 100% {
+        box-shadow: 0 0 5px rgba(var(--color-primary-rgb), 0.3);
+      }
+      50% {
+        box-shadow: 0 0 15px rgba(var(--color-primary-rgb), 0.5),
+                    0 0 25px rgba(var(--color-primary-rgb), 0.2);
+      }
+    }
+
+    // Format button icon animation
+    .toolbar-left ::ng-deep app-button[variant="secondary"] button {
+      app-icon {
+        transition: transform 0.3s ease, filter 0.2s ease;
+      }
+
+      &:hover app-icon {
+        transform: rotate(90deg) scale(1.1);
+        filter: drop-shadow(0 0 3px rgba(var(--color-primary-rgb), 0.4));
+      }
+
+      &:active app-icon {
+        transform: rotate(180deg) scale(0.95);
+      }
     }
 
     // Custom toolbar buttons
@@ -681,11 +958,15 @@ interface DataSource extends DataSourceResponse {
       font-size: var(--font-size-sm);
       font-weight: var(--font-weight-medium);
       border-radius: var(--radius-md);
-      border: none;
+      border: 1px solid transparent;
       cursor: pointer;
       transition: all 0.2s ease;
       background: transparent;
       color: var(--text-secondary);
+
+      app-icon {
+        transition: transform 0.2s ease, filter 0.2s ease;
+      }
 
       &:hover {
         background: var(--bg-hover);
@@ -694,38 +975,82 @@ interface DataSource extends DataSourceResponse {
     }
 
     .save-btn {
+      app-icon {
+        transition: transform 0.2s ease, filter 0.2s ease;
+      }
+
       &:hover {
         color: var(--color-primary-light);
         background: rgba(var(--color-primary-rgb), 0.1);
-        box-shadow: 0 0 10px rgba(var(--color-primary-rgb), 0.25);
+        border-color: rgba(var(--color-primary-rgb), 0.2);
+        box-shadow: var(--shadow-glow-sm);
+
+        app-icon {
+          transform: translateY(-2px) scale(1.1);
+          filter: drop-shadow(0 0 4px rgba(var(--color-primary-rgb), 0.5));
+        }
       }
+
+      &:active app-icon {
+        transform: translateY(1px) scale(0.95);
+        animation: saveBounce 0.3s ease-out;
+      }
+    }
+
+    @keyframes saveBounce {
+      0% { transform: translateY(0) scale(1); }
+      30% { transform: translateY(-4px) scale(1.15); }
+      60% { transform: translateY(0) scale(1.05); }
+      100% { transform: translateY(0) scale(1); }
     }
 
     .clear-btn {
+      app-icon {
+        transition: transform 0.2s ease, filter 0.2s ease;
+      }
+
       &:hover {
         color: var(--color-danger);
-        background: rgba(231, 76, 60, 0.1);
-        box-shadow: 0 0 10px rgba(231, 76, 60, 0.25);
+        background: rgba(var(--color-danger-rgb), 0.1);
+        border-color: rgba(var(--color-danger-rgb), 0.2);
+        box-shadow: 0 0 10px rgba(var(--color-danger-rgb), 0.2);
+
+        app-icon {
+          transform: rotate(-10deg) scale(1.1);
+          filter: drop-shadow(0 0 4px rgba(var(--color-danger-rgb), 0.5));
+          animation: trashWiggle 0.4s ease-in-out;
+        }
+      }
+
+      &:active app-icon {
+        transform: scale(0.9);
       }
     }
 
-    // Confirm popup
+    @keyframes trashWiggle {
+      0%, 100% { transform: rotate(-10deg) scale(1.1); }
+      25% { transform: rotate(10deg) scale(1.1); }
+      50% { transform: rotate(-8deg) scale(1.1); }
+      75% { transform: rotate(8deg) scale(1.1); }
+    }
+
+    // Confirm popup - Glassmorphism
     .confirm-popup {
       position: fixed;
       top: 100px;
       right: 24px;
       z-index: 1000;
-      animation: slideIn 0.2s ease;
+      animation: slideIn 0.25s ease-out;
     }
 
     @keyframes slideIn {
       from {
         opacity: 0;
-        transform: translateY(-10px);
+        transform: translateY(-10px) scale(0.95);
       }
       to {
         opacity: 1;
-        transform: translateY(0);
+        transform: translateY(0) scale(1);
       }
     }
 
@@ -734,13 +1059,22 @@ interface DataSource extends DataSourceResponse {
       align-items: center;
       gap: var(--spacing-3);
       padding: var(--spacing-3) var(--spacing-4);
-      background: var(--bg-secondary);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-md);
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+      background: var(--glass-bg);
+      backdrop-filter: blur(var(--glass-blur-lg));
+      -webkit-backdrop-filter: blur(var(--glass-blur-lg));
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg), var(--shadow-glow-sm);
 
       app-icon {
         color: var(--color-warning);
+        filter: drop-shadow(0 0 6px rgba(var(--color-warning-rgb), 0.5));
+        animation: warningPulse 1s ease-in-out;
+      }
+
+      @keyframes warningPulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.1); }
       }
 
       span {
@@ -769,7 +1103,8 @@ interface DataSource extends DataSourceResponse {
 
         &:hover {
           background: #c0392b;
-          box-shadow: 0 0 8px rgba(231, 76, 60, 0.4);
+          box-shadow: 0 0 12px rgba(var(--color-danger-rgb), 0.5);
+          transform: scale(1.02);
         }
       }
 
@@ -781,6 +1116,7 @@ interface DataSource extends DataSourceResponse {
         &:hover {
           background: var(--bg-hover);
           color: var(--text-primary);
+          border-color: rgba(var(--color-primary-rgb), 0.3);
         }
       }
     }
@@ -804,8 +1140,10 @@ interface DataSource extends DataSourceResponse {
       align-items: center;
       justify-content: space-between;
       padding: 0 var(--spacing-4);
-      background: var(--bg-secondary);
-      border-bottom: 1px solid var(--border-color);
+      background: var(--glass-bg);
+      backdrop-filter: blur(var(--glass-blur));
+      -webkit-backdrop-filter: blur(var(--glass-blur));
+      border-bottom: 1px solid var(--glass-border);
     }
 
     .results-tabs {
@@ -826,26 +1164,48 @@ interface DataSource extends DataSourceResponse {
       cursor: pointer;
       border-bottom: 2px solid transparent;
       transition: all 0.2s ease;
+      position: relative;
 
       &:hover:not(.active) {
         color: var(--text-primary);
         background: rgba(var(--color-primary-rgb), 0.05);
-        box-shadow: inset 0 -4px 8px rgba(var(--color-primary-rgb), 0.1);
       }
 
       &.active {
         color: var(--color-primary-light);
         border-bottom-color: var(--color-primary);
-        box-shadow: inset 0 -4px 12px rgba(var(--color-primary-rgb), 0.15);
+        background: linear-gradient(180deg, rgba(var(--color-primary-rgb), 0.08) 0%, transparent 100%);
+
+        &::after {
+          content: '';
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          height: 2px;
+          background: var(--color-primary);
+          box-shadow: 0 0 8px rgba(var(--color-primary-rgb), 0.5);
+        }
       }
 
       .badge {
-        padding: 2px 6px;
-        background: var(--bg-tertiary);
+        padding: 2px 8px;
+        background: rgba(var(--color-primary-rgb), 0.15);
         border-radius: var(--radius-full);
         font-size: var(--font-size-xs);
-        color: var(--text-muted);
+        color: var(--color-primary-light);
+        transition: all 0.3s ease;
       }
+
+      &.active .badge {
+        animation: badgePulse 0.5s ease-out;
+      }
+    }
+
+    @keyframes badgePulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
     }
 
     .results-info {
@@ -859,7 +1219,25 @@ interface DataSource extends DataSourceResponse {
       align-items: center;
       gap: var(--spacing-1);
       font-size: var(--font-size-sm);
-      color: var(--text-muted);
+      padding: var(--spacing-1) var(--spacing-2);
+      border-radius: var(--radius-sm);
+      transition: all 0.2s ease;
+
+      // Color-coded execution time
+      &.fast {
+        color: var(--color-success);
+        background: rgba(var(--color-success-rgb), 0.1);
+      }
+
+      &.medium {
+        color: var(--color-warning);
+        background: rgba(var(--color-warning-rgb), 0.1);
+      }
+
+      &.slow {
+        color: var(--color-danger);
+        background: rgba(var(--color-danger-rgb), 0.1);
+      }
     }
 
     .results-content {
@@ -880,9 +1258,36 @@ interface DataSource extends DataSourceResponse {
       height: 100%;
       gap: var(--spacing-3);
       color: var(--text-muted);
+      background: radial-gradient(ellipse at 50% 50%, rgba(var(--color-primary-rgb), 0.03) 0%, transparent 50%);
+
+      app-icon {
+        opacity: 0.5;
+        animation: floatIcon 3s ease-in-out infinite;
+        filter: drop-shadow(0 0 8px rgba(var(--color-primary-rgb), 0.2));
+      }
+
+      @keyframes floatIcon {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-6px); }
+      }
 
       p {
         margin: 0;
+      }
+    }
+
+    .loading-state {
+      app-icon {
+        animation: spin 1s linear infinite, glowPulse 2s ease-in-out infinite;
+      }
+
+      @keyframes glowPulse {
+        0%, 100% {
+          filter: drop-shadow(0 0 5px rgba(var(--color-primary-rgb), 0.3));
+        }
+        50% {
+          filter: drop-shadow(0 0 15px rgba(var(--color-primary-rgb), 0.6));
+        }
       }
     }
 
@@ -979,40 +1384,194 @@ interface DataSource extends DataSourceResponse {
       color: var(--text-muted);
     }
 
+    .saved-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-1);
+    }
+
     .sidebar-saved-item {
-      padding: var(--spacing-2) var(--spacing-3);
-      background: var(--bg-tertiary);
+      position: relative;
+      background: transparent;
+      border: 1px solid transparent;
       border-radius: var(--radius-md);
-      margin-bottom: var(--spacing-2);
       cursor: pointer;
       transition: all 0.2s ease;
+      animation: fadeInStagger 200ms ease-out forwards;
+      opacity: 0;
+
+      @for $i from 1 through 20 {
+        &:nth-child(#{$i}) {
+          animation-delay: #{($i - 1) * 30}ms;
+        }
+      }
+
+      @keyframes fadeInStagger {
+        from {
+          opacity: 0;
+          transform: translateX(-8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
 
       &:hover {
         background: var(--bg-hover);
-        box-shadow: 0 0 8px rgba(var(--color-primary-rgb), 0.2);
+        border-color: rgba(var(--color-primary-rgb), 0.15);
+
+        .sidebar-delete-btn {
+          opacity: 1;
+        }
+      }
+
+      &.active {
+        background: rgba(var(--color-primary-rgb), 0.1);
+        border-color: rgba(var(--color-primary-rgb), 0.3);
+        box-shadow: var(--shadow-glow-sm);
+
+        .sidebar-saved-icon {
+          color: var(--color-primary-light);
+          background: rgba(var(--color-primary-rgb), 0.15);
+        }
+
+        .sidebar-saved-name {
+          color: var(--color-primary-light);
+        }
       }
     }
 
-    .sidebar-saved-header {
+    .sidebar-saved-content {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      margin-bottom: 4px;
+      gap: var(--spacing-2);
+      padding: var(--spacing-2) var(--spacing-3);
+    }
+
+    .sidebar-saved-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: var(--text-muted);
+      transition: all 0.2s ease;
+    }
+
+    .sidebar-saved-item:hover .sidebar-saved-icon {
+      color: var(--color-primary-light);
     }
 
     .sidebar-saved-name {
+      flex: 1;
       font-size: var(--font-size-sm);
       font-weight: var(--font-weight-medium);
       color: var(--text-primary);
-    }
-
-    .sidebar-saved-sql {
-      font-family: var(--font-mono);
-      font-size: var(--font-size-xs);
-      color: var(--text-muted);
+      transition: color 0.2s ease;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+
+    .sidebar-saved-item:hover .sidebar-saved-name {
+      color: var(--color-primary-light);
+    }
+
+    .sidebar-delete-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      background: transparent;
+      border: none;
+      border-radius: var(--radius-sm);
+      color: var(--text-muted);
+      cursor: pointer;
+      opacity: 0;
+      transition: all 0.2s ease;
+
+      &:hover {
+        color: var(--color-danger);
+        background: rgba(var(--color-danger-rgb), 0.1);
+      }
+    }
+
+    // Inline delete confirmation
+    .delete-confirm-inline {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-2);
+      padding: var(--spacing-2) var(--spacing-3);
+      background: rgba(var(--color-danger-rgb), 0.08);
+      border-radius: var(--radius-md);
+      animation: confirmSlideIn 0.2s ease-out;
+
+      @keyframes confirmSlideIn {
+        from {
+          opacity: 0;
+          transform: scale(0.95);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+
+      app-icon {
+        color: var(--color-warning);
+        flex-shrink: 0;
+        animation: warningPulse 1s ease-in-out;
+      }
+
+      @keyframes warningPulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+      }
+
+      span {
+        flex: 1;
+        font-size: var(--font-size-sm);
+        color: var(--text-primary);
+        font-weight: var(--font-weight-medium);
+      }
+
+      .confirm-actions {
+        display: flex;
+        gap: var(--spacing-1);
+
+        button {
+          padding: var(--spacing-1) var(--spacing-2);
+          font-size: var(--font-size-xs);
+          font-weight: var(--font-weight-medium);
+          border-radius: var(--radius-sm);
+          border: none;
+          cursor: pointer;
+          transition: all 0.15s ease;
+        }
+
+        .confirm-yes {
+          background: var(--color-danger);
+          color: white;
+
+          &:hover {
+            background: #c0392b;
+            box-shadow: 0 0 8px rgba(var(--color-danger-rgb), 0.4);
+          }
+        }
+
+        .confirm-no {
+          background: var(--bg-tertiary);
+          color: var(--text-secondary);
+          border: 1px solid var(--border-color);
+
+          &:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+          }
+        }
+      }
     }
 
     .sidebar-empty {
@@ -1023,6 +1582,17 @@ interface DataSource extends DataSourceResponse {
       padding: var(--spacing-6);
       color: var(--text-muted);
       text-align: center;
+      background: radial-gradient(ellipse at 50% 50%, rgba(var(--color-primary-rgb), 0.03) 0%, transparent 50%);
+
+      app-icon {
+        opacity: 0.4;
+        animation: floatIcon 3s ease-in-out infinite;
+      }
+
+      @keyframes floatIcon {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-4px); }
+      }
 
       p {
         margin: var(--spacing-2) 0 0;
@@ -1037,19 +1607,41 @@ interface DataSource extends DataSourceResponse {
       right: 0;
       bottom: 0;
       background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
       display: flex;
       align-items: center;
       justify-content: center;
       z-index: 1000;
+      animation: overlayFade 0.2s ease-out;
+    }
+
+    @keyframes overlayFade {
+      from { opacity: 0; }
+      to { opacity: 1; }
     }
 
     .modal {
-      background: var(--bg-secondary);
-      border: 1px solid var(--border-color);
+      background: var(--glass-bg);
+      backdrop-filter: blur(var(--glass-blur-lg));
+      -webkit-backdrop-filter: blur(var(--glass-blur-lg));
+      border: 1px solid var(--glass-border);
       border-radius: var(--radius-lg);
       width: 100%;
       max-width: 500px;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+      box-shadow: var(--shadow-xl), var(--shadow-glow-md);
+      animation: modalSlide 0.25s ease-out;
+    }
+
+    @keyframes modalSlide {
+      from {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
     }
 
     .modal-header {
@@ -1057,7 +1649,8 @@ interface DataSource extends DataSourceResponse {
       align-items: center;
       justify-content: space-between;
       padding: var(--spacing-4);
-      border-bottom: 1px solid var(--border-color);
+      border-bottom: 1px solid var(--glass-border);
+      background: var(--gradient-glow);
 
       h3 {
         margin: 0;
@@ -1077,7 +1670,8 @@ interface DataSource extends DataSourceResponse {
       justify-content: flex-end;
       gap: var(--spacing-2);
       padding: var(--spacing-4);
-      border-top: 1px solid var(--border-color);
+      border-top: 1px solid var(--glass-border);
+      background: var(--gradient-glow-bottom);
     }
 
     .form-group {
@@ -1170,6 +1764,10 @@ export class QueryEditorComponent implements OnInit {
   showDataSourceDropdown = signal(false);
   isLoadingDataSources = signal(false);
   showClearConfirm = signal(false);
+
+  // Active query tracking
+  activeQuery = signal<SavedQuery | null>(null);
+  deleteConfirmId = signal<string | null>(null);
 
   ngOnInit() {
     this.loadDataSources();
@@ -1313,6 +1911,11 @@ export class QueryEditorComponent implements OnInit {
     this.sqlText = '';
     this.queryResult.set(null);
     this.showClearConfirm.set(false);
+    this.activeQuery.set(null);
+  }
+
+  clearActiveQuery() {
+    this.activeQuery.set(null);
   }
 
   openSaveModal() {
@@ -1342,7 +1945,7 @@ export class QueryEditorComponent implements OnInit {
     }
 
     try {
-      await firstValueFrom(
+      const savedQuery = await firstValueFrom(
         this.api.post<SavedQuery>('/queries', {
           name: this.saveQueryName.trim(),
           description: this.saveQueryDescription.trim() || null,
@@ -1352,9 +1955,35 @@ export class QueryEditorComponent implements OnInit {
       );
       this.notifications.success('Query saved successfully');
       this.closeSaveModal();
+      // Set the newly saved query as active
+      this.activeQuery.set(savedQuery);
       this.loadSavedQueries();
     } catch (error: any) {
       this.notifications.error(error.message || 'Failed to save query');
+    }
+  }
+
+  async updateActiveQuery() {
+    const active = this.activeQuery();
+    if (!active) {
+      this.notifications.warning('No query loaded to update');
+      return;
+    }
+
+    try {
+      const updatedQuery = await firstValueFrom(
+        this.api.put<SavedQuery>(`/queries/${active.id}`, {
+          name: active.name,
+          description: active.description || null,
+          sql_text: this.sqlText,
+          data_source_id: active.data_source_id
+        })
+      );
+      this.notifications.success(`Updated query: ${active.name}`);
+      this.activeQuery.set(updatedQuery);
+      this.loadSavedQueries();
+    } catch (error: any) {
+      this.notifications.error(error.message || 'Failed to update query');
     }
   }
 
@@ -1373,18 +2002,40 @@ export class QueryEditorComponent implements OnInit {
 
   loadSavedQuery(query: SavedQuery) {
     this.sqlText = query.sql_text;
+    this.activeQuery.set(query);
     this.activeTab.set('results');
     this.notifications.info(`Loaded query: ${query.name}`);
+    // Cancel any pending delete confirmation
+    this.deleteConfirmId.set(null);
   }
 
-  async deleteSavedQuery(id: string) {
+  requestDelete(id: string) {
+    this.deleteConfirmId.set(id);
+  }
+
+  cancelDelete() {
+    this.deleteConfirmId.set(null);
+  }
+
+  async confirmDeleteQuery(id: string) {
     try {
       await firstValueFrom(this.api.delete(`/queries/${id}`));
       this.notifications.success('Query deleted');
+      // If we deleted the active query, clear it
+      if (this.activeQuery()?.id === id) {
+        this.activeQuery.set(null);
+      }
+      this.deleteConfirmId.set(null);
       this.loadSavedQueries();
     } catch (error: any) {
       this.notifications.error(error.message || 'Failed to delete query');
+      this.deleteConfirmId.set(null);
     }
+  }
+
+  async deleteSavedQuery(id: string) {
+    // Deprecated - use requestDelete/confirmDeleteQuery flow instead
+    this.requestDelete(id);
   }
 
   loadHistoryItem(item: { sql: string; timestamp: Date; rowCount: number }) {

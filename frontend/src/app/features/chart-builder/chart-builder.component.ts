@@ -50,28 +50,28 @@ export interface ChartTypeOption {
 
 export const CHART_TYPES: ChartTypeOption[] = [
   // Basic - Available
-  { id: 'bar', name: 'Bar', icon: 'align-left', description: 'Horizontal bars for comparison', category: 'Basic', available: true },
-  { id: 'column', name: 'Column', icon: 'bar-chart-2', description: 'Vertical bars for comparison', category: 'Basic', available: true },
-  { id: 'line', name: 'Line', icon: 'trending-up', description: 'Show trends over time', category: 'Basic', available: true },
-  { id: 'area', name: 'Area', icon: 'activity', description: 'Line chart with filled area', category: 'Basic', available: true },
-  { id: 'scatter', name: 'Scatter', icon: 'git-commit', description: 'Show correlation between variables', category: 'Basic', available: true },
+  { id: 'bar', name: 'Bar', icon: 'chart-bar-h', description: 'Horizontal bars for comparison', category: 'Basic', available: true },
+  { id: 'column', name: 'Column', icon: 'chart-bar', description: 'Vertical bars for comparison', category: 'Basic', available: true },
+  { id: 'line', name: 'Line', icon: 'chart-line', description: 'Show trends over time', category: 'Basic', available: true },
+  { id: 'area', name: 'Area', icon: 'chart-area', description: 'Line chart with filled area', category: 'Basic', available: true },
+  { id: 'scatter', name: 'Scatter', icon: 'chart-scatter', description: 'Show correlation between variables', category: 'Basic', available: true },
   { id: 'pie', name: 'Pie', icon: 'pie-chart', description: 'Show parts of a whole', category: 'Basic', available: true },
-  { id: 'donut', name: 'Donut', icon: 'disc', description: 'Pie chart with center cutout', category: 'Basic', available: true },
+  { id: 'donut', name: 'Donut', icon: 'chart-donut', description: 'Pie chart with center cutout', category: 'Basic', available: true },
   // Advanced - Available
-  { id: 'heatmap', name: 'Heatmap', icon: 'grid', description: 'Show data density with colors', category: 'Advanced', available: true },
-  { id: 'treemap', name: 'Treemap', icon: 'layout', description: 'Hierarchical data visualization', category: 'Advanced', available: true },
-  { id: 'funnel', name: 'Funnel', icon: 'filter', description: 'Show stages in a process', category: 'Advanced', available: true },
-  { id: 'radar', name: 'Radar', icon: 'octagon', description: 'Multi-axis comparison', category: 'Advanced', available: true },
+  { id: 'heatmap', name: 'Heatmap', icon: 'chart-heatmap', description: 'Show data density with colors', category: 'Advanced', available: true },
+  { id: 'treemap', name: 'Treemap', icon: 'chart-treemap', description: 'Hierarchical data visualization', category: 'Advanced', available: true },
+  { id: 'funnel', name: 'Funnel', icon: 'chart-funnel', description: 'Show stages in a process', category: 'Advanced', available: true },
+  { id: 'radar', name: 'Radar', icon: 'chart-radar', description: 'Multi-axis comparison', category: 'Advanced', available: true },
   // KPI - Available
-  { id: 'gauge', name: 'Gauge', icon: 'activity', description: 'Speedometer-style KPI display', category: 'KPI', available: true },
-  { id: 'radialBar', name: 'Radial Bar', icon: 'loader', description: 'Circular progress indicator', category: 'KPI', available: true },
-  { id: 'kpiCard', name: 'KPI Card', icon: 'hash', description: 'Big number with trend', category: 'KPI', available: true },
+  { id: 'gauge', name: 'Gauge', icon: 'chart-gauge', description: 'Speedometer-style KPI display', category: 'KPI', available: true },
+  { id: 'radialBar', name: 'Radial Bar', icon: 'chart-radial', description: 'Circular progress indicator', category: 'KPI', available: true },
+  { id: 'kpiCard', name: 'KPI Card', icon: 'chart-kpi', description: 'Big number with trend', category: 'KPI', available: true },
   // Coming Soon
   { id: 'worldMap', name: 'Map', icon: 'globe', description: 'Geographic data visualization', category: 'Advanced', available: false },
-  { id: 'sankey', name: 'Sankey', icon: 'git-merge', description: 'Show flow between nodes', category: 'Advanced', available: false },
-  { id: 'histogram', name: 'Histogram', icon: 'bar-chart', description: 'Distribution of continuous values', category: 'Advanced', available: false },
-  { id: 'bubble', name: 'Bubble', icon: 'circle', description: 'Scatter with size dimension', category: 'Basic', available: false },
-  { id: 'waterfall', name: 'Waterfall', icon: 'git-pull-request', description: 'Show cumulative effect', category: 'Advanced', available: false },
+  { id: 'sankey', name: 'Sankey', icon: 'chart-sankey', description: 'Show flow between nodes', category: 'Advanced', available: false },
+  { id: 'histogram', name: 'Histogram', icon: 'chart-histogram', description: 'Distribution of continuous values', category: 'Advanced', available: false },
+  { id: 'bubble', name: 'Bubble', icon: 'chart-bubble', description: 'Scatter with size dimension', category: 'Basic', available: false },
+  { id: 'waterfall', name: 'Waterfall', icon: 'chart-waterfall', description: 'Show cumulative effect', category: 'Advanced', available: false },
 ];
 
 type Step = 'data' | 'chart' | 'configure';
@@ -84,9 +84,21 @@ type Step = 'data' | 'chart' | 'configure';
       <aside class="config-panel">
         <div class="panel-header">
           <h2>{{ editMode() ? 'Edit Chart' : 'New Chart' }}</h2>
-          <app-button variant="ghost" size="sm" (click)="cancel()">
+          <app-button variant="ghost" size="sm" (click)="confirmClose()">
             <app-icon name="x" [size]="18"></app-icon>
           </app-button>
+        </div>
+
+        <!-- Close Confirmation Popup -->
+        <div class="confirm-popup" *ngIf="showCloseConfirm()">
+          <div class="confirm-content">
+            <app-icon name="alert-triangle" [size]="20"></app-icon>
+            <span>Discard changes?</span>
+            <div class="confirm-actions">
+              <button class="confirm-yes" (click)="cancel()">Yes</button>
+              <button class="confirm-no" (click)="showCloseConfirm.set(false)">No</button>
+            </div>
+          </div>
         </div>
 
         <div class="steps">
@@ -369,16 +381,28 @@ type Step = 'data' | 'chart' | 'configure';
       grid-template-columns: 380px 1fr;
       height: calc(100vh - 64px);
       background: var(--bg-primary);
+      animation: pageLoad 300ms ease-out;
+    }
+
+    @keyframes pageLoad {
+      from {
+        opacity: 0;
+      }
+      to {
+        opacity: 1;
+      }
     }
 
     // ========================================
-    // LEFT PANEL - CONFIG
+    // LEFT PANEL - CONFIG with Glassmorphism
     // ========================================
     .config-panel {
       display: flex;
       flex-direction: column;
-      background: var(--bg-secondary);
-      border-right: 1px solid var(--border-color);
+      background: var(--glass-bg);
+      backdrop-filter: blur(var(--glass-blur));
+      -webkit-backdrop-filter: blur(var(--glass-blur));
+      border-right: 1px solid var(--glass-border);
       overflow: hidden;
     }
 
@@ -387,13 +411,122 @@ type Step = 'data' | 'chart' | 'configure';
       align-items: center;
       justify-content: space-between;
       padding: var(--spacing-4);
-      border-bottom: 1px solid var(--border-color);
+      border-bottom: 1px solid var(--glass-border);
+      background: var(--gradient-glow);
 
       h2 {
         font-size: var(--font-size-lg);
         font-weight: var(--font-weight-semibold);
         color: var(--text-primary);
         margin: 0;
+        background: linear-gradient(135deg, var(--text-primary) 0%, var(--color-primary-light) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      // Close button - X rotate on hover
+      ::ng-deep app-button[variant="ghost"] button {
+        app-icon {
+          transition: transform 0.2s ease, filter 0.2s ease;
+        }
+
+        &:hover app-icon {
+          transform: rotate(90deg);
+          filter: drop-shadow(0 0 4px rgba(var(--color-danger-rgb), 0.5));
+        }
+
+        &:active app-icon {
+          transform: rotate(90deg) scale(0.9);
+        }
+      }
+    }
+
+    // Close confirmation popup
+    .confirm-popup {
+      position: absolute;
+      top: 60px;
+      right: 16px;
+      z-index: 100;
+      animation: slideIn 0.25s ease-out;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-10px) scale(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .confirm-content {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-3);
+      padding: var(--spacing-3) var(--spacing-4);
+      background: var(--glass-bg);
+      backdrop-filter: blur(var(--glass-blur-lg));
+      -webkit-backdrop-filter: blur(var(--glass-blur-lg));
+      border: 1px solid rgba(var(--color-warning-rgb), 0.3);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg), 0 0 20px rgba(var(--color-warning-rgb), 0.15);
+
+      app-icon {
+        color: var(--color-warning);
+        filter: drop-shadow(0 0 6px rgba(var(--color-warning-rgb), 0.5));
+        animation: warningPulse 1s ease-in-out;
+      }
+
+      @keyframes warningPulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+      }
+
+      span {
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-medium);
+        color: var(--text-primary);
+      }
+    }
+
+    .confirm-actions {
+      display: flex;
+      gap: var(--spacing-2);
+
+      button {
+        padding: var(--spacing-1) var(--spacing-3);
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-medium);
+        border-radius: var(--radius-sm);
+        border: none;
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+
+      .confirm-yes {
+        background: var(--color-danger);
+        color: white;
+
+        &:hover {
+          background: #c0392b;
+          box-shadow: 0 0 12px rgba(var(--color-danger-rgb), 0.5);
+          transform: scale(1.02);
+        }
+      }
+
+      .confirm-no {
+        background: var(--bg-tertiary);
+        color: var(--text-secondary);
+        border: 1px solid var(--border-color);
+
+        &:hover {
+          background: var(--bg-hover);
+          color: var(--text-primary);
+          border-color: rgba(var(--color-primary-rgb), 0.3);
+        }
       }
     }
 
@@ -401,10 +534,28 @@ type Step = 'data' | 'chart' | 'configure';
       flex: 1;
       overflow-y: auto;
       padding: var(--spacing-3);
+
+      // Dark scrollbar
+      &::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      &::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      &::-webkit-scrollbar-thumb {
+        background: var(--border-color);
+        border-radius: 3px;
+
+        &:hover {
+          background: var(--text-muted);
+        }
+      }
     }
 
     // ========================================
-    // STEP STYLES
+    // STEP STYLES - Enhanced with glows
     // ========================================
     .step {
       background: var(--bg-tertiary);
@@ -412,15 +563,35 @@ type Step = 'data' | 'chart' | 'configure';
       border-radius: var(--radius-lg);
       margin-bottom: var(--spacing-3);
       overflow: hidden;
-      transition: all 0.2s ease;
+      transition: all 0.25s ease;
 
       &.active {
-        border-color: var(--color-primary);
-        box-shadow: 0 0 0 1px rgba(var(--color-primary-rgb), 0.2);
+        border-color: rgba(var(--color-primary-rgb), 0.5);
+        box-shadow: var(--shadow-glow-sm),
+                    inset 0 0 30px rgba(var(--color-primary-rgb), 0.05);
+        animation: stepActivePulse 2s ease-in-out infinite;
       }
 
-      &.completed .step-header {
-        cursor: pointer;
+      @keyframes stepActivePulse {
+        0%, 100% {
+          box-shadow: var(--shadow-glow-sm),
+                      inset 0 0 30px rgba(var(--color-primary-rgb), 0.05);
+        }
+        50% {
+          box-shadow: 0 0 20px rgba(var(--color-primary-rgb), 0.3),
+                      inset 0 0 30px rgba(var(--color-primary-rgb), 0.08);
+        }
+      }
+
+      &.completed {
+        .step-header {
+          cursor: pointer;
+        }
+
+        &:hover {
+          border-color: rgba(var(--color-success-rgb), 0.3);
+          box-shadow: 0 0 10px rgba(var(--color-success-rgb), 0.15);
+        }
       }
 
       &.locked {
@@ -429,6 +600,20 @@ type Step = 'data' | 'chart' | 'configure';
         .step-header {
           cursor: not-allowed;
         }
+
+        .lock-icon {
+          animation: lockWiggle 0.5s ease-out;
+        }
+
+        &:hover .lock-icon {
+          animation: lockWiggle 0.3s ease-out;
+        }
+      }
+
+      @keyframes lockWiggle {
+        0%, 100% { transform: rotate(0deg); }
+        25% { transform: rotate(-5deg); }
+        75% { transform: rotate(5deg); }
       }
     }
 
@@ -438,6 +623,7 @@ type Step = 'data' | 'chart' | 'configure';
       gap: var(--spacing-3);
       padding: var(--spacing-3) var(--spacing-4);
       background: var(--bg-secondary);
+      transition: background 0.2s ease;
     }
 
     .step-indicator {
@@ -450,6 +636,7 @@ type Step = 'data' | 'chart' | 'configure';
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
+      transition: all 0.25s ease;
 
       .step-number {
         font-size: var(--font-size-xs);
@@ -459,10 +646,11 @@ type Step = 'data' | 'chart' | 'configure';
 
       .step.active & {
         border-color: var(--color-primary);
-        background: rgba(var(--color-primary-rgb), 0.1);
+        background: rgba(var(--color-primary-rgb), 0.15);
+        box-shadow: 0 0 10px rgba(var(--color-primary-rgb), 0.3);
 
         .step-number {
-          color: var(--color-primary);
+          color: var(--color-primary-light);
         }
       }
 
@@ -470,6 +658,17 @@ type Step = 'data' | 'chart' | 'configure';
         border-color: var(--color-success);
         background: var(--color-success);
         color: white;
+        box-shadow: 0 0 10px rgba(var(--color-success-rgb), 0.4);
+
+        app-icon {
+          animation: checkPop 0.3s ease-out;
+        }
+      }
+
+      @keyframes checkPop {
+        0% { transform: scale(0); }
+        50% { transform: scale(1.2); }
+        100% { transform: scale(1); }
       }
     }
 
@@ -496,11 +695,24 @@ type Step = 'data' | 'chart' | 'configure';
 
     .lock-icon {
       color: var(--text-muted);
+      transition: transform 0.2s ease;
     }
 
     .step-content {
       padding: var(--spacing-4);
       border-top: 1px solid var(--border-color);
+      animation: stepContentFade 0.25s ease-out;
+    }
+
+    @keyframes stepContentFade {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     // ========================================
@@ -535,10 +747,35 @@ type Step = 'data' | 'chart' | 'configure';
     .step-action {
       width: 100%;
       margin-top: var(--spacing-2);
+
+      // Load Data button animations
+      ::ng-deep button {
+        app-icon {
+          transition: transform 0.2s ease, filter 0.2s ease;
+        }
+
+        &:not(:disabled):hover app-icon {
+          transform: scale(1.15);
+          filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.4));
+        }
+
+        &:disabled app-icon {
+          animation: spin 1s linear infinite;
+        }
+
+        &:active:not(:disabled) app-icon {
+          transform: scale(0.9);
+        }
+      }
+
+      @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
     }
 
     // ========================================
-    // CHART TYPE SELECTION
+    // CHART TYPE SELECTION - Enhanced
     // ========================================
     .suggested-charts, .all-charts {
       margin-bottom: var(--spacing-4);
@@ -551,6 +788,8 @@ type Step = 'data' | 'chart' | 'configure';
         text-transform: uppercase;
         letter-spacing: 0.5px;
         margin-bottom: var(--spacing-2);
+        padding-left: var(--spacing-1);
+        border-left: 2px solid rgba(var(--color-primary-rgb), 0.3);
       }
     }
 
@@ -571,17 +810,32 @@ type Step = 'data' | 'chart' | 'configure';
       color: var(--text-secondary);
       font-size: var(--font-size-sm);
       cursor: pointer;
-      transition: all 0.15s ease;
+      transition: all 0.2s ease;
+
+      app-icon {
+        transition: transform 0.2s ease, filter 0.2s ease;
+      }
 
       &:hover {
         border-color: var(--color-primary-light);
         color: var(--text-primary);
+        box-shadow: var(--shadow-glow-sm);
+
+        app-icon {
+          transform: scale(1.1);
+          filter: drop-shadow(0 0 4px rgba(var(--color-primary-rgb), 0.4));
+        }
       }
 
       &.selected {
         border-color: var(--color-primary);
-        background: rgba(var(--color-primary-rgb), 0.1);
+        background: linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.15) 0%, rgba(var(--color-primary-rgb), 0.05) 100%);
         color: var(--color-primary-light);
+        box-shadow: var(--shadow-glow-sm);
+
+        app-icon {
+          filter: drop-shadow(0 0 6px rgba(var(--color-primary-rgb), 0.5));
+        }
       }
     }
 
@@ -603,22 +857,78 @@ type Step = 'data' | 'chart' | 'configure';
       color: var(--text-secondary);
       font-size: var(--font-size-xs);
       cursor: pointer;
-      transition: all 0.15s ease;
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+
+      app-icon {
+        transition: transform 0.2s ease, filter 0.2s ease;
+      }
 
       &:hover:not(.unavailable) {
         border-color: var(--color-primary-light);
         color: var(--text-primary);
+        box-shadow: var(--shadow-glow-sm);
+        transform: translateY(-2px);
+
+        app-icon {
+          filter: drop-shadow(0 0 4px rgba(var(--color-primary-rgb), 0.4));
+          animation: chartIconBounce 0.4s ease-out;
+        }
+      }
+
+      &:active:not(.unavailable) {
+        transform: translateY(0);
+
+        app-icon {
+          transform: scale(0.9);
+        }
+      }
+
+      @keyframes chartIconBounce {
+        0% { transform: scale(1) translateY(0); }
+        30% { transform: scale(1.2) translateY(-3px); }
+        50% { transform: scale(1.1) translateY(-1px); }
+        70% { transform: scale(1.15) translateY(-2px); }
+        100% { transform: scale(1.15) translateY(0); }
       }
 
       &.selected {
         border-color: var(--color-primary);
-        background: rgba(var(--color-primary-rgb), 0.1);
+        background: linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.15) 0%, rgba(var(--color-primary-rgb), 0.05) 100%);
         color: var(--color-primary-light);
+        box-shadow: var(--shadow-glow-md);
+
+        &::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 2px;
+          background: var(--gradient-primary);
+        }
+
+        app-icon {
+          filter: drop-shadow(0 0 6px rgba(var(--color-primary-rgb), 0.5));
+        }
       }
 
       &.unavailable {
         opacity: 0.4;
         cursor: not-allowed;
+
+        &::after {
+          content: 'Soon';
+          position: absolute;
+          top: 4px;
+          right: 4px;
+          font-size: 8px;
+          padding: 1px 4px;
+          background: var(--bg-tertiary);
+          border-radius: var(--radius-sm);
+          color: var(--text-muted);
+        }
       }
     }
 
@@ -668,14 +978,45 @@ type Step = 'data' | 'chart' | 'configure';
       border-radius: var(--radius-md);
       cursor: pointer;
       transition: all 0.2s ease;
+      position: relative;
 
       &:hover {
         border-color: var(--color-primary-light);
+        transform: translateY(-2px);
+
+        .scheme-preview span {
+          box-shadow: 0 0 8px currentColor;
+        }
       }
 
       &.active {
         border-color: var(--color-primary);
         background: rgba(var(--color-primary-rgb), 0.1);
+        box-shadow: var(--shadow-glow-sm);
+
+        &::after {
+          content: '✓';
+          position: absolute;
+          top: -6px;
+          right: -6px;
+          width: 18px;
+          height: 18px;
+          background: var(--color-success);
+          color: white;
+          border-radius: var(--radius-full);
+          font-size: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 0 8px rgba(var(--color-success-rgb), 0.5);
+          animation: checkmarkPop 0.3s ease-out;
+        }
+
+        @keyframes checkmarkPop {
+          0% { transform: scale(0); }
+          50% { transform: scale(1.2); }
+          100% { transform: scale(1); }
+        }
       }
     }
 
@@ -687,12 +1028,23 @@ type Step = 'data' | 'chart' | 'configure';
         width: 14px;
         height: 14px;
         border-radius: var(--radius-sm);
+        transition: box-shadow 0.2s ease, transform 0.2s ease;
       }
+    }
+
+    .color-scheme-btn:hover .scheme-preview span {
+      transform: scale(1.1);
     }
 
     .scheme-name {
       font-size: var(--font-size-xs);
       color: var(--text-muted);
+      transition: color 0.2s ease;
+    }
+
+    .color-scheme-btn:hover .scheme-name,
+    .color-scheme-btn.active .scheme-name {
+      color: var(--text-primary);
     }
 
     .checkbox-row {
@@ -715,14 +1067,68 @@ type Step = 'data' | 'chart' | 'configure';
     }
 
     // ========================================
-    // PANEL FOOTER
+    // PANEL FOOTER - Enhanced save button
     // ========================================
     .panel-footer {
       padding: var(--spacing-4);
-      border-top: 1px solid var(--border-color);
+      border-top: 1px solid var(--glass-border);
+      background: var(--gradient-glow-bottom);
 
       .save-btn {
         width: 100%;
+
+        ::ng-deep button {
+          position: relative;
+          overflow: hidden;
+
+          app-icon {
+            transition: transform 0.2s ease, filter 0.2s ease;
+          }
+
+          &:not(:disabled) {
+            animation: saveButtonReady 2s ease-in-out infinite;
+
+            &:hover app-icon {
+              transform: translateY(-2px) scale(1.1);
+              filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.5));
+            }
+
+            &:active app-icon {
+              transform: translateY(1px) scale(0.95);
+              animation: saveBounce 0.3s ease-out;
+            }
+          }
+
+          &:disabled {
+            animation: none;
+
+            app-icon {
+              animation: spin 1s linear infinite;
+            }
+          }
+        }
+
+        @keyframes saveButtonReady {
+          0%, 100% {
+            box-shadow: 0 0 5px rgba(var(--color-primary-rgb), 0.3);
+          }
+          50% {
+            box-shadow: 0 0 15px rgba(var(--color-primary-rgb), 0.5),
+                        0 0 30px rgba(var(--color-primary-rgb), 0.2);
+          }
+        }
+
+        @keyframes saveBounce {
+          0% { transform: translateY(0) scale(1); }
+          30% { transform: translateY(-4px) scale(1.15); }
+          60% { transform: translateY(0) scale(1.05); }
+          100% { transform: translateY(0) scale(1); }
+        }
+
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
       }
     }
 
@@ -740,32 +1146,81 @@ type Step = 'data' | 'chart' | 'configure';
       align-items: center;
       justify-content: space-between;
       padding: var(--spacing-3) var(--spacing-4);
-      background: var(--bg-secondary);
-      border-bottom: 1px solid var(--border-color);
+      background: var(--glass-bg);
+      backdrop-filter: blur(var(--glass-blur));
+      -webkit-backdrop-filter: blur(var(--glass-blur));
+      border-bottom: 1px solid var(--glass-border);
+      position: relative;
+
+      &::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(var(--color-primary-rgb), 0.2), transparent);
+      }
 
       .preview-title {
         font-size: var(--font-size-sm);
         font-weight: var(--font-weight-semibold);
         color: var(--text-secondary);
       }
+
+      // Fullscreen toggle button animation
+      .preview-actions ::ng-deep app-button button {
+        app-icon {
+          transition: transform 0.25s ease, filter 0.2s ease;
+        }
+
+        &:hover app-icon {
+          transform: scale(1.15);
+          filter: drop-shadow(0 0 4px rgba(var(--color-primary-rgb), 0.5));
+        }
+
+        &:active app-icon {
+          transform: scale(0.9);
+        }
+      }
     }
 
     // ========================================
-    // PREVIEW STATES
+    // PREVIEW STATES - Enhanced
     // ========================================
     .preview-empty {
       flex: 1;
       display: flex;
       align-items: center;
       justify-content: center;
+      background: radial-gradient(ellipse at 50% 40%, rgba(var(--color-primary-rgb), 0.05) 0%, transparent 50%);
 
       .empty-content {
         text-align: center;
         color: var(--text-muted);
+        animation: emptyFade 0.3s ease-out;
+
+        @keyframes emptyFade {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
 
         app-icon {
           margin-bottom: var(--spacing-3);
-          opacity: 0.5;
+          opacity: 0.4;
+          animation: floatIcon 3s ease-in-out infinite;
+          filter: drop-shadow(0 0 10px rgba(var(--color-primary-rgb), 0.2));
+        }
+
+        @keyframes floatIcon {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-8px); }
         }
 
         h3 {
@@ -828,6 +1283,18 @@ type Step = 'data' | 'chart' | 'configure';
         min-height: 300px;
         padding: var(--spacing-4);
         position: relative;
+        animation: chartFadeIn 0.4s ease-out;
+
+        @keyframes chartFadeIn {
+          from {
+            opacity: 0;
+            transform: scale(0.98);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
 
         .fullscreen-close-btn {
           display: none;
@@ -852,8 +1319,10 @@ type Step = 'data' | 'chart' | 'configure';
             width: 40px;
             height: 40px;
             border-radius: 8px;
-            border: 1px solid var(--border-color);
-            background: var(--bg-secondary);
+            border: 1px solid var(--glass-border);
+            background: var(--glass-bg);
+            backdrop-filter: blur(var(--glass-blur));
+            -webkit-backdrop-filter: blur(var(--glass-blur));
             color: var(--text-primary);
             cursor: pointer;
             z-index: 1000;
@@ -862,14 +1331,17 @@ type Step = 'data' | 'chart' | 'configure';
             &:hover {
               background: var(--bg-tertiary);
               color: var(--text-primary);
+              box-shadow: var(--shadow-glow-sm);
             }
           }
         }
       }
 
       .data-area {
-        border-top: 1px solid var(--border-color);
-        background: var(--bg-secondary);
+        border-top: 1px solid var(--glass-border);
+        background: var(--glass-bg);
+        backdrop-filter: blur(var(--glass-blur));
+        -webkit-backdrop-filter: blur(var(--glass-blur));
 
         &.collapsed {
           .data-content {
@@ -887,9 +1359,15 @@ type Step = 'data' | 'chart' | 'configure';
         font-size: var(--font-size-sm);
         font-weight: var(--font-weight-semibold);
         color: var(--text-secondary);
+        transition: all 0.2s ease;
+
+        app-icon {
+          transition: transform 0.2s ease;
+        }
 
         &:hover {
-          background: var(--bg-hover);
+          background: rgba(var(--color-primary-rgb), 0.05);
+          color: var(--text-primary);
         }
 
         .data-header-right {
@@ -901,23 +1379,39 @@ type Step = 'data' | 'chart' | 'configure';
         .row-count {
           font-weight: var(--font-weight-normal);
           color: var(--text-muted);
+          padding: 2px 8px;
+          background: rgba(var(--color-primary-rgb), 0.1);
+          border-radius: var(--radius-full);
+          font-size: var(--font-size-xs);
         }
       }
 
       .data-content {
         padding: var(--spacing-3) var(--spacing-4);
+        animation: dataContentSlide 0.2s ease-out;
+
+        @keyframes dataContentSlide {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
       }
     }
 
     // ========================================
-    // AG-GRID THEME CUSTOMIZATION
+    // AG-GRID THEME CUSTOMIZATION - Enhanced
     // ========================================
     ::ng-deep .ag-theme-alpine-dark {
       --ag-background-color: var(--bg-primary);
       --ag-header-background-color: var(--bg-secondary);
       --ag-odd-row-background-color: var(--bg-primary);
-      --ag-row-hover-color: rgba(var(--color-primary-rgb), 0.1);
-      --ag-selected-row-background-color: rgba(var(--color-primary-rgb), 0.2);
+      --ag-row-hover-color: rgba(var(--color-primary-rgb), 0.08);
+      --ag-selected-row-background-color: rgba(var(--color-primary-rgb), 0.15);
       --ag-border-color: var(--border-color);
       --ag-header-foreground-color: var(--text-secondary);
       --ag-foreground-color: var(--text-primary);
@@ -928,25 +1422,43 @@ type Step = 'data' | 'chart' | 'configure';
       --ag-header-height: 40px;
       --ag-cell-horizontal-padding: 12px;
 
+      border-radius: var(--radius-md);
+      overflow: hidden;
+
+      .ag-header {
+        border-bottom: 1px solid var(--glass-border);
+      }
+
       .ag-header-cell {
         font-weight: var(--font-weight-semibold);
         text-transform: uppercase;
         font-size: 11px;
         letter-spacing: 0.5px;
+        transition: background 0.2s ease;
+
+        &:hover {
+          background: rgba(var(--color-primary-rgb), 0.05);
+        }
       }
 
       .ag-cell {
         font-family: var(--font-mono);
         font-size: 13px;
+        transition: background 0.15s ease;
+      }
+
+      .ag-row {
+        transition: background 0.15s ease, box-shadow 0.15s ease;
       }
 
       .ag-row-hover {
-        background: rgba(var(--color-primary-rgb), 0.08);
-        box-shadow: inset 0 0 12px rgba(var(--color-primary-rgb), 0.15);
+        background: rgba(var(--color-primary-rgb), 0.06);
+        box-shadow: inset 0 0 20px rgba(var(--color-primary-rgb), 0.08);
       }
 
       .ag-row-selected {
-        box-shadow: inset 0 0 16px rgba(var(--color-primary-rgb), 0.2);
+        background: rgba(var(--color-primary-rgb), 0.12);
+        box-shadow: inset 0 0 20px rgba(var(--color-primary-rgb), 0.15);
       }
 
       .ag-header-cell-resize::after {
@@ -954,8 +1466,27 @@ type Step = 'data' | 'chart' | 'configure';
       }
 
       .ag-paging-panel {
+        background: var(--glass-bg);
+        border-top: 1px solid var(--glass-border);
+      }
+
+      // Scrollbar styling
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+
+      ::-webkit-scrollbar-track {
         background: var(--bg-secondary);
-        border-top: 1px solid var(--border-color);
+      }
+
+      ::-webkit-scrollbar-thumb {
+        background: var(--bg-tertiary);
+        border-radius: 4px;
+
+        &:hover {
+          background: var(--bg-hover);
+        }
       }
     }
 
@@ -1032,6 +1563,7 @@ export class ChartBuilderComponent implements OnInit {
   loadingQueries = signal<boolean>(false);
   loadingData = signal<boolean>(false);
   savingChart = signal<boolean>(false);
+  showCloseConfirm = signal<boolean>(false);
 
   // Data from API
   dataSources: DataSource[] = [];
@@ -1456,7 +1988,18 @@ export class ChartBuilderComponent implements OnInit {
     });
   }
 
+  confirmClose() {
+    // Check if there are unsaved changes
+    const hasChanges = this.isStepCompleted('data') || this.selectedChartType() || this.chartConfig().title;
+    if (hasChanges) {
+      this.showCloseConfirm.set(true);
+    } else {
+      this.cancel();
+    }
+  }
+
   cancel() {
+    this.showCloseConfirm.set(false);
     this.router.navigate(['/charts']);  // Navigate to charts list
   }
 

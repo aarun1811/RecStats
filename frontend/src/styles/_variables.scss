@@ -1,4 +1,4 @@
-// ResStats Design System - CSS Variables
+// RecStats Design System - CSS Variables
 // Premium dark theme with Citi Blue accent and neon glow effects
 
 :root {
@@ -174,19 +174,55 @@
 
   // Code/Monaco
   --code-bg: #1e1e1e;
+
+  // ========================================
+  // GLASSMORPHISM
+  // ========================================
+  --glass-bg: rgba(22, 27, 34, 0.8);
+  --glass-bg-light: rgba(22, 27, 34, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-border-light: rgba(255, 255, 255, 0.05);
+  --glass-blur: 12px;
+  --glass-blur-lg: 20px;
+
+  // ========================================
+  // ENHANCED GRADIENTS
+  // ========================================
+  --gradient-primary: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 100%);
+  --gradient-primary-subtle: linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.15) 0%, rgba(var(--color-primary-rgb), 0.05) 100%);
+  --gradient-surface: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+  --gradient-glow: radial-gradient(ellipse at 50% 0%, rgba(var(--color-primary-rgb), 0.15) 0%, transparent 50%);
+  --gradient-glow-bottom: radial-gradient(ellipse at 50% 100%, rgba(var(--color-primary-rgb), 0.1) 0%, transparent 50%);
+
+  // ========================================
+  // BORDER GRADIENTS
+  // ========================================
+  --border-gradient: linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.5), rgba(var(--color-primary-rgb), 0.1));
+  --border-gradient-subtle: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02));
+
+  // ========================================
+  // ENHANCED GLOW SHADOWS
+  // ========================================
+  --shadow-glow-sm: 0 0 10px rgba(var(--color-primary-rgb), 0.2);
+  --shadow-glow-md: 0 0 20px rgba(var(--color-primary-rgb), 0.3);
+  --shadow-glow-lg: 0 0 30px rgba(var(--color-primary-rgb), 0.4);
+  --shadow-glow-success: 0 0 15px rgba(var(--color-success-rgb), 0.4);
+  --shadow-glow-warning: 0 0 15px rgba(var(--color-warning-rgb), 0.4);
+  --shadow-glow-danger: 0 0 15px rgba(var(--color-danger-rgb), 0.4);
+  --shadow-inner-glow: inset 0 0 20px rgba(var(--color-primary-rgb), 0.1);
 }
 
 // ========================================
 // LIGHT THEME
 // ========================================
 [data-theme="light"] {
-  // Backgrounds
-  --bg-primary: #ffffff;
-  --bg-secondary: #f6f8fa;
-  --bg-tertiary: #ebeef1;
+  // Backgrounds - warmer whites
+  --bg-primary: #fafbfc;
+  --bg-secondary: #f0f2f5;
+  --bg-tertiary: #e8ebef;
   --bg-elevated: #ffffff;
-  --bg-hover: #f3f4f6;
-  --bg-active: #e5e7eb;
+  --bg-hover: #edf0f4;
+  --bg-active: #e0e4e9;
 
   // Text
   --text-primary: #1f2937;
@@ -196,22 +232,22 @@
   --text-inverse: #ffffff;
 
   // Borders
-  --border-color: #e5e7eb;
-  --border-color-light: #f3f4f6;
+  --border-color: #dde1e6;
+  --border-color-light: #e8ebef;
   --border-color-focus: var(--color-primary);
 
   // Glow effects (softer for light mode)
-  --glow-primary: 0 0 15px rgba(var(--color-primary-rgb), 0.25);
-  --glow-primary-intense: 0 0 25px rgba(var(--color-primary-rgb), 0.35), 0 0 50px rgba(var(--color-primary-rgb), 0.15);
-  --glow-success: 0 0 15px rgba(var(--color-success-rgb), 0.25);
-  --glow-warning: 0 0 15px rgba(var(--color-warning-rgb), 0.25);
-  --glow-danger: 0 0 15px rgba(var(--color-danger-rgb), 0.25);
+  --glow-primary: 0 0 12px rgba(var(--color-primary-rgb), 0.2);
+  --glow-primary-intense: 0 0 20px rgba(var(--color-primary-rgb), 0.25), 0 0 40px rgba(var(--color-primary-rgb), 0.1);
+  --glow-success: 0 0 12px rgba(var(--color-success-rgb), 0.2);
+  --glow-warning: 0 0 12px rgba(var(--color-warning-rgb), 0.2);
+  --glow-danger: 0 0 12px rgba(var(--color-danger-rgb), 0.2);
 
   // Shadows (softer)
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 10px 10px -5px rgba(0, 0, 0, 0.03);
 
   // Scrollbar
   --scrollbar-track: var(--bg-tertiary);
@@ -231,4 +267,21 @@
 
   // Code/Monaco
   --code-bg: #f6f8fa;
+
+  // Glassmorphism (light mode adjustments)
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-bg-light: rgba(255, 255, 255, 0.5);
+  --glass-border: rgba(0, 0, 0, 0.08);
+  --glass-border-light: rgba(0, 0, 0, 0.04);
+
+  // Gradients (light mode)
+  --gradient-primary-subtle: linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.1) 0%, rgba(var(--color-primary-rgb), 0.03) 100%);
+  --gradient-glow: radial-gradient(ellipse at 50% 0%, rgba(var(--color-primary-rgb), 0.08) 0%, transparent 50%);
+  --gradient-glow-bottom: radial-gradient(ellipse at 50% 100%, rgba(var(--color-primary-rgb), 0.05) 0%, transparent 50%);
+
+  // Glow shadows (light mode - less intense)
+  --shadow-glow-sm: 0 0 8px rgba(var(--color-primary-rgb), 0.15);
+  --shadow-glow-md: 0 0 15px rgba(var(--color-primary-rgb), 0.2);
+  --shadow-glow-lg: 0 0 25px rgba(var(--color-primary-rgb), 0.25);
+  --shadow-inner-glow: inset 0 0 15px rgba(var(--color-primary-rgb), 0.06);
 }

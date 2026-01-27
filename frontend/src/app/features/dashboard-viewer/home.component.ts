@@ -29,7 +29,7 @@ interface KPISummaryResponse {
     <div class="home-page">
       <header class="page-header">
         <div class="header-content">
-          <h1>Welcome to ResStats</h1>
+          <h1>Welcome to RecStats</h1>
           <p>Your internal BI platform for reconciliation analytics</p>
         </div>
         <div class="header-actions">
