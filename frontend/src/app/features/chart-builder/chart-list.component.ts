@@ -221,9 +221,9 @@ interface Chart {
         <p>Are you sure you want to delete <strong>{{ chartToDelete()?.name }}</strong>?</p>
         <p class="warning-text">This action cannot be undone.</p>
       </div>
-      <div modal-footer>
-        <app-button variant="ghost" (click)="cancelDelete()">Cancel</app-button>
-        <app-button variant="danger" (click)="deleteChart()" [disabled]="deleting()">
+      <div modal-footer class="delete-modal-footer">
+        <app-button variant="ghost" (click)="cancelDelete()" title="Cancel">Cancel</app-button>
+        <app-button variant="danger" (click)="deleteChart()" [disabled]="deleting()" title="Permanently delete this chart" style="margin-left: 16px;">
           <app-icon name="trash" [size]="16" *ngIf="!deleting()"></app-icon>
           <app-icon name="loader" [size]="16" *ngIf="deleting()"></app-icon>
           {{ deleting() ? 'Deleting...' : 'Delete' }}
@@ -1110,22 +1110,27 @@ interface Chart {
       }
 
       .modal-header {
-        background: rgba(var(--color-danger-rgb), 0.05);
-        border-bottom: 1px solid rgba(var(--color-danger-rgb), 0.1);
+        background: rgba(var(--color-danger-rgb), 0.05) !important;
+        border-bottom: 1px solid rgba(var(--color-danger-rgb), 0.1) !important;
+        padding: var(--spacing-5) var(--spacing-6) !important;
 
-        h3 {
+        h2 {
           color: var(--color-danger);
+        }
+
+        .modal-close {
+          margin-left: var(--spacing-4);
         }
       }
 
       .modal-footer {
-        display: flex;
-        justify-content: flex-end;
-        align-items: center;
-        background: rgba(0, 0, 0, 0.2);
-        border-top: 1px solid var(--glass-border);
-        gap: var(--spacing-3);
-        padding: var(--spacing-4);
+        display: flex !important;
+        justify-content: flex-end !important;
+        align-items: center !important;
+        background: rgba(0, 0, 0, 0.2) !important;
+        border-top: 1px solid var(--glass-border) !important;
+        gap: 24px !important;
+        padding: var(--spacing-4) var(--spacing-6) !important;
       }
     }
 
