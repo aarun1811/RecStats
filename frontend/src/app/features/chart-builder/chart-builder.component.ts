@@ -84,9 +84,21 @@ type Step = 'data' | 'chart' | 'configure';
       <aside class="config-panel">
         <div class="panel-header">
           <h2>{{ editMode() ? 'Edit Chart' : 'New Chart' }}</h2>
-          <app-button variant="ghost" size="sm" (click)="cancel()">
+          <app-button variant="ghost" size="sm" (click)="confirmClose()">
             <app-icon name="x" [size]="18"></app-icon>
           </app-button>
+        </div>
+
+        <!-- Close Confirmation Popup -->
+        <div class="confirm-popup" *ngIf="showCloseConfirm()">
+          <div class="confirm-content">
+            <app-icon name="alert-triangle" [size]="20"></app-icon>
+            <span>Discard changes?</span>
+            <div class="confirm-actions">
+              <button class="confirm-yes" (click)="cancel()">Yes</button>
+              <button class="confirm-no" (click)="showCloseConfirm.set(false)">No</button>
+            </div>
+          </div>
         </div>
 
         <div class="steps">
@@ -430,10 +442,116 @@ type Step = 'data' | 'chart' | 'configure';
       }
     }
 
+    // Close confirmation popup
+    .confirm-popup {
+      position: absolute;
+      top: 60px;
+      right: 16px;
+      z-index: 100;
+      animation: slideIn 0.25s ease-out;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-10px) scale(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .confirm-content {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-3);
+      padding: var(--spacing-3) var(--spacing-4);
+      background: var(--glass-bg);
+      backdrop-filter: blur(var(--glass-blur-lg));
+      -webkit-backdrop-filter: blur(var(--glass-blur-lg));
+      border: 1px solid rgba(var(--color-warning-rgb), 0.3);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg), 0 0 20px rgba(var(--color-warning-rgb), 0.15);
+
+      app-icon {
+        color: var(--color-warning);
+        filter: drop-shadow(0 0 6px rgba(var(--color-warning-rgb), 0.5));
+        animation: warningPulse 1s ease-in-out;
+      }
+
+      @keyframes warningPulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+      }
+
+      span {
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-medium);
+        color: var(--text-primary);
+      }
+    }
+
+    .confirm-actions {
+      display: flex;
+      gap: var(--spacing-2);
+
+      button {
+        padding: var(--spacing-1) var(--spacing-3);
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-medium);
+        border-radius: var(--radius-sm);
+        border: none;
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+
+      .confirm-yes {
+        background: var(--color-danger);
+        color: white;
+
+        &:hover {
+          background: #c0392b;
+          box-shadow: 0 0 12px rgba(var(--color-danger-rgb), 0.5);
+          transform: scale(1.02);
+        }
+      }
+
+      .confirm-no {
+        background: var(--bg-tertiary);
+        color: var(--text-secondary);
+        border: 1px solid var(--border-color);
+
+        &:hover {
+          background: var(--bg-hover);
+          color: var(--text-primary);
+          border-color: rgba(var(--color-primary-rgb), 0.3);
+        }
+      }
+    }
+
     .steps {
       flex: 1;
       overflow-y: auto;
       padding: var(--spacing-3);
+
+      // Dark scrollbar
+      &::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      &::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      &::-webkit-scrollbar-thumb {
+        background: var(--border-color);
+        border-radius: 3px;
+
+        &:hover {
+          background: var(--text-muted);
+        }
+      }
     }
 
     // ========================================
@@ -1445,6 +1563,7 @@ export class ChartBuilderComponent implements OnInit {
   loadingQueries = signal<boolean>(false);
   loadingData = signal<boolean>(false);
   savingChart = signal<boolean>(false);
+  showCloseConfirm = signal<boolean>(false);
 
   // Data from API
   dataSources: DataSource[] = [];
@@ -1869,7 +1988,18 @@ export class ChartBuilderComponent implements OnInit {
     });
   }
 
+  confirmClose() {
+    // Check if there are unsaved changes
+    const hasChanges = this.isStepCompleted('data') || this.selectedChartType() || this.chartConfig().title;
+    if (hasChanges) {
+      this.showCloseConfirm.set(true);
+    } else {
+      this.cancel();
+    }
+  }
+
   cancel() {
+    this.showCloseConfirm.set(false);
     this.router.navigate(['/charts']);  // Navigate to charts list
   }
 

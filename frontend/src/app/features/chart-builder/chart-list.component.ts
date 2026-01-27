@@ -1082,19 +1082,75 @@ interface Chart {
       }
     }
 
-    /* Delete Confirmation Modal - Glassmorphism */
+    /* Delete Confirmation Modal - Enhanced */
+    ::ng-deep app-modal {
+      .modal-overlay {
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+      }
+
+      .modal {
+        background: var(--glass-bg);
+        backdrop-filter: blur(var(--glass-blur-lg));
+        -webkit-backdrop-filter: blur(var(--glass-blur-lg));
+        border: 1px solid var(--glass-border);
+        box-shadow: var(--shadow-xl),
+                    0 0 40px rgba(var(--color-danger-rgb), 0.1);
+        overflow: hidden;
+
+        &::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 3px;
+          background: linear-gradient(90deg, var(--color-danger), var(--color-warning));
+        }
+      }
+
+      .modal-header {
+        background: rgba(var(--color-danger-rgb), 0.05);
+        border-bottom: 1px solid rgba(var(--color-danger-rgb), 0.1);
+
+        h3 {
+          color: var(--color-danger);
+        }
+      }
+
+      .modal-footer {
+        background: rgba(0, 0, 0, 0.2);
+        border-top: 1px solid var(--glass-border);
+        gap: var(--spacing-3);
+      }
+    }
+
     .delete-confirm-content {
       display: flex;
       flex-direction: column;
       align-items: center;
       text-align: center;
-      padding: var(--spacing-4) 0;
+      padding: var(--spacing-6) var(--spacing-4);
+      background: radial-gradient(ellipse at 50% 0%, rgba(var(--color-danger-rgb), 0.08) 0%, transparent 60%);
 
       .warning-icon {
-        color: var(--color-warning);
+        color: var(--color-danger);
         margin-bottom: var(--spacing-4);
-        animation: subtleShake 0.5s ease-out;
-        filter: drop-shadow(0 0 8px rgba(var(--color-warning-rgb), 0.5));
+        padding: var(--spacing-4);
+        background: rgba(var(--color-danger-rgb), 0.1);
+        border: 1px solid rgba(var(--color-danger-rgb), 0.2);
+        border-radius: var(--radius-full);
+        animation: warningPulse 2s ease-in-out infinite, subtleShake 0.5s ease-out;
+        filter: drop-shadow(0 0 12px rgba(var(--color-danger-rgb), 0.4));
+      }
+
+      @keyframes warningPulse {
+        0%, 100% {
+          box-shadow: 0 0 0 0 rgba(var(--color-danger-rgb), 0.3);
+        }
+        50% {
+          box-shadow: 0 0 0 10px rgba(var(--color-danger-rgb), 0);
+        }
       }
 
       @keyframes subtleShake {
@@ -1106,15 +1162,26 @@ interface Chart {
       p {
         margin: 0 0 var(--spacing-2) 0;
         color: var(--text-primary);
+        font-size: var(--font-size-base);
+        line-height: 1.6;
 
         strong {
           color: var(--color-primary-light);
+          font-weight: var(--font-weight-semibold);
         }
       }
 
       .warning-text {
-        color: var(--text-muted);
+        color: var(--color-danger);
         font-size: var(--font-size-sm);
+        opacity: 0.9;
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-1);
+        margin-top: var(--spacing-2);
+        padding: var(--spacing-2) var(--spacing-3);
+        background: rgba(var(--color-danger-rgb), 0.1);
+        border-radius: var(--radius-md);
       }
     }
   `]
