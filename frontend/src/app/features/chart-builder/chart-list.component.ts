@@ -152,6 +152,18 @@ interface Chart {
       padding: var(--spacing-6);
       max-width: 1400px;
       margin: 0 auto;
+      animation: contentFade 300ms ease-out;
+    }
+
+    @keyframes contentFade {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     .page-header {
@@ -171,6 +183,10 @@ interface Chart {
         font-size: var(--font-size-2xl);
         font-weight: 600;
         color: var(--text-primary);
+        background: linear-gradient(135deg, var(--text-primary) 0%, var(--color-primary-light) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
       }
 
       .chart-count {
@@ -191,6 +207,8 @@ interface Chart {
       border: 1px solid var(--border-color);
       border-radius: var(--radius-md);
       padding: 2px;
+      position: relative;
+      overflow: hidden;
     }
 
     .toggle-btn {
@@ -205,17 +223,18 @@ interface Chart {
       border-radius: var(--radius-sm);
       cursor: pointer;
       transition: all 0.2s ease;
+      position: relative;
+      z-index: 1;
 
-      &:hover {
+      &:hover:not(.active) {
         color: var(--text-primary);
         background: var(--bg-hover);
-        box-shadow: 0 0 8px rgba(var(--color-primary-rgb), 0.25);
       }
 
       &.active {
         background: var(--color-primary);
         color: white;
-        box-shadow: 0 0 12px rgba(var(--color-primary-rgb), 0.4);
+        box-shadow: 0 0 15px rgba(var(--color-primary-rgb), 0.5);
       }
     }
 
@@ -227,7 +246,10 @@ interface Chart {
       padding: var(--spacing-12);
       color: var(--text-muted);
 
-      app-icon { animation: spin 1s linear infinite; }
+      app-icon {
+        animation: spin 1s linear infinite;
+        filter: drop-shadow(0 0 4px rgba(var(--color-primary-rgb), 0.4));
+      }
     }
 
     @keyframes spin {
@@ -235,7 +257,7 @@ interface Chart {
       to { transform: rotate(360deg); }
     }
 
-    /* Grid View */
+    /* Grid View - Staggered Animation */
     .charts-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -252,18 +274,41 @@ interface Chart {
       border: 1px solid var(--border-color);
       border-radius: var(--radius-lg);
       cursor: pointer;
-      transition: all var(--transition-normal);
+      transition: all 0.25s ease;
+      opacity: 0;
+      animation: fadeInStagger 300ms ease-out forwards;
+
+      @for $i from 1 through 20 {
+        &:nth-child(#{$i}) {
+          animation-delay: #{($i - 1) * 50}ms;
+        }
+      }
 
       &:hover {
         border-color: rgba(var(--color-primary-rgb), 0.5);
-        box-shadow: var(--glow-primary), var(--shadow-lg);
-        transform: translateY(-2px);
+        box-shadow: var(--shadow-glow-md), var(--shadow-lg);
+        transform: translateY(-4px);
 
-        .card-actions { opacity: 1; }
+        .card-actions {
+          opacity: 1;
+          transform: translateX(0);
+        }
         .card-icon {
           opacity: 1;
-          box-shadow: var(--glow-primary);
+          box-shadow: var(--shadow-glow-md);
+          transform: scale(1.05);
         }
+      }
+    }
+
+    @keyframes fadeInStagger {
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
       }
     }
 
@@ -290,24 +335,27 @@ interface Chart {
       text-transform: uppercase;
       letter-spacing: 0.5px;
       transition: all 0.2s ease;
+      border: 1px solid transparent;
+
+      // Category-based colors on hover
+      &[data-category="basic"] { --badge-color: var(--color-primary-rgb); }
+      &[data-category="advanced"] { --badge-color: 155, 89, 182; }
+      &[data-category="kpi"] { --badge-color: var(--color-success-rgb); }
     }
 
     .chart-card-grid:hover .chart-type-badge {
       background: rgba(var(--color-primary-rgb), 0.15);
-      color: var(--color-primary);
-      box-shadow: 0 0 6px rgba(var(--color-primary-rgb), 0.2);
+      color: var(--color-primary-light);
+      border-color: rgba(var(--color-primary-rgb), 0.2);
+      box-shadow: 0 0 10px rgba(var(--color-primary-rgb), 0.2);
     }
 
     .card-actions {
       display: flex;
       gap: var(--spacing-1);
       opacity: 0;
-      transition: all 0.2s ease;
-      transform: translateY(-4px);
-    }
-
-    .chart-card-grid:hover .card-actions {
-      transform: translateY(0);
+      transition: all 0.25s ease;
+      transform: translateX(8px);
     }
 
     .action-btn {
@@ -326,12 +374,13 @@ interface Chart {
       &:hover {
         background: var(--color-primary);
         color: white;
-        box-shadow: 0 0 10px rgba(var(--color-primary-rgb), 0.4);
+        box-shadow: 0 0 12px rgba(var(--color-primary-rgb), 0.5);
+        transform: scale(1.05);
       }
 
       &.danger:hover {
         background: var(--color-danger);
-        box-shadow: 0 0 10px rgba(var(--color-danger-rgb), 0.4);
+        box-shadow: 0 0 12px rgba(var(--color-danger-rgb), 0.5);
       }
     }
 
@@ -341,6 +390,11 @@ interface Chart {
       font-weight: 600;
       color: var(--text-primary);
       line-height: 1.3;
+      transition: color 0.2s ease;
+    }
+
+    .chart-card-grid:hover .chart-name {
+      color: var(--color-primary-light);
     }
 
     .chart-description {
@@ -368,11 +422,11 @@ interface Chart {
       background: var(--bg-tertiary);
       border-radius: var(--radius-md);
       color: var(--color-primary);
-      opacity: 0.6;
-      transition: all 0.2s ease;
+      opacity: 0.5;
+      transition: all 0.25s ease;
     }
 
-    /* List View */
+    /* List View - Slide in animation */
     .charts-list {
       background: var(--bg-secondary);
       border: 1px solid var(--border-color);
@@ -402,14 +456,34 @@ interface Chart {
       border-bottom: 1px solid var(--border-color);
       cursor: pointer;
       transition: all 0.2s ease;
+      opacity: 0;
+      animation: slideInFromLeft 250ms ease-out forwards;
+
+      @for $i from 1 through 30 {
+        &:nth-child(#{$i}) {
+          animation-delay: #{($i - 1) * 30}ms;
+        }
+      }
 
       &:last-child { border-bottom: none; }
 
       &:hover {
-        background: var(--bg-tertiary);
+        background: rgba(var(--color-primary-rgb), 0.05);
         box-shadow: inset 0 0 0 1px rgba(var(--color-primary-rgb), 0.2),
-                    0 0 8px rgba(var(--color-primary-rgb), 0.15);
+                    inset 0 0 20px rgba(var(--color-primary-rgb), 0.05);
+
         .action-btn { opacity: 1; }
+      }
+    }
+
+    @keyframes slideInFromLeft {
+      from {
+        opacity: 0;
+        transform: translateX(-12px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
       }
     }
 
@@ -427,7 +501,8 @@ interface Chart {
     }
 
     .list-row:hover .col-name app-icon {
-      filter: drop-shadow(0 0 4px rgba(var(--color-primary-rgb), 0.5));
+      filter: drop-shadow(0 0 6px rgba(var(--color-primary-rgb), 0.6));
+      transform: scale(1.1);
     }
 
     .col-type { display: flex; align-items: center; }
@@ -440,11 +515,13 @@ interface Chart {
       font-size: var(--font-size-xs);
       color: var(--text-secondary);
       transition: all 0.2s ease;
+      border: 1px solid transparent;
     }
 
     .list-row:hover .type-badge {
       background: rgba(var(--color-primary-rgb), 0.15);
-      color: var(--color-primary);
+      color: var(--color-primary-light);
+      border-color: rgba(var(--color-primary-rgb), 0.2);
     }
 
     .col-date {
@@ -459,7 +536,10 @@ interface Chart {
       align-items: center;
       gap: var(--spacing-1);
 
-      .action-btn { opacity: 0; transition: opacity 0.2s ease; }
+      .action-btn {
+        opacity: 0;
+        transition: all 0.2s ease;
+      }
     }
 
     .empty-state {
@@ -471,16 +551,32 @@ interface Chart {
       padding: var(--spacing-12);
       text-align: center;
       color: var(--text-muted);
+      background: radial-gradient(ellipse at 50% 30%, rgba(var(--color-primary-rgb), 0.05) 0%, transparent 50%);
+
+      app-icon {
+        opacity: 0.6;
+        animation: softBounce 3s ease-in-out infinite;
+        filter: drop-shadow(0 0 8px rgba(var(--color-primary-rgb), 0.3));
+      }
+
+      @keyframes softBounce {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-8px); }
+      }
 
       h3 {
         margin: var(--spacing-4) 0 var(--spacing-2) 0;
         color: var(--text-primary);
+        font-size: var(--font-size-lg);
       }
 
-      p { margin: 0 0 var(--spacing-4) 0; }
+      p {
+        margin: 0 0 var(--spacing-4) 0;
+        max-width: 280px;
+      }
     }
 
-    /* Delete Confirmation Modal */
+    /* Delete Confirmation Modal - Glassmorphism */
     .delete-confirm-content {
       display: flex;
       flex-direction: column;
@@ -489,13 +585,25 @@ interface Chart {
       padding: var(--spacing-4) 0;
 
       .warning-icon {
-        color: var(--warning);
+        color: var(--color-warning);
         margin-bottom: var(--spacing-4);
+        animation: subtleShake 0.5s ease-out;
+        filter: drop-shadow(0 0 8px rgba(var(--color-warning-rgb), 0.5));
+      }
+
+      @keyframes subtleShake {
+        0%, 100% { transform: translateX(0); }
+        20%, 60% { transform: translateX(-4px); }
+        40%, 80% { transform: translateX(4px); }
       }
 
       p {
         margin: 0 0 var(--spacing-2) 0;
         color: var(--text-primary);
+
+        strong {
+          color: var(--color-primary-light);
+        }
       }
 
       .warning-text {

@@ -120,12 +120,14 @@ interface NavItem {
     }
 
     // ========================================
-    // SIDEBAR
+    // SIDEBAR - Enhanced with Glassmorphism
     // ========================================
     .sidebar {
       width: var(--sidebar-width);
-      background: var(--bg-secondary);
-      border-right: 1px solid var(--border-color);
+      background: var(--glass-bg);
+      backdrop-filter: blur(var(--glass-blur));
+      -webkit-backdrop-filter: blur(var(--glass-blur));
+      border-right: 1px solid var(--glass-border);
       display: flex;
       flex-direction: column;
       position: fixed;
@@ -145,8 +147,21 @@ interface NavItem {
       align-items: center;
       justify-content: space-between;
       padding: var(--spacing-4);
-      border-bottom: 1px solid var(--border-color);
+      border-bottom: 1px solid var(--glass-border);
       min-height: var(--header-height);
+      background: var(--gradient-glow);
+      position: relative;
+
+      // Subtle gradient border at bottom
+      &::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: var(--spacing-4);
+        right: var(--spacing-4);
+        height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(var(--color-primary-rgb), 0.3), transparent);
+      }
     }
 
     .logo {
@@ -159,10 +174,16 @@ interface NavItem {
       width: 36px;
       height: 36px;
       flex-shrink: 0;
+      transition: filter var(--transition-normal), transform var(--transition-normal);
 
       svg {
         width: 100%;
         height: 100%;
+      }
+
+      &:hover {
+        filter: drop-shadow(0 0 8px rgba(var(--color-primary-rgb), 0.6));
+        transform: scale(1.05);
       }
     }
 
@@ -171,6 +192,10 @@ interface NavItem {
       font-weight: var(--font-weight-bold);
       color: var(--text-primary);
       white-space: nowrap;
+      background: linear-gradient(135deg, var(--text-primary) 0%, var(--color-primary-light) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
 
     .collapse-btn {
@@ -190,6 +215,7 @@ interface NavItem {
         background: var(--bg-hover);
         color: var(--text-primary);
         border-color: var(--color-primary);
+        box-shadow: var(--shadow-glow-sm);
       }
     }
 
@@ -220,6 +246,18 @@ interface NavItem {
       letter-spacing: 0.5px;
       padding: var(--spacing-2) var(--spacing-3);
       margin-bottom: var(--spacing-1);
+      position: relative;
+
+      // Subtle gradient line after title
+      &::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: var(--spacing-3);
+        width: 24px;
+        height: 1px;
+        background: linear-gradient(90deg, rgba(var(--color-primary-rgb), 0.4), transparent);
+      }
     }
 
     .nav-item {
@@ -234,9 +272,19 @@ interface NavItem {
       position: relative;
       outline: none;
 
+      app-icon {
+        transition: transform var(--transition-fast), filter var(--transition-fast);
+      }
+
       &:hover {
-        background: var(--bg-hover);
+        background: rgba(var(--color-primary-rgb), 0.08);
         color: var(--text-primary);
+        box-shadow: inset 0 0 20px rgba(var(--color-primary-rgb), 0.05);
+
+        app-icon {
+          transform: scale(1.1);
+          filter: drop-shadow(0 0 4px rgba(var(--color-primary-rgb), 0.4));
+        }
       }
 
       &:focus-visible {
@@ -245,8 +293,14 @@ interface NavItem {
       }
 
       &.active {
-        background: rgba(var(--color-primary-rgb), 0.15);
+        background: linear-gradient(90deg, rgba(var(--color-primary-rgb), 0.2) 0%, rgba(var(--color-primary-rgb), 0.05) 100%);
         color: var(--color-primary-light);
+        box-shadow: inset 0 0 20px rgba(var(--color-primary-rgb), 0.1),
+                    0 0 15px rgba(var(--color-primary-rgb), 0.15);
+
+        app-icon {
+          filter: drop-shadow(0 0 6px rgba(var(--color-primary-rgb), 0.5));
+        }
 
         &::before {
           content: '';
@@ -258,6 +312,7 @@ interface NavItem {
           height: 60%;
           background: var(--color-primary);
           border-radius: 0 var(--radius-full) var(--radius-full) 0;
+          box-shadow: 0 0 10px rgba(var(--color-primary-rgb), 0.6);
         }
       }
     }
@@ -282,14 +337,16 @@ interface NavItem {
       padding: 2px 8px;
       font-size: var(--font-size-xs);
       font-weight: var(--font-weight-semibold);
-      background: var(--color-primary);
+      background: var(--gradient-primary);
       color: white;
       border-radius: var(--radius-full);
+      box-shadow: 0 0 8px rgba(var(--color-primary-rgb), 0.4);
     }
 
     .sidebar-footer {
       padding: var(--spacing-4);
-      border-top: 1px solid var(--border-color);
+      border-top: 1px solid var(--glass-border);
+      background: var(--gradient-glow-bottom);
     }
 
     .theme-toggle {
@@ -305,12 +362,27 @@ interface NavItem {
       font-size: var(--font-size-sm);
       cursor: pointer;
       transition: all var(--transition-fast);
+      overflow: hidden;
+      position: relative;
+
+      app-icon {
+        transition: transform 0.3s ease, filter var(--transition-fast);
+      }
 
       &:hover {
         background: var(--bg-hover);
         color: var(--text-primary);
         border-color: var(--color-primary);
-        box-shadow: var(--glow-primary);
+        box-shadow: var(--shadow-glow-sm);
+
+        app-icon {
+          transform: rotate(15deg);
+          filter: drop-shadow(0 0 4px rgba(var(--color-primary-rgb), 0.5));
+        }
+      }
+
+      &:active app-icon {
+        transform: rotate(180deg);
       }
     }
 
@@ -334,7 +406,7 @@ interface NavItem {
     }
 
     // ========================================
-    // HEADER
+    // HEADER - Enhanced with subtle glow
     // ========================================
     .header {
       display: flex;
@@ -342,11 +414,30 @@ interface NavItem {
       justify-content: space-between;
       height: var(--header-height);
       padding: 0 var(--spacing-6);
-      background: var(--bg-secondary);
-      border-bottom: 1px solid var(--border-color);
+      background: var(--glass-bg);
+      backdrop-filter: blur(var(--glass-blur));
+      -webkit-backdrop-filter: blur(var(--glass-blur));
+      border-bottom: 1px solid var(--glass-border);
       position: sticky;
       top: 0;
       z-index: var(--z-sticky);
+
+      // Subtle bottom border glow
+      &::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(90deg,
+          transparent,
+          rgba(var(--color-primary-rgb), 0.2) 20%,
+          rgba(var(--color-primary-rgb), 0.3) 50%,
+          rgba(var(--color-primary-rgb), 0.2) 80%,
+          transparent);
+        pointer-events: none;
+      }
     }
 
     .header-left {
@@ -366,10 +457,12 @@ interface NavItem {
       border-radius: var(--radius-md);
       color: var(--text-secondary);
       cursor: pointer;
+      transition: all var(--transition-fast);
 
       &:hover {
         background: var(--bg-hover);
         color: var(--text-primary);
+        box-shadow: var(--shadow-glow-sm);
       }
     }
 
@@ -382,6 +475,7 @@ interface NavItem {
     .breadcrumb-item {
       font-size: var(--font-size-sm);
       color: var(--text-muted);
+      transition: color var(--transition-fast);
 
       &.active {
         color: var(--text-primary);
@@ -407,11 +501,17 @@ interface NavItem {
 
       &:focus-within {
         border-color: var(--color-primary);
-        box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.15);
+        box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.15),
+                    var(--shadow-glow-sm);
       }
 
       app-icon {
         color: var(--text-muted);
+        transition: color var(--transition-fast);
+      }
+
+      &:focus-within app-icon {
+        color: var(--color-primary);
       }
 
       input {
@@ -441,9 +541,18 @@ interface NavItem {
       cursor: pointer;
       transition: all var(--transition-fast);
 
+      app-icon {
+        transition: transform 0.3s ease, filter var(--transition-fast);
+      }
+
       &:hover {
         background: var(--bg-hover);
         color: var(--text-primary);
+
+        app-icon {
+          transform: rotate(45deg);
+          filter: drop-shadow(0 0 4px rgba(var(--color-primary-rgb), 0.4));
+        }
       }
     }
 
@@ -453,16 +562,19 @@ interface NavItem {
       justify-content: center;
       width: 36px;
       height: 36px;
-      background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+      background: var(--gradient-primary);
       border-radius: var(--radius-full);
       color: white;
       font-size: var(--font-size-sm);
       font-weight: var(--font-weight-semibold);
       cursor: pointer;
-      transition: box-shadow var(--transition-fast);
+      transition: all var(--transition-fast);
+      border: 2px solid transparent;
 
       &:hover {
-        box-shadow: var(--glow-primary);
+        transform: scale(1.08);
+        box-shadow: var(--shadow-glow-md);
+        border-color: rgba(var(--color-primary-rgb), 0.3);
       }
     }
 
