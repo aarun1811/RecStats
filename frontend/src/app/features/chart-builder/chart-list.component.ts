@@ -283,6 +283,22 @@ interface Chart {
       display: flex;
       align-items: center;
       gap: var(--spacing-3);
+
+      // New Chart button - plus icon rotate on hover
+      ::ng-deep app-button[variant="primary"] button {
+        app-icon {
+          transition: transform 0.25s ease, filter 0.2s ease;
+        }
+
+        &:hover app-icon {
+          transform: rotate(90deg);
+          filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.5));
+        }
+
+        &:active app-icon {
+          transform: rotate(90deg) scale(0.9);
+        }
+      }
     }
 
     .search-box {
@@ -301,13 +317,23 @@ interface Chart {
         box-shadow: var(--shadow-glow-sm);
       }
 
-      app-icon {
+      app-icon:first-child {
         color: var(--text-muted);
         flex-shrink: 0;
+        transition: transform 0.2s ease, color 0.2s ease, filter 0.2s ease;
       }
 
-      &:focus-within app-icon {
+      &:focus-within app-icon:first-child {
         color: var(--color-primary);
+        transform: scale(1.1);
+        filter: drop-shadow(0 0 4px rgba(var(--color-primary-rgb), 0.5));
+        animation: searchPulse 0.3s ease-out;
+      }
+
+      @keyframes searchPulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.2); }
+        100% { transform: scale(1.1); }
       }
 
       input {
@@ -337,9 +363,21 @@ interface Chart {
         cursor: pointer;
         transition: all 0.15s ease;
 
+        app-icon {
+          transition: transform 0.2s ease;
+        }
+
         &:hover {
           background: var(--color-primary);
           color: white;
+
+          app-icon {
+            transform: rotate(90deg);
+          }
+        }
+
+        &:active app-icon {
+          transform: rotate(180deg) scale(0.9);
         }
       }
     }
@@ -724,19 +762,49 @@ interface Chart {
       cursor: pointer;
       transition: all 0.2s ease;
 
+      app-icon {
+        transition: transform 0.2s ease, filter 0.2s ease;
+      }
+
       &:hover {
         background: var(--color-primary);
         border-color: var(--color-primary);
         color: white;
         box-shadow: 0 0 16px rgba(var(--color-primary-rgb), 0.5);
         transform: scale(1.1);
+
+        app-icon {
+          filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.5));
+          animation: editWiggle 0.4s ease-in-out;
+        }
+      }
+
+      &:active {
+        transform: scale(0.95);
       }
 
       &.danger:hover {
         background: var(--color-danger);
         border-color: var(--color-danger);
         box-shadow: 0 0 16px rgba(var(--color-danger-rgb), 0.5);
+
+        app-icon {
+          animation: trashWiggle 0.4s ease-in-out;
+        }
       }
+    }
+
+    @keyframes editWiggle {
+      0%, 100% { transform: rotate(0deg); }
+      25% { transform: rotate(-8deg); }
+      75% { transform: rotate(8deg); }
+    }
+
+    @keyframes trashWiggle {
+      0%, 100% { transform: rotate(0deg); }
+      25% { transform: rotate(-10deg); }
+      50% { transform: rotate(10deg); }
+      75% { transform: rotate(-5deg); }
     }
 
     .card-body {

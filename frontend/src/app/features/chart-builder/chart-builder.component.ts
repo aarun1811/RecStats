@@ -412,6 +412,22 @@ type Step = 'data' | 'chart' | 'configure';
         -webkit-text-fill-color: transparent;
         background-clip: text;
       }
+
+      // Close button - X rotate on hover
+      ::ng-deep app-button[variant="ghost"] button {
+        app-icon {
+          transition: transform 0.2s ease, filter 0.2s ease;
+        }
+
+        &:hover app-icon {
+          transform: rotate(90deg);
+          filter: drop-shadow(0 0 4px rgba(var(--color-danger-rgb), 0.5));
+        }
+
+        &:active app-icon {
+          transform: rotate(90deg) scale(0.9);
+        }
+      }
     }
 
     .steps {
@@ -613,6 +629,31 @@ type Step = 'data' | 'chart' | 'configure';
     .step-action {
       width: 100%;
       margin-top: var(--spacing-2);
+
+      // Load Data button animations
+      ::ng-deep button {
+        app-icon {
+          transition: transform 0.2s ease, filter 0.2s ease;
+        }
+
+        &:not(:disabled):hover app-icon {
+          transform: scale(1.15);
+          filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.4));
+        }
+
+        &:disabled app-icon {
+          animation: spin 1s linear infinite;
+        }
+
+        &:active:not(:disabled) app-icon {
+          transform: scale(0.9);
+        }
+      }
+
+      @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
     }
 
     // ========================================
@@ -713,9 +754,25 @@ type Step = 'data' | 'chart' | 'configure';
         transform: translateY(-2px);
 
         app-icon {
-          transform: scale(1.15);
           filter: drop-shadow(0 0 4px rgba(var(--color-primary-rgb), 0.4));
+          animation: chartIconBounce 0.4s ease-out;
         }
+      }
+
+      &:active:not(.unavailable) {
+        transform: translateY(0);
+
+        app-icon {
+          transform: scale(0.9);
+        }
+      }
+
+      @keyframes chartIconBounce {
+        0% { transform: scale(1) translateY(0); }
+        30% { transform: scale(1.2) translateY(-3px); }
+        50% { transform: scale(1.1) translateY(-1px); }
+        70% { transform: scale(1.15) translateY(-2px); }
+        100% { transform: scale(1.15) translateY(0); }
       }
 
       &.selected {
@@ -906,22 +963,30 @@ type Step = 'data' | 'chart' | 'configure';
           position: relative;
           overflow: hidden;
 
+          app-icon {
+            transition: transform 0.2s ease, filter 0.2s ease;
+          }
+
           &:not(:disabled) {
             animation: saveButtonReady 2s ease-in-out infinite;
+
+            &:hover app-icon {
+              transform: translateY(-2px) scale(1.1);
+              filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.5));
+            }
+
+            &:active app-icon {
+              transform: translateY(1px) scale(0.95);
+              animation: saveBounce 0.3s ease-out;
+            }
           }
 
           &:disabled {
             animation: none;
-          }
 
-          // Animated gradient on saving
-          &.saving {
-            background: linear-gradient(90deg,
-              var(--color-primary) 0%,
-              var(--color-primary-light) 50%,
-              var(--color-primary) 100%);
-            background-size: 200% 100%;
-            animation: savingGradient 1.5s ease-in-out infinite;
+            app-icon {
+              animation: spin 1s linear infinite;
+            }
           }
         }
 
@@ -935,9 +1000,16 @@ type Step = 'data' | 'chart' | 'configure';
           }
         }
 
-        @keyframes savingGradient {
-          0% { background-position: 0% 50%; }
-          100% { background-position: 200% 50%; }
+        @keyframes saveBounce {
+          0% { transform: translateY(0) scale(1); }
+          30% { transform: translateY(-4px) scale(1.15); }
+          60% { transform: translateY(0) scale(1.05); }
+          100% { transform: translateY(0) scale(1); }
+        }
+
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
         }
       }
     }
@@ -976,6 +1048,22 @@ type Step = 'data' | 'chart' | 'configure';
         font-size: var(--font-size-sm);
         font-weight: var(--font-weight-semibold);
         color: var(--text-secondary);
+      }
+
+      // Fullscreen toggle button animation
+      .preview-actions ::ng-deep app-button button {
+        app-icon {
+          transition: transform 0.25s ease, filter 0.2s ease;
+        }
+
+        &:hover app-icon {
+          transform: scale(1.15);
+          filter: drop-shadow(0 0 4px rgba(var(--color-primary-rgb), 0.5));
+        }
+
+        &:active app-icon {
+          transform: scale(0.9);
+        }
       }
     }
 
