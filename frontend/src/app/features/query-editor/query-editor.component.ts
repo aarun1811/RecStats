@@ -676,6 +676,24 @@ interface DataSource extends DataSourceResponse {
 
     .saved-content {
       padding: var(--spacing-2);
+
+      // Custom scrollbar for dark mode
+      &::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      &::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      &::-webkit-scrollbar-thumb {
+        background: var(--border-color);
+        border-radius: 3px;
+
+        &:hover {
+          background: var(--text-muted);
+        }
+      }
     }
 
     .saved-search {
@@ -1435,18 +1453,13 @@ interface DataSource extends DataSourceResponse {
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 28px;
-      height: 28px;
       flex-shrink: 0;
-      border-radius: var(--radius-sm);
-      background: var(--bg-tertiary);
       color: var(--text-muted);
       transition: all 0.2s ease;
     }
 
     .sidebar-saved-item:hover .sidebar-saved-icon {
       color: var(--color-primary-light);
-      background: rgba(var(--color-primary-rgb), 0.1);
     }
 
     .sidebar-saved-name {
