@@ -31,7 +31,7 @@ interface NavItem {
                 </defs>
               </svg>
             </div>
-            <span class="logo-text" *ngIf="!sidebarCollapsed">ResStats</span>
+            <span class="logo-text" *ngIf="!sidebarCollapsed">RecStats</span>
           </div>
           <button class="collapse-btn" (click)="toggleSidebar()">
             <app-icon [name]="sidebarCollapsed ? 'chevron-right' : 'chevron-left'" [size]="18"></app-icon>
@@ -87,7 +87,7 @@ interface NavItem {
               <app-icon name="menu" [size]="24"></app-icon>
             </button>
             <div class="breadcrumb">
-              <span class="breadcrumb-item">ResStats</span>
+              <span class="breadcrumb-item">RecStats</span>
               <app-icon name="chevron-right" [size]="16"></app-icon>
               <span class="breadcrumb-item active">{{ currentPageTitle }}</span>
             </div>

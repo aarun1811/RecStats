@@ -139,10 +139,10 @@ export class PlaceholderComponent {
       return 'Connect to external databases and data warehouses to power your analytics.';
     }
     if (path.includes('upload')) {
-      return 'Upload CSV, Excel, or Parquet files to analyze in ResStats.';
+      return 'Upload CSV, Excel, or Parquet files to analyze in RecStats.';
     }
     if (path.includes('settings')) {
-      return 'Configure your ResStats workspace, themes, and preferences.';
+      return 'Configure your RecStats workspace, themes, and preferences.';
     }
     return 'This feature is under development.';
   }
