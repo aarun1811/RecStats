@@ -822,7 +822,7 @@ export class ChartListComponent implements OnInit {
   filterType = signal<string | null>(null);
   showFilterDropdown = signal(false);
 
-  chartTypes = ['line', 'bar', 'area', 'pie', 'donut', 'scatter', 'gauge', 'radar', 'heatmap', 'funnel', 'treemap', 'kpi'];
+  chartTypes = ['bar', 'column', 'line', 'area', 'scatter', 'pie', 'donut', 'heatmap', 'treemap', 'funnel', 'radar', 'gauge', 'radialBar', 'kpiCard'];
 
   filteredCharts = computed(() => {
     let result = this.charts();
@@ -920,26 +920,35 @@ export class ChartListComponent implements OnInit {
 
   getChartIcon(type: string): string {
     const icons: Record<string, string> = {
-      'bar': 'bar-chart-2',
-      'line': 'trending-up',
-      'area': 'activity',
+      'bar': 'chart-bar-h',
+      'column': 'chart-bar',
+      'line': 'chart-line',
+      'area': 'chart-area',
       'pie': 'pie-chart',
-      'donut': 'pie-chart',
-      'scatter': 'crosshair',
-      'gauge': 'target',
-      'radar': 'hexagon',
-      'heatmap': 'grid',
-      'funnel': 'triangle',
-      'treemap': 'square',
-      'kpi': 'hash',
-      'map': 'globe'
+      'donut': 'chart-donut',
+      'scatter': 'chart-scatter',
+      'gauge': 'chart-gauge',
+      'radar': 'chart-radar',
+      'heatmap': 'chart-heatmap',
+      'funnel': 'chart-funnel',
+      'treemap': 'chart-treemap',
+      'kpi': 'chart-kpi',
+      'kpiCard': 'chart-kpi',
+      'radialBar': 'chart-radial',
+      'worldMap': 'globe',
+      'map': 'globe',
+      'sankey': 'chart-sankey',
+      'histogram': 'chart-histogram',
+      'bubble': 'chart-bubble',
+      'waterfall': 'chart-waterfall'
     };
-    return icons[type] || 'bar-chart-2';
+    return icons[type] || 'chart-bar';
   }
 
   getChartTypeLabel(type: string): string {
     const labels: Record<string, string> = {
       'bar': 'Bar',
+      'column': 'Column',
       'line': 'Line',
       'area': 'Area',
       'pie': 'Pie',
@@ -951,7 +960,14 @@ export class ChartListComponent implements OnInit {
       'funnel': 'Funnel',
       'treemap': 'Treemap',
       'kpi': 'KPI',
-      'map': 'Map'
+      'kpiCard': 'KPI Card',
+      'radialBar': 'Radial Bar',
+      'worldMap': 'Map',
+      'map': 'Map',
+      'sankey': 'Sankey',
+      'histogram': 'Histogram',
+      'bubble': 'Bubble',
+      'waterfall': 'Waterfall'
     };
     return labels[type] || type;
   }

@@ -50,28 +50,28 @@ export interface ChartTypeOption {
 
 export const CHART_TYPES: ChartTypeOption[] = [
   // Basic - Available
-  { id: 'bar', name: 'Bar', icon: 'align-left', description: 'Horizontal bars for comparison', category: 'Basic', available: true },
-  { id: 'column', name: 'Column', icon: 'bar-chart-2', description: 'Vertical bars for comparison', category: 'Basic', available: true },
-  { id: 'line', name: 'Line', icon: 'trending-up', description: 'Show trends over time', category: 'Basic', available: true },
-  { id: 'area', name: 'Area', icon: 'activity', description: 'Line chart with filled area', category: 'Basic', available: true },
-  { id: 'scatter', name: 'Scatter', icon: 'git-commit', description: 'Show correlation between variables', category: 'Basic', available: true },
+  { id: 'bar', name: 'Bar', icon: 'chart-bar-h', description: 'Horizontal bars for comparison', category: 'Basic', available: true },
+  { id: 'column', name: 'Column', icon: 'chart-bar', description: 'Vertical bars for comparison', category: 'Basic', available: true },
+  { id: 'line', name: 'Line', icon: 'chart-line', description: 'Show trends over time', category: 'Basic', available: true },
+  { id: 'area', name: 'Area', icon: 'chart-area', description: 'Line chart with filled area', category: 'Basic', available: true },
+  { id: 'scatter', name: 'Scatter', icon: 'chart-scatter', description: 'Show correlation between variables', category: 'Basic', available: true },
   { id: 'pie', name: 'Pie', icon: 'pie-chart', description: 'Show parts of a whole', category: 'Basic', available: true },
-  { id: 'donut', name: 'Donut', icon: 'disc', description: 'Pie chart with center cutout', category: 'Basic', available: true },
+  { id: 'donut', name: 'Donut', icon: 'chart-donut', description: 'Pie chart with center cutout', category: 'Basic', available: true },
   // Advanced - Available
-  { id: 'heatmap', name: 'Heatmap', icon: 'grid', description: 'Show data density with colors', category: 'Advanced', available: true },
-  { id: 'treemap', name: 'Treemap', icon: 'layout', description: 'Hierarchical data visualization', category: 'Advanced', available: true },
-  { id: 'funnel', name: 'Funnel', icon: 'filter', description: 'Show stages in a process', category: 'Advanced', available: true },
-  { id: 'radar', name: 'Radar', icon: 'octagon', description: 'Multi-axis comparison', category: 'Advanced', available: true },
+  { id: 'heatmap', name: 'Heatmap', icon: 'chart-heatmap', description: 'Show data density with colors', category: 'Advanced', available: true },
+  { id: 'treemap', name: 'Treemap', icon: 'chart-treemap', description: 'Hierarchical data visualization', category: 'Advanced', available: true },
+  { id: 'funnel', name: 'Funnel', icon: 'chart-funnel', description: 'Show stages in a process', category: 'Advanced', available: true },
+  { id: 'radar', name: 'Radar', icon: 'chart-radar', description: 'Multi-axis comparison', category: 'Advanced', available: true },
   // KPI - Available
-  { id: 'gauge', name: 'Gauge', icon: 'activity', description: 'Speedometer-style KPI display', category: 'KPI', available: true },
-  { id: 'radialBar', name: 'Radial Bar', icon: 'loader', description: 'Circular progress indicator', category: 'KPI', available: true },
-  { id: 'kpiCard', name: 'KPI Card', icon: 'hash', description: 'Big number with trend', category: 'KPI', available: true },
+  { id: 'gauge', name: 'Gauge', icon: 'chart-gauge', description: 'Speedometer-style KPI display', category: 'KPI', available: true },
+  { id: 'radialBar', name: 'Radial Bar', icon: 'chart-radial', description: 'Circular progress indicator', category: 'KPI', available: true },
+  { id: 'kpiCard', name: 'KPI Card', icon: 'chart-kpi', description: 'Big number with trend', category: 'KPI', available: true },
   // Coming Soon
   { id: 'worldMap', name: 'Map', icon: 'globe', description: 'Geographic data visualization', category: 'Advanced', available: false },
-  { id: 'sankey', name: 'Sankey', icon: 'git-merge', description: 'Show flow between nodes', category: 'Advanced', available: false },
-  { id: 'histogram', name: 'Histogram', icon: 'bar-chart', description: 'Distribution of continuous values', category: 'Advanced', available: false },
-  { id: 'bubble', name: 'Bubble', icon: 'circle', description: 'Scatter with size dimension', category: 'Basic', available: false },
-  { id: 'waterfall', name: 'Waterfall', icon: 'git-pull-request', description: 'Show cumulative effect', category: 'Advanced', available: false },
+  { id: 'sankey', name: 'Sankey', icon: 'chart-sankey', description: 'Show flow between nodes', category: 'Advanced', available: false },
+  { id: 'histogram', name: 'Histogram', icon: 'chart-histogram', description: 'Distribution of continuous values', category: 'Advanced', available: false },
+  { id: 'bubble', name: 'Bubble', icon: 'chart-bubble', description: 'Scatter with size dimension', category: 'Basic', available: false },
+  { id: 'waterfall', name: 'Waterfall', icon: 'chart-waterfall', description: 'Show cumulative effect', category: 'Advanced', available: false },
 ];
 
 type Step = 'data' | 'chart' | 'configure';
