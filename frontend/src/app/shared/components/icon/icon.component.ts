@@ -35,6 +35,8 @@ const ICONS: Record<string, string> = {
   'chevron-down': '<polyline points="6 9 12 15 18 9"></polyline>',
   'arrow-left': '<line x1="19" x2="5" y1="12" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline>',
   'arrow-right': '<line x1="5" x2="19" y1="12" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline>',
+  'arrow-up-down': '<path d="M7 15l5 5 5-5"></path><path d="M7 9l5-5 5 5"></path>',
+  'sort': '<path d="M3 6h7"></path><path d="M3 12h10"></path><path d="M3 18h5"></path><path d="M17 5v14"></path><path d="M14 8l3-3 3 3"></path><path d="M14 16l3 3 3-3"></path>',
 
   // Status
   'alert-circle': '<circle cx="12" cy="12" r="10"></circle><line x1="12" x2="12" y1="8" y2="12"></line><line x1="12" x2="12.01" y1="16" y2="16"></line>',

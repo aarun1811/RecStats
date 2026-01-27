@@ -56,7 +56,7 @@ interface Chart {
           </div>
           <div class="sort-dropdown" (clickOutside)="showSortDropdown.set(false)">
             <button class="sort-btn" (click)="showSortDropdown.set(!showSortDropdown())">
-              <app-icon name="arrow-up" [size]="14"></app-icon>
+              <app-icon name="arrow-up-down" [size]="14"></app-icon>
               {{ getSortLabel() }}
               <app-icon name="chevron-down" [size]="14" [class.rotated]="showSortDropdown()"></app-icon>
             </button>
@@ -165,16 +165,23 @@ interface Chart {
         </div>
         <div class="list-row" *ngFor="let chart of filteredCharts()" (click)="editChart(chart)">
           <span class="col-name">
-            <app-icon [name]="getChartIcon(chart.chart_type)" [size]="18"></app-icon>
-            {{ chart.name }}
+            <div class="row-icon-wrapper" [class]="'category-' + getChartCategory(chart.chart_type)">
+              <app-icon [name]="getChartIcon(chart.chart_type)" [size]="16"></app-icon>
+            </div>
+            <div class="row-name-info">
+              <span class="row-title">{{ chart.name }}</span>
+              <span class="row-desc" *ngIf="chart.description">{{ chart.description }}</span>
+            </div>
           </span>
           <span class="col-type">
-            <span class="type-badge">{{ getChartTypeLabel(chart.chart_type) }}</span>
+            <span class="type-badge" [class]="'category-' + getChartCategory(chart.chart_type)">
+              {{ getChartTypeLabel(chart.chart_type) }}
+            </span>
           </span>
           <span class="col-date">{{ formatDate(chart.created_at) }}</span>
           <span class="col-actions" (click)="$event.stopPropagation()">
             <button class="action-btn" (click)="editChart(chart)" title="Edit">
-              <app-icon name="settings" [size]="14"></app-icon>
+              <app-icon name="edit" [size]="14"></app-icon>
             </button>
             <button class="action-btn danger" (click)="confirmDelete(chart)" title="Delete">
               <app-icon name="trash" [size]="14"></app-icon>
@@ -794,21 +801,41 @@ interface Chart {
       }
     }
 
-    /* List View - Slide in animation */
+    /* List View - Premium glassmorphism */
     .charts-list {
-      background: var(--bg-secondary);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-lg);
+      background: var(--glass-bg);
+      backdrop-filter: blur(var(--glass-blur));
+      -webkit-backdrop-filter: blur(var(--glass-blur));
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-xl);
       overflow: hidden;
+      position: relative;
+
+      // Top highlight
+      &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(90deg,
+          transparent,
+          rgba(255, 255, 255, 0.1) 20%,
+          rgba(255, 255, 255, 0.15) 50%,
+          rgba(255, 255, 255, 0.1) 80%,
+          transparent
+        );
+      }
     }
 
     .list-header {
       display: grid;
-      grid-template-columns: 1fr 120px 120px 100px;
+      grid-template-columns: 1fr 130px 120px 100px;
       gap: var(--spacing-4);
-      padding: var(--spacing-3) var(--spacing-4);
-      background: var(--bg-tertiary);
-      border-bottom: 1px solid var(--border-color);
+      padding: var(--spacing-3) var(--spacing-5);
+      background: rgba(255, 255, 255, 0.02);
+      border-bottom: 1px solid var(--glass-border);
       font-size: var(--font-size-xs);
       font-weight: 600;
       color: var(--text-muted);
@@ -818,14 +845,15 @@ interface Chart {
 
     .list-row {
       display: grid;
-      grid-template-columns: 1fr 120px 120px 100px;
+      grid-template-columns: 1fr 130px 120px 100px;
       gap: var(--spacing-4);
-      padding: var(--spacing-3) var(--spacing-4);
-      border-bottom: 1px solid var(--border-color);
+      padding: var(--spacing-3) var(--spacing-5);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: all 0.25s ease;
       opacity: 0;
       animation: slideInFromLeft 250ms ease-out forwards;
+      position: relative;
 
       @for $i from 1 through 30 {
         &:nth-child(#{$i}) {
@@ -837,10 +865,15 @@ interface Chart {
 
       &:hover {
         background: rgba(var(--color-primary-rgb), 0.05);
-        box-shadow: inset 0 0 0 1px rgba(var(--color-primary-rgb), 0.2),
-                    inset 0 0 20px rgba(var(--color-primary-rgb), 0.05);
+        box-shadow: inset 0 0 0 1px rgba(var(--color-primary-rgb), 0.15),
+                    inset 0 0 30px rgba(var(--color-primary-rgb), 0.03);
 
         .action-btn { opacity: 1; }
+        .row-icon-wrapper {
+          transform: scale(1.1);
+          box-shadow: 0 0 12px rgba(var(--accent-color), 0.4);
+        }
+        .row-title { color: var(--color-primary-light); }
       }
     }
 
@@ -858,38 +891,75 @@ interface Chart {
     .col-name {
       display: flex;
       align-items: center;
-      gap: var(--spacing-2);
-      font-weight: 500;
-      color: var(--text-primary);
-
-      app-icon {
-        color: var(--color-primary);
-        transition: all 0.2s ease;
-      }
+      gap: var(--spacing-3);
+      min-width: 0;
     }
 
-    .list-row:hover .col-name app-icon {
-      filter: drop-shadow(0 0 6px rgba(var(--color-primary-rgb), 0.6));
-      transform: scale(1.1);
+    .row-icon-wrapper {
+      --accent-color: var(--color-primary-rgb);
+      width: 36px;
+      height: 36px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(var(--accent-color), 0.1);
+      border: 1px solid rgba(var(--accent-color), 0.2);
+      border-radius: var(--radius-md);
+      color: rgb(var(--accent-color));
+      transition: all 0.25s ease;
+
+      &.category-basic { --accent-color: var(--color-primary-rgb); }
+      &.category-advanced { --accent-color: 168, 85, 247; }
+      &.category-kpi { --accent-color: var(--color-success-rgb); }
+    }
+
+    .row-name-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .row-title {
+      font-weight: 500;
+      color: var(--text-primary);
+      transition: color 0.2s ease;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .row-desc {
+      font-size: var(--font-size-xs);
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 300px;
     }
 
     .col-type { display: flex; align-items: center; }
 
     .type-badge {
+      --accent-color: var(--color-primary-rgb);
       display: inline-block;
       padding: var(--spacing-1) var(--spacing-2);
-      background: var(--bg-tertiary);
+      background: rgba(var(--accent-color), 0.1);
+      border: 1px solid rgba(var(--accent-color), 0.2);
       border-radius: var(--radius-sm);
       font-size: var(--font-size-xs);
-      color: var(--text-secondary);
+      font-weight: 500;
+      color: rgb(var(--accent-color));
       transition: all 0.2s ease;
-      border: 1px solid transparent;
+
+      &.category-basic { --accent-color: var(--color-primary-rgb); }
+      &.category-advanced { --accent-color: 168, 85, 247; }
+      &.category-kpi { --accent-color: var(--color-success-rgb); }
     }
 
     .list-row:hover .type-badge {
-      background: rgba(var(--color-primary-rgb), 0.15);
-      color: var(--color-primary-light);
-      border-color: rgba(var(--color-primary-rgb), 0.2);
+      box-shadow: 0 0 8px rgba(var(--accent-color), 0.3);
     }
 
     .col-date {
