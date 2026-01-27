@@ -105,7 +105,7 @@ interface DataSource extends DataSourceResponse {
             class="sidebar-tab"
             [class.active]="sidebarTab() === 'saved'"
             (click)="switchSidebarTab('saved')">
-            <app-icon name="file-code" [size]="14"></app-icon>
+            <app-icon name="sql" [size]="14"></app-icon>
             Saved<span class="tab-count" *ngIf="savedQueries().length > 0">({{ savedQueries().length }})</span>
           </button>
         </div>
@@ -129,20 +129,35 @@ interface DataSource extends DataSourceResponse {
               [(ngModel)]="savedQuerySearch"
               class="saved-search-input">
           </div>
-          <div
-            *ngFor="let query of filteredSavedQueries()"
-            class="sidebar-saved-item"
-            (click)="loadSavedQuery(query)">
-            <div class="sidebar-saved-header">
-              <div class="sidebar-saved-name">{{ query.name }}</div>
-              <app-button variant="ghost" size="sm" (click)="deleteSavedQuery(query.id); $event.stopPropagation()">
-                <app-icon name="trash" [size]="12"></app-icon>
-              </app-button>
+          <div class="saved-list">
+            <div
+              *ngFor="let query of filteredSavedQueries()"
+              class="sidebar-saved-item"
+              [class.active]="activeQuery()?.id === query.id"
+              (click)="loadSavedQuery(query)">
+              <!-- Delete Confirmation State -->
+              <div class="delete-confirm-inline" *ngIf="deleteConfirmId() === query.id">
+                <app-icon name="alert-triangle" [size]="16"></app-icon>
+                <span>Delete?</span>
+                <div class="confirm-actions">
+                  <button class="confirm-yes" (click)="confirmDeleteQuery(query.id); $event.stopPropagation()">Yes</button>
+                  <button class="confirm-no" (click)="cancelDelete(); $event.stopPropagation()">No</button>
+                </div>
+              </div>
+              <!-- Normal State -->
+              <div class="sidebar-saved-content" *ngIf="deleteConfirmId() !== query.id">
+                <div class="sidebar-saved-icon">
+                  <app-icon name="sql" [size]="14"></app-icon>
+                </div>
+                <div class="sidebar-saved-name">{{ query.name }}</div>
+                <button class="sidebar-delete-btn" (click)="requestDelete(query.id); $event.stopPropagation()" title="Delete query">
+                  <app-icon name="trash" [size]="14"></app-icon>
+                </button>
+              </div>
             </div>
-            <div class="sidebar-saved-sql">{{ query.sql_text.substring(0, 60) }}{{ query.sql_text.length > 60 ? '...' : '' }}</div>
           </div>
           <div *ngIf="filteredSavedQueries().length === 0" class="sidebar-empty">
-            <app-icon name="file-code" [size]="32"></app-icon>
+            <app-icon name="sql" [size]="32"></app-icon>
             <p>{{ savedQuerySearch ? 'No matching queries' : 'No saved queries' }}</p>
             <span class="hint">{{ savedQuerySearch ? 'Try a different search' : 'Click "Save" to save your query' }}</span>
           </div>
@@ -162,11 +177,23 @@ interface DataSource extends DataSourceResponse {
               <app-icon name="code" [size]="16"></app-icon>
               Format
             </app-button>
+            <!-- Active Query Indicator -->
+            <div class="active-query-badge" *ngIf="activeQuery()">
+              <app-icon name="sql" [size]="14"></app-icon>
+              <span>{{ activeQuery()!.name }}</span>
+              <button class="badge-close" (click)="clearActiveQuery()" title="Unload query">
+                <app-icon name="x" [size]="12"></app-icon>
+              </button>
+            </div>
           </div>
           <div class="toolbar-right">
             <button class="toolbar-btn save-btn" (click)="openSaveModal()">
               <app-icon name="save" [size]="16"></app-icon>
-              Save
+              {{ activeQuery() ? 'Save As' : 'Save' }}
+            </button>
+            <button class="toolbar-btn update-btn" *ngIf="activeQuery()" (click)="updateActiveQuery()">
+              <app-icon name="check" [size]="16"></app-icon>
+              Update
             </button>
             <button class="toolbar-btn clear-btn" (click)="confirmClear()">
               <app-icon name="trash" [size]="16"></app-icon>
@@ -760,6 +787,87 @@ interface DataSource extends DataSourceResponse {
       gap: var(--spacing-2);
     }
 
+    // Active Query Badge
+    .active-query-badge {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-2);
+      padding: var(--spacing-1) var(--spacing-2) var(--spacing-1) var(--spacing-3);
+      background: rgba(var(--color-primary-rgb), 0.15);
+      border: 1px solid rgba(var(--color-primary-rgb), 0.3);
+      border-radius: var(--radius-full);
+      font-size: var(--font-size-sm);
+      color: var(--color-primary-light);
+      animation: badgeSlideIn 0.25s ease-out;
+
+      @keyframes badgeSlideIn {
+        from {
+          opacity: 0;
+          transform: translateX(-10px) scale(0.9);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0) scale(1);
+        }
+      }
+
+      app-icon {
+        opacity: 0.8;
+      }
+
+      span {
+        font-weight: var(--font-weight-medium);
+        max-width: 150px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .badge-close {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+        padding: 0;
+        background: transparent;
+        border: none;
+        border-radius: 50%;
+        color: var(--color-primary-light);
+        cursor: pointer;
+        opacity: 0.6;
+        transition: all 0.15s ease;
+
+        &:hover {
+          opacity: 1;
+          background: rgba(var(--color-primary-rgb), 0.2);
+        }
+      }
+    }
+
+    // Update button
+    .update-btn {
+      app-icon {
+        transition: transform 0.2s ease, filter 0.2s ease;
+      }
+
+      &:hover {
+        color: var(--color-success);
+        background: rgba(var(--color-success-rgb), 0.1);
+        border-color: rgba(var(--color-success-rgb), 0.2);
+        box-shadow: 0 0 10px rgba(var(--color-success-rgb), 0.2);
+
+        app-icon {
+          transform: scale(1.15);
+          filter: drop-shadow(0 0 4px rgba(var(--color-success-rgb), 0.5));
+        }
+      }
+
+      &:active app-icon {
+        transform: scale(0.9);
+      }
+    }
+
     // Enhanced Run button with pulsing glow and icon animation
     .toolbar-left ::ng-deep app-button[variant="primary"] button {
       position: relative;
@@ -1258,12 +1366,17 @@ interface DataSource extends DataSourceResponse {
       color: var(--text-muted);
     }
 
+    .saved-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-1);
+    }
+
     .sidebar-saved-item {
-      padding: var(--spacing-2) var(--spacing-3);
-      background: var(--bg-tertiary);
+      position: relative;
+      background: transparent;
       border: 1px solid transparent;
       border-radius: var(--radius-md);
-      margin-bottom: var(--spacing-2);
       cursor: pointer;
       transition: all 0.2s ease;
       animation: fadeInStagger 200ms ease-out forwards;
@@ -1271,7 +1384,7 @@ interface DataSource extends DataSourceResponse {
 
       @for $i from 1 through 20 {
         &:nth-child(#{$i}) {
-          animation-delay: #{($i - 1) * 40}ms;
+          animation-delay: #{($i - 1) * 30}ms;
         }
       }
 
@@ -1288,37 +1401,164 @@ interface DataSource extends DataSourceResponse {
 
       &:hover {
         background: var(--bg-hover);
-        border-color: rgba(var(--color-primary-rgb), 0.2);
+        border-color: rgba(var(--color-primary-rgb), 0.15);
+
+        .sidebar-delete-btn {
+          opacity: 1;
+        }
+      }
+
+      &.active {
+        background: rgba(var(--color-primary-rgb), 0.1);
+        border-color: rgba(var(--color-primary-rgb), 0.3);
         box-shadow: var(--shadow-glow-sm);
-        transform: translateX(2px);
+
+        .sidebar-saved-icon {
+          color: var(--color-primary-light);
+          background: rgba(var(--color-primary-rgb), 0.15);
+        }
+
+        .sidebar-saved-name {
+          color: var(--color-primary-light);
+        }
       }
     }
 
-    .sidebar-saved-header {
+    .sidebar-saved-content {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      margin-bottom: 4px;
+      gap: var(--spacing-2);
+      padding: var(--spacing-2) var(--spacing-3);
+    }
+
+    .sidebar-saved-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      flex-shrink: 0;
+      border-radius: var(--radius-sm);
+      background: var(--bg-tertiary);
+      color: var(--text-muted);
+      transition: all 0.2s ease;
+    }
+
+    .sidebar-saved-item:hover .sidebar-saved-icon {
+      color: var(--color-primary-light);
+      background: rgba(var(--color-primary-rgb), 0.1);
     }
 
     .sidebar-saved-name {
+      flex: 1;
       font-size: var(--font-size-sm);
       font-weight: var(--font-weight-medium);
       color: var(--text-primary);
       transition: color 0.2s ease;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .sidebar-saved-item:hover .sidebar-saved-name {
       color: var(--color-primary-light);
     }
 
-    .sidebar-saved-sql {
-      font-family: var(--font-mono);
-      font-size: var(--font-size-xs);
+    .sidebar-delete-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      background: transparent;
+      border: none;
+      border-radius: var(--radius-sm);
       color: var(--text-muted);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      cursor: pointer;
+      opacity: 0;
+      transition: all 0.2s ease;
+
+      &:hover {
+        color: var(--color-danger);
+        background: rgba(var(--color-danger-rgb), 0.1);
+      }
+    }
+
+    // Inline delete confirmation
+    .delete-confirm-inline {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-2);
+      padding: var(--spacing-2) var(--spacing-3);
+      background: rgba(var(--color-danger-rgb), 0.08);
+      border-radius: var(--radius-md);
+      animation: confirmSlideIn 0.2s ease-out;
+
+      @keyframes confirmSlideIn {
+        from {
+          opacity: 0;
+          transform: scale(0.95);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+
+      app-icon {
+        color: var(--color-warning);
+        flex-shrink: 0;
+        animation: warningPulse 1s ease-in-out;
+      }
+
+      @keyframes warningPulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+      }
+
+      span {
+        flex: 1;
+        font-size: var(--font-size-sm);
+        color: var(--text-primary);
+        font-weight: var(--font-weight-medium);
+      }
+
+      .confirm-actions {
+        display: flex;
+        gap: var(--spacing-1);
+
+        button {
+          padding: var(--spacing-1) var(--spacing-2);
+          font-size: var(--font-size-xs);
+          font-weight: var(--font-weight-medium);
+          border-radius: var(--radius-sm);
+          border: none;
+          cursor: pointer;
+          transition: all 0.15s ease;
+        }
+
+        .confirm-yes {
+          background: var(--color-danger);
+          color: white;
+
+          &:hover {
+            background: #c0392b;
+            box-shadow: 0 0 8px rgba(var(--color-danger-rgb), 0.4);
+          }
+        }
+
+        .confirm-no {
+          background: var(--bg-tertiary);
+          color: var(--text-secondary);
+          border: 1px solid var(--border-color);
+
+          &:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+          }
+        }
+      }
     }
 
     .sidebar-empty {
@@ -1512,6 +1752,10 @@ export class QueryEditorComponent implements OnInit {
   isLoadingDataSources = signal(false);
   showClearConfirm = signal(false);
 
+  // Active query tracking
+  activeQuery = signal<SavedQuery | null>(null);
+  deleteConfirmId = signal<string | null>(null);
+
   ngOnInit() {
     this.loadDataSources();
   }
@@ -1654,6 +1898,11 @@ export class QueryEditorComponent implements OnInit {
     this.sqlText = '';
     this.queryResult.set(null);
     this.showClearConfirm.set(false);
+    this.activeQuery.set(null);
+  }
+
+  clearActiveQuery() {
+    this.activeQuery.set(null);
   }
 
   openSaveModal() {
@@ -1683,7 +1932,7 @@ export class QueryEditorComponent implements OnInit {
     }
 
     try {
-      await firstValueFrom(
+      const savedQuery = await firstValueFrom(
         this.api.post<SavedQuery>('/queries', {
           name: this.saveQueryName.trim(),
           description: this.saveQueryDescription.trim() || null,
@@ -1693,9 +1942,35 @@ export class QueryEditorComponent implements OnInit {
       );
       this.notifications.success('Query saved successfully');
       this.closeSaveModal();
+      // Set the newly saved query as active
+      this.activeQuery.set(savedQuery);
       this.loadSavedQueries();
     } catch (error: any) {
       this.notifications.error(error.message || 'Failed to save query');
+    }
+  }
+
+  async updateActiveQuery() {
+    const active = this.activeQuery();
+    if (!active) {
+      this.notifications.warning('No query loaded to update');
+      return;
+    }
+
+    try {
+      const updatedQuery = await firstValueFrom(
+        this.api.put<SavedQuery>(`/queries/${active.id}`, {
+          name: active.name,
+          description: active.description || null,
+          sql_text: this.sqlText,
+          data_source_id: active.data_source_id
+        })
+      );
+      this.notifications.success(`Updated query: ${active.name}`);
+      this.activeQuery.set(updatedQuery);
+      this.loadSavedQueries();
+    } catch (error: any) {
+      this.notifications.error(error.message || 'Failed to update query');
     }
   }
 
@@ -1714,18 +1989,40 @@ export class QueryEditorComponent implements OnInit {
 
   loadSavedQuery(query: SavedQuery) {
     this.sqlText = query.sql_text;
+    this.activeQuery.set(query);
     this.activeTab.set('results');
     this.notifications.info(`Loaded query: ${query.name}`);
+    // Cancel any pending delete confirmation
+    this.deleteConfirmId.set(null);
   }
 
-  async deleteSavedQuery(id: string) {
+  requestDelete(id: string) {
+    this.deleteConfirmId.set(id);
+  }
+
+  cancelDelete() {
+    this.deleteConfirmId.set(null);
+  }
+
+  async confirmDeleteQuery(id: string) {
     try {
       await firstValueFrom(this.api.delete(`/queries/${id}`));
       this.notifications.success('Query deleted');
+      // If we deleted the active query, clear it
+      if (this.activeQuery()?.id === id) {
+        this.activeQuery.set(null);
+      }
+      this.deleteConfirmId.set(null);
       this.loadSavedQueries();
     } catch (error: any) {
       this.notifications.error(error.message || 'Failed to delete query');
+      this.deleteConfirmId.set(null);
     }
+  }
+
+  async deleteSavedQuery(id: string) {
+    // Deprecated - use requestDelete/confirmDeleteQuery flow instead
+    this.requestDelete(id);
   }
 
   loadHistoryItem(item: { sql: string; timestamp: Date; rowCount: number }) {
