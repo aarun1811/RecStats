@@ -54,6 +54,30 @@ interface Chart {
               </button>
             </div>
           </div>
+          <div class="sort-dropdown" (clickOutside)="showSortDropdown.set(false)">
+            <button class="sort-btn" (click)="showSortDropdown.set(!showSortDropdown())">
+              <app-icon name="arrow-up" [size]="14"></app-icon>
+              {{ getSortLabel() }}
+              <app-icon name="chevron-down" [size]="14" [class.rotated]="showSortDropdown()"></app-icon>
+            </button>
+            <div class="sort-menu" *ngIf="showSortDropdown()">
+              <button class="sort-option" [class.active]="sortBy() === 'newest'" (click)="setSort('newest')">
+                Newest First
+              </button>
+              <button class="sort-option" [class.active]="sortBy() === 'oldest'" (click)="setSort('oldest')">
+                Oldest First
+              </button>
+              <button class="sort-option" [class.active]="sortBy() === 'name-asc'" (click)="setSort('name-asc')">
+                Name (A-Z)
+              </button>
+              <button class="sort-option" [class.active]="sortBy() === 'name-desc'" (click)="setSort('name-desc')">
+                Name (Z-A)
+              </button>
+              <button class="sort-option" [class.active]="sortBy() === 'type'" (click)="setSort('type')">
+                Type
+              </button>
+            </div>
+          </div>
           <div class="view-toggle">
             <button
               class="toggle-btn"
@@ -87,22 +111,28 @@ interface Chart {
         <div class="chart-card-grid" *ngFor="let chart of filteredCharts()" (click)="editChart(chart)">
           <div class="card-content">
             <div class="card-header">
-              <span class="chart-type-badge">{{ getChartTypeLabel(chart.chart_type) }}</span>
+              <span class="chart-type-badge" [class]="'category-' + getChartCategory(chart.chart_type)">
+                {{ getChartTypeLabel(chart.chart_type) }}
+              </span>
               <div class="card-actions" (click)="$event.stopPropagation()">
                 <button class="action-btn" (click)="editChart(chart)" title="Edit">
-                  <app-icon name="settings" [size]="14"></app-icon>
+                  <app-icon name="edit" [size]="14"></app-icon>
                 </button>
                 <button class="action-btn danger" (click)="confirmDelete(chart)" title="Delete">
                   <app-icon name="trash" [size]="14"></app-icon>
                 </button>
               </div>
             </div>
-            <h3 class="chart-name">{{ chart.name }}</h3>
-            <p class="chart-description" *ngIf="chart.description">{{ chart.description }}</p>
-            <p class="chart-date">Created {{ formatDate(chart.created_at) }}</p>
-          </div>
-          <div class="card-icon">
-            <app-icon [name]="getChartIcon(chart.chart_type)" [size]="40"></app-icon>
+            <div class="card-body">
+              <div class="card-info">
+                <h3 class="chart-name">{{ chart.name }}</h3>
+                <p class="chart-description" *ngIf="chart.description">{{ chart.description }}</p>
+                <p class="chart-date">Created {{ formatDate(chart.created_at) }}</p>
+              </div>
+              <div class="card-icon-wrapper">
+                <app-icon [name]="getChartIcon(chart.chart_type)" [size]="28"></app-icon>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -371,6 +401,79 @@ interface Chart {
       }
     }
 
+    // Sort dropdown
+    .sort-dropdown {
+      position: relative;
+    }
+
+    .sort-btn {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-2);
+      padding: var(--spacing-2) var(--spacing-3);
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      color: var(--text-secondary);
+      font-size: var(--font-size-sm);
+      cursor: pointer;
+      transition: all 0.2s ease;
+
+      &:hover {
+        border-color: var(--color-primary);
+        color: var(--text-primary);
+      }
+
+      app-icon.rotated {
+        transform: rotate(180deg);
+      }
+
+      app-icon {
+        transition: transform 0.2s ease;
+      }
+    }
+
+    .sort-menu {
+      position: absolute;
+      top: calc(100% + 4px);
+      right: 0;
+      min-width: 140px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(var(--glass-blur));
+      -webkit-backdrop-filter: blur(var(--glass-blur));
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-lg);
+      z-index: 100;
+      overflow: hidden;
+      animation: dropdownOpen 0.2s ease-out;
+    }
+
+    .sort-option {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-2);
+      width: 100%;
+      padding: var(--spacing-2) var(--spacing-3);
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-size: var(--font-size-sm);
+      text-align: left;
+      cursor: pointer;
+      transition: all 0.15s ease;
+
+      &:hover {
+        background: rgba(var(--color-primary-rgb), 0.1);
+        color: var(--text-primary);
+      }
+
+      &.active {
+        background: rgba(var(--color-primary-rgb), 0.15);
+        color: var(--color-primary-light);
+      }
+    }
+
     .filter-option {
       display: flex;
       align-items: center;
@@ -456,26 +559,58 @@ interface Chart {
       to { transform: rotate(360deg); }
     }
 
-    /* Grid View - Staggered Animation */
+    /* Grid View - Premium Cards */
     .charts-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: var(--spacing-4);
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: var(--spacing-5);
     }
 
     .chart-card-grid {
       position: relative;
       display: flex;
       flex-direction: column;
-      min-height: 160px;
-      padding: var(--spacing-4);
-      background: var(--bg-secondary);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-lg);
+      min-height: 180px;
+      padding: var(--spacing-5);
+      background: var(--glass-bg);
+      backdrop-filter: blur(var(--glass-blur));
+      -webkit-backdrop-filter: blur(var(--glass-blur));
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-xl);
       cursor: pointer;
-      transition: all 0.25s ease;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       opacity: 0;
       animation: fadeInStagger 300ms ease-out forwards;
+      overflow: hidden;
+
+      // Top highlight gradient
+      &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(90deg,
+          transparent,
+          rgba(255, 255, 255, 0.1) 20%,
+          rgba(255, 255, 255, 0.15) 50%,
+          rgba(255, 255, 255, 0.1) 80%,
+          transparent
+        );
+      }
+
+      // Subtle inner glow
+      &::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 80px;
+        background: radial-gradient(ellipse at 50% 0%, rgba(var(--color-primary-rgb), 0.03) 0%, transparent 70%);
+        pointer-events: none;
+      }
 
       @for $i from 1 through 20 {
         &:nth-child(#{$i}) {
@@ -484,18 +619,30 @@ interface Chart {
       }
 
       &:hover {
-        border-color: rgba(var(--color-primary-rgb), 0.5);
-        box-shadow: var(--shadow-glow-md), var(--shadow-lg);
-        transform: translateY(-4px);
+        border-color: rgba(var(--color-primary-rgb), 0.4);
+        box-shadow:
+          0 8px 32px rgba(0, 0, 0, 0.3),
+          0 0 0 1px rgba(var(--color-primary-rgb), 0.1),
+          inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        transform: translateY(-6px);
+
+        &::after {
+          background: radial-gradient(ellipse at 50% 0%, rgba(var(--color-primary-rgb), 0.08) 0%, transparent 70%);
+        }
 
         .card-actions {
           opacity: 1;
           transform: translateX(0);
         }
-        .card-icon {
-          opacity: 1;
-          box-shadow: var(--shadow-glow-md);
+
+        .card-icon-wrapper {
           transform: scale(1.05);
+          box-shadow: var(--shadow-glow-md);
+        }
+
+        .chart-type-badge {
+          border-color: rgba(var(--accent-color), 0.4);
+          box-shadow: 0 0 12px rgba(var(--accent-color), 0.2);
         }
       }
     }
@@ -503,7 +650,7 @@ interface Chart {
     @keyframes fadeInStagger {
       from {
         opacity: 0;
-        transform: translateY(12px);
+        transform: translateY(16px);
       }
       to {
         opacity: 1;
@@ -515,38 +662,37 @@ interface Chart {
       flex: 1;
       display: flex;
       flex-direction: column;
+      position: relative;
+      z-index: 1;
     }
 
     .card-header {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      margin-bottom: var(--spacing-3);
+      margin-bottom: var(--spacing-4);
     }
 
     .chart-type-badge {
-      display: inline-block;
-      padding: var(--spacing-1) var(--spacing-2);
-      background: var(--bg-tertiary);
-      border-radius: var(--radius-sm);
-      font-size: var(--font-size-xs);
-      color: var(--text-secondary);
+      --accent-color: var(--color-primary-rgb);
+      display: inline-flex;
+      align-items: center;
+      gap: var(--spacing-1);
+      padding: var(--spacing-1) var(--spacing-3);
+      background: rgba(var(--accent-color), 0.1);
+      border: 1px solid rgba(var(--accent-color), 0.2);
+      border-radius: var(--radius-full);
+      font-size: 10px;
+      font-weight: 600;
+      color: rgb(var(--accent-color));
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      transition: all 0.2s ease;
-      border: 1px solid transparent;
+      transition: all 0.25s ease;
 
-      // Category-based colors on hover
-      &[data-category="basic"] { --badge-color: var(--color-primary-rgb); }
-      &[data-category="advanced"] { --badge-color: 155, 89, 182; }
-      &[data-category="kpi"] { --badge-color: var(--color-success-rgb); }
-    }
-
-    .chart-card-grid:hover .chart-type-badge {
-      background: rgba(var(--color-primary-rgb), 0.15);
-      color: var(--color-primary-light);
-      border-color: rgba(var(--color-primary-rgb), 0.2);
-      box-shadow: 0 0 10px rgba(var(--color-primary-rgb), 0.2);
+      // Category-based accent colors
+      &.category-basic { --accent-color: var(--color-primary-rgb); }
+      &.category-advanced { --accent-color: 168, 85, 247; }
+      &.category-kpi { --accent-color: var(--color-success-rgb); }
     }
 
     .card-actions {
@@ -561,26 +707,42 @@ interface Chart {
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 28px;
-      height: 28px;
+      width: 30px;
+      height: 30px;
       border: none;
-      background: var(--bg-tertiary);
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
       color: var(--text-secondary);
-      border-radius: var(--radius-sm);
+      border-radius: var(--radius-md);
       cursor: pointer;
       transition: all 0.2s ease;
 
       &:hover {
         background: var(--color-primary);
+        border-color: var(--color-primary);
         color: white;
-        box-shadow: 0 0 12px rgba(var(--color-primary-rgb), 0.5);
-        transform: scale(1.05);
+        box-shadow: 0 0 16px rgba(var(--color-primary-rgb), 0.5);
+        transform: scale(1.1);
       }
 
       &.danger:hover {
         background: var(--color-danger);
-        box-shadow: 0 0 12px rgba(var(--color-danger-rgb), 0.5);
+        border-color: var(--color-danger);
+        box-shadow: 0 0 16px rgba(var(--color-danger-rgb), 0.5);
       }
+    }
+
+    .card-body {
+      flex: 1;
+      display: flex;
+      gap: var(--spacing-4);
+    }
+
+    .card-info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
     }
 
     .chart-name {
@@ -597,32 +759,39 @@ interface Chart {
     }
 
     .chart-description {
-      margin: 0 0 var(--spacing-2) 0;
+      margin: 0 0 var(--spacing-3) 0;
       font-size: var(--font-size-sm);
-      color: var(--text-secondary);
-      line-height: 1.4;
+      color: var(--text-muted);
+      line-height: 1.5;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
     }
 
     .chart-date {
       margin: auto 0 0 0;
       font-size: var(--font-size-xs);
       color: var(--text-muted);
+      opacity: 0.7;
     }
 
-    .card-icon {
-      position: absolute;
-      bottom: var(--spacing-4);
-      right: var(--spacing-4);
-      width: 56px;
-      height: 56px;
+    .card-icon-wrapper {
+      width: 64px;
+      height: 64px;
+      flex-shrink: 0;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: var(--bg-tertiary);
-      border-radius: var(--radius-md);
-      color: var(--color-primary);
-      opacity: 0.5;
-      transition: all 0.25s ease;
+      background: linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.15) 0%, rgba(var(--color-primary-rgb), 0.05) 100%);
+      border: 1px solid rgba(var(--color-primary-rgb), 0.2);
+      border-radius: var(--radius-lg);
+      color: var(--color-primary-light);
+      transition: all 0.3s ease;
+
+      app-icon {
+        filter: drop-shadow(0 2px 4px rgba(var(--color-primary-rgb), 0.3));
+      }
     }
 
     /* List View - Slide in animation */
@@ -817,18 +986,22 @@ export class ChartListComponent implements OnInit {
   loading = signal(true);
   viewMode = signal<'grid' | 'list'>('grid');
 
-  // Search and filter
+  // Search, filter, and sort
   searchQuery = signal('');
   filterType = signal<string | null>(null);
   showFilterDropdown = signal(false);
+  sortBy = signal<'newest' | 'oldest' | 'name-asc' | 'name-desc' | 'type'>('newest');
+  showSortDropdown = signal(false);
 
   chartTypes = ['bar', 'column', 'line', 'area', 'scatter', 'pie', 'donut', 'heatmap', 'treemap', 'funnel', 'radar', 'gauge', 'radialBar', 'kpiCard'];
 
   filteredCharts = computed(() => {
-    let result = this.charts();
+    let result = [...this.charts()];
     const query = this.searchQuery().toLowerCase().trim();
     const type = this.filterType();
+    const sort = this.sortBy();
 
+    // Filter by search query
     if (query) {
       result = result.filter(c =>
         c.name.toLowerCase().includes(query) ||
@@ -836,8 +1009,28 @@ export class ChartListComponent implements OnInit {
       );
     }
 
+    // Filter by type
     if (type) {
       result = result.filter(c => c.chart_type === type);
+    }
+
+    // Sort
+    switch (sort) {
+      case 'newest':
+        result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        break;
+      case 'oldest':
+        result.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        break;
+      case 'name-asc':
+        result.sort((a, b) => a.name.localeCompare(b.name));
+        break;
+      case 'name-desc':
+        result.sort((a, b) => b.name.localeCompare(a.name));
+        break;
+      case 'type':
+        result.sort((a, b) => a.chart_type.localeCompare(b.chart_type));
+        break;
     }
 
     return result;
@@ -880,6 +1073,22 @@ export class ChartListComponent implements OnInit {
     this.showFilterDropdown.set(false);
   }
 
+  setSort(sort: 'newest' | 'oldest' | 'name-asc' | 'name-desc' | 'type') {
+    this.sortBy.set(sort);
+    this.showSortDropdown.set(false);
+  }
+
+  getSortLabel(): string {
+    const labels: Record<string, string> = {
+      'newest': 'Newest',
+      'oldest': 'Oldest',
+      'name-asc': 'A-Z',
+      'name-desc': 'Z-A',
+      'type': 'Type'
+    };
+    return labels[this.sortBy()];
+  }
+
   clearFilters() {
     this.searchQuery.set('');
     this.filterType.set(null);
@@ -916,6 +1125,31 @@ export class ChartListComponent implements OnInit {
         this.deleting.set(false);
       }
     });
+  }
+
+  getChartCategory(type: string): string {
+    const categories: Record<string, string> = {
+      'bar': 'basic',
+      'column': 'basic',
+      'line': 'basic',
+      'area': 'basic',
+      'pie': 'basic',
+      'donut': 'basic',
+      'scatter': 'basic',
+      'heatmap': 'advanced',
+      'treemap': 'advanced',
+      'funnel': 'advanced',
+      'radar': 'advanced',
+      'gauge': 'kpi',
+      'radialBar': 'kpi',
+      'kpiCard': 'kpi',
+      'worldMap': 'advanced',
+      'sankey': 'advanced',
+      'histogram': 'advanced',
+      'bubble': 'basic',
+      'waterfall': 'advanced'
+    };
+    return categories[type] || 'basic';
   }
 
   getChartIcon(type: string): string {
