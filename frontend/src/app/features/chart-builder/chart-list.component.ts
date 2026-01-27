@@ -1119,9 +1119,13 @@ interface Chart {
       }
 
       .modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
         background: rgba(0, 0, 0, 0.2);
         border-top: 1px solid var(--glass-border);
         gap: var(--spacing-3);
+        padding: var(--spacing-4);
       }
     }
 
