@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, inject } from '@angular/core';
+import { Component, OnInit, signal, inject, computed } from '@angular/core';
 import { Router } from '@angular/router';
 import { ApiService } from '../../core/services/api.service';
 import { NotificationService } from '../../core/services/notification.service';
@@ -19,10 +19,41 @@ interface Chart {
     <div class="chart-list-page">
       <div class="page-header">
         <div class="header-left">
-          <h1>Charts</h1>
-          <span class="chart-count">{{ charts().length }} charts</span>
+          <h1>Chart Library</h1>
+          <span class="chart-count">{{ filteredCharts().length }} charts</span>
         </div>
         <div class="header-right">
+          <div class="search-box">
+            <app-icon name="search" [size]="16"></app-icon>
+            <input
+              type="text"
+              placeholder="Search charts..."
+              [ngModel]="searchQuery()"
+              (ngModelChange)="searchQuery.set($event)">
+            <button class="clear-search" *ngIf="searchQuery()" (click)="searchQuery.set('')">
+              <app-icon name="x" [size]="14"></app-icon>
+            </button>
+          </div>
+          <div class="filter-dropdown" (clickOutside)="showFilterDropdown.set(false)">
+            <button class="filter-btn" [class.active]="filterType()" (click)="showFilterDropdown.set(!showFilterDropdown())">
+              <app-icon name="filter" [size]="16"></app-icon>
+              {{ filterType() ? getChartTypeLabel(filterType()!) : 'All Types' }}
+              <app-icon name="chevron-down" [size]="14" [class.rotated]="showFilterDropdown()"></app-icon>
+            </button>
+            <div class="filter-menu" *ngIf="showFilterDropdown()">
+              <button class="filter-option" [class.active]="!filterType()" (click)="setFilter(null)">
+                All Types
+              </button>
+              <button
+                *ngFor="let type of chartTypes"
+                class="filter-option"
+                [class.active]="filterType() === type"
+                (click)="setFilter(type)">
+                <app-icon [name]="getChartIcon(type)" [size]="14"></app-icon>
+                {{ getChartTypeLabel(type) }}
+              </button>
+            </div>
+          </div>
           <div class="view-toggle">
             <button
               class="toggle-btn"
@@ -53,7 +84,7 @@ interface Chart {
 
       <!-- Grid View -->
       <div class="charts-grid" *ngIf="!loading() && viewMode() === 'grid'">
-        <div class="chart-card-grid" *ngFor="let chart of charts()" (click)="editChart(chart)">
+        <div class="chart-card-grid" *ngFor="let chart of filteredCharts()" (click)="editChart(chart)">
           <div class="card-content">
             <div class="card-header">
               <span class="chart-type-badge">{{ getChartTypeLabel(chart.chart_type) }}</span>
@@ -75,13 +106,21 @@ interface Chart {
           </div>
         </div>
 
-        <div class="empty-state" *ngIf="charts().length === 0">
+        <div class="empty-state" *ngIf="filteredCharts().length === 0 && charts().length === 0">
           <app-icon name="bar-chart-2" [size]="48"></app-icon>
           <h3>No charts yet</h3>
           <p>Create your first chart to visualize your data</p>
           <app-button variant="primary" (click)="createNew()">
             <app-icon name="plus" [size]="16"></app-icon>
             Create Chart
+          </app-button>
+        </div>
+        <div class="empty-state" *ngIf="filteredCharts().length === 0 && charts().length > 0">
+          <app-icon name="search" [size]="48"></app-icon>
+          <h3>No matching charts</h3>
+          <p>Try adjusting your search or filter</p>
+          <app-button variant="secondary" (click)="clearFilters()">
+            Clear Filters
           </app-button>
         </div>
       </div>
@@ -94,7 +133,7 @@ interface Chart {
           <span class="col-date">Created</span>
           <span class="col-actions">Actions</span>
         </div>
-        <div class="list-row" *ngFor="let chart of charts()" (click)="editChart(chart)">
+        <div class="list-row" *ngFor="let chart of filteredCharts()" (click)="editChart(chart)">
           <span class="col-name">
             <app-icon [name]="getChartIcon(chart.chart_type)" [size]="18"></app-icon>
             {{ chart.name }}
@@ -113,13 +152,21 @@ interface Chart {
           </span>
         </div>
 
-        <div class="empty-state" *ngIf="charts().length === 0">
+        <div class="empty-state" *ngIf="filteredCharts().length === 0 && charts().length === 0">
           <app-icon name="bar-chart-2" [size]="48"></app-icon>
           <h3>No charts yet</h3>
           <p>Create your first chart to visualize your data</p>
           <app-button variant="primary" (click)="createNew()">
             <app-icon name="plus" [size]="16"></app-icon>
             Create Chart
+          </app-button>
+        </div>
+        <div class="empty-state" *ngIf="filteredCharts().length === 0 && charts().length > 0">
+          <app-icon name="search" [size]="48"></app-icon>
+          <h3>No matching charts</h3>
+          <p>Try adjusting your search or filter</p>
+          <app-button variant="secondary" (click)="clearFilters()">
+            Clear Filters
           </app-button>
         </div>
       </div>
@@ -198,7 +245,159 @@ interface Chart {
     .header-right {
       display: flex;
       align-items: center;
-      gap: var(--spacing-4);
+      gap: var(--spacing-3);
+    }
+
+    .search-box {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-2);
+      padding: var(--spacing-2) var(--spacing-3);
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      transition: all 0.2s ease;
+      min-width: 200px;
+
+      &:focus-within {
+        border-color: var(--color-primary);
+        box-shadow: var(--shadow-glow-sm);
+      }
+
+      app-icon {
+        color: var(--text-muted);
+        flex-shrink: 0;
+      }
+
+      &:focus-within app-icon {
+        color: var(--color-primary);
+      }
+
+      input {
+        flex: 1;
+        background: transparent;
+        border: none;
+        outline: none;
+        color: var(--text-primary);
+        font-size: var(--font-size-sm);
+
+        &::placeholder {
+          color: var(--text-muted);
+        }
+      }
+
+      .clear-search {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+        padding: 0;
+        background: var(--bg-tertiary);
+        border: none;
+        border-radius: 50%;
+        color: var(--text-muted);
+        cursor: pointer;
+        transition: all 0.15s ease;
+
+        &:hover {
+          background: var(--color-primary);
+          color: white;
+        }
+      }
+    }
+
+    .filter-dropdown {
+      position: relative;
+    }
+
+    .filter-btn {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-2);
+      padding: var(--spacing-2) var(--spacing-3);
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      color: var(--text-secondary);
+      font-size: var(--font-size-sm);
+      cursor: pointer;
+      transition: all 0.2s ease;
+
+      &:hover {
+        border-color: var(--color-primary);
+        color: var(--text-primary);
+      }
+
+      &.active {
+        border-color: var(--color-primary);
+        background: rgba(var(--color-primary-rgb), 0.1);
+        color: var(--color-primary-light);
+      }
+
+      app-icon.rotated {
+        transform: rotate(180deg);
+      }
+
+      app-icon {
+        transition: transform 0.2s ease;
+      }
+    }
+
+    .filter-menu {
+      position: absolute;
+      top: calc(100% + 4px);
+      right: 0;
+      min-width: 160px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(var(--glass-blur));
+      -webkit-backdrop-filter: blur(var(--glass-blur));
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-lg);
+      z-index: 100;
+      overflow: hidden;
+      animation: dropdownOpen 0.2s ease-out;
+
+      @keyframes dropdownOpen {
+        from {
+          opacity: 0;
+          transform: translateY(-8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+    }
+
+    .filter-option {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-2);
+      width: 100%;
+      padding: var(--spacing-2) var(--spacing-3);
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-size: var(--font-size-sm);
+      text-align: left;
+      cursor: pointer;
+      transition: all 0.15s ease;
+
+      &:hover {
+        background: rgba(var(--color-primary-rgb), 0.1);
+        color: var(--text-primary);
+      }
+
+      &.active {
+        background: rgba(var(--color-primary-rgb), 0.15);
+        color: var(--color-primary-light);
+      }
+
+      app-icon {
+        opacity: 0.7;
+      }
     }
 
     .view-toggle {
@@ -618,6 +817,32 @@ export class ChartListComponent implements OnInit {
   loading = signal(true);
   viewMode = signal<'grid' | 'list'>('grid');
 
+  // Search and filter
+  searchQuery = signal('');
+  filterType = signal<string | null>(null);
+  showFilterDropdown = signal(false);
+
+  chartTypes = ['line', 'bar', 'area', 'pie', 'donut', 'scatter', 'gauge', 'radar', 'heatmap', 'funnel', 'treemap', 'kpi'];
+
+  filteredCharts = computed(() => {
+    let result = this.charts();
+    const query = this.searchQuery().toLowerCase().trim();
+    const type = this.filterType();
+
+    if (query) {
+      result = result.filter(c =>
+        c.name.toLowerCase().includes(query) ||
+        c.description?.toLowerCase().includes(query)
+      );
+    }
+
+    if (type) {
+      result = result.filter(c => c.chart_type === type);
+    }
+
+    return result;
+  });
+
   // Delete confirmation state
   showDeleteModal = signal(false);
   chartToDelete = signal<Chart | null>(null);
@@ -648,6 +873,16 @@ export class ChartListComponent implements OnInit {
 
   createNew() {
     this.router.navigate(['/charts/new']);
+  }
+
+  setFilter(type: string | null) {
+    this.filterType.set(type);
+    this.showFilterDropdown.set(false);
+  }
+
+  clearFilters() {
+    this.searchQuery.set('');
+    this.filterType.set(null);
   }
 
   editChart(chart: Chart) {
