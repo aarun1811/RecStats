@@ -47,7 +47,7 @@ import { DashboardWidget } from './dashboard-builder.component';
       flex-direction: column;
       height: 100%;
       background: var(--bg-secondary);
-      border-radius: var(--radius-lg);
+      border-radius: var(--radius-xl);
       overflow: hidden;
     }
 

@@ -158,8 +158,26 @@ interface DashboardResponse {
 
     .dashboard-content {
       flex: 1;
-      overflow: auto;
+      overflow-y: auto;
+      overflow-x: hidden;
       padding: var(--spacing-4);
+      padding-right: var(--spacing-5);
+      min-height: 0; /* Important for flex child to respect parent height */
+
+      // Dark scrollbar styling
+      &::-webkit-scrollbar {
+        width: 6px;
+      }
+      &::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      &::-webkit-scrollbar-thumb {
+        background: var(--border-color);
+        border-radius: 3px;
+        &:hover {
+          background: var(--text-muted);
+        }
+      }
     }
 
     .empty-state {
@@ -237,7 +255,7 @@ export class DashboardBuilderComponent implements OnInit {
     margin: 16,
     outerMargin: true,
     outerMarginTop: 0,
-    outerMarginRight: 0,
+    outerMarginRight: 12,
     outerMarginBottom: 0,
     outerMarginLeft: 0
   };
@@ -248,6 +266,7 @@ export class DashboardBuilderComponent implements OnInit {
     if (this.dashboardId && this.dashboardId !== 'new') {
       this.loadDashboard(this.dashboardId);
       this.editMode.set(false);  // Start in view mode for existing dashboards
+      this.updateGridOptions();  // Sync grid options with view mode
     } else {
       // New dashboard - start empty in edit mode
       this.dashboardId = null;
@@ -282,6 +301,10 @@ export class DashboardBuilderComponent implements OnInit {
 
   toggleEditMode() {
     this.editMode.update(v => !v);
+    this.updateGridOptions();
+  }
+
+  private updateGridOptions() {
     this.gridOptions = {
       ...this.gridOptions,
       draggable: { ...this.gridOptions.draggable!, enabled: this.editMode() },

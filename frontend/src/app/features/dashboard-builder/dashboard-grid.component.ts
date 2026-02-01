@@ -22,16 +22,31 @@ import { DashboardWidget } from './dashboard-builder.component';
     styles: [`
     :host {
       display: block;
-      min-height: 100%;
+      height: 100%;
     }
 
     .dashboard-gridster {
       background: var(--bg-primary);
-      min-height: 100%;
+      height: 100%;
+
+      // Dark scrollbar styling
+      &::-webkit-scrollbar {
+        width: 6px;
+      }
+      &::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      &::-webkit-scrollbar-thumb {
+        background: var(--border-color);
+        border-radius: 3px;
+        &:hover {
+          background: var(--text-muted);
+        }
+      }
     }
 
     ::ng-deep .gridster-item {
-      border-radius: var(--radius-lg);
+      border-radius: var(--radius-xl);
       overflow: hidden;
       transition: box-shadow 0.2s ease;
 
@@ -53,7 +68,7 @@ import { DashboardWidget } from './dashboard-builder.component';
     ::ng-deep .gridster-preview {
       background: rgba(var(--color-primary-rgb), 0.2) !important;
       border: 2px dashed var(--color-primary) !important;
-      border-radius: var(--radius-lg) !important;
+      border-radius: var(--radius-xl) !important;
     }
 
     .widget-item {

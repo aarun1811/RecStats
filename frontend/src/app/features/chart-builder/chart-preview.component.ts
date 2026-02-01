@@ -195,16 +195,16 @@ export class ChartPreviewComponent implements OnInit, OnChanges, OnDestroy {
   ngOnDestroy() {
     // Dispose ECharts instance to prevent memory leaks
     if (this.chartInstance) {
-      this.chartInstance.dispose();
+      try {
+        this.chartInstance.dispose();
+      } catch (e) {
+        // Ignore disposal errors
+      }
       this.chartInstance = null;
     }
   }
 
   onChartInit(chart: any) {
-    // Dispose old instance if exists
-    if (this.chartInstance) {
-      this.chartInstance.dispose();
-    }
     this.chartInstance = chart;
   }
 
