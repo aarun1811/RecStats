@@ -22,12 +22,12 @@ import { DashboardWidget } from './dashboard-builder.component';
     styles: [`
     :host {
       display: block;
-      height: 100%;
+      min-height: 100%;
     }
 
     .dashboard-gridster {
       background: var(--bg-primary);
-      height: 100%;
+      min-height: 100%;
     }
 
     ::ng-deep .gridster-item {

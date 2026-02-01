@@ -215,7 +215,7 @@ export class DashboardBuilderComponent implements OnInit {
 
   // Gridster options
   gridOptions: GridsterConfig = {
-    gridType: GridType.Fit,
+    gridType: GridType.ScrollVertical,  // Allow vertical scrolling
     displayGrid: DisplayGrid.OnDragAndResize,
     compactType: CompactType.None,
     pushItems: true,
@@ -230,7 +230,8 @@ export class DashboardBuilderComponent implements OnInit {
     minCols: 12,
     maxCols: 12,
     minRows: 8,
-    maxRows: 100,
+    maxRows: 1000,  // Effectively unlimited
+    fixedRowHeight: 80,  // Fixed row height for scroll mode
     defaultItemCols: 4,
     defaultItemRows: 3,
     margin: 16,
