@@ -14,8 +14,8 @@ interface Chart {
 }
 
 @Component({
-  selector: 'app-chart-list',
-  template: `
+    selector: 'app-chart-list',
+    template: `
     <div class="chart-list-page">
       <div class="page-header">
         <div class="header-left">
@@ -231,7 +231,7 @@ interface Chart {
       </div>
     </app-modal>
   `,
-  styles: [`
+    styles: [`
     .chart-list-page {
       padding: var(--spacing-6);
       max-width: 1400px;
@@ -1193,7 +1193,8 @@ interface Chart {
         border-radius: var(--radius-md);
       }
     }
-  `]
+  `],
+    standalone: false
 })
 export class ChartListComponent implements OnInit {
   charts = signal<Chart[]>([]);

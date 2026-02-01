@@ -1,8 +1,8 @@
 import { Component, Input, Output, EventEmitter, OnInit, OnDestroy } from '@angular/core';
 
 @Component({
-  selector: 'app-modal',
-  template: `
+    selector: 'app-modal',
+    template: `
     <div *ngIf="isOpen" class="modal-overlay" (click)="onOverlayClick($event)">
       <div [class]="modalClasses" [@modalAnimation]>
         <div class="modal-header" *ngIf="title || showClose">
@@ -23,7 +23,7 @@ import { Component, Input, Output, EventEmitter, OnInit, OnDestroy } from '@angu
       </div>
     </div>
   `,
-  styles: [`
+    styles: [`
     .modal-overlay {
       position: fixed;
       inset: 0;
@@ -161,7 +161,8 @@ import { Component, Input, Output, EventEmitter, OnInit, OnDestroy } from '@angu
         transform: scale(1);
       }
     }
-  `]
+  `],
+    standalone: false
 })
 export class ModalComponent implements OnInit, OnDestroy {
   @Input() isOpen = false;

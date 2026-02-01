@@ -9,8 +9,8 @@ interface TableSchema {
 }
 
 @Component({
-  selector: 'app-sql-editor',
-  template: `
+    selector: 'app-sql-editor',
+    template: `
     <ngx-monaco-editor
       class="sql-monaco-editor"
       [options]="editorOptions"
@@ -19,7 +19,7 @@ interface TableSchema {
       (onInit)="onEditorInit($event)">
     </ngx-monaco-editor>
   `,
-  styles: [`
+    styles: [`
     :host {
       display: block;
       height: 100%;
@@ -66,13 +66,14 @@ interface TableSchema {
       }
     }
   `],
-  providers: [
-    {
-      provide: NG_VALUE_ACCESSOR,
-      useExisting: forwardRef(() => SqlEditorComponent),
-      multi: true
-    }
-  ]
+    providers: [
+        {
+            provide: NG_VALUE_ACCESSOR,
+            useExisting: forwardRef(() => SqlEditorComponent),
+            multi: true
+        }
+    ],
+    standalone: false
 })
 export class SqlEditorComponent implements OnInit, OnChanges, ControlValueAccessor {
   @Input() sql = '';

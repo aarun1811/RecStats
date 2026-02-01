@@ -1,8 +1,8 @@
 import { Component, Input } from '@angular/core';
 
 @Component({
-  selector: 'app-loading-spinner',
-  template: `
+    selector: 'app-loading-spinner',
+    template: `
     <div [class]="containerClasses">
       <div [class]="spinnerClasses">
         <div class="spinner-ring"></div>
@@ -13,7 +13,7 @@ import { Component, Input } from '@angular/core';
       <span *ngIf="text" class="spinner-text">{{ text }}</span>
     </div>
   `,
-  styles: [`
+    styles: [`
     :host {
       display: block;
     }
@@ -161,7 +161,8 @@ import { Component, Input } from '@angular/core';
         opacity: 1;
       }
     }
-  `]
+  `],
+    standalone: false
 })
 export class LoadingSpinnerComponent {
   @Input() size: 'sm' | 'md' | 'lg' = 'md';

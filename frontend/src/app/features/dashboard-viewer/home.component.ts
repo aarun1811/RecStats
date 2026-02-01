@@ -24,8 +24,8 @@ interface KPISummaryResponse {
 }
 
 @Component({
-  selector: 'app-home',
-  template: `
+    selector: 'app-home',
+    template: `
     <div class="home-page">
       <header class="page-header">
         <div class="header-content">
@@ -168,7 +168,7 @@ interface KPISummaryResponse {
       </section>
     </div>
   `,
-  styles: [`
+    styles: [`
     .home-page {
       max-width: var(--content-max-width);
       margin: 0 auto;
@@ -402,7 +402,8 @@ interface KPISummaryResponse {
         text-align: center;
       }
     }
-  `]
+  `],
+    standalone: false
 })
 export class HomeComponent implements OnInit {
   private router = inject(Router);

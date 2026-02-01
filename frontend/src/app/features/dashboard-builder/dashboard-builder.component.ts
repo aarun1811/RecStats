@@ -28,8 +28,8 @@ interface DashboardResponse {
 }
 
 @Component({
-  selector: 'app-dashboard-builder',
-  template: `
+    selector: 'app-dashboard-builder',
+    template: `
     <div class="dashboard-builder">
       <!-- Toolbar -->
       <div class="toolbar">
@@ -100,7 +100,7 @@ interface DashboardResponse {
       </app-add-widget-modal>
     </div>
   `,
-  styles: [`
+    styles: [`
     .dashboard-builder {
       display: flex;
       flex-direction: column;
@@ -210,7 +210,8 @@ interface DashboardResponse {
         color: var(--text-primary);
       }
     }
-  `]
+  `],
+    standalone: false
 })
 export class DashboardBuilderComponent implements OnInit {
   private route = inject(ActivatedRoute);

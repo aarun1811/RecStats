@@ -3,8 +3,8 @@ import { Component, Input } from '@angular/core';
 export type TrendDirection = 'up' | 'down' | 'neutral';
 
 @Component({
-  selector: 'app-kpi-card',
-  template: `
+    selector: 'app-kpi-card',
+    template: `
     <div [class]="cardClasses">
       <div class="kpi-header">
         <span class="kpi-label">{{ label }}</span>
@@ -35,7 +35,7 @@ export type TrendDirection = 'up' | 'down' | 'neutral';
       <div *ngIf="subtitle" class="kpi-subtitle">{{ subtitle }}</div>
     </div>
   `,
-  styles: [`
+    styles: [`
     :host {
       display: block;
     }
@@ -236,7 +236,8 @@ export type TrendDirection = 'up' | 'down' | 'neutral';
         transform: scale(1);
       }
     }
-  `]
+  `],
+    standalone: false
 })
 export class KpiCardComponent {
   @Input() label!: string;

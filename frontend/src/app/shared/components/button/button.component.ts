@@ -4,8 +4,8 @@ export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'succ
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
 @Component({
-  selector: 'app-button',
-  template: `
+    selector: 'app-button',
+    template: `
     <button
       [type]="type"
       [class]="buttonClasses"
@@ -17,7 +17,7 @@ export type ButtonSize = 'sm' | 'md' | 'lg';
       <span *ngIf="loading && loadingText">{{ loadingText }}</span>
     </button>
   `,
-  styles: [`
+    styles: [`
     :host {
       display: inline-block;
     }
@@ -175,7 +175,8 @@ export type ButtonSize = 'sm' | 'md' | 'lg';
         transform: rotate(360deg);
       }
     }
-  `]
+  `],
+    standalone: false
 })
 export class ButtonComponent {
   @Input() variant: ButtonVariant = 'primary';

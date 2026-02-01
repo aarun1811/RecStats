@@ -77,8 +77,8 @@ export const CHART_TYPES: ChartTypeOption[] = [
 type Step = 'data' | 'chart' | 'configure';
 
 @Component({
-  selector: 'app-chart-builder',
-  template: `
+    selector: 'app-chart-builder',
+    template: `
     <div class="chart-builder">
       <!-- Left Panel: Steps -->
       <aside class="config-panel">
@@ -375,7 +375,7 @@ type Step = 'data' | 'chart' | 'configure';
       </main>
     </div>
   `,
-  styles: [`
+    styles: [`
     .chart-builder {
       display: grid;
       grid-template-columns: 380px 1fr;
@@ -1504,7 +1504,8 @@ type Step = 'data' | 'chart' | 'configure';
         font-size: 12px;
       }
     }
-  `]
+  `],
+    standalone: false
 })
 export class ChartBuilderComponent implements OnInit {
   private notifications = inject(NotificationService);

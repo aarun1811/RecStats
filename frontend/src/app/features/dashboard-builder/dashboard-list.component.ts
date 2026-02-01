@@ -13,8 +13,8 @@ interface DashboardSummary {
 }
 
 @Component({
-  selector: 'app-dashboard-list',
-  template: `
+    selector: 'app-dashboard-list',
+    template: `
     <div class="dashboard-list-page">
       <div class="page-header">
         <div class="header-content">
@@ -93,7 +93,7 @@ interface DashboardSummary {
       </div>
     </div>
   `,
-  styles: [`
+    styles: [`
     .dashboard-list-page {
       padding: var(--spacing-6);
       max-width: 1400px;
@@ -277,7 +277,8 @@ interface DashboardSummary {
       margin: 0;
       max-width: 300px;
     }
-  `]
+  `],
+    standalone: false
 })
 export class DashboardListComponent implements OnInit {
   private router = inject(Router);

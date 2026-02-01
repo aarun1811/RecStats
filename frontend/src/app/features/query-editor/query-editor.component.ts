@@ -46,8 +46,8 @@ interface DataSource extends DataSourceResponse {
 }
 
 @Component({
-  selector: 'app-query-editor',
-  template: `
+    selector: 'app-query-editor',
+    template: `
     <div class="query-editor-page">
       <!-- Left Sidebar: Schema/Saved Tabs -->
       <aside class="schema-sidebar">
@@ -335,7 +335,7 @@ interface DataSource extends DataSourceResponse {
       </div>
     </div>
   `,
-  styles: [`
+    styles: [`
     .query-editor-page {
       display: grid;
       grid-template-columns: 280px 1fr;
@@ -1725,7 +1725,8 @@ interface DataSource extends DataSourceResponse {
       white-space: pre-wrap;
       word-break: break-all;
     }
-  `]
+  `],
+    standalone: false
 })
 export class QueryEditorComponent implements OnInit {
   private api = inject(ApiService);

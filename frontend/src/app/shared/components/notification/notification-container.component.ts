@@ -2,8 +2,8 @@ import { Component, inject } from '@angular/core';
 import { NotificationService, Notification } from '../../../core/services/notification.service';
 
 @Component({
-  selector: 'app-notification-container',
-  template: `
+    selector: 'app-notification-container',
+    template: `
     <div class="notification-container">
       <div
         *ngFor="let notification of notifications()"
@@ -52,7 +52,7 @@ import { NotificationService, Notification } from '../../../core/services/notifi
       </div>
     </div>
   `,
-  styles: [`
+    styles: [`
     .notification-container {
       position: fixed;
       top: var(--spacing-4);
@@ -170,7 +170,8 @@ import { NotificationService, Notification } from '../../../core/services/notifi
         transform: translateX(0);
       }
     }
-  `]
+  `],
+    standalone: false
 })
 export class NotificationContainerComponent {
   private notificationService = inject(NotificationService);
