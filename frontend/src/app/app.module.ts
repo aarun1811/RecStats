@@ -1,6 +1,6 @@
 import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
-import { HttpClientModule } from '@angular/common/http';
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import { MonacoEditorModule, NGX_MONACO_EDITOR_CONFIG } from 'ngx-monaco-editor-v2';
 import { NgxEchartsModule } from 'ngx-echarts';
 
@@ -16,7 +16,6 @@ import { MainLayoutComponent } from './layouts/main-layout/main-layout.component
   ],
   imports: [
     BrowserModule,
-    HttpClientModule,
     AppRoutingModule,
     SharedModule,
     MonacoEditorModule.forRoot(),
@@ -24,7 +23,7 @@ import { MainLayoutComponent } from './layouts/main-layout/main-layout.component
       echarts: () => import('echarts')
     }),
   ],
-  providers: [],
-  bootstrap: [AppComponent]
+  providers: [provideHttpClient(withInterceptorsFromDi())],
+  bootstrap: [AppComponent],
 })
 export class AppModule { }
