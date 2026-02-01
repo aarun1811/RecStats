@@ -1,4 +1,4 @@
-import { Component, Input, OnChanges, OnInit, SimpleChanges, inject, signal } from '@angular/core';
+import { Component, Input, OnChanges, OnInit, OnDestroy, SimpleChanges, inject, signal } from '@angular/core';
 import { EChartsOption } from 'echarts';
 import { getColorScheme, ChartConfig } from './chart-config';
 import { ApiService } from '../../core/services/api.service';
@@ -60,6 +60,7 @@ interface ChartDataResponse {
         echarts
         [options]="chartOptions"
         [merge]="updateOptions"
+        [autoResize]="true"
         class="chart-instance"
         (chartInit)="onChartInit($event)">
       </div>
@@ -72,8 +73,15 @@ interface ChartDataResponse {
     </div>
   `,
     styles: [`
+    :host {
+      display: block;
+      height: 100%;
+      width: 100%;
+    }
+
     .chart-preview {
       height: 100%;
+      width: 100%;
       position: relative;
       display: flex;
       flex-direction: column;
@@ -82,7 +90,7 @@ interface ChartDataResponse {
     .chart-instance {
       width: 100%;
       flex: 1;
-      min-height: 0;
+      min-height: 100px;
     }
 
     .chart-title {
@@ -120,7 +128,7 @@ interface ChartDataResponse {
   `],
     standalone: false
 })
-export class ChartPreviewComponent implements OnInit, OnChanges {
+export class ChartPreviewComponent implements OnInit, OnChanges, OnDestroy {
   private api = inject(ApiService);
 
   // Direct data input mode (for chart builder)
@@ -184,7 +192,19 @@ export class ChartPreviewComponent implements OnInit, OnChanges {
     });
   }
 
+  ngOnDestroy() {
+    // Dispose ECharts instance to prevent memory leaks
+    if (this.chartInstance) {
+      this.chartInstance.dispose();
+      this.chartInstance = null;
+    }
+  }
+
   onChartInit(chart: any) {
+    // Dispose old instance if exists
+    if (this.chartInstance) {
+      this.chartInstance.dispose();
+    }
     this.chartInstance = chart;
   }
 
