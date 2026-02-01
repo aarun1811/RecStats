@@ -5,8 +5,8 @@ import { NgxEchartsModule } from 'ngx-echarts';
 import { AgGridModule } from 'ag-grid-angular';
 
 import { ChartBuilderComponent } from './chart-builder.component';
-import { ChartPreviewComponent } from './chart-preview.component';
 import { ChartListComponent } from './chart-list.component';
+import { ChartPreviewModule } from './chart-preview.module';
 
 const routes: Routes = [
   { path: '', component: ChartListComponent },
@@ -17,14 +17,17 @@ const routes: Routes = [
 @NgModule({
   declarations: [
     ChartBuilderComponent,
-    ChartPreviewComponent,
     ChartListComponent
   ],
   imports: [
     SharedModule,
     RouterModule.forChild(routes),
     NgxEchartsModule.forChild(),
-    AgGridModule
+    AgGridModule,
+    ChartPreviewModule
+  ],
+  exports: [
+    ChartPreviewModule
   ]
 })
 export class ChartBuilderModule { }
