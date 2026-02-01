@@ -1,7 +1,6 @@
 import { Component, signal, computed, inject, OnInit, ViewChild, ElementRef, HostListener } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
-import { ColDef, GridOptions, GridReadyEvent, GridApi } from 'ag-grid-community';
-import 'ag-grid-enterprise';
+import { ColDef, GridOptions, GridReadyEvent, GridApi } from 'ag-grid-enterprise';
 import { NotificationService } from '../../core/services/notification.service';
 import { ApiService } from '../../core/services/api.service';
 

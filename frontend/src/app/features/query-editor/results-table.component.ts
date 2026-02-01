@@ -1,6 +1,5 @@
 import { Component, Input, OnChanges, SimpleChanges } from '@angular/core';
 import { ColDef, GridOptions } from 'ag-grid-enterprise';
-import 'ag-grid-enterprise';
 
 interface Column {
   name: string;
