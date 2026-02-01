@@ -1,4 +1,4 @@
-import { Component, Input, OnChanges, OnInit, OnDestroy, SimpleChanges, inject, signal } from '@angular/core';
+import { Component, Input, OnChanges, OnInit, OnDestroy, SimpleChanges, inject, signal, ElementRef, AfterViewInit } from '@angular/core';
 import { EChartsOption } from 'echarts';
 import { getColorScheme, ChartConfig } from './chart-config';
 import { ApiService } from '../../core/services/api.service';
@@ -128,8 +128,9 @@ interface ChartDataResponse {
   `],
     standalone: false
 })
-export class ChartPreviewComponent implements OnInit, OnChanges, OnDestroy {
+export class ChartPreviewComponent implements OnInit, OnChanges, OnDestroy, AfterViewInit {
   private api = inject(ApiService);
+  private elementRef = inject(ElementRef);
 
   // Direct data input mode (for chart builder)
   @Input() chartType: string = '';
@@ -148,18 +149,56 @@ export class ChartPreviewComponent implements OnInit, OnChanges, OnDestroy {
   chartOptions: EChartsOption = {};
   updateOptions: EChartsOption = {};
   private chartInstance: any;
+  private intersectionObserver?: IntersectionObserver;
+  private hasBeenVisible = false;
+  private dataLoaded = false;
 
   ngOnInit() {
-    // If chartId is provided, load chart data from API
-    if (this.chartId) {
-      this.loadChartData();
+    // For direct data mode (chart builder), load immediately
+    if (!this.chartId && this.chartType) {
+      this.updateChart();
     }
   }
 
+  ngAfterViewInit() {
+    // For chartId mode, use intersection observer to load when visible
+    if (this.chartId) {
+      this.setupIntersectionObserver();
+    }
+  }
+
+  private setupIntersectionObserver() {
+    // Create observer to detect when chart becomes visible
+    this.intersectionObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting && !this.hasBeenVisible) {
+            this.hasBeenVisible = true;
+            this.loadChartData();
+            // Disconnect after first visibility - we only need to trigger once
+            this.intersectionObserver?.disconnect();
+          }
+        });
+      },
+      {
+        root: null, // viewport
+        rootMargin: '100px', // Load slightly before visible
+        threshold: 0.1 // Trigger when 10% visible
+      }
+    );
+
+    this.intersectionObserver.observe(this.elementRef.nativeElement);
+  }
+
   ngOnChanges(changes: SimpleChanges) {
-    // If chartId changes, reload data
+    // If chartId changes, reset visibility tracking and reload
     if (changes['chartId'] && this.chartId) {
-      this.loadChartData();
+      this.hasBeenVisible = false;
+      this.dataLoaded = false;
+      // If already visible or no observer yet, load immediately
+      if (this.hasBeenVisible || !this.intersectionObserver) {
+        this.loadChartData();
+      }
       return;
     }
 
@@ -170,7 +209,7 @@ export class ChartPreviewComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   private loadChartData() {
-    if (!this.chartId) return;
+    if (!this.chartId || this.dataLoaded) return;
 
     this.loading.set(true);
     this.error.set(null);
@@ -181,6 +220,7 @@ export class ChartPreviewComponent implements OnInit, OnChanges, OnDestroy {
         this.chartTitle = response.chart.name;
         this.data = response.data || [];
         this.config = response.chart.config || {};
+        this.dataLoaded = true;
         this.loading.set(false);
         this.updateChart();
       },
@@ -193,6 +233,12 @@ export class ChartPreviewComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   ngOnDestroy() {
+    // Clean up intersection observer
+    if (this.intersectionObserver) {
+      this.intersectionObserver.disconnect();
+      this.intersectionObserver = undefined;
+    }
+
     // Dispose ECharts instance to prevent memory leaks
     if (this.chartInstance) {
       try {
