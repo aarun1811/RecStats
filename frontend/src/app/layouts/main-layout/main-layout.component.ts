@@ -12,8 +12,8 @@ interface NavItem {
 }
 
 @Component({
-  selector: 'app-main-layout',
-  template: `
+    selector: 'app-main-layout',
+    template: `
     <div class="layout" [class.sidebar-collapsed]="sidebarCollapsed">
       <!-- Sidebar -->
       <aside class="sidebar">
@@ -112,7 +112,7 @@ interface NavItem {
     <!-- Notification Container -->
     <app-notification-container></app-notification-container>
   `,
-  styles: [`
+    styles: [`
     .layout {
       display: flex;
       min-height: 100vh;
@@ -627,7 +627,8 @@ interface NavItem {
         padding: var(--spacing-4);
       }
     }
-  `]
+  `],
+    standalone: false
 })
 export class MainLayoutComponent implements OnInit, OnDestroy {
   private themeService = inject(ThemeService);

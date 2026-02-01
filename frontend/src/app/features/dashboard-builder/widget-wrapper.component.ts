@@ -11,8 +11,8 @@ export interface CrossFilter {
 }
 
 @Component({
-  selector: 'app-widget-wrapper',
-  template: `
+    selector: 'app-widget-wrapper',
+    template: `
     <div class="widget-wrapper">
       <!-- Widget Header -->
       <div class="widget-header" [class.drag-handle]="editMode">
@@ -87,7 +87,7 @@ export interface CrossFilter {
       </div>
     </div>
   `,
-  styles: [`
+    styles: [`
     .widget-wrapper {
       display: flex;
       flex-direction: column;
@@ -303,7 +303,8 @@ export interface CrossFilter {
       background: var(--bg-tertiary);
       flex-shrink: 0;
     }
-  `]
+  `],
+    standalone: false
 })
 export class WidgetWrapperComponent implements OnInit, OnChanges {
   private api = inject(ApiService);

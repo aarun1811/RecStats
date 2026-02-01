@@ -2,8 +2,8 @@ import { Component, inject } from '@angular/core';
 import { Router } from '@angular/router';
 
 @Component({
-  selector: 'app-placeholder',
-  template: `
+    selector: 'app-placeholder',
+    template: `
     <div class="placeholder-page">
       <div class="placeholder-content">
         <div class="icon-container">
@@ -29,7 +29,7 @@ import { Router } from '@angular/router';
       </div>
     </div>
   `,
-  styles: [`
+    styles: [`
     .placeholder-page {
       display: flex;
       align-items: center;
@@ -120,7 +120,8 @@ import { Router } from '@angular/router';
         transform: translateY(-1px);
       }
     }
-  `]
+  `],
+    standalone: false
 })
 export class PlaceholderComponent {
   private router = inject(Router);

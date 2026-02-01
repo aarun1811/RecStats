@@ -2,8 +2,8 @@ import { Component, Input, Output, EventEmitter, forwardRef } from '@angular/cor
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 
 @Component({
-  selector: 'app-input',
-  template: `
+    selector: 'app-input',
+    template: `
     <div [class]="inputWrapperClasses">
       <label *ngIf="label" [class]="labelClasses" [for]="inputId">
         {{ label }}
@@ -39,7 +39,7 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
       <p *ngIf="error" class="input-error">{{ error }}</p>
     </div>
   `,
-  styles: [`
+    styles: [`
     :host {
       display: block;
     }
@@ -193,13 +193,14 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
       box-shadow: var(--glow-primary), 0 0 0 3px rgba(var(--color-primary-rgb), 0.1);
     }
   `],
-  providers: [
-    {
-      provide: NG_VALUE_ACCESSOR,
-      useExisting: forwardRef(() => InputComponent),
-      multi: true
-    }
-  ]
+    providers: [
+        {
+            provide: NG_VALUE_ACCESSOR,
+            useExisting: forwardRef(() => InputComponent),
+            multi: true
+        }
+    ],
+    standalone: false
 })
 export class InputComponent implements ControlValueAccessor {
   @Input() label?: string;

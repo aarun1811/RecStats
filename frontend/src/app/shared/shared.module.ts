@@ -1,7 +1,7 @@
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { HttpClientModule } from '@angular/common/http';
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 
 // Components
 import { ButtonComponent } from './components/button/button.component';
@@ -30,16 +30,15 @@ const COMPONENTS = [
     CommonModule,
     FormsModule,
     ReactiveFormsModule,
-    HttpClientModule,
   ],
   exports: [
     // Modules
     CommonModule,
     FormsModule,
     ReactiveFormsModule,
-    HttpClientModule,
     // Components
     ...COMPONENTS,
-  ]
+  ],
+  providers: [provideHttpClient(withInterceptorsFromDi())],
 })
 export class SharedModule { }

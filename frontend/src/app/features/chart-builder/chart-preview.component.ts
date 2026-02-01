@@ -22,8 +22,8 @@ import {
 } from './chart-options';
 
 @Component({
-  selector: 'app-chart-preview',
-  template: `
+    selector: 'app-chart-preview',
+    template: `
     <div class="chart-preview">
       <div
         echarts
@@ -38,7 +38,7 @@ import {
       </div>
     </div>
   `,
-  styles: [`
+    styles: [`
     .chart-preview {
       height: 100%;
       position: relative;
@@ -64,7 +64,8 @@ import {
         font-size: var(--font-size-sm);
       }
     }
-  `]
+  `],
+    standalone: false
 })
 export class ChartPreviewComponent implements OnChanges {
   @Input() chartType: string = '';

@@ -1,8 +1,8 @@
 import { Component, Input } from '@angular/core';
 
 @Component({
-  selector: 'app-card',
-  template: `
+    selector: 'app-card',
+    template: `
     <div [class]="cardClasses" [style.padding]="noPadding ? '0' : null">
       <div *ngIf="title || subtitle" class="card-header">
         <div class="card-title-section">
@@ -21,7 +21,7 @@ import { Component, Input } from '@angular/core';
       </div>
     </div>
   `,
-  styles: [`
+    styles: [`
     :host {
       display: block;
     }
@@ -132,7 +132,8 @@ import { Component, Input } from '@angular/core';
         box-shadow: var(--shadow-xl), var(--glow-primary);
       }
     }
-  `]
+  `],
+    standalone: false
 })
 export class CardComponent {
   @Input() title?: string;

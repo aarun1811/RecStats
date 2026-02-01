@@ -114,8 +114,8 @@ const ICONS: Record<string, string> = {
 };
 
 @Component({
-  selector: 'app-icon',
-  template: `
+    selector: 'app-icon',
+    template: `
     <svg
       [attr.width]="size"
       [attr.height]="size"
@@ -130,7 +130,7 @@ const ICONS: Record<string, string> = {
     >
     </svg>
   `,
-  styles: [`
+    styles: [`
     :host {
       display: inline-flex;
       align-items: center;
@@ -153,7 +153,8 @@ const ICONS: Record<string, string> = {
         transform: rotate(360deg);
       }
     }
-  `]
+  `],
+    standalone: false
 })
 export class IconComponent {
   @Input() name!: string;

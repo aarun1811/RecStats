@@ -1,6 +1,5 @@
 import { Component, Input, OnChanges, SimpleChanges } from '@angular/core';
 import { ColDef, GridOptions } from 'ag-grid-enterprise';
-import 'ag-grid-enterprise';
 
 interface Column {
   name: string;
@@ -8,8 +7,8 @@ interface Column {
 }
 
 @Component({
-  selector: 'app-results-table',
-  template: `
+    selector: 'app-results-table',
+    template: `
     <ag-grid-angular
       class="ag-theme-alpine-dark results-grid"
       [rowData]="data"
@@ -18,7 +17,7 @@ interface Column {
       [defaultColDef]="defaultColDef">
     </ag-grid-angular>
   `,
-  styles: [`
+    styles: [`
     :host {
       display: block;
       height: 100%;
@@ -77,7 +76,8 @@ interface Column {
         border-top: 1px solid var(--border-color);
       }
     }
-  `]
+  `],
+    standalone: false
 })
 export class ResultsTableComponent implements OnChanges {
   @Input() columns: Column[] = [];

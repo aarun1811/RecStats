@@ -1,7 +1,6 @@
 import { Component, signal, computed, inject, OnInit, ViewChild, ElementRef, HostListener } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
-import { ColDef, GridOptions, GridReadyEvent, GridApi } from 'ag-grid-community';
-import 'ag-grid-enterprise';
+import { ColDef, GridOptions, GridReadyEvent, GridApi } from 'ag-grid-enterprise';
 import { NotificationService } from '../../core/services/notification.service';
 import { ApiService } from '../../core/services/api.service';
 
@@ -77,8 +76,8 @@ export const CHART_TYPES: ChartTypeOption[] = [
 type Step = 'data' | 'chart' | 'configure';
 
 @Component({
-  selector: 'app-chart-builder',
-  template: `
+    selector: 'app-chart-builder',
+    template: `
     <div class="chart-builder">
       <!-- Left Panel: Steps -->
       <aside class="config-panel">
@@ -375,7 +374,7 @@ type Step = 'data' | 'chart' | 'configure';
       </main>
     </div>
   `,
-  styles: [`
+    styles: [`
     .chart-builder {
       display: grid;
       grid-template-columns: 380px 1fr;
@@ -1504,7 +1503,8 @@ type Step = 'data' | 'chart' | 'configure';
         font-size: 12px;
       }
     }
-  `]
+  `],
+    standalone: false
 })
 export class ChartBuilderComponent implements OnInit {
   private notifications = inject(NotificationService);

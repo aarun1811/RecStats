@@ -4,8 +4,8 @@ import { DashboardWidget } from './dashboard-builder.component';
 import { CrossFilter } from './widget-wrapper.component';
 
 @Component({
-  selector: 'app-dashboard-grid',
-  template: `
+    selector: 'app-dashboard-grid',
+    template: `
     <gridster [options]="options" class="dashboard-gridster">
       <gridster-item
         *ngFor="let widget of widgets"
@@ -22,7 +22,7 @@ import { CrossFilter } from './widget-wrapper.component';
       </gridster-item>
     </gridster>
   `,
-  styles: [`
+    styles: [`
     :host {
       display: block;
       height: 100%;
@@ -63,7 +63,8 @@ import { CrossFilter } from './widget-wrapper.component';
       background: var(--bg-secondary);
       border: 1px solid var(--border-color);
     }
-  `]
+  `],
+    standalone: false
 })
 export class DashboardGridComponent {
   @Input() widgets: DashboardWidget[] = [];

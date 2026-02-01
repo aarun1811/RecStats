@@ -175,8 +175,8 @@ const WIDGET_TYPES: WidgetType[] = [
 ];
 
 @Component({
-  selector: 'app-add-widget-modal',
-  template: `
+    selector: 'app-add-widget-modal',
+    template: `
     <div class="modal-overlay" (click)="onClose()">
       <div class="modal-container" (click)="$event.stopPropagation()">
         <div class="modal-header">
@@ -280,7 +280,7 @@ const WIDGET_TYPES: WidgetType[] = [
       </div>
     </div>
   `,
-  styles: [`
+    styles: [`
     .modal-overlay {
       position: fixed;
       inset: 0;
@@ -560,7 +560,8 @@ const WIDGET_TYPES: WidgetType[] = [
       padding: var(--spacing-4) var(--spacing-5);
       border-top: 1px solid var(--border-color);
     }
-  `]
+  `],
+    standalone: false
 })
 export class AddWidgetModalComponent {
   @Output() close = new EventEmitter<void>();

@@ -7,8 +7,8 @@ interface TableSchema {
 }
 
 @Component({
-  selector: 'app-schema-explorer',
-  template: `
+    selector: 'app-schema-explorer',
+    template: `
     <div class="schema-explorer">
       <div *ngIf="tables.length === 0" class="empty-state">
         <app-icon name="database" [size]="32"></app-icon>
@@ -55,7 +55,7 @@ interface TableSchema {
       </div>
     </div>
   `,
-  styles: [`
+    styles: [`
     .schema-explorer {
       flex: 1;
       overflow-y: auto;
@@ -186,7 +186,8 @@ interface TableSchema {
       color: var(--color-warning);
       margin-left: auto;
     }
-  `]
+  `],
+    standalone: false
 })
 export class SchemaExplorerComponent {
   @Input() tables: TableSchema[] = [];

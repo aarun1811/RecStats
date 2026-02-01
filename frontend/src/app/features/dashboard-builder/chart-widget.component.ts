@@ -19,8 +19,8 @@ interface QueryResult {
 }
 
 @Component({
-  selector: 'app-chart-widget',
-  template: `
+    selector: 'app-chart-widget',
+    template: `
     <div class="chart-widget">
       <div class="loading-overlay" *ngIf="loading">
         <div class="spinner"></div>
@@ -34,7 +34,7 @@ interface QueryResult {
       </div>
     </div>
   `,
-  styles: [`
+    styles: [`
     .chart-widget {
       height: 100%;
       width: 100%;
@@ -68,7 +68,8 @@ interface QueryResult {
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
-  `]
+  `],
+    standalone: false
 })
 export class ChartWidgetComponent implements OnInit, OnChanges {
   private api = inject(ApiService);

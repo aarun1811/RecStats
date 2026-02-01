@@ -10,8 +10,8 @@ export interface DashboardFilter {
 }
 
 @Component({
-  selector: 'app-filter-bar',
-  template: `
+    selector: 'app-filter-bar',
+    template: `
     <div class="filter-bar">
       <div class="filter-items">
         <!-- Date Range Filter -->
@@ -111,7 +111,7 @@ export interface DashboardFilter {
       </div>
     </div>
   `,
-  styles: [`
+    styles: [`
     .filter-bar {
       display: flex;
       align-items: flex-end;
@@ -226,7 +226,8 @@ export interface DashboardFilter {
         }
       }
     }
-  `]
+  `],
+    standalone: false
 })
 export class FilterBarComponent {
   @Input() filters: DashboardFilter[] = [];
