@@ -1,7 +1,6 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { GridsterConfig } from 'angular-gridster2';
 import { DashboardWidget } from './dashboard-builder.component';
-import { CrossFilter } from './widget-wrapper.component';
 
 @Component({
     selector: 'app-dashboard-grid',
@@ -14,10 +13,8 @@ import { CrossFilter } from './widget-wrapper.component';
         <app-widget-wrapper
           [widget]="widget"
           [editMode]="editMode"
-          [filters]="filters"
           (remove)="onRemove(widget.id)"
-          (edit)="onEdit(widget)"
-          (filterApply)="onFilterApply($event)">
+          (edit)="onEdit(widget)">
         </app-widget-wrapper>
       </gridster-item>
     </gridster>
@@ -31,10 +28,25 @@ import { CrossFilter } from './widget-wrapper.component';
     .dashboard-gridster {
       background: var(--bg-primary);
       height: 100%;
+
+      // Dark scrollbar styling
+      &::-webkit-scrollbar {
+        width: 6px;
+      }
+      &::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      &::-webkit-scrollbar-thumb {
+        background: var(--border-color);
+        border-radius: 3px;
+        &:hover {
+          background: var(--text-muted);
+        }
+      }
     }
 
     ::ng-deep .gridster-item {
-      border-radius: var(--radius-lg);
+      border-radius: var(--radius-xl);
       overflow: hidden;
       transition: box-shadow 0.2s ease;
 
@@ -56,7 +68,7 @@ import { CrossFilter } from './widget-wrapper.component';
     ::ng-deep .gridster-preview {
       background: rgba(var(--color-primary-rgb), 0.2) !important;
       border: 2px dashed var(--color-primary) !important;
-      border-radius: var(--radius-lg) !important;
+      border-radius: var(--radius-xl) !important;
     }
 
     .widget-item {
@@ -70,11 +82,9 @@ export class DashboardGridComponent {
   @Input() widgets: DashboardWidget[] = [];
   @Input() options: GridsterConfig = {};
   @Input() editMode = true;
-  @Input() filters: CrossFilter[] = [];
   @Output() widgetRemove = new EventEmitter<string>();
   @Output() widgetEdit = new EventEmitter<DashboardWidget>();
   @Output() layoutChange = new EventEmitter<DashboardWidget[]>();
-  @Output() filterApply = new EventEmitter<CrossFilter>();
 
   onRemove(widgetId: string) {
     this.widgetRemove.emit(widgetId);
@@ -82,9 +92,5 @@ export class DashboardGridComponent {
 
   onEdit(widget: DashboardWidget) {
     this.widgetEdit.emit(widget);
-  }
-
-  onFilterApply(filter: CrossFilter) {
-    this.filterApply.emit(filter);
   }
 }

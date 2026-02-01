@@ -160,15 +160,20 @@ def dashboard_to_response(dashboard: Dashboard) -> DashboardResponse:
         for dc in dashboard.dashboard_charts
     ]
 
+    # Parse layout and count widgets
+    layout = json.loads(dashboard.layout) if dashboard.layout else {}
+    widget_count = len(layout.get("widgets", []))
+
     return DashboardResponse(
         id=dashboard.id,
         name=dashboard.name,
         description=dashboard.description,
-        layout=json.loads(dashboard.layout) if dashboard.layout else {},
+        layout=layout,
         filters=json.loads(dashboard.filters) if dashboard.filters else None,
         created_at=dashboard.created_at,
         updated_at=dashboard.updated_at,
         charts=charts,
+        widget_count=widget_count,
     )
 
 
@@ -189,15 +194,19 @@ async def create_dashboard(
     await db.commit()
     await db.refresh(dashboard)
 
+    layout = json.loads(dashboard.layout)
+    widget_count = len(layout.get("widgets", []))
+
     return DashboardResponse(
         id=dashboard.id,
         name=dashboard.name,
         description=dashboard.description,
-        layout=json.loads(dashboard.layout),
+        layout=layout,
         filters=json.loads(dashboard.filters) if dashboard.filters else None,
         created_at=dashboard.created_at,
         updated_at=dashboard.updated_at,
         charts=[],
+        widget_count=widget_count,
     )
 
 

@@ -1,6 +1,7 @@
-import { Component, Input, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Input, OnChanges, OnInit, OnDestroy, SimpleChanges, inject, signal, ElementRef, AfterViewInit } from '@angular/core';
 import { EChartsOption } from 'echarts';
 import { getColorScheme, ChartConfig } from './chart-config';
+import { ApiService } from '../../core/services/api.service';
 import {
   ChartContext,
   getBarChartOptions,
@@ -21,64 +22,231 @@ import {
   getWorldMapChartOptions
 } from './chart-options';
 
+interface ChartDataResponse {
+  chart: {
+    id: string;
+    name: string;
+    chart_type: string;
+    config: any;
+  };
+  data: any[];
+  columns: string[];
+}
+
 @Component({
     selector: 'app-chart-preview',
     template: `
     <div class="chart-preview">
+      <!-- Loading State -->
+      <div class="chart-loading" *ngIf="loading()">
+        <app-icon name="loader" [size]="24"></app-icon>
+        <span>Loading chart...</span>
+      </div>
+
+      <!-- Error State -->
+      <div class="chart-error" *ngIf="error()">
+        <app-icon name="alert-circle" [size]="24"></app-icon>
+        <span>{{ error() }}</span>
+      </div>
+
+      <!-- Chart Title (optional) -->
+      <div class="chart-title" *ngIf="showTitle && chartTitle && !loading() && !error()">
+        {{ chartTitle }}
+      </div>
+
+      <!-- Chart Instance -->
       <div
+        *ngIf="!loading() && !error() && chartType"
         echarts
         [options]="chartOptions"
         [merge]="updateOptions"
+        [autoResize]="true"
         class="chart-instance"
         (chartInit)="onChartInit($event)">
       </div>
-      <div class="chart-empty" *ngIf="!chartType">
+
+      <!-- Empty State -->
+      <div class="chart-empty" *ngIf="!loading() && !error() && !chartType">
         <app-icon name="chart-bar" [size]="48"></app-icon>
         <p>Select a chart type to preview</p>
       </div>
     </div>
   `,
     styles: [`
+    :host {
+      display: block;
+      height: 100%;
+      width: 100%;
+    }
+
     .chart-preview {
       height: 100%;
+      width: 100%;
       position: relative;
+      display: flex;
+      flex-direction: column;
     }
 
     .chart-instance {
       width: 100%;
-      height: 100%;
+      flex: 1;
+      min-height: 100px;
     }
 
-    .chart-empty {
+    .chart-title {
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-semibold);
+      color: var(--text-primary);
+      padding: var(--spacing-3) var(--spacing-3) 0;
+      flex-shrink: 0;
+    }
+
+    .chart-empty, .chart-loading, .chart-error {
       position: absolute;
       inset: 0;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: var(--spacing-3);
+      gap: var(--spacing-2);
       color: var(--text-muted);
+      font-size: var(--font-size-sm);
+    }
 
-      p {
-        margin: 0;
-        font-size: var(--font-size-sm);
-      }
+    .chart-loading app-icon {
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .chart-error {
+      color: var(--color-danger);
     }
   `],
     standalone: false
 })
-export class ChartPreviewComponent implements OnChanges {
+export class ChartPreviewComponent implements OnInit, OnChanges, OnDestroy, AfterViewInit {
+  private api = inject(ApiService);
+  private elementRef = inject(ElementRef);
+
+  // Direct data input mode (for chart builder)
   @Input() chartType: string = '';
   @Input() data: any[] = [];
   @Input() config: ChartConfig = {};
 
+  // Chart ID input mode (for dashboard widgets)
+  @Input() chartId?: string;
+  @Input() showTitle: boolean = true;
+
+  // State
+  loading = signal(false);
+  error = signal<string | null>(null);
+  chartTitle: string = '';
+
   chartOptions: EChartsOption = {};
   updateOptions: EChartsOption = {};
   private chartInstance: any;
+  private intersectionObserver?: IntersectionObserver;
+  private hasBeenVisible = false;
+  private dataLoaded = false;
+
+  ngOnInit() {
+    // For direct data mode (chart builder), load immediately
+    if (!this.chartId && this.chartType) {
+      this.updateChart();
+    }
+  }
+
+  ngAfterViewInit() {
+    // For chartId mode, use intersection observer to load when visible
+    if (this.chartId) {
+      this.setupIntersectionObserver();
+    }
+  }
+
+  private setupIntersectionObserver() {
+    // Create observer to detect when chart becomes visible
+    this.intersectionObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting && !this.hasBeenVisible) {
+            this.hasBeenVisible = true;
+            this.loadChartData();
+            // Disconnect after first visibility - we only need to trigger once
+            this.intersectionObserver?.disconnect();
+          }
+        });
+      },
+      {
+        root: null, // viewport
+        rootMargin: '100px', // Load slightly before visible
+        threshold: 0.1 // Trigger when 10% visible
+      }
+    );
+
+    this.intersectionObserver.observe(this.elementRef.nativeElement);
+  }
 
   ngOnChanges(changes: SimpleChanges) {
+    // If chartId changes, reset visibility tracking and reload
+    if (changes['chartId'] && this.chartId) {
+      this.hasBeenVisible = false;
+      this.dataLoaded = false;
+      // If already visible or no observer yet, load immediately
+      if (this.hasBeenVisible || !this.intersectionObserver) {
+        this.loadChartData();
+      }
+      return;
+    }
+
+    // If direct data/config changes, update chart
     if (changes['chartType'] || changes['data'] || changes['config']) {
       this.updateChart();
+    }
+  }
+
+  private loadChartData() {
+    if (!this.chartId || this.dataLoaded) return;
+
+    this.loading.set(true);
+    this.error.set(null);
+
+    this.api.get<ChartDataResponse>(`/charts/${this.chartId}/data/direct`).subscribe({
+      next: (response) => {
+        this.chartType = response.chart.chart_type;
+        this.chartTitle = response.chart.name;
+        this.data = response.data || [];
+        this.config = response.chart.config || {};
+        this.dataLoaded = true;
+        this.loading.set(false);
+        this.updateChart();
+      },
+      error: (err) => {
+        console.error('Failed to load chart data:', err);
+        this.error.set(err?.error?.detail || 'Failed to load chart');
+        this.loading.set(false);
+      }
+    });
+  }
+
+  ngOnDestroy() {
+    // Clean up intersection observer
+    if (this.intersectionObserver) {
+      this.intersectionObserver.disconnect();
+      this.intersectionObserver = undefined;
+    }
+
+    // Dispose ECharts instance to prevent memory leaks
+    if (this.chartInstance) {
+      try {
+        this.chartInstance.dispose();
+      } catch (e) {
+        // Ignore disposal errors
+      }
+      this.chartInstance = null;
     }
   }
 

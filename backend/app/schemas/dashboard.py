@@ -81,6 +81,7 @@ class DashboardResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     charts: list[DashboardChartResponse] = []
+    widget_count: int = 0
 
     class Config:
         from_attributes = True

@@ -2,15 +2,17 @@ import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 import { SharedModule } from '../../shared/shared.module';
 import { GridsterModule } from 'angular-gridster2';
-import { NgxEchartsModule } from 'ngx-echarts';
+import { AgGridModule } from 'ag-grid-angular';
 
 import { DashboardListComponent } from './dashboard-list.component';
 import { DashboardBuilderComponent } from './dashboard-builder.component';
 import { DashboardGridComponent } from './dashboard-grid.component';
 import { WidgetWrapperComponent } from './widget-wrapper.component';
-import { ChartWidgetComponent } from './chart-widget.component';
-import { FilterBarComponent } from './filter-bar.component';
-import { AddWidgetModalComponent } from './add-widget-modal.component';
+import { ChartPickerPanelComponent } from './chart-picker-panel.component';
+import { TableWidgetComponent } from './table-widget.component';
+
+// Import ChartPreviewModule (not ChartBuilderModule to avoid route conflicts)
+import { ChartPreviewModule } from '../chart-builder/chart-preview.module';
 
 const routes: Routes = [
   { path: '', component: DashboardListComponent },
@@ -24,15 +26,15 @@ const routes: Routes = [
     DashboardBuilderComponent,
     DashboardGridComponent,
     WidgetWrapperComponent,
-    ChartWidgetComponent,
-    FilterBarComponent,
-    AddWidgetModalComponent
+    ChartPickerPanelComponent,
+    TableWidgetComponent
   ],
   imports: [
     SharedModule,
     RouterModule.forChild(routes),
     GridsterModule,
-    NgxEchartsModule
+    AgGridModule,
+    ChartPreviewModule
   ]
 })
 export class DashboardBuilderModule { }
