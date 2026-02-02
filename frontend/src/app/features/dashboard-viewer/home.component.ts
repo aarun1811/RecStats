@@ -86,7 +86,12 @@ interface Collection {
 
         <!-- Quick Actions -->
         <section class="section">
-          <h2 class="section-title">Quick Actions</h2>
+          <div class="section-header">
+            <h2 class="section-title">
+              <app-icon name="zap" [size]="20"></app-icon>
+              Quick Actions
+            </h2>
+          </div>
           <div class="action-cards">
             <app-card [hoverable]="true" [glow]="true" class="action-card" (click)="navigateTo('/datasources')">
               <div class="action-icon primary">
@@ -298,16 +303,23 @@ interface Collection {
       }
     }
 
-    // Add spacing after collapsible section
+    // =============================================
+    // SPACING SYSTEM - Consistent vertical rhythm
+    // =============================================
+    // All sections use the same spacing values:
+    // - Between sections: 40px (--spacing-10)
+    // - Section header to content: 20px (--spacing-5)
+
+    // Collapsible section wrapper
     :host ::ng-deep app-collapsible-section {
       display: block;
       margin-bottom: var(--spacing-10);
     }
 
-    // Section styling
+    // Section styling - consistent spacing with dividers
     .section {
-      margin-bottom: var(--spacing-12);
-      padding-top: var(--spacing-8);
+      margin-bottom: var(--spacing-10);
+      padding-top: var(--spacing-6);
       position: relative;
     }
 
@@ -322,25 +334,30 @@ interface Collection {
       background: linear-gradient(
         90deg,
         transparent 0%,
-        rgba(255, 255, 255, 0.06) 15%,
-        rgba(255, 255, 255, 0.08) 50%,
-        rgba(255, 255, 255, 0.06) 85%,
+        rgba(255, 255, 255, 0.08) 20%,
+        rgba(255, 255, 255, 0.08) 80%,
         transparent 100%
       );
+    }
+
+    // Last section has less bottom margin
+    .section:last-of-type,
+    .collections-section {
+      margin-bottom: var(--spacing-6);
     }
 
     .section-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: var(--spacing-6);
+      margin-bottom: var(--spacing-5);
     }
 
     .section-title {
       display: flex;
       align-items: center;
       gap: var(--spacing-3);
-      font-size: var(--font-size-xl);
+      font-size: var(--font-size-lg);
       font-weight: var(--font-weight-semibold);
       color: var(--text-primary);
       margin: 0;
@@ -348,7 +365,7 @@ interface Collection {
 
     .section-title app-icon {
       color: var(--color-primary);
-      opacity: 0.8;
+      opacity: 0.85;
     }
 
     // Items grid (for favorites and recent)

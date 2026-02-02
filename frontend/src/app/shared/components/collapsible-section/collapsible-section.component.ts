@@ -28,7 +28,7 @@ import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
   `,
   styles: [`
     .collapsible-section {
-      margin-bottom: var(--spacing-6);
+      position: relative;
     }
 
     .section-header {
@@ -36,39 +36,72 @@ import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: var(--spacing-3) var(--spacing-4);
-      background: var(--bg-secondary);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-lg);
+      padding: var(--spacing-4) var(--spacing-5);
+      background: linear-gradient(
+        135deg,
+        rgba(var(--color-primary-rgb), 0.08) 0%,
+        rgba(var(--color-primary-rgb), 0.03) 50%,
+        rgba(var(--color-primary-rgb), 0.06) 100%
+      );
+      border: 1px solid rgba(var(--color-primary-rgb), 0.15);
+      border-radius: var(--radius-xl);
       cursor: pointer;
       transition: all var(--transition-normal);
+      position: relative;
+      overflow: hidden;
+    }
+
+    // Subtle shimmer effect on the header
+    .section-header::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(var(--color-primary-rgb), 0.05),
+        transparent
+      );
+      transition: left 0.5s ease;
+    }
+
+    .section-header:hover::before {
+      left: 100%;
     }
 
     .section-header:hover {
-      background: var(--bg-tertiary);
       border-color: rgba(var(--color-primary-rgb), 0.3);
+      box-shadow: 0 0 20px rgba(var(--color-primary-rgb), 0.1),
+                  inset 0 1px 0 rgba(255, 255, 255, 0.05);
     }
 
     .collapsible-section:not(.collapsed) .section-header {
       border-bottom-left-radius: 0;
       border-bottom-right-radius: 0;
-      border-bottom-color: transparent;
+      border-bottom-color: rgba(var(--color-primary-rgb), 0.1);
     }
 
     .header-left {
       display: flex;
       align-items: center;
       gap: var(--spacing-3);
+      position: relative;
+      z-index: 1;
     }
 
     .section-icon {
       color: var(--color-primary);
+      filter: drop-shadow(0 0 4px rgba(var(--color-primary-rgb), 0.3));
     }
 
     .section-title {
       font-size: var(--font-size-base);
       font-weight: var(--font-weight-semibold);
       color: var(--text-primary);
+      letter-spacing: 0.01em;
     }
 
     .item-count {
@@ -81,22 +114,32 @@ import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
       display: flex;
       align-items: center;
       gap: var(--spacing-2);
+      position: relative;
+      z-index: 1;
     }
 
     .toggle-icon {
       color: var(--text-muted);
-      transition: transform var(--transition-normal);
+      transition: transform var(--transition-normal), color var(--transition-normal);
+    }
+
+    .section-header:hover .toggle-icon {
+      color: var(--color-primary);
     }
 
     .section-content {
-      background: var(--bg-secondary);
-      border: 1px solid var(--border-color);
+      background: linear-gradient(
+        180deg,
+        rgba(var(--color-primary-rgb), 0.04) 0%,
+        var(--bg-secondary) 100%
+      );
+      border: 1px solid rgba(var(--color-primary-rgb), 0.15);
       border-top: none;
-      border-bottom-left-radius: var(--radius-lg);
-      border-bottom-right-radius: var(--radius-lg);
+      border-bottom-left-radius: var(--radius-xl);
+      border-bottom-right-radius: var(--radius-xl);
       overflow: hidden;
       max-height: 1000px;
-      transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
+      transition: max-height 0.3s ease, opacity 0.3s ease;
     }
 
     .section-content.hidden {
@@ -106,10 +149,9 @@ import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
     }
 
     .content-inner {
-      padding: var(--spacing-4);
+      padding: var(--spacing-5);
     }
 
-    // Animation for smooth collapse
     .collapsible-section.collapsed .section-content {
       max-height: 0;
       padding: 0;
