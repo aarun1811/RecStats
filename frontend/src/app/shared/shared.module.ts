@@ -20,6 +20,7 @@ import { SearchBarComponent } from './components/search-bar/search-bar.component
 import { CollapsibleSectionComponent } from './components/collapsible-section/collapsible-section.component';
 import { ItemCardComponent } from './components/item-card/item-card.component';
 import { InteractionHintComponent } from './components/interaction-hint/interaction-hint.component';
+import { CrossFilterIndicatorComponent } from './components/cross-filter-indicator/cross-filter-indicator.component';
 
 const COMPONENTS = [
   ButtonComponent,
@@ -38,6 +39,7 @@ const COMPONENTS = [
   CollapsibleSectionComponent,
   ItemCardComponent,
   InteractionHintComponent,
+  CrossFilterIndicatorComponent,
 ];
 
 @NgModule({

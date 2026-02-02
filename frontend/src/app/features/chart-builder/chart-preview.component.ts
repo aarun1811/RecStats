@@ -1,7 +1,8 @@
-import { Component, Input, OnChanges, OnInit, OnDestroy, SimpleChanges, inject, signal, ElementRef, AfterViewInit } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnChanges, OnInit, OnDestroy, SimpleChanges, inject, signal, ElementRef, AfterViewInit } from '@angular/core';
 import { EChartsOption } from 'echarts';
 import { getColorScheme, ChartConfig } from './chart-config';
 import { ApiService } from '../../core/services/api.service';
+import { CrossFilterService, ChartClickEvent } from '../../core/services/cross-filter.service';
 import {
   ChartContext,
   getBarChartOptions,
@@ -131,6 +132,7 @@ interface ChartDataResponse {
 export class ChartPreviewComponent implements OnInit, OnChanges, OnDestroy, AfterViewInit {
   private api = inject(ApiService);
   private elementRef = inject(ElementRef);
+  private crossFilterService = inject(CrossFilterService);
 
   // Direct data input mode (for chart builder)
   @Input() chartType: string = '';
@@ -139,7 +141,16 @@ export class ChartPreviewComponent implements OnInit, OnChanges, OnDestroy, Afte
 
   // Chart ID input mode (for dashboard widgets)
   @Input() chartId?: string;
+  @Input() widgetId?: string;  // For cross-filtering identification
   @Input() showTitle: boolean = true;
+  @Input() enableCrossFilter: boolean = true;  // Enable/disable cross-filter clicks
+
+  // Cross-filter highlighting
+  @Input() crossFilterColumn?: string;  // Column being filtered
+  @Input() crossFilterValues?: unknown[];  // Values to highlight
+
+  // Events
+  @Output() chartClick = new EventEmitter<ChartClickEvent>();
 
   // State
   loading = signal(false);
@@ -206,6 +217,28 @@ export class ChartPreviewComponent implements OnInit, OnChanges, OnDestroy, Afte
     if (changes['chartType'] || changes['data'] || changes['config']) {
       this.updateChart();
     }
+
+    // If cross-filter highlighting changes, update visual emphasis
+    if (changes['crossFilterValues'] || changes['crossFilterColumn']) {
+      this.updateCrossFilterHighlight();
+    }
+  }
+
+  private updateCrossFilterHighlight() {
+    if (!this.chartInstance) return;
+
+    if (this.crossFilterValues && this.crossFilterValues.length > 0) {
+      // Apply highlight to selected values, dim others
+      this.chartInstance.dispatchAction({
+        type: 'highlight',
+        name: this.crossFilterValues.map(v => String(v)),
+      });
+    } else {
+      // Clear all highlights
+      this.chartInstance.dispatchAction({
+        type: 'downplay',
+      });
+    }
   }
 
   private loadChartData() {
@@ -252,6 +285,82 @@ export class ChartPreviewComponent implements OnInit, OnChanges, OnDestroy, Afte
 
   onChartInit(chart: any) {
     this.chartInstance = chart;
+    this.setupClickHandlers();
+  }
+
+  private setupClickHandlers() {
+    if (!this.chartInstance || !this.enableCrossFilter) return;
+
+    // Register click handler for cross-filtering
+    this.chartInstance.on('click', (params: any) => {
+      this.handleChartClick(params);
+    });
+
+    // Also handle clicks on specific series types
+    this.chartInstance.on('click', 'series', (params: any) => {
+      this.handleChartClick(params);
+    });
+  }
+
+  private handleChartClick(params: any) {
+    if (!this.widgetId || !this.chartId) return;
+
+    // Extract data point information based on chart type
+    const clickEvent: ChartClickEvent = {
+      widgetId: this.widgetId,
+      chartId: this.chartId,
+      chartName: this.chartTitle || 'Chart',
+      dataPoint: {
+        category: params.name,
+        series: params.seriesName,
+        value: params.value,
+        name: params.name,
+        data: this.extractDataPoint(params),
+      },
+      columnMapping: this.getColumnMapping(),
+    };
+
+    this.chartClick.emit(clickEvent);
+  }
+
+  private extractDataPoint(params: any): Record<string, unknown> {
+    const data: Record<string, unknown> = {};
+
+    // Try to get the original data row
+    if (params.data && typeof params.data === 'object') {
+      Object.assign(data, params.data);
+    }
+
+    // Add common fields
+    if (params.name) data['name'] = params.name;
+    if (params.seriesName) data['series'] = params.seriesName;
+
+    // For array values (like in scatter plots)
+    if (Array.isArray(params.value)) {
+      const xCol = this.config?.xAxis || 'x';
+      const yCol = this.config?.yAxis || 'y';
+      data[xCol] = params.value[0];
+      data[yCol] = params.value[1];
+    } else if (params.value !== undefined) {
+      const valueCol = this.config?.yAxis || 'value';
+      data[valueCol] = params.value;
+    }
+
+    // Add category column
+    if (params.name) {
+      const categoryCol = this.config?.xAxis || 'category';
+      data[categoryCol] = params.name;
+    }
+
+    return data;
+  }
+
+  private getColumnMapping(): ChartClickEvent['columnMapping'] {
+    return {
+      categoryColumn: this.config?.xAxis,
+      seriesColumn: this.config?.groupBy,
+      valueColumn: this.config?.yAxis,
+    };
   }
 
   private updateChart() {

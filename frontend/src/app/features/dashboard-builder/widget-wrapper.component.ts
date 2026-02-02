@@ -1,10 +1,23 @@
-import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { Component, Input, Output, EventEmitter, inject, computed, OnInit, OnDestroy } from '@angular/core';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { DashboardWidget } from './dashboard-builder.component';
+import { CrossFilterService, ChartClickEvent } from '../../core/services/cross-filter.service';
+import { IndicatorType } from '../../shared/components/cross-filter-indicator/cross-filter-indicator.component';
 
 @Component({
     selector: 'app-widget-wrapper',
     template: `
-    <div class="widget-wrapper">
+    <div class="widget-wrapper" [class.cross-filter-source]="isSource()" [class.cross-filter-filtered]="isFiltered()">
+      <!-- Cross-Filter Indicator -->
+      <app-cross-filter-indicator
+        [type]="indicatorType()"
+        [valueText]="crossFilterService.filterDisplayText()"
+        [sourceName]="crossFilterService.activeFilter()?.sourceChartName || ''"
+        [showClear]="isSource()"
+        (clear)="clearCrossFilter()">
+      </app-cross-filter-indicator>
+
       <!-- Widget Header -->
       <div class="widget-header" [class.drag-handle]="editMode">
         <h4 class="widget-title">{{ widget.title }}</h4>
@@ -24,7 +37,12 @@ import { DashboardWidget } from './dashboard-builder.component';
         <app-chart-preview
           *ngIf="widget.type === 'chart' && widget.chartId"
           [chartId]="widget.chartId"
-          [showTitle]="false">
+          [widgetId]="widget.id"
+          [showTitle]="false"
+          [enableCrossFilter]="enableCrossFilter"
+          [crossFilterColumn]="getCrossFilterColumn()"
+          [crossFilterValues]="getCrossFilterValues()"
+          (chartClick)="onChartClick($event)">
         </app-chart-preview>
 
         <!-- Table Widget (uses TableWidgetComponent) -->
@@ -80,6 +98,26 @@ import { DashboardWidget } from './dashboard-builder.component';
       border-radius: var(--radius-xl);
       overflow: hidden;
       animation: widgetFadeIn 300ms ease-out;
+      position: relative;
+      transition: box-shadow 0.3s ease, border-color 0.3s ease;
+      border: 2px solid transparent;
+    }
+
+    /* Cross-filter visual states */
+    .widget-wrapper.cross-filter-source {
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.15),
+                  var(--shadow-md);
+    }
+
+    .widget-wrapper.cross-filter-filtered {
+      border-color: var(--color-warning);
+      box-shadow: 0 0 0 2px rgba(var(--color-warning-rgb), 0.1);
+    }
+
+    .widget-wrapper.cross-filter-filtered .widget-content {
+      opacity: 0.85;
+      transition: opacity 0.3s ease;
     }
 
     .widget-header {
@@ -230,14 +268,44 @@ import { DashboardWidget } from './dashboard-builder.component';
   `],
     standalone: false
 })
-export class WidgetWrapperComponent {
+export class WidgetWrapperComponent implements OnInit, OnDestroy {
+  crossFilterService = inject(CrossFilterService);
+
   @Input() widget!: DashboardWidget;
   @Input() editMode = true;
+  @Input() enableCrossFilter = true;
+  @Input() widgetColumns: string[] = [];  // Columns available in this widget
   @Output() remove = new EventEmitter<void>();
+
+  private destroy$ = new Subject<void>();
 
   // Track refresh state for chart preview
   private refreshKey = 0;
   isRefreshing = false;
+
+  // Computed signals for cross-filter state
+  indicatorType = computed((): IndicatorType => {
+    if (this.isSource()) return 'source';
+    if (this.isFiltered()) return 'filtered';
+    return 'none';
+  });
+
+  ngOnInit() {
+    // Register widget columns for cross-filtering
+    if (this.widget && this.widgetColumns.length > 0) {
+      this.crossFilterService.registerWidget(this.widget.id, this.widgetColumns);
+    }
+  }
+
+  ngOnDestroy() {
+    this.destroy$.next();
+    this.destroy$.complete();
+
+    // Unregister widget
+    if (this.widget) {
+      this.crossFilterService.unregisterWidget(this.widget.id);
+    }
+  }
 
   hasValidData(): boolean {
     if (this.widget.type === 'chart') {
@@ -262,5 +330,49 @@ export class WidgetWrapperComponent {
     this.refreshKey++;
     // For now, the components will handle their own refresh
     // We could pass refreshKey as an input to force re-fetch
+  }
+
+  // =========================================================================
+  // Cross-Filter Methods
+  // =========================================================================
+
+  isSource(): boolean {
+    return this.crossFilterService.isSource(this.widget?.id);
+  }
+
+  isFiltered(): boolean {
+    return this.crossFilterService.isFiltered(this.widget?.id);
+  }
+
+  onChartClick(event: ChartClickEvent) {
+    if (!this.enableCrossFilter) return;
+
+    // Toggle value for multi-select behavior (Ctrl/Cmd + click)
+    // For now, single click replaces the filter
+    this.crossFilterService.applyFilter(event);
+  }
+
+  clearCrossFilter() {
+    this.crossFilterService.clearFilter();
+  }
+
+  getCrossFilterColumn(): string | undefined {
+    const filter = this.crossFilterService.activeFilter();
+    if (!filter) return undefined;
+    if (filter.sourceWidgetId === this.widget?.id) return filter.column;
+    if (this.isFiltered()) return filter.column;
+    return undefined;
+  }
+
+  getCrossFilterValues(): unknown[] | undefined {
+    const filter = this.crossFilterService.activeFilter();
+    if (!filter) return undefined;
+
+    // For source widget, show selected values for highlighting
+    if (filter.sourceWidgetId === this.widget?.id) {
+      return filter.values.map(v => v.value);
+    }
+
+    return undefined;
   }
 }

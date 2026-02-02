@@ -374,6 +374,20 @@ interface ChartInfo {
       flex: 1;
       overflow-y: auto;
       padding: var(--spacing-2);
+
+      &::-webkit-scrollbar {
+        width: 6px;
+      }
+      &::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      &::-webkit-scrollbar-thumb {
+        background: var(--border-color);
+        border-radius: 3px;
+        &:hover {
+          background: var(--text-muted);
+        }
+      }
     }
 
     .filter-item {
@@ -514,6 +528,20 @@ interface ChartInfo {
       flex: 1;
       overflow-y: auto;
       padding: var(--spacing-4);
+
+      &::-webkit-scrollbar {
+        width: 6px;
+      }
+      &::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      &::-webkit-scrollbar-thumb {
+        background: var(--border-color);
+        border-radius: 3px;
+        &:hover {
+          background: var(--text-muted);
+        }
+      }
     }
 
     .form-section {
