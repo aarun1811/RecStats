@@ -6,10 +6,10 @@
 
 | Metric | Value |
 |--------|-------|
-| Total Source Files | 99 |
-| Total Lines of Code | 27,878 |
-| Project Age | 6 days |
-| Total Commits | 78 |
+| Total Source Files | 104 |
+| Total Lines of Code | 33,797 |
+| Project Age | 7 days |
+| Total Commits | 82 |
 
 ---
 
@@ -17,11 +17,9 @@
 
 | Type | Files | Percentage |
 |------|-------|------------|
-| TypeScript | 65 | 66% |
-| Python | 29 | 29% |
-| SCSS | 4 | 4% |
-| HTML | 1 | 1% |
-| **Total** | **99** | **100%** |
+| TypeScript | 73 | 70% |
+| Python | 31 | 30% |
+| **Total** | **104** | **100%** |
 
 ---
 
@@ -29,11 +27,54 @@
 
 | Language | Lines | Percentage |
 |----------|-------|------------|
-| TypeScript | 21,050 | 75% |
-| Python | 5,017 | 18% |
-| SCSS | 1,787 | 6% |
-| HTML | 24 | <1% |
-| **Total** | **27,878** | **100%** |
+| TypeScript | 27,759 | 82% |
+| Python | 6,038 | 18% |
+| **Total** | **33,797** | **100%** |
+
+---
+
+## Recent Additions (Dashboard Enhancements)
+
+### Filter System
+| Component | Purpose |
+|-----------|---------|
+| `FilterStateService` | Runtime filter state management with Signals |
+| `FilterConfigService` | API communication for filter CRUD |
+| `FilterWidgetComponent` | Renders filter controls by type |
+| `FilterBarComponent` | Horizontal bar with active filter pills |
+| `FilterConfigModalComponent` | Two-panel modal for filter configuration |
+| `SelectComponent` | Dropdown with single/multi-select, search |
+| `DateRangePickerComponent` | Calendar picker with presets |
+| `RangeSliderComponent` | Dual-handle numeric slider |
+
+### Cross-Filtering
+| Component | Purpose |
+|-----------|---------|
+| `CrossFilterService` | Manages cross-filter state between charts |
+| `CrossFilterIndicatorComponent` | Visual badge for filter status |
+
+---
+
+## Architecture
+
+### Frontend (Angular 19)
+
+| Category | Count |
+|----------|-------|
+| Feature Components | 46 |
+| Shared Components | 17 |
+| Core Services | 7 |
+| **Total** | **70** |
+
+### Backend (FastAPI + SQLAlchemy)
+
+| Category | Count |
+|----------|-------|
+| API Endpoints | 11 |
+| Pydantic Schemas | 7 |
+| Data Connectors | 5 |
+| Database Models | 5 |
+| **Total** | **28** |
 
 ---
 
@@ -54,37 +95,13 @@
 
 ---
 
-## Architecture
-
-### Frontend (Angular 19)
-
-| Category | Count |
-|----------|-------|
-| Feature Components | 38 |
-| Shared Components | 14 |
-| Core Services | 6 |
-| Global Stylesheets | 3 |
-| **Total** | **61** |
-
-### Backend (FastAPI + SQLAlchemy)
-
-| Category | Count |
-|----------|-------|
-| API Endpoints | 10 |
-| Pydantic Schemas | 6 |
-| Data Connectors | 5 |
-| Database Models | 3 |
-| **Total** | **24** |
-
----
-
 ## Project Velocity
 
 | Metric | Value |
 |--------|-------|
-| Total Commits | 78 |
-| Project Age | 6 days |
-| Commits per Day | 13.0 |
+| Total Commits | 82 |
+| Project Age | 7 days |
+| Commits per Day | 11.7 |
 | Start Date | 2026-01-26 |
 | Latest Commit | 2026-02-02 |
 
@@ -107,3 +124,19 @@
 - SQLAlchemy (async)
 - Pydantic
 - SQLite (development)
+
+---
+
+## Feature Highlights
+
+### Dashboard Filtering System
+- User-configured SQL queries for filter values
+- Multiple filter types: select, multi-select, range, date-range, text
+- Filter-to-chart mapping with column name configuration
+- Real-time filter state management with Angular Signals
+
+### Cross-Filtering
+- Click on chart elements to filter other charts
+- Visual indicators showing source and filtered charts
+- Multi-value selection support
+- Clear button to remove cross-filters
