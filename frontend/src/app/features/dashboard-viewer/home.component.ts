@@ -1,184 +1,231 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { ApiService } from '../../core/services/api.service';
+import { InfoSidebarItem } from '../../shared/components/info-sidebar/info-sidebar.component';
 import { firstValueFrom } from 'rxjs';
 
-type TrendDirection = 'up' | 'down' | 'neutral';
-
-interface TrendInfo {
-  value: number;
-  direction: 'up' | 'down' | 'flat';
+interface RecentItem {
+  id: string;
+  name: string;
+  description?: string;
+  type: 'query' | 'chart' | 'dashboard';
+  updated_at: string;
+  route: string;
 }
 
-interface KPISummaryResponse {
-  total_transactions: number;
-  match_rate: number;
-  open_breaks: number;
-  avg_break_age: number;
-  trends: {
-    total_transactions: TrendInfo;
-    match_rate: TrendInfo;
-    open_breaks: TrendInfo;
-    avg_break_age: TrendInfo;
-  };
+interface Collection {
+  id: string;
+  name: string;
+  description?: string;
+  color: string;
+  item_count: number;
 }
 
 @Component({
-    selector: 'app-home',
-    template: `
-    <div class="home-page">
-      <header class="page-header">
-        <div class="header-content">
-          <h1>Welcome to RecStats</h1>
-          <p>Your internal BI platform for reconciliation analytics</p>
-        </div>
-        <div class="header-actions">
-          <app-button variant="primary" (click)="createDashboard()">
-            <app-icon name="plus" [size]="18"></app-icon>
-            New Dashboard
-          </app-button>
-        </div>
-      </header>
+  selector: 'app-home',
+  template: `
+    <div class="home-page" [class.sidebar-open]="selectedItem()">
+      <main class="home-content">
+        <!-- Header with Search -->
+        <header class="page-header">
+          <div class="header-content">
+            <h1>Welcome back</h1>
+            <p>Your analytics workspace</p>
+          </div>
+          <div class="header-actions">
+            <app-search-bar></app-search-bar>
+          </div>
+        </header>
 
-      <!-- Loading State -->
-      <div class="loading-banner" *ngIf="loading()">
-        <div class="spinner"></div>
-        <span>Loading data from SQLite...</span>
-      </div>
-
-      <!-- KPI Cards -->
-      <section class="kpi-section">
-        <app-kpi-card
-          label="Total Transactions"
-          [value]="kpis().totalTransactions"
-          format="number"
-          [showTrend]="true"
-          [trend]="getTrendDirection(kpis().trends.totalTransactions.direction)"
-          [trendValue]="formatTrend(kpis().trends.totalTransactions)"
-          trendLabel="vs last week"
-        ></app-kpi-card>
-        <app-kpi-card
-          label="Match Rate"
-          [value]="kpis().matchRate"
-          suffix="%"
-          format="none"
-          variant="success"
-          [showTrend]="true"
-          [trend]="getTrendDirection(kpis().trends.matchRate.direction)"
-          [trendValue]="formatTrend(kpis().trends.matchRate)"
-        ></app-kpi-card>
-        <app-kpi-card
-          label="Open Breaks"
-          [value]="kpis().openBreaks"
-          format="number"
-          variant="warning"
-          [showTrend]="true"
-          [trend]="getInverseTrendDirection(kpis().trends.openBreaks.direction)"
-          [trendValue]="formatTrend(kpis().trends.openBreaks)"
-          [trendLabel]="kpis().trends.openBreaks.direction === 'down' ? 'improving' : 'needs attention'"
-        ></app-kpi-card>
-        <app-kpi-card
-          label="Avg Break Age"
-          [value]="kpis().avgBreakAge"
-          suffix=" days"
-          format="none"
-          [showTrend]="true"
-          [trend]="getInverseTrendDirection(kpis().trends.avgBreakAge.direction)"
-          [trendValue]="formatTrend(kpis().trends.avgBreakAge)"
-          [trendLabel]="kpis().trends.avgBreakAge.direction === 'down' ? 'improving' : 'needs attention'"
-        ></app-kpi-card>
-      </section>
-
-      <!-- Quick Actions -->
-      <section class="section">
-        <h2 class="section-title">Quick Actions</h2>
-        <div class="action-cards">
-          <app-card [hoverable]="true" [glow]="true" class="action-card" (click)="navigateTo('/datasources')">
-            <div class="action-icon primary">
-              <app-icon name="database" [size]="24"></app-icon>
-            </div>
-            <h3>Connect Data Source</h3>
-            <p>Add Oracle, Hive, or upload CSV/Excel files</p>
-          </app-card>
-          <app-card [hoverable]="true" [glow]="true" class="action-card" (click)="navigateTo('/queries')">
-            <div class="action-icon success">
-              <app-icon name="code" [size]="24"></app-icon>
-            </div>
-            <h3>Write Query</h3>
-            <p>Create SQL queries with our powerful editor</p>
-          </app-card>
-          <app-card [hoverable]="true" [glow]="true" class="action-card" (click)="navigateTo('/charts')">
-            <div class="action-icon warning">
-              <app-icon name="bar-chart-2" [size]="24"></app-icon>
-            </div>
-            <h3>Build Chart</h3>
-            <p>Visualize your data with beautiful charts</p>
-          </app-card>
-          <app-card [hoverable]="true" [glow]="true" class="action-card" (click)="navigateTo('/dashboards')">
-            <div class="action-icon info">
-              <app-icon name="layout-dashboard" [size]="24"></app-icon>
-            </div>
-            <h3>Create Dashboard</h3>
-            <p>Combine charts into interactive dashboards</p>
-          </app-card>
-        </div>
-      </section>
-
-      <!-- Recent Dashboards -->
-      <section class="section">
-        <div class="section-header">
-          <h2 class="section-title">Sample Dashboards</h2>
-          <app-button variant="ghost" size="sm" (click)="navigateTo('/dashboards')">View All</app-button>
-        </div>
-        <div class="dashboard-grid">
-          <app-card
-            *ngFor="let dashboard of recentDashboards"
-            [hoverable]="true"
-            [glow]="true"
-            (click)="openDashboard(dashboard.id)">
-            <div class="dashboard-preview">
-              <div class="preview-placeholder">
-                <app-icon [name]="dashboard.icon" [size]="32"></app-icon>
+        <!-- Getting Started Section -->
+        <app-collapsible-section
+          title="Getting Started"
+          icon="rocket"
+          [defaultCollapsed]="true"
+          storageKey="home-getting-started"
+        >
+          <div class="getting-started-content">
+            <div class="guide-steps">
+              <div class="step" *ngFor="let step of gettingStartedSteps; let i = index">
+                <div class="step-number">{{ i + 1 }}</div>
+                <div class="step-content">
+                  <h4>{{ step.title }}</h4>
+                  <p>{{ step.description }}</p>
+                </div>
+                <app-button variant="ghost" size="sm" (click)="navigateTo(step.route)">
+                  {{ step.action }}
+                  <app-icon name="arrow-right" [size]="14"></app-icon>
+                </app-button>
               </div>
             </div>
-            <div class="dashboard-info">
-              <h4>{{ dashboard.name }}</h4>
-              <p>{{ dashboard.chartCount }} charts · Updated {{ dashboard.lastUpdated }}</p>
-            </div>
-          </app-card>
-        </div>
-      </section>
+          </div>
+        </app-collapsible-section>
 
-      <!-- Data Status -->
-      <section class="section data-status" *ngIf="!loading()">
-        <app-card [glow]="true">
-          <div class="status-content">
-            <div class="status-icon">
-              <app-icon name="database" [size]="24"></app-icon>
-            </div>
-            <div class="status-text">
-              <h4>SQLite Backend Active</h4>
-              <p>100K+ transactions and 15K breaks loaded for comprehensive reconciliation analytics</p>
-            </div>
-            <div class="status-badge">
-              <span class="badge success">Connected</span>
+        <!-- Favorites Section -->
+        <section class="section" *ngIf="favorites().length > 0">
+          <div class="section-header">
+            <h2 class="section-title">
+              <app-icon name="star" [size]="20"></app-icon>
+              Favorites
+            </h2>
+          </div>
+          <div class="items-grid">
+            <app-item-card
+              *ngFor="let item of favorites()"
+              [id]="item.id"
+              [name]="item.name"
+              [type]="item.type"
+              [description]="item.description"
+              [updatedAt]="item.updated_at"
+              [isSelected]="selectedItem()?.id === item.id"
+              (selected)="selectItem(item)"
+              (opened)="openItem(item)"
+            ></app-item-card>
+          </div>
+        </section>
+
+        <!-- Quick Actions -->
+        <section class="section">
+          <div class="section-header">
+            <h2 class="section-title">
+              <app-icon name="zap" [size]="20"></app-icon>
+              Quick Actions
+            </h2>
+          </div>
+          <div class="action-cards">
+            <app-card [hoverable]="true" [glow]="true" class="action-card" (click)="navigateTo('/datasources')">
+              <div class="action-icon primary">
+                <app-icon name="database" [size]="24"></app-icon>
+              </div>
+              <h3>Connect Data Source</h3>
+              <p>Connect your databases or upload files</p>
+            </app-card>
+            <app-card [hoverable]="true" [glow]="true" class="action-card" (click)="navigateTo('/queries')">
+              <div class="action-icon success">
+                <app-icon name="code" [size]="24"></app-icon>
+              </div>
+              <h3>Write Query</h3>
+              <p>Write SQL queries with the editor</p>
+            </app-card>
+            <app-card [hoverable]="true" [glow]="true" class="action-card" (click)="navigateTo('/charts')">
+              <div class="action-icon warning">
+                <app-icon name="bar-chart-2" [size]="24"></app-icon>
+              </div>
+              <h3>Build Chart</h3>
+              <p>Create visualizations from your data</p>
+            </app-card>
+            <app-card [hoverable]="true" [glow]="true" class="action-card" (click)="navigateTo('/dashboards')">
+              <div class="action-icon info">
+                <app-icon name="layout-dashboard" [size]="24"></app-icon>
+              </div>
+              <h3>Create Dashboard</h3>
+              <p>Build interactive dashboards</p>
+            </app-card>
+          </div>
+        </section>
+
+        <!-- Recent Activity -->
+        <section class="section" *ngIf="recentItems().length > 0">
+          <div class="section-header">
+            <h2 class="section-title">
+              <app-icon name="clock" [size]="20"></app-icon>
+              Recent Activity
+            </h2>
+          </div>
+          <div class="items-grid">
+            <app-item-card
+              *ngFor="let item of recentItems()"
+              [id]="item.id"
+              [name]="item.name"
+              [type]="item.type"
+              [description]="item.description"
+              [updatedAt]="item.updated_at"
+              [isSelected]="selectedItem()?.id === item.id"
+              (selected)="selectItem(item)"
+              (opened)="openItem(item)"
+            ></app-item-card>
+          </div>
+        </section>
+
+        <!-- Collections -->
+        <section class="section collections-section" *ngIf="collections().length > 0">
+          <div class="section-header">
+            <h2 class="section-title">
+              <app-icon name="folder" [size]="20"></app-icon>
+              Collections
+            </h2>
+            <app-button variant="ghost" size="sm" (click)="navigateTo('/collections')">
+              View All
+              <app-icon name="arrow-right" [size]="14"></app-icon>
+            </app-button>
+          </div>
+          <div class="collections-grid">
+            <div
+              *ngFor="let collection of collections()"
+              class="collection-card"
+              (click)="openCollection(collection)"
+            >
+              <div class="collection-card-inner">
+                <div class="collection-icon" [style.background]="getCollectionBg(collection.color)">
+                  <app-icon name="folder" [size]="24" [style.color]="collection.color"></app-icon>
+                </div>
+                <div class="collection-info">
+                  <h4>{{ collection.name }}</h4>
+                  <p class="collection-desc" *ngIf="collection.description">{{ collection.description }}</p>
+                  <p class="collection-meta">{{ collection.item_count }} {{ collection.item_count === 1 ? 'item' : 'items' }}</p>
+                </div>
+              </div>
+              <div class="collection-accent" [style.background]="collection.color"></div>
             </div>
           </div>
-        </app-card>
-      </section>
+        </section>
+
+        <!-- Loading State -->
+        <div class="loading-state" *ngIf="loading()">
+          <app-loading-spinner variant="glow" text="Loading your workspace..."></app-loading-spinner>
+        </div>
+
+        <!-- Empty State -->
+        <div class="empty-state" *ngIf="!loading() && recentItems().length === 0 && favorites().length === 0">
+          <div class="empty-icon">
+            <app-icon name="layout-dashboard" [size]="48"></app-icon>
+          </div>
+          <h3>Welcome to your analytics workspace</h3>
+          <p>Get started by connecting a data source or creating your first dashboard</p>
+        </div>
+      </main>
+
+      <!-- Info Sidebar -->
+      <app-info-sidebar
+        [isOpen]="!!selectedItem()"
+        [item]="selectedItem()"
+        (close)="selectedItem.set(null)"
+        (openRequested)="openItem($event)"
+        (editRequested)="editItem($event)"
+        (deleteRequested)="deleteItem($event)"
+      ></app-info-sidebar>
+
+      <!-- Interaction Hint -->
+      <app-interaction-hint></app-interaction-hint>
     </div>
   `,
-    styles: [`
+  styles: [`
     .home-page {
       max-width: var(--content-max-width);
       margin: 0 auto;
+      transition: padding-right 0.3s ease;
+    }
+
+    .home-page.sidebar-open {
+      padding-right: 400px;
     }
 
     .page-header {
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
-      margin-bottom: var(--spacing-8);
+      margin-bottom: var(--spacing-6);
+      gap: var(--spacing-4);
     }
 
     .header-content {
@@ -186,7 +233,7 @@ interface KPISummaryResponse {
         font-size: var(--font-size-3xl);
         font-weight: var(--font-weight-bold);
         color: var(--text-primary);
-        margin: 0 0 var(--spacing-2) 0;
+        margin: 0 0 var(--spacing-1) 0;
       }
 
       p {
@@ -196,38 +243,143 @@ interface KPISummaryResponse {
       }
     }
 
-    .kpi-section {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: var(--spacing-4);
-      margin-bottom: var(--spacing-8);
+    .header-actions {
+      flex-shrink: 0;
     }
 
+    // Getting Started Section
+    .getting-started-content {
+      padding: var(--spacing-2) 0;
+    }
+
+    .guide-steps {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-3);
+    }
+
+    .step {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-4);
+      padding: var(--spacing-3) var(--spacing-4);
+      background: var(--bg-tertiary);
+      border-radius: var(--radius-lg);
+      transition: all var(--transition-normal);
+    }
+
+    .step:hover {
+      background: var(--bg-hover);
+    }
+
+    .step-number {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+      border-radius: var(--radius-full);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-bold);
+      color: white;
+      flex-shrink: 0;
+    }
+
+    .step-content {
+      flex: 1;
+
+      h4 {
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-semibold);
+        color: var(--text-primary);
+        margin: 0 0 var(--spacing-1) 0;
+      }
+
+      p {
+        font-size: var(--font-size-xs);
+        color: var(--text-muted);
+        margin: 0;
+      }
+    }
+
+    // =============================================
+    // SPACING SYSTEM - Consistent vertical rhythm
+    // =============================================
+    // All sections use the same spacing values:
+    // - Between sections: 40px (--spacing-10)
+    // - Section header to content: 20px (--spacing-5)
+
+    // Collapsible section wrapper
+    :host ::ng-deep app-collapsible-section {
+      display: block;
+      margin-bottom: var(--spacing-10);
+    }
+
+    // Section styling - consistent spacing with dividers
     .section {
-      margin-bottom: var(--spacing-8);
+      margin-bottom: var(--spacing-10);
+      padding-top: var(--spacing-6);
+      position: relative;
+    }
+
+    // Gradient divider before each section (theme-aware)
+    .section::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(
+        90deg,
+        transparent 0%,
+        var(--border-color) 20%,
+        var(--border-color) 80%,
+        transparent 100%
+      );
+      opacity: 0.6;
+    }
+
+    // Last section has less bottom margin
+    .section:last-of-type,
+    .collections-section {
+      margin-bottom: var(--spacing-6);
     }
 
     .section-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: var(--spacing-4);
+      margin-bottom: var(--spacing-5);
     }
 
     .section-title {
-      font-size: var(--font-size-xl);
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-3);
+      font-size: var(--font-size-lg);
       font-weight: var(--font-weight-semibold);
       color: var(--text-primary);
-      margin: 0 0 var(--spacing-4) 0;
-    }
-
-    .section-header .section-title {
       margin: 0;
     }
 
+    .section-title app-icon {
+      color: var(--color-primary);
+      opacity: 0.85;
+    }
+
+    // Items grid (for favorites and recent)
+    .items-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: var(--spacing-4);
+    }
+
+    // Quick Actions
     .action-cards {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
       gap: var(--spacing-4);
     }
 
@@ -243,6 +395,7 @@ interface KPISummaryResponse {
         align-items: center;
         justify-content: center;
         margin: 0 auto var(--spacing-4);
+        transition: transform var(--transition-normal);
 
         &.primary {
           background: rgba(var(--color-primary-rgb), 0.15);
@@ -265,6 +418,10 @@ interface KPISummaryResponse {
         }
       }
 
+      &:hover .action-icon {
+        transform: scale(1.1);
+      }
+
       h3 {
         font-size: var(--font-size-base);
         font-weight: var(--font-weight-semibold);
@@ -279,221 +436,268 @@ interface KPISummaryResponse {
       }
     }
 
-    .dashboard-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: var(--spacing-4);
+    // Collections section
+    .collections-section {
+      margin-bottom: var(--spacing-4);
     }
 
-    .dashboard-preview {
-      aspect-ratio: 16/10;
-      background: var(--bg-tertiary);
-      border-radius: var(--radius-md);
-      margin-bottom: var(--spacing-4);
+    .collections-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: var(--spacing-5);
+    }
+
+    .collection-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-xl);
+      cursor: pointer;
+      transition: all var(--transition-normal);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .collection-card:hover {
+      border-color: rgba(var(--color-primary-rgb), 0.3);
+      box-shadow: var(--glow-primary);
+      transform: translateY(-2px);
+    }
+
+    .collection-card-inner {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-4);
+      padding: var(--spacing-5);
+    }
+
+    .collection-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: var(--radius-lg);
       display: flex;
       align-items: center;
       justify-content: center;
+      flex-shrink: 0;
+      transition: transform var(--transition-normal);
     }
 
-    .preview-placeholder {
-      color: var(--text-muted);
+    .collection-card:hover .collection-icon {
+      transform: scale(1.08);
     }
 
-    .dashboard-info {
+    .collection-info {
+      flex: 1;
+      min-width: 0;
+
       h4 {
         font-size: var(--font-size-base);
         font-weight: var(--font-weight-semibold);
         color: var(--text-primary);
         margin: 0 0 var(--spacing-1) 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
-      p {
-        font-size: var(--font-size-sm);
+      .collection-desc {
+        font-size: var(--font-size-xs);
+        color: var(--text-secondary);
+        margin: 0 0 var(--spacing-1) 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .collection-meta {
+        font-size: var(--font-size-xs);
         color: var(--text-muted);
         margin: 0;
       }
     }
 
-    .loading-banner {
+    .collection-accent {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      opacity: 0;
+      transition: opacity var(--transition-normal);
+    }
+
+    .collection-card:hover .collection-accent {
+      opacity: 1;
+    }
+
+    // Loading state
+    .loading-state {
       display: flex;
-      align-items: center;
       justify-content: center;
-      gap: var(--spacing-3);
-      padding: var(--spacing-3) var(--spacing-4);
-      background: linear-gradient(90deg, rgba(var(--color-primary-rgb), 0.1), rgba(var(--color-primary-rgb), 0.2));
-      border: 1px solid rgba(var(--color-primary-rgb), 0.3);
-      border-radius: var(--radius-lg);
-      margin-bottom: var(--spacing-6);
-      color: var(--color-primary-light);
-      font-size: var(--font-size-sm);
+      padding: var(--spacing-12) 0;
     }
 
-    .spinner {
-      width: 16px;
-      height: 16px;
-      border: 2px solid rgba(var(--color-primary-rgb), 0.3);
-      border-top-color: var(--color-primary);
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-    }
+    // Empty state
+    .empty-state {
+      text-align: center;
+      padding: var(--spacing-12) var(--spacing-6);
 
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    .data-status {
-      .status-content {
-        display: flex;
-        align-items: center;
-        gap: var(--spacing-4);
-      }
-
-      .status-icon {
-        width: 48px;
-        height: 48px;
-        border-radius: var(--radius-lg);
-        background: rgba(var(--color-success-rgb), 0.15);
-        color: var(--color-success);
+      .empty-icon {
+        width: 80px;
+        height: 80px;
+        background: var(--bg-secondary);
+        border-radius: var(--radius-xl);
         display: flex;
         align-items: center;
         justify-content: center;
-        flex-shrink: 0;
+        margin: 0 auto var(--spacing-6);
+        color: var(--text-muted);
       }
 
-      .status-text {
-        flex: 1;
-
-        h4 {
-          font-size: var(--font-size-base);
-          font-weight: var(--font-weight-semibold);
-          color: var(--text-primary);
-          margin: 0 0 var(--spacing-1) 0;
-        }
-
-        p {
-          font-size: var(--font-size-sm);
-          color: var(--text-muted);
-          margin: 0;
-        }
-      }
-
-      .badge {
-        padding: var(--spacing-1) var(--spacing-3);
-        border-radius: var(--radius-full);
-        font-size: var(--font-size-xs);
+      h3 {
+        font-size: var(--font-size-xl);
         font-weight: var(--font-weight-semibold);
-        text-transform: uppercase;
+        color: var(--text-primary);
+        margin: 0 0 var(--spacing-2) 0;
+      }
 
-        &.success {
-          background: rgba(var(--color-success-rgb), 0.15);
-          color: var(--color-success);
-        }
+      p {
+        font-size: var(--font-size-base);
+        color: var(--text-secondary);
+        margin: 0;
+        max-width: 400px;
+        margin: 0 auto;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .page-header {
+        flex-direction: column;
+      }
+
+      .header-actions {
+        width: 100%;
+      }
+
+      .home-page.sidebar-open {
+        padding-right: 0;
       }
     }
 
     @media (max-width: 640px) {
-      .page-header {
+      .step {
         flex-direction: column;
-        gap: var(--spacing-4);
+        text-align: center;
+        gap: var(--spacing-3);
       }
 
-      .data-status .status-content {
-        flex-direction: column;
+      .step-content {
         text-align: center;
       }
     }
   `],
-    standalone: false
+  standalone: false
 })
 export class HomeComponent implements OnInit {
   private router = inject(Router);
   private api = inject(ApiService);
 
   loading = signal(true);
-  kpis = signal<{
-    totalTransactions: number;
-    matchRate: number;
-    openBreaks: number;
-    avgBreakAge: number;
-    trends: {
-      totalTransactions: TrendInfo;
-      matchRate: TrendInfo;
-      openBreaks: TrendInfo;
-      avgBreakAge: TrendInfo;
-    };
-  }>({
-    totalTransactions: 0,
-    matchRate: 0,
-    openBreaks: 0,
-    avgBreakAge: 0,
-    trends: {
-      totalTransactions: { value: 0, direction: 'flat' },
-      matchRate: { value: 0, direction: 'flat' },
-      openBreaks: { value: 0, direction: 'flat' },
-      avgBreakAge: { value: 0, direction: 'flat' },
-    }
-  });
+  favorites = signal<RecentItem[]>([]);
+  recentItems = signal<RecentItem[]>([]);
+  collections = signal<Collection[]>([]);
+  selectedItem = signal<InfoSidebarItem | null>(null);
 
-  recentDashboards = [
-    { id: 'executive', name: 'Executive Overview', chartCount: 6, lastUpdated: '2 hours ago', icon: 'bar-chart-2' },
-    { id: 'breaks', name: 'Break Analysis', chartCount: 8, lastUpdated: '1 day ago', icon: 'alert-triangle' },
-    { id: 'geo', name: 'Geographic View', chartCount: 4, lastUpdated: '3 days ago', icon: 'globe' },
-    { id: 'recon', name: 'Reconciliation Status', chartCount: 5, lastUpdated: '1 week ago', icon: 'check-circle' },
-    { id: 'trends', name: 'Trend Analytics', chartCount: 7, lastUpdated: '1 week ago', icon: 'trending-up' },
+  gettingStartedSteps = [
+    {
+      title: 'Connect a data source',
+      description: 'Link your databases or upload CSV/Excel files',
+      route: '/datasources',
+      action: 'Connect'
+    },
+    {
+      title: 'Write your first query',
+      description: 'Use the SQL editor to explore your data',
+      route: '/queries',
+      action: 'Write Query'
+    },
+    {
+      title: 'Build a visualization',
+      description: 'Create charts and dashboards from your queries',
+      route: '/charts',
+      action: 'Build Chart'
+    }
   ];
 
   ngOnInit() {
-    this.loadKPIs();
+    this.loadData();
   }
 
-  async loadKPIs() {
+  async loadData() {
+    this.loading.set(true);
+
     try {
-      const response = await firstValueFrom(
-        this.api.get<KPISummaryResponse>('/dashboards/kpis/summary')
-      );
-      this.kpis.set({
-        totalTransactions: response.total_transactions,
-        matchRate: response.match_rate,
-        openBreaks: response.open_breaks,
-        avgBreakAge: response.avg_break_age,
-        trends: {
-          totalTransactions: response.trends.total_transactions,
-          matchRate: response.trends.match_rate,
-          openBreaks: response.trends.open_breaks,
-          avgBreakAge: response.trends.avg_break_age,
-        }
-      });
+      // Load all data in parallel
+      const [favoritesRes, recentRes, collectionsRes] = await Promise.all([
+        firstValueFrom(this.api.get<RecentItem[]>('/favorites', { limit: 5 })).catch(() => []),
+        firstValueFrom(this.api.get<RecentItem[]>('/recent', { limit: 5 })).catch(() => []),
+        firstValueFrom(this.api.get<Collection[]>('/collections')).catch(() => []),
+      ]);
+
+      this.favorites.set(favoritesRes || []);
+      this.recentItems.set(recentRes || []);
+      this.collections.set(collectionsRes || []);
     } catch (error) {
-      console.error('Failed to load KPIs:', error);
+      console.error('Failed to load home data:', error);
     } finally {
       this.loading.set(false);
     }
   }
 
-  formatTrend(trend: TrendInfo): string {
-    if (trend.direction === 'flat' || trend.value === 0) return '0%';
-    const sign = trend.direction === 'up' ? '+' : '-';
-    return `${sign}${trend.value}%`;
+  getCollectionBg(color: string): string {
+    return `${color}20`; // Add 20% opacity
   }
 
-  getTrendDirection(direction: 'up' | 'down' | 'flat'): TrendDirection {
-    // Convert API 'flat' to component 'neutral'
-    if (direction === 'flat') return 'neutral';
-    return direction;
+  selectItem(item: RecentItem) {
+    this.selectedItem.set({
+      id: item.id,
+      name: item.name,
+      type: item.type,
+      description: item.description,
+      updated_at: item.updated_at,
+      route: item.route,
+    });
   }
 
-  getInverseTrendDirection(direction: 'up' | 'down' | 'flat'): TrendDirection {
-    // For breaks and age, "down" is good (shows as "up" arrow in green)
-    if (direction === 'flat') return 'neutral';
-    return direction === 'down' ? 'up' : 'down';
+  openItem(item: InfoSidebarItem | RecentItem) {
+    const route = 'route' in item && item.route ? item.route : this.getRouteForItem(item);
+    this.router.navigateByUrl(route);
   }
 
-  createDashboard() {
-    this.router.navigate(['/dashboards']);
+  editItem(item: InfoSidebarItem) {
+    const route = this.getRouteForItem(item);
+    this.router.navigateByUrl(route);
   }
 
-  openDashboard(id: string) {
-    this.router.navigate(['/dashboards', id]);
+  deleteItem(item: InfoSidebarItem) {
+    // TODO: Implement delete with confirmation modal
+    console.log('Delete item:', item);
+  }
+
+  getRouteForItem(item: InfoSidebarItem): string {
+    switch (item.type) {
+      case 'dashboard':
+        return `/dashboards/${item.id}`;
+      case 'chart':
+        return `/charts/${item.id}/edit`;
+      case 'query':
+        return '/queries';
+      default:
+        return '/';
+    }
+  }
+
+  openCollection(collection: Collection) {
+    this.router.navigate(['/collections', collection.id]);
   }
 
   navigateTo(path: string) {

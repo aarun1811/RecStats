@@ -640,6 +640,7 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
 
   private routeTitles: Record<string, string> = {
     '/': 'Home',
+    '/collections': 'Collections',
     '/dashboards': 'Dashboards',
     '/charts': 'Charts',
     '/queries': 'Query Editor',
@@ -650,7 +651,8 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
 
   mainNavItems: NavItem[] = [
     { icon: 'home', label: 'Home', route: '/', exactMatch: true },
-    { icon: 'layout-dashboard', label: 'Dashboards', route: '/dashboards', badge: 5 },
+    { icon: 'folder', label: 'Collections', route: '/collections' },
+    { icon: 'layout-dashboard', label: 'Dashboards', route: '/dashboards' },
     { icon: 'bar-chart-2', label: 'Charts', route: '/charts' },
     { icon: 'code', label: 'Query Editor', route: '/queries' },
   ];

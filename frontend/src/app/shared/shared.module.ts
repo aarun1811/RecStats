@@ -12,6 +12,11 @@ import { KpiCardComponent } from './components/kpi-card/kpi-card.component';
 import { LoadingSpinnerComponent } from './components/loading/loading-spinner.component';
 import { NotificationContainerComponent } from './components/notification/notification-container.component';
 import { IconComponent } from './components/icon/icon.component';
+import { InfoSidebarComponent } from './components/info-sidebar/info-sidebar.component';
+import { SearchBarComponent } from './components/search-bar/search-bar.component';
+import { CollapsibleSectionComponent } from './components/collapsible-section/collapsible-section.component';
+import { ItemCardComponent } from './components/item-card/item-card.component';
+import { InteractionHintComponent } from './components/interaction-hint/interaction-hint.component';
 
 const COMPONENTS = [
   ButtonComponent,
@@ -22,6 +27,11 @@ const COMPONENTS = [
   LoadingSpinnerComponent,
   NotificationContainerComponent,
   IconComponent,
+  InfoSidebarComponent,
+  SearchBarComponent,
+  CollapsibleSectionComponent,
+  ItemCardComponent,
+  InteractionHintComponent,
 ];
 
 @NgModule({
