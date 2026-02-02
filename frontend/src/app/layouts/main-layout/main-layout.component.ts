@@ -645,7 +645,6 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
     '/charts': 'Charts',
     '/queries': 'Query Editor',
     '/datasources': 'Data Sources',
-    '/upload': 'Upload Files',
     '/settings': 'Settings',
   };
 
@@ -659,7 +658,6 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
 
   buildNavItems: NavItem[] = [
     { icon: 'database', label: 'Data Sources', route: '/datasources' },
-    { icon: 'upload', label: 'Upload Files', route: '/upload' },
     { icon: 'settings', label: 'Settings', route: '/settings' },
   ];
 
