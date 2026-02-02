@@ -274,6 +274,26 @@ type SidebarMode = 'view' | 'edit' | 'create';
       gap: var(--spacing-3);
     }
 
+    @keyframes searchPulse {
+      0%, 100% {
+        box-shadow: 0 0 0 0 rgba(var(--color-primary-rgb), 0);
+      }
+      50% {
+        box-shadow: 0 0 0 4px rgba(var(--color-primary-rgb), 0.15);
+      }
+    }
+
+    @keyframes dropdownOpen {
+      from {
+        opacity: 0;
+        transform: translateY(-8px) scale(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
     .search-box {
       display: flex;
       align-items: center;
@@ -288,15 +308,18 @@ type SidebarMode = 'view' | 'edit' | 'create';
       &:focus-within {
         border-color: var(--color-primary);
         box-shadow: var(--shadow-glow-sm);
+        animation: searchPulse 2s ease-in-out infinite;
       }
 
       app-icon:first-child {
         color: var(--text-muted);
         flex-shrink: 0;
+        transition: all 0.2s ease;
       }
 
       &:focus-within app-icon:first-child {
         color: var(--color-primary);
+        filter: drop-shadow(0 0 4px rgba(var(--color-primary-rgb), 0.5));
       }
 
       input {
@@ -371,6 +394,8 @@ type SidebarMode = 'view' | 'edit' | 'create';
       box-shadow: var(--shadow-lg);
       z-index: 100;
       overflow: hidden;
+      animation: dropdownOpen 200ms cubic-bezier(0.22, 1, 0.36, 1);
+      transform-origin: top left;
     }
 
     .filter-option {
@@ -814,6 +839,11 @@ type SidebarMode = 'view' | 'edit' | 'create';
       color: var(--text-muted);
     }
 
+    @keyframes softBounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+
     // Empty State
     .empty-state {
       display: flex;
@@ -825,9 +855,11 @@ type SidebarMode = 'view' | 'edit' | 'create';
       grid-column: 1 / -1;
 
       app-icon {
-        color: var(--text-muted);
+        color: var(--color-primary);
         margin-bottom: var(--spacing-4);
-        opacity: 0.5;
+        opacity: 0.6;
+        animation: softBounce 3s ease-in-out infinite;
+        filter: drop-shadow(0 0 8px rgba(var(--color-primary-rgb), 0.3));
       }
 
       h3 {

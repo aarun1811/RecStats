@@ -9,11 +9,11 @@ import { DashboardWidget } from './dashboard-builder.component';
       <div class="widget-header" [class.drag-handle]="editMode">
         <h4 class="widget-title">{{ widget.title }}</h4>
         <div class="widget-actions" *ngIf="editMode">
-          <button class="action-btn" (click)="onRefresh()" title="Refresh">
+          <button class="action-btn refresh-btn" [class.spinning]="isRefreshing" (click)="onRefresh()" title="Refresh">
             <app-icon name="refresh" [size]="14"></app-icon>
           </button>
           <button class="action-btn danger" (click)="onRemove()" title="Remove">
-            <app-icon name="x" [size]="14"></app-icon>
+            <app-icon name="trash" [size]="14"></app-icon>
           </button>
         </div>
       </div>
@@ -42,6 +42,36 @@ import { DashboardWidget } from './dashboard-builder.component';
     </div>
   `,
     styles: [`
+    /* ═══════════════════════════════════════════════════════════
+       ANIMATIONS
+    ═══════════════════════════════════════════════════════════ */
+    @keyframes widgetFadeIn {
+      from {
+        opacity: 0;
+        transform: scale(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    @keyframes softBounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes trashWiggle {
+      0%, 100% { transform: rotate(0deg); }
+      25% { transform: rotate(-12deg); }
+      75% { transform: rotate(12deg); }
+    }
+
     .widget-wrapper {
       display: flex;
       flex-direction: column;
@@ -49,6 +79,7 @@ import { DashboardWidget } from './dashboard-builder.component';
       background: var(--bg-secondary);
       border-radius: var(--radius-xl);
       overflow: hidden;
+      animation: widgetFadeIn 300ms ease-out;
     }
 
     .widget-header {
@@ -58,12 +89,35 @@ import { DashboardWidget } from './dashboard-builder.component';
       padding: var(--spacing-3) var(--spacing-4);
       border-bottom: 1px solid var(--border-color);
       flex-shrink: 0;
+      transition: background 0.2s ease, box-shadow 0.2s ease;
 
       &.drag-handle {
         cursor: grab;
+        position: relative;
+
+        &::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(90deg,
+            rgba(var(--color-primary-rgb), 0) 0%,
+            rgba(var(--color-primary-rgb), 0.05) 50%,
+            rgba(var(--color-primary-rgb), 0) 100%);
+          opacity: 0;
+          transition: opacity 0.25s ease;
+        }
+
+        &:hover::before {
+          opacity: 1;
+        }
+
+        &:hover {
+          box-shadow: inset 0 0 20px rgba(var(--color-primary-rgb), 0.1);
+        }
 
         &:active {
           cursor: grabbing;
+          background: rgba(var(--color-primary-rgb), 0.08);
         }
       }
     }
@@ -102,14 +156,38 @@ import { DashboardWidget } from './dashboard-builder.component';
       cursor: pointer;
       transition: all 0.2s ease;
 
+      app-icon {
+        transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+                    filter 0.2s ease;
+      }
+
       &:hover {
         background: var(--bg-primary);
         color: var(--text-primary);
+
+        app-icon {
+          transform: scale(1.15);
+          filter: drop-shadow(0 0 4px rgba(var(--color-primary-rgb), 0.4));
+        }
+      }
+
+      &:active app-icon {
+        transform: scale(0.95);
+      }
+
+      /* Refresh button spin on click */
+      &.refresh-btn.spinning app-icon {
+        animation: spin 0.5s ease-out;
       }
 
       &.danger:hover {
         background: rgba(231, 76, 60, 0.2);
         color: var(--color-danger);
+
+        app-icon {
+          animation: trashWiggle 0.3s ease-in-out;
+          filter: drop-shadow(0 0 4px rgba(231, 76, 60, 0.4));
+        }
       }
     }
 
@@ -143,7 +221,10 @@ import { DashboardWidget } from './dashboard-builder.component';
       text-align: center;
 
       app-icon {
-        opacity: 0.5;
+        opacity: 0.6;
+        color: var(--color-primary);
+        animation: softBounce 3s ease-in-out infinite;
+        filter: drop-shadow(0 0 8px rgba(var(--color-primary-rgb), 0.3));
       }
     }
   `],
@@ -157,6 +238,7 @@ export class WidgetWrapperComponent {
 
   // Track refresh state for chart preview
   private refreshKey = 0;
+  isRefreshing = false;
 
   hasValidData(): boolean {
     if (this.widget.type === 'chart') {
@@ -177,6 +259,10 @@ export class WidgetWrapperComponent {
   }
 
   onRefresh() {
+    // Trigger spin animation
+    this.isRefreshing = true;
+    setTimeout(() => this.isRefreshing = false, 500);
+
     // Increment refresh key to trigger reload
     this.refreshKey++;
     // For now, the components will handle their own refresh
