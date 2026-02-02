@@ -110,6 +110,78 @@ class Dashboard(Base):
     dashboard_charts: Mapped[list["DashboardChart"]] = relationship(
         back_populates="dashboard", cascade="all, delete-orphan"
     )
+    dashboard_filters: Mapped[list["DashboardFilter"]] = relationship(
+        back_populates="dashboard", cascade="all, delete-orphan"
+    )
+
+
+class DashboardFilter(Base):
+    """Dashboard filter configuration."""
+
+    __tablename__ = "dashboard_filters"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    dashboard_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("dashboards.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    # Filter type: select, multi-select, range, date-range, text
+    filter_type: Mapped[str] = mapped_column(String(20), nullable=False)
+
+    # Values source - either a SQL query or static options
+    values_query: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    static_options: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON array
+    data_source_id: Mapped[Optional[str]] = mapped_column(
+        String(36), ForeignKey("data_sources.id", ondelete="SET NULL"), nullable=True
+    )
+
+    # Configuration
+    default_value: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON
+    placeholder: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    required: Mapped[bool] = mapped_column(default=False, nullable=False)
+    display_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+    # Range/Date specific constraints
+    min_value: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    max_value: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    # Relationships
+    dashboard: Mapped["Dashboard"] = relationship(back_populates="dashboard_filters")
+    data_source: Mapped[Optional["DataSource"]] = relationship()
+    chart_mappings: Mapped[list["FilterChartMapping"]] = relationship(
+        back_populates="dashboard_filter", cascade="all, delete-orphan"
+    )
+
+
+class FilterChartMapping(Base):
+    """Mapping between a dashboard filter and a chart column."""
+
+    __tablename__ = "filter_chart_mappings"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    filter_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("dashboard_filters.id", ondelete="CASCADE"), nullable=False
+    )
+    chart_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("charts.id", ondelete="CASCADE"), nullable=False
+    )
+    # The column name in the chart's data to filter on
+    column_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    # Filter operator: =, !=, >, <, >=, <=, IN, NOT IN, BETWEEN, LIKE
+    operator: Mapped[str] = mapped_column(String(20), default="=", nullable=False)
+    # Enable/disable this mapping
+    enabled: Mapped[bool] = mapped_column(default=True, nullable=False)
+
+    # Relationships
+    dashboard_filter: Mapped["DashboardFilter"] = relationship(back_populates="chart_mappings")
+    chart: Mapped["Chart"] = relationship()
 
 
 class DashboardChart(Base):

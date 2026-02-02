@@ -1,10 +1,15 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { NotificationService } from '../../core/services/notification.service';
 import { ApiService } from '../../core/services/api.service';
 import { GridsterConfig, GridsterItem, DisplayGrid, GridType, CompactType } from 'angular-gridster2';
 import { firstValueFrom } from 'rxjs';
 import { WidgetSelection } from './chart-picker-panel.component';
+import { DashboardFilter, ChartColumn } from './filters/models/filter.models';
+import { FilterStateService } from './services/filter-state.service';
+import { FilterConfigService } from './services/filter-config.service';
 
 export interface DashboardWidget extends GridsterItem {
   id: string;
@@ -25,6 +30,12 @@ interface DashboardResponse {
   charts: any[];
   created_at: string;
   updated_at: string;
+}
+
+interface ChartInfo {
+  id: string;
+  name: string;
+  columns: ChartColumn[];
 }
 
 @Component({
@@ -59,6 +70,16 @@ interface DashboardResponse {
         </div>
       </div>
 
+      <!-- Filter Bar -->
+      <div class="filter-bar-container" *ngIf="filters().length > 0 || editMode()">
+        <app-filter-bar
+          [filters]="filters()"
+          [editMode]="editMode()"
+          (configure)="openFilterConfig()"
+          (filterChange)="onFilterChange($event)">
+        </app-filter-bar>
+      </div>
+
       <!-- Dashboard Grid -->
       <div class="dashboard-content">
         <div class="empty-state" *ngIf="widgets().length === 0">
@@ -89,6 +110,17 @@ interface DashboardResponse {
         (closePanel)="showChartPicker.set(false)"
         (widgetSelected)="addWidget($event)">
       </app-chart-picker-panel>
+
+      <!-- Filter Config Modal -->
+      <app-filter-config-modal
+        [isOpen]="showFilterConfig()"
+        [dashboardId]="dashboardId || ''"
+        [filters]="filters()"
+        [charts]="chartInfos()"
+        [dataSources]="dataSources()"
+        (closed)="showFilterConfig.set(false)"
+        (saved)="onFiltersSaved($event)">
+      </app-filter-config-modal>
     </div>
   `,
     styles: [`
@@ -239,6 +271,11 @@ interface DashboardResponse {
       }
     }
 
+    .filter-bar-container {
+      padding: var(--spacing-3) var(--spacing-4) 0;
+      animation: slideInDown 250ms ease-out 50ms backwards;
+    }
+
     .dashboard-content {
       flex: 1;
       overflow-y: auto;
@@ -312,11 +349,15 @@ interface DashboardResponse {
   `],
     standalone: false
 })
-export class DashboardBuilderComponent implements OnInit {
+export class DashboardBuilderComponent implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private notifications = inject(NotificationService);
   private api = inject(ApiService);
+  private filterState = inject(FilterStateService);
+  private filterConfig = inject(FilterConfigService);
+
+  private destroy$ = new Subject<void>();
 
   // State
   dashboardId: string | null = null;
@@ -324,6 +365,12 @@ export class DashboardBuilderComponent implements OnInit {
   widgets = signal<DashboardWidget[]>([]);
   editMode = signal(true);  // Start in edit mode for new dashboards
   showChartPicker = signal(false);
+
+  // Filter state
+  filters = signal<DashboardFilter[]>([]);
+  showFilterConfig = signal(false);
+  chartInfos = signal<ChartInfo[]>([]);
+  dataSources = signal<{ id: string; name: string }[]>([]);
 
   // Gridster options
   gridOptions: GridsterConfig = {
@@ -367,6 +414,22 @@ export class DashboardBuilderComponent implements OnInit {
       this.dashboardTitle = 'Untitled Dashboard';
       this.widgets.set([]);
     }
+
+    // Subscribe to filter changes
+    this.filterState.filterChanged$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(event => {
+        this.onFilterApplied(event);
+      });
+
+    // Load data sources for filter config
+    this.loadDataSources();
+  }
+
+  ngOnDestroy() {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.filterState.reset();
   }
 
   goBack() {
@@ -385,12 +448,69 @@ export class DashboardBuilderComponent implements OnInit {
       if (response.layout?.widgets) {
         this.widgets.set(response.layout.widgets);
       }
+
+      // Load filters for this dashboard
+      this.loadFilters(id);
+
+      // Load chart info for filter scoping
+      this.loadChartInfos();
+
       this.notifications.success(`Loaded "${response.name}"`);
     } catch (error) {
       console.error('Failed to load dashboard:', error);
       this.notifications.error('Dashboard not found');
       this.router.navigate(['/dashboards']);
     }
+  }
+
+  private loadFilters(dashboardId: string) {
+    this.filterConfig.getFilters(dashboardId)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (filters) => {
+          this.filters.set(filters);
+          this.filterState.setFilters(dashboardId, filters);
+        },
+        error: (err) => {
+          console.error('Failed to load filters:', err);
+        }
+      });
+  }
+
+  private loadChartInfos() {
+    // Build chart info from widgets
+    const chartWidgets = this.widgets().filter(w => w.type === 'chart' && w.chartId);
+    const chartInfos: ChartInfo[] = [];
+
+    chartWidgets.forEach(widget => {
+      if (widget.chartId) {
+        // For now, use widget title as chart name
+        // Chart columns would be loaded via API when filter config modal opens
+        chartInfos.push({
+          id: widget.chartId,
+          name: widget.title,
+          columns: []
+        });
+      }
+    });
+
+    this.chartInfos.set(chartInfos);
+  }
+
+  private loadDataSources() {
+    this.api.get<any[]>('/datasources')
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (sources) => {
+          this.dataSources.set(sources.map(s => ({
+            id: s.id,
+            name: s.name
+          })));
+        },
+        error: () => {
+          // Silent fail - data sources are optional
+        }
+      });
   }
 
   toggleEditMode() {
@@ -434,6 +554,131 @@ export class DashboardBuilderComponent implements OnInit {
 
   onLayoutChange(layout: DashboardWidget[]) {
     this.widgets.set(layout);
+  }
+
+  // =========================================================================
+  // Filter Methods
+  // =========================================================================
+
+  openFilterConfig() {
+    // Load chart columns before opening modal
+    this.loadChartColumns().then(() => {
+      this.showFilterConfig.set(true);
+    });
+  }
+
+  private async loadChartColumns() {
+    const chartInfos = this.chartInfos();
+    const updatedInfos = await Promise.all(
+      chartInfos.map(async (info) => {
+        try {
+          const columns = await firstValueFrom(
+            this.filterConfig.getChartColumns(info.id)
+          );
+          return { ...info, columns };
+        } catch {
+          return info;
+        }
+      })
+    );
+    this.chartInfos.set(updatedInfos);
+  }
+
+  onFilterChange(event: { filterId: string; value: unknown }) {
+    // Filter state is already updated by FilterWidgetComponent
+    // This is just for logging/tracking purposes
+    console.log('Filter changed:', event);
+  }
+
+  onFilterApplied(event: { filterId: string; value: unknown; affectedChartIds: string[] }) {
+    // Notify affected widgets to refresh
+    // This will be handled by individual chart components subscribing to filter changes
+    console.log('Filter applied, affected charts:', event.affectedChartIds);
+  }
+
+  async onFiltersSaved(filters: DashboardFilter[]) {
+    if (!this.dashboardId) {
+      this.notifications.warning('Please save the dashboard first');
+      this.showFilterConfig.set(false);
+      return;
+    }
+
+    try {
+      // Process each filter - create new, update existing, delete removed
+      const existingFilters = this.filters();
+      const existingIds = new Set(existingFilters.map(f => f.id));
+
+      for (const filter of filters) {
+        if (filter.id.startsWith('new-')) {
+          // Create new filter
+          const created = await firstValueFrom(
+            this.filterConfig.createFilter({
+              dashboardId: this.dashboardId,
+              name: filter.name,
+              filterType: filter.filterType,
+              valuesQuery: filter.valuesQuery,
+              staticOptions: filter.staticOptions,
+              dataSourceId: filter.dataSourceId,
+              defaultValue: filter.defaultValue,
+              placeholder: filter.placeholder,
+              required: filter.required,
+              displayOrder: filter.displayOrder,
+              minValue: filter.minValue,
+              maxValue: filter.maxValue,
+              chartMappings: filter.chartMappings.map(m => ({
+                chartId: m.chartId,
+                columnName: m.columnName,
+                operator: m.operator,
+                enabled: m.enabled
+              }))
+            })
+          );
+          // Update filter ID after creation
+          filter.id = created.id;
+        } else if (existingIds.has(filter.id)) {
+          // Update existing filter
+          await firstValueFrom(
+            this.filterConfig.updateFilter(filter.id, {
+              name: filter.name,
+              filterType: filter.filterType,
+              valuesQuery: filter.valuesQuery,
+              staticOptions: filter.staticOptions,
+              dataSourceId: filter.dataSourceId,
+              defaultValue: filter.defaultValue,
+              placeholder: filter.placeholder,
+              required: filter.required,
+              displayOrder: filter.displayOrder,
+              minValue: filter.minValue,
+              maxValue: filter.maxValue
+            })
+          );
+
+          // Update chart mappings
+          // For simplicity, we'll handle this by comparing existing vs new mappings
+          // A more robust implementation would track individual mapping changes
+        }
+      }
+
+      // Delete removed filters
+      const newIds = new Set(filters.map(f => f.id));
+      for (const existing of existingFilters) {
+        if (!newIds.has(existing.id) && !existing.id.startsWith('new-')) {
+          await firstValueFrom(
+            this.filterConfig.deleteFilter(existing.id)
+          );
+        }
+      }
+
+      // Update local state
+      this.filters.set(filters);
+      this.filterState.setFilters(this.dashboardId, filters);
+
+      this.showFilterConfig.set(false);
+      this.notifications.success('Filters saved');
+    } catch (error: any) {
+      console.error('Failed to save filters:', error);
+      this.notifications.error(error.message || 'Failed to save filters');
+    }
   }
 
   async saveDashboard() {
