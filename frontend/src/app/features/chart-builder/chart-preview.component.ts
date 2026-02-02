@@ -252,7 +252,9 @@ export class ChartPreviewComponent implements OnInit, OnChanges, OnDestroy, Afte
         this.chartType = response.chart.chart_type;
         this.chartTitle = response.chart.name;
         this.data = response.data || [];
-        this.config = response.chart.config || {};
+        // Map backend config structure to frontend ChartConfig
+        const backendConfig = response.chart.config || {};
+        this.config = this.mapBackendConfig(backendConfig);
         this.dataLoaded = true;
         this.loading.set(false);
         this.updateChart();
@@ -263,6 +265,37 @@ export class ChartPreviewComponent implements OnInit, OnChanges, OnDestroy, Afte
         this.loading.set(false);
       }
     });
+  }
+
+  /** Map backend config structure to frontend ChartConfig */
+  private mapBackendConfig(backendConfig: any): ChartConfig {
+    const customOptions = backendConfig.custom_options || {};
+    const kpiOptions = customOptions.kpi_options || {};
+
+    return {
+      title: backendConfig.title || '',
+      subtitle: backendConfig.subtitle || '',
+      xAxis: backendConfig.x_axis?.field || '',
+      yAxis: backendConfig.y_axis?.field || '',
+      groupBy: backendConfig.category_field || '',
+      colorScheme: customOptions.color_scheme || 'citi',
+      showLegend: backendConfig.show_legend !== false,
+      showLabels: backendConfig.show_labels === true,
+      enableAnimation: customOptions.enable_animation !== false,
+      enableTooltip: backendConfig.show_tooltip !== false,
+      kpiOptions: kpiOptions.aggregation ? {
+        aggregation: kpiOptions.aggregation || 'sum',
+        format: kpiOptions.format || 'number',
+        currencyCode: kpiOptions.currencyCode || 'USD',
+        decimals: kpiOptions.decimals ?? 0,
+        prefix: kpiOptions.prefix || '',
+        suffix: kpiOptions.suffix || '',
+        showTrend: kpiOptions.showTrend || false,
+        trendCompareField: kpiOptions.trendCompareField || '',
+        trendMode: kpiOptions.trendMode || 'previous',
+        trendUpIsGood: kpiOptions.trendUpIsGood !== false
+      } : undefined
+    };
   }
 
   ngOnDestroy() {

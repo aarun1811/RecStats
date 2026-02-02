@@ -11,7 +11,6 @@ import { DashboardGridComponent } from './dashboard-grid.component';
 import { WidgetWrapperComponent } from './widget-wrapper.component';
 import { ChartPickerPanelComponent } from './chart-picker-panel.component';
 import { TableWidgetComponent } from './table-widget.component';
-import { RichKpiCardComponent } from './rich-kpi-card/rich-kpi-card.component';
 
 // Filter components
 import { FilterWidgetComponent } from './filters/filter-widget/filter-widget.component';
@@ -35,7 +34,6 @@ const routes: Routes = [
     WidgetWrapperComponent,
     ChartPickerPanelComponent,
     TableWidgetComponent,
-    RichKpiCardComponent,
     // Filter components
     FilterWidgetComponent,
     FilterBarComponent,

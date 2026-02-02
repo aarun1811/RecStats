@@ -46,6 +46,29 @@ export function getColorScheme(schemeId: string): string[] {
   return scheme?.colors || COLOR_SCHEMES[0].colors;
 }
 
+export interface KpiOptions {
+  /** Aggregation type: how to compute the main value */
+  aggregation: 'sum' | 'average' | 'min' | 'max' | 'count' | 'last';
+  /** Number format for display */
+  format: 'number' | 'currency' | 'percent';
+  /** Currency code (when format is 'currency') */
+  currencyCode?: string;
+  /** Decimal places */
+  decimals?: number;
+  /** Prefix to show before value */
+  prefix?: string;
+  /** Suffix to show after value */
+  suffix?: string;
+  /** Enable trend indicator */
+  showTrend?: boolean;
+  /** Column to use for trend comparison (date/time field) */
+  trendCompareField?: string;
+  /** How to calculate trend */
+  trendMode?: 'previous' | 'first_last';
+  /** Whether higher values are good (affects trend arrow color) */
+  trendUpIsGood?: boolean;
+}
+
 export interface ChartConfig {
   title?: string;
   subtitle?: string;
@@ -57,4 +80,6 @@ export interface ChartConfig {
   showLabels?: boolean;
   enableAnimation?: boolean;
   enableTooltip?: boolean;
+  /** KPI-specific options (only used for kpiCard chart type) */
+  kpiOptions?: KpiOptions;
 }

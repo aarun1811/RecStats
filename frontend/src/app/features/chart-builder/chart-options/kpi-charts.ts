@@ -1,17 +1,152 @@
 import { EChartsOption } from 'echarts';
 import { ChartContext } from './types';
-import { formatNumber } from './utils';
+import {
+  formatNumber,
+  formatValue,
+  aggregate,
+  calculateTrend,
+  getAdaptiveFontSize,
+  FormatOptions
+} from './utils';
 
 export function getKPICardOptions(ctx: ChartContext): EChartsOption {
   const yField = ctx.config?.yAxis || 'value';
   const colors = ctx.colors;
   const enableAnimation = ctx.config?.enableAnimation !== false;
+  const kpiOpts = ctx.config?.kpiOptions;
 
+  // Defaults for backward compatibility
+  const aggregationType = kpiOpts?.aggregation || 'sum';
+  const format = kpiOpts?.format || 'number';
+  const showTrend = kpiOpts?.showTrend || false;
+  const trendUpIsGood = kpiOpts?.trendUpIsGood !== false;
+
+  // Calculate main value
   let value = 12345;
   let label = ctx.config?.title || 'Total Value';
 
   if (ctx.data && ctx.data.length > 0) {
-    value = ctx.data.reduce((sum, row) => sum + (Number(row[yField]) || 0), 0);
+    value = aggregate(ctx.data, yField, aggregationType);
+  }
+
+  // Format the value
+  const formatOptions: FormatOptions = {
+    format: format,
+    decimals: kpiOpts?.decimals,
+    currencyCode: kpiOpts?.currencyCode || 'USD',
+    prefix: kpiOpts?.prefix,
+    suffix: kpiOpts?.suffix,
+    compact: true
+  };
+  const formattedValue = formatValue(value, formatOptions);
+
+  // Calculate trend if enabled
+  let trend: { direction: 'up' | 'down' | 'neutral'; percentage: number } | null = null;
+  if (showTrend && kpiOpts?.trendCompareField && ctx.data && ctx.data.length >= 2) {
+    trend = calculateTrend(
+      ctx.data,
+      yField,
+      kpiOpts.trendCompareField,
+      kpiOpts.trendMode || 'previous'
+    );
+  }
+
+  // Adaptive font sizes
+  const baseFontSize = 56;
+  const valueFontSize = getAdaptiveFontSize(300, 200, formattedValue.length, baseFontSize);
+
+  // Build graphic elements
+  const graphicElements: any[] = [];
+
+  // Aggregation type indicator badge (top-left)
+  const aggregationLabels: Record<string, string> = {
+    sum: 'SUM',
+    average: 'AVG',
+    min: 'MIN',
+    max: 'MAX',
+    count: 'COUNT',
+    last: 'LATEST'
+  };
+
+  graphicElements.push({
+    type: 'text',
+    left: 16,
+    top: 12,
+    style: {
+      text: aggregationLabels[aggregationType] || 'SUM',
+      fontSize: 10,
+      fontWeight: 600,
+      fill: '#6e7681'
+    },
+    z: 100
+  });
+
+  // Main value
+  graphicElements.push({
+    type: 'text',
+    left: 'center',
+    top: showTrend ? '32%' : '38%',
+    style: {
+      text: formattedValue,
+      fontSize: valueFontSize,
+      fontWeight: 'bold' as const,
+      fill: colors[0]
+    },
+    z: 100
+  });
+
+  // Label
+  graphicElements.push({
+    type: 'text',
+    left: 'center',
+    top: showTrend ? '58%' : '65%',
+    style: {
+      text: label,
+      fontSize: 14,
+      fill: '#8b949e',
+      fontWeight: 500
+    },
+    z: 100
+  });
+
+  // Trend indicator (if enabled and data available)
+  if (showTrend && trend) {
+    const trendColor = trend.direction === 'neutral'
+      ? '#8b949e'
+      : (trend.direction === 'up'
+          ? (trendUpIsGood ? '#2ecc71' : '#e74c3c')
+          : (trendUpIsGood ? '#e74c3c' : '#2ecc71'));
+
+    const trendArrow = trend.direction === 'up' ? '▲' :
+                       trend.direction === 'down' ? '▼' : '●';
+
+    const trendText = `${trendArrow} ${Math.abs(trend.percentage).toFixed(1)}%`;
+
+    graphicElements.push({
+      type: 'text',
+      left: 'center',
+      top: '78%',
+      style: {
+        text: trendText,
+        fontSize: 16,
+        fontWeight: 600,
+        fill: trendColor
+      },
+      z: 100
+    });
+
+    // Trend comparison label
+    graphicElements.push({
+      type: 'text',
+      left: 'center',
+      top: '88%',
+      style: {
+        text: kpiOpts?.trendMode === 'first_last' ? 'first vs last' : 'vs previous',
+        fontSize: 11,
+        fill: '#6e7681'
+      },
+      z: 100
+    });
   }
 
   return {
@@ -19,31 +154,7 @@ export function getKPICardOptions(ctx: ChartContext): EChartsOption {
     grid: { show: false },
     xAxis: { show: false },
     yAxis: { show: false },
-    graphic: [
-      {
-        type: 'text',
-        left: 'center',
-        top: '35%',
-        style: {
-          text: formatNumber(value),
-          fontSize: 64,
-          fontWeight: 'bold' as const,
-          fill: colors[0]
-        },
-        z: 100
-      },
-      {
-        type: 'text',
-        left: 'center',
-        top: '60%',
-        style: {
-          text: label,
-          fontSize: 16,
-          fill: '#8b949e'
-        },
-        z: 100
-      }
-    ],
+    graphic: graphicElements,
     animation: enableAnimation
   };
 }

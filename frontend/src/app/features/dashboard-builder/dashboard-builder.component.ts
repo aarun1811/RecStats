@@ -11,17 +11,14 @@ import { DashboardFilter, ChartColumn } from './filters/models/filter.models';
 import { FilterStateService } from './services/filter-state.service';
 import { FilterConfigService } from './services/filter-config.service';
 
-import { KpiWidgetConfig } from './rich-kpi-card/rich-kpi-card.component';
-
 export interface DashboardWidget extends GridsterItem {
   id: string;
-  type: 'chart' | 'table' | 'kpi';
+  type: 'chart' | 'table';
   chartId?: string;   // Reference to chart in library
   queryId?: string;   // Reference to saved query
   title: string;
   chartType?: string;
   config?: any;
-  kpiConfig?: KpiWidgetConfig;  // For KPI widgets
   widgetStyle?: 'glass' | 'solid';  // Visual style
 }
 
@@ -405,9 +402,9 @@ export class DashboardBuilderComponent implements OnInit, OnDestroy {
     outerMarginLeft: 0
   };
 
-  // Default widget sizes for 48px grid
+  // Default widget sizes for 48px grid (by chart type)
   private readonly DEFAULT_WIDGET_SIZES: Record<string, { cols: number; rows: number }> = {
-    kpi: { cols: 3, rows: 4 },         // 144px × 192px
+    kpiCard: { cols: 3, rows: 4 },     // 144px × 192px
     pie: { cols: 4, rows: 5 },         // 192px × 240px
     donut: { cols: 4, rows: 5 },       // 192px × 240px
     gauge: { cols: 3, rows: 4 },       // 144px × 192px
@@ -427,7 +424,6 @@ export class DashboardBuilderComponent implements OnInit, OnDestroy {
   };
 
   private getDefaultWidgetSize(type: string, chartType?: string): { cols: number; rows: number } {
-    if (type === 'kpi') return this.DEFAULT_WIDGET_SIZES['kpi'];
     if (type === 'table') return this.DEFAULT_WIDGET_SIZES['table'];
     if (chartType && this.DEFAULT_WIDGET_SIZES[chartType]) {
       return this.DEFAULT_WIDGET_SIZES[chartType];
@@ -576,7 +572,6 @@ export class DashboardBuilderComponent implements OnInit, OnDestroy {
       chartType: selection.chartType,
       title: selection.title,
       config: selection.config,
-      kpiConfig: selection.kpiConfig,
       widgetStyle: 'glass'  // Default to glass style
     };
 
@@ -736,7 +731,6 @@ export class DashboardBuilderComponent implements OnInit, OnDestroy {
           chartType: w.chartType,
           title: w.title,
           config: w.config,
-          kpiConfig: w.kpiConfig,
           widgetStyle: w.widgetStyle || 'glass'
         }))
       }

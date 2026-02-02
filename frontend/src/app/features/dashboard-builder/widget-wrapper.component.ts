@@ -3,7 +3,6 @@ import { Subject } from 'rxjs';
 import { DashboardWidget } from './dashboard-builder.component';
 import { CrossFilterService, ChartClickEvent } from '../../core/services/cross-filter.service';
 import { IndicatorType } from '../../shared/components/cross-filter-indicator/cross-filter-indicator.component';
-import { KpiWidgetConfig } from './rich-kpi-card/rich-kpi-card.component';
 
 @Component({
   selector: 'app-widget-wrapper',
@@ -49,21 +48,6 @@ import { KpiWidgetConfig } from './rich-kpi-card/rich-kpi-card.component';
 
       <!-- Widget Content -->
       <div class="widget-content">
-        <!-- KPI Widget (Rich KPI Card) -->
-        <app-rich-kpi-card
-          *ngIf="widget.type === 'kpi' && widget.kpiConfig"
-          [value]="widget.kpiConfig.value"
-          [label]="widget.kpiConfig.label"
-          [format]="widget.kpiConfig.format || 'number'"
-          [prefix]="widget.kpiConfig.prefix"
-          [suffix]="widget.kpiConfig.suffix"
-          [trend]="widget.kpiConfig.trend"
-          [sparkline]="widget.kpiConfig.sparkline"
-          [comparison]="widget.kpiConfig.comparison"
-          [variant]="widget.kpiConfig.variant || 'default'"
-          [size]="widget.cols">
-        </app-rich-kpi-card>
-
         <!-- Chart Widget -->
         <app-chart-preview
           *ngIf="widget.type === 'chart' && widget.chartId"
@@ -380,7 +364,6 @@ import { KpiWidgetConfig } from './rich-kpi-card/rich-kpi-card.component';
       min-height: 0;
     }
 
-    app-rich-kpi-card,
     app-chart-preview,
     app-table-widget {
       flex: 1;
@@ -462,15 +445,13 @@ export class WidgetWrapperComponent implements OnInit, OnDestroy {
   hasValidData(): boolean {
     if (this.widget.type === 'chart') return !!this.widget.chartId;
     if (this.widget.type === 'table') return !!this.widget.queryId;
-    if (this.widget.type === 'kpi') return !!this.widget.kpiConfig;
     return false;
   }
 
   getEmptyIcon(): string {
     const icons: Record<string, string> = {
       chart: 'bar-chart-2',
-      table: 'table',
-      kpi: 'trending-up'
+      table: 'table'
     };
     return icons[this.widget.type] || 'layout';
   }
@@ -478,8 +459,7 @@ export class WidgetWrapperComponent implements OnInit, OnDestroy {
   getWidgetTypeLabel(): string {
     const labels: Record<string, string> = {
       chart: 'chart',
-      table: 'query',
-      kpi: 'KPI data'
+      table: 'query'
     };
     return labels[this.widget.type] || 'data';
   }
