@@ -56,7 +56,6 @@ export class DataLoaderService {
       await this.duckdb.ensureInitialized();
 
       // Fetch bulk data from backend
-      console.log('Fetching data from backend...');
       const data = await firstValueFrom(
         this.api.get<BulkDataResponse>('/data/bulk')
       );
@@ -64,19 +63,16 @@ export class DataLoaderService {
       // Load transactions
       if (data.transactions?.length > 0) {
         await this.loadTableData('transactions', data.transactions);
-        console.log(`Loaded ${data.transactions.length} transactions`);
       }
 
       // Load breaks
       if (data.breaks?.length > 0) {
         await this.loadTableData('breaks', data.breaks);
-        console.log(`Loaded ${data.breaks.length} breaks`);
       }
 
       // Load daily metrics
       if (data.daily_metrics?.length > 0) {
         await this.loadTableData('daily_metrics', data.daily_metrics);
-        console.log(`Loaded ${data.daily_metrics.length} daily metrics`);
       }
 
       const totalRows = (data.transactions?.length || 0) +
@@ -89,8 +85,6 @@ export class DataLoaderService {
         tablesLoaded: ['transactions', 'breaks', 'daily_metrics'],
         totalRows
       });
-
-      console.log(`DuckDB initialized with ${totalRows.toLocaleString()} total rows`);
     } catch (error: any) {
       console.error('Failed to initialize DuckDB data:', error);
       this.status.update(s => ({

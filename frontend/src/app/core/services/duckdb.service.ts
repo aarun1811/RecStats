@@ -46,8 +46,6 @@ export class DuckDbService {
 
       this.conn = await this.db.connect();
       this.initialized = true;
-
-      console.log('DuckDB-WASM initialized successfully');
     } catch (error) {
       console.error('Failed to initialize DuckDB-WASM:', error);
       throw error;
@@ -109,8 +107,6 @@ export class DuckDbService {
       CREATE OR REPLACE TABLE ${tableName} AS
       SELECT * FROM read_csv_auto('${tableName}.csv')
     `);
-
-    console.log(`Loaded CSV into table: ${tableName}`);
   }
 
   async loadJSON(tableName: string, data: any[]): Promise<void> {
@@ -131,8 +127,6 @@ export class DuckDbService {
       CREATE OR REPLACE TABLE ${tableName} AS
       SELECT * FROM read_json_auto('${tableName}.json')
     `);
-
-    console.log(`Loaded JSON into table: ${tableName}`);
   }
 
   async loadParquet(tableName: string, parquetData: Uint8Array): Promise<void> {
@@ -150,8 +144,6 @@ export class DuckDbService {
       CREATE OR REPLACE TABLE ${tableName} AS
       SELECT * FROM read_parquet('${tableName}.parquet')
     `);
-
-    console.log(`Loaded Parquet into table: ${tableName}`);
   }
 
   async getTableInfo(tableName: string): Promise<{ name: string; type: string }[]> {
@@ -184,7 +176,6 @@ export class DuckDbService {
     }
 
     await this.conn.query(`DROP TABLE IF EXISTS ${tableName}`);
-    console.log(`Dropped table: ${tableName}`);
   }
 
   async close(): Promise<void> {

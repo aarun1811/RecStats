@@ -79,7 +79,6 @@ interface DashboardResponse {
           [options]="gridOptions"
           [editMode]="editMode()"
           (widgetRemove)="removeWidget($event)"
-          (widgetEdit)="editWidget($event)"
           (layoutChange)="onLayoutChange($event)">
         </app-dashboard-grid>
       </div>
@@ -431,11 +430,6 @@ export class DashboardBuilderComponent implements OnInit {
   removeWidget(widgetId: string) {
     this.widgets.update(widgets => widgets.filter(w => w.id !== widgetId));
     this.notifications.info('Widget removed');
-  }
-
-  editWidget(widget: DashboardWidget) {
-    // TODO: Open widget config modal
-    this.notifications.info('Widget editing coming soon');
   }
 
   onLayoutChange(layout: DashboardWidget[]) {

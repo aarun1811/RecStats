@@ -813,7 +813,6 @@ export class HomeComponent implements OnInit {
 
   deleteItem(item: InfoSidebarItem) {
     // TODO: Implement delete with confirmation modal
-    console.log('Delete item:', item);
   }
 
   getRouteForItem(item: InfoSidebarItem): string {
