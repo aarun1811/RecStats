@@ -301,19 +301,39 @@ interface Collection {
     // Add spacing after collapsible section
     :host ::ng-deep app-collapsible-section {
       display: block;
-      margin-bottom: var(--spacing-8);
+      margin-bottom: var(--spacing-10);
     }
 
     // Section styling
     .section {
-      margin-bottom: var(--spacing-10);
+      margin-bottom: var(--spacing-12);
+      padding-top: var(--spacing-8);
+      position: relative;
+    }
+
+    // Gradient divider before each section
+    .section::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.06) 15%,
+        rgba(255, 255, 255, 0.08) 50%,
+        rgba(255, 255, 255, 0.06) 85%,
+        transparent 100%
+      );
     }
 
     .section-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: var(--spacing-5);
+      margin-bottom: var(--spacing-6);
     }
 
     .section-title {
