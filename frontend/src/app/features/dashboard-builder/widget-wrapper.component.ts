@@ -234,7 +234,6 @@ export class WidgetWrapperComponent {
   @Input() widget!: DashboardWidget;
   @Input() editMode = true;
   @Output() remove = new EventEmitter<void>();
-  @Output() edit = new EventEmitter<void>();
 
   // Track refresh state for chart preview
   private refreshKey = 0;
@@ -252,10 +251,6 @@ export class WidgetWrapperComponent {
 
   onRemove() {
     this.remove.emit();
-  }
-
-  onEdit() {
-    this.edit.emit();
   }
 
   onRefresh() {

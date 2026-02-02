@@ -25,8 +25,6 @@ router = APIRouter()
 def get_connector(data_source: DataSource):
     """Get the appropriate connector for a data source."""
     config = json.loads(data_source.connection_config) if data_source.connection_config else {}
-    if data_source.type == "mock":
-        return MockConnector(config)
     return MockConnector(config)
 
 

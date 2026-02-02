@@ -2023,7 +2023,4 @@ export class ChartBuilderComponent implements OnInit {
     }
   }
 
-  viewAllData() {
-    this.notifications.info('Full data view coming soon');
-  }
 }

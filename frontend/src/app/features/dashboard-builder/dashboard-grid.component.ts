@@ -13,8 +13,7 @@ import { DashboardWidget } from './dashboard-builder.component';
         <app-widget-wrapper
           [widget]="widget"
           [editMode]="editMode"
-          (remove)="onRemove(widget.id)"
-          (edit)="onEdit(widget)">
+          (remove)="onRemove(widget.id)">
         </app-widget-wrapper>
       </gridster-item>
     </gridster>
@@ -83,14 +82,9 @@ export class DashboardGridComponent {
   @Input() options: GridsterConfig = {};
   @Input() editMode = true;
   @Output() widgetRemove = new EventEmitter<string>();
-  @Output() widgetEdit = new EventEmitter<DashboardWidget>();
   @Output() layoutChange = new EventEmitter<DashboardWidget[]>();
 
   onRemove(widgetId: string) {
     this.widgetRemove.emit(widgetId);
-  }
-
-  onEdit(widget: DashboardWidget) {
-    this.widgetEdit.emit(widget);
   }
 }
