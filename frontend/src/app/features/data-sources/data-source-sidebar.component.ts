@@ -29,8 +29,7 @@ interface FormData {
         <div class="header-bg"></div>
         <div class="header-content">
           <div class="header-icon-wrap">
-            <div class="icon-glow"></div>
-            <app-icon [name]="getTypeIcon(dataSource?.type || formData().type)" [size]="28"></app-icon>
+            <app-icon [name]="getTypeIcon(dataSource?.type || formData().type)" [size]="26"></app-icon>
           </div>
           <div class="header-text">
             <span class="header-badge">{{ getTypeLabel(dataSource?.type || formData().type) }}</span>
@@ -152,40 +151,33 @@ interface FormData {
 
       <!-- EDIT/CREATE MODE - Form -->
       <div class="sidebar-form" *ngIf="mode !== 'view'">
-        <!-- Floating Label Inputs -->
-        <div class="floating-field">
+        <div class="form-field">
+          <label class="field-label">Name <span class="required">*</span></label>
           <input
             type="text"
-            id="ds-name"
             [ngModel]="formData().name"
             (ngModelChange)="updateForm('name', $event)"
-            placeholder=" ">
-          <label for="ds-name">Name <span class="required">*</span></label>
-          <div class="field-line"></div>
+            placeholder="My Data Source">
         </div>
 
-        <div class="floating-field select-field">
+        <div class="form-field">
+          <label class="field-label">Type <span class="required">*</span></label>
           <select
-            id="ds-type"
             [ngModel]="formData().type"
             (ngModelChange)="updateForm('type', $event)"
             [disabled]="mode === 'edit'">
             <option value="sqlite">SQLite</option>
             <option value="oracle">Oracle</option>
           </select>
-          <label for="ds-type">Type <span class="required">*</span></label>
-          <div class="field-line"></div>
         </div>
 
-        <div class="floating-field textarea-field">
+        <div class="form-field">
+          <label class="field-label">Description</label>
           <textarea
-            id="ds-desc"
             [ngModel]="formData().description"
             (ngModelChange)="updateForm('description', $event)"
             rows="2"
-            placeholder=" "></textarea>
-          <label for="ds-desc">Description</label>
-          <div class="field-line"></div>
+            placeholder="Optional description..."></textarea>
         </div>
 
         <!-- SQLite Fields -->
@@ -196,15 +188,13 @@ interface FormData {
             </div>
             <span>SQLite Connection</span>
           </div>
-          <div class="floating-field">
+          <div class="form-field">
+            <label class="field-label">Database Path <span class="required">*</span></label>
             <input
               type="text"
-              id="sqlite-path"
               [ngModel]="formData().database_path"
               (ngModelChange)="updateForm('database_path', $event)"
-              placeholder=" ">
-            <label for="sqlite-path">Database Path <span class="required">*</span></label>
-            <div class="field-line"></div>
+              placeholder="/path/to/database.db">
             <span class="field-hint">Path to the SQLite database file</span>
           </div>
         </div>
@@ -219,59 +209,49 @@ interface FormData {
           </div>
 
           <div class="field-row">
-            <div class="floating-field flex-grow">
+            <div class="form-field">
+              <label class="field-label">Host <span class="required">*</span></label>
               <input
                 type="text"
-                id="oracle-host"
                 [ngModel]="formData().host"
                 (ngModelChange)="updateForm('host', $event)"
-                placeholder=" ">
-              <label for="oracle-host">Host <span class="required">*</span></label>
-              <div class="field-line"></div>
+                placeholder="hostname or IP">
             </div>
-            <div class="floating-field port-field">
+            <div class="form-field port-field">
+              <label class="field-label">Port</label>
               <input
                 type="number"
-                id="oracle-port"
                 [ngModel]="formData().port"
                 (ngModelChange)="updateForm('port', $event)"
-                placeholder=" ">
-              <label for="oracle-port">Port</label>
-              <div class="field-line"></div>
+                placeholder="1521">
             </div>
           </div>
 
-          <div class="floating-field">
+          <div class="form-field">
+            <label class="field-label">Service Name <span class="required">*</span></label>
             <input
               type="text"
-              id="oracle-service"
               [ngModel]="formData().service_name"
               (ngModelChange)="updateForm('service_name', $event)"
-              placeholder=" ">
-            <label for="oracle-service">Service Name <span class="required">*</span></label>
-            <div class="field-line"></div>
+              placeholder="ORCL">
           </div>
 
-          <div class="floating-field">
+          <div class="form-field">
+            <label class="field-label">Username <span class="required">*</span></label>
             <input
               type="text"
-              id="oracle-user"
               [ngModel]="formData().user"
               (ngModelChange)="updateForm('user', $event)"
-              placeholder=" ">
-            <label for="oracle-user">Username <span class="required">*</span></label>
-            <div class="field-line"></div>
+              placeholder="database user">
           </div>
 
-          <div class="floating-field">
+          <div class="form-field">
+            <label class="field-label">Password <span class="required">*</span></label>
             <input
               type="password"
-              id="oracle-pass"
               [ngModel]="formData().password"
               (ngModelChange)="updateForm('password', $event)"
-              placeholder=" ">
-            <label for="oracle-pass">Password <span class="required">*</span></label>
-            <div class="field-line"></div>
+              placeholder="database password">
           </div>
         </div>
 
@@ -340,18 +320,8 @@ interface FormData {
       100% { transform: scale(2); opacity: 0; }
     }
 
-    @keyframes glow {
-      0%, 100% { opacity: 0.6; }
-      50% { opacity: 1; }
-    }
-
     @keyframes spin {
       to { transform: rotate(360deg); }
-    }
-
-    @keyframes shimmer {
-      0% { background-position: -200% 0; }
-      100% { background-position: 200% 0; }
     }
 
     @keyframes float-in {
@@ -431,32 +401,32 @@ interface FormData {
       &.header-sqlite {
         --header-accent: #3b82f6;
         .header-icon-wrap {
-          background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-          box-shadow: 0 4px 20px rgba(59, 130, 246, 0.4);
+          background: linear-gradient(145deg, #4f8ff7 0%, #2563eb 50%, #1d4ed8 100%);
+          box-shadow:
+            0 0 0 1px rgba(59, 130, 246, 0.3),
+            0 4px 16px rgba(59, 130, 246, 0.25),
+            0 8px 32px rgba(59, 130, 246, 0.15);
         }
         .header-badge {
-          background: rgba(59, 130, 246, 0.2);
+          background: rgba(59, 130, 246, 0.15);
           color: #60a5fa;
-          border: 1px solid rgba(59, 130, 246, 0.3);
-        }
-        .icon-glow {
-          background: radial-gradient(circle, rgba(59, 130, 246, 0.4) 0%, transparent 70%);
+          border: 1px solid rgba(59, 130, 246, 0.25);
         }
       }
 
       &.header-oracle {
         --header-accent: #f97316;
         .header-icon-wrap {
-          background: linear-gradient(135deg, #f97316 0%, #c2410c 100%);
-          box-shadow: 0 4px 20px rgba(249, 115, 22, 0.4);
+          background: linear-gradient(145deg, #fb923c 0%, #f97316 50%, #ea580c 100%);
+          box-shadow:
+            0 0 0 1px rgba(249, 115, 22, 0.3),
+            0 4px 16px rgba(249, 115, 22, 0.25),
+            0 8px 32px rgba(249, 115, 22, 0.15);
         }
         .header-badge {
-          background: rgba(249, 115, 22, 0.2);
+          background: rgba(249, 115, 22, 0.15);
           color: #fb923c;
-          border: 1px solid rgba(249, 115, 22, 0.3);
-        }
-        .icon-glow {
-          background: radial-gradient(circle, rgba(249, 115, 22, 0.4) 0%, transparent 70%);
+          border: 1px solid rgba(249, 115, 22, 0.25);
         }
       }
 
@@ -468,26 +438,17 @@ interface FormData {
       }
 
       .header-icon-wrap {
-        position: relative;
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 52px;
-        height: 52px;
-        border-radius: 14px;
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
         color: white;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
 
-        .icon-glow {
-          position: absolute;
-          width: 80px;
-          height: 80px;
-          border-radius: 50%;
-          animation: glow 3s ease-in-out infinite;
-        }
-
-        app-icon {
-          position: relative;
-          z-index: 1;
+        &:hover {
+          transform: scale(1.02);
         }
       }
 
@@ -865,69 +826,17 @@ interface FormData {
     }
 
     /* ═══════════════════════════════════════════════════════════
-       FLOATING LABEL FORM FIELDS
+       FORM FIELDS
     ═══════════════════════════════════════════════════════════ */
-    .floating-field {
-      position: relative;
-      margin-bottom: var(--spacing-5);
+    .form-field {
+      margin-bottom: var(--spacing-4);
 
-      input, select, textarea {
-        width: 100%;
-        padding: 16px 14px 8px;
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 12px;
-        color: var(--text-primary);
-        font-size: 14px;
-        transition: all 0.25s ease;
-
-        &:focus {
-          outline: none;
-          background: rgba(255, 255, 255, 0.05);
-          border-color: var(--color-primary);
-          box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1);
-
-          ~ label {
-            top: 8px;
-            font-size: 10px;
-            color: var(--color-primary-light);
-          }
-
-          ~ .field-line {
-            transform: scaleX(1);
-          }
-        }
-
-        &:not(:placeholder-shown) ~ label {
-          top: 8px;
-          font-size: 10px;
-        }
-
-        &:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-
-        &::placeholder {
-          color: transparent;
-        }
-      }
-
-      textarea {
-        resize: vertical;
-        min-height: 70px;
-        padding-top: 22px;
-      }
-
-      label {
-        position: absolute;
-        left: 14px;
-        top: 14px;
-        font-size: 13px;
-        color: var(--text-muted);
-        pointer-events: none;
-        transition: all 0.2s ease;
-        background: transparent;
+      .field-label {
+        display: block;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        margin-bottom: 8px;
 
         .required {
           color: #ef4444;
@@ -935,16 +844,46 @@ interface FormData {
         }
       }
 
-      .field-line {
-        position: absolute;
-        bottom: 0;
-        left: 12px;
-        right: 12px;
-        height: 2px;
-        background: linear-gradient(90deg, var(--color-primary), var(--color-primary-light));
-        border-radius: 2px;
-        transform: scaleX(0);
-        transition: transform 0.3s ease;
+      input, select, textarea {
+        width: 100%;
+        padding: 12px 14px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        color: var(--text-primary);
+        font-size: 14px;
+        transition: all 0.2s ease;
+
+        &:focus {
+          outline: none;
+          background: rgba(255, 255, 255, 0.06);
+          border-color: var(--color-primary);
+          box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1);
+        }
+
+        &::placeholder {
+          color: var(--text-muted);
+          opacity: 0.6;
+        }
+
+        &:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+      }
+
+      select {
+        cursor: pointer;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+        padding-right: 40px;
+      }
+
+      textarea {
+        resize: vertical;
+        min-height: 72px;
       }
 
       .field-hint {
@@ -954,28 +893,18 @@ interface FormData {
         color: var(--text-muted);
         opacity: 0.7;
       }
-
-      &.select-field select {
-        cursor: pointer;
-        padding-top: 22px;
-      }
-
-      &.textarea-field label {
-        top: 10px;
-      }
-
-      &.port-field {
-        width: 100px;
-        flex-shrink: 0;
-      }
     }
 
     .field-row {
       display: flex;
       gap: var(--spacing-3);
 
-      .flex-grow {
+      .form-field {
         flex: 1;
+
+        &.port-field {
+          flex: 0 0 100px;
+        }
       }
     }
 
