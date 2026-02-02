@@ -323,7 +323,7 @@ interface Collection {
       position: relative;
     }
 
-    // Gradient divider before each section
+    // Gradient divider before each section (theme-aware)
     .section::before {
       content: '';
       position: absolute;
@@ -334,10 +334,11 @@ interface Collection {
       background: linear-gradient(
         90deg,
         transparent 0%,
-        rgba(255, 255, 255, 0.08) 20%,
-        rgba(255, 255, 255, 0.08) 80%,
+        var(--border-color) 20%,
+        var(--border-color) 80%,
         transparent 100%
       );
+      opacity: 0.6;
     }
 
     // Last section has less bottom margin
