@@ -391,9 +391,9 @@ export class DashboardBuilderComponent implements OnInit, OnDestroy {
     maxCols: 12,
     minRows: 10,
     maxRows: 1000,  // Effectively unlimited
-    fixedRowHeight: 48,  // Finer 48px row height for better positioning
+    fixedRowHeight: 30,  // Compact 30px row height for better widget sizing
     defaultItemCols: 4,
-    defaultItemRows: 5,  // 5 rows × 48px = 240px default height
+    defaultItemRows: 8,  // 8 rows × 30px = 240px default height
     margin: 12,  // Slightly tighter margins
     outerMargin: true,
     outerMarginTop: 0,
@@ -402,25 +402,25 @@ export class DashboardBuilderComponent implements OnInit, OnDestroy {
     outerMarginLeft: 0
   };
 
-  // Default widget sizes for 48px grid (by chart type)
+  // Default widget sizes for 30px grid (by chart type)
   private readonly DEFAULT_WIDGET_SIZES: Record<string, { cols: number; rows: number }> = {
-    kpiCard: { cols: 3, rows: 4 },     // 144px × 192px
-    pie: { cols: 4, rows: 5 },         // 192px × 240px
-    donut: { cols: 4, rows: 5 },       // 192px × 240px
-    gauge: { cols: 3, rows: 4 },       // 144px × 192px
-    speedometer: { cols: 3, rows: 4 }, // 144px × 192px
-    radialBar: { cols: 3, rows: 4 },   // 144px × 192px
-    bar: { cols: 6, rows: 6 },         // 288px × 288px
-    column: { cols: 6, rows: 6 },      // 288px × 288px
-    line: { cols: 6, rows: 6 },        // 288px × 288px
-    area: { cols: 6, rows: 6 },        // 288px × 288px
-    scatter: { cols: 6, rows: 6 },     // 288px × 288px
-    heatmap: { cols: 8, rows: 6 },     // 384px × 288px
-    treemap: { cols: 6, rows: 6 },     // 288px × 288px
-    funnel: { cols: 4, rows: 6 },      // 192px × 288px
-    radar: { cols: 5, rows: 5 },       // 240px × 240px
-    table: { cols: 8, rows: 8 },       // 384px × 384px
-    default: { cols: 6, rows: 5 }      // 288px × 240px
+    kpiCard: { cols: 2, rows: 5 },     // Compact KPI: ~150px height
+    pie: { cols: 4, rows: 8 },         // ~240px height
+    donut: { cols: 4, rows: 8 },       // ~240px height
+    gauge: { cols: 3, rows: 6 },       // ~180px height
+    speedometer: { cols: 3, rows: 6 }, // ~180px height
+    radialBar: { cols: 3, rows: 6 },   // ~180px height
+    bar: { cols: 6, rows: 8 },         // ~240px height
+    column: { cols: 6, rows: 8 },      // ~240px height
+    line: { cols: 6, rows: 8 },        // ~240px height
+    area: { cols: 6, rows: 8 },        // ~240px height
+    scatter: { cols: 6, rows: 8 },     // ~240px height
+    heatmap: { cols: 8, rows: 8 },     // ~240px height
+    treemap: { cols: 6, rows: 8 },     // ~240px height
+    funnel: { cols: 4, rows: 10 },     // ~300px height
+    radar: { cols: 5, rows: 8 },       // ~240px height
+    table: { cols: 8, rows: 12 },      // ~360px height
+    default: { cols: 6, rows: 8 }      // ~240px height
   };
 
   private getDefaultWidgetSize(type: string, chartType?: string): { cols: number; rows: number } {
