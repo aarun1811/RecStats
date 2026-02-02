@@ -17,7 +17,7 @@ from uuid import uuid4
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import Transaction, Break, DailyMetric, Query, Chart, Dashboard, DashboardChart, DataSource
+from app.db.models import Transaction, Break, DailyMetric, Query, Chart, Dashboard, DashboardChart, DataSource, Collection, CollectionItem
 
 logger = logging.getLogger(__name__)
 
@@ -981,6 +981,116 @@ SAMPLE_DASHBOARDS = [
 ]
 
 
+# ============================================================================
+# DEFAULT COLLECTIONS
+# ============================================================================
+
+DEFAULT_COLLECTIONS = [
+    {
+        "id": "coll-executive-reports",
+        "name": "Executive Reports",
+        "description": "High-level dashboards and KPIs for executive stakeholders",
+        "color": "#3B82F6",
+    },
+    {
+        "id": "coll-operational",
+        "name": "Operational",
+        "description": "Day-to-day operational dashboards and monitoring",
+        "color": "#10B981",
+    },
+    {
+        "id": "coll-analysis",
+        "name": "Analysis",
+        "description": "Deep-dive analytical charts and queries",
+        "color": "#F59E0B",
+    },
+    {
+        "id": "coll-archived",
+        "name": "Archived",
+        "description": "Archived items for reference",
+        "color": "#6B7280",
+    },
+]
+
+# Map collections to items
+COLLECTION_ITEMS_MAP = {
+    "coll-executive-reports": [
+        {"item_id": "dashboard-executive", "item_type": "dashboard"},
+        {"item_id": "dashboard-trends", "item_type": "dashboard"},
+        {"item_id": "chart-kpi-total-txns", "item_type": "chart"},
+        {"item_id": "chart-gauge-match-rate", "item_type": "chart"},
+        {"item_id": "chart-exec-daily-trend", "item_type": "chart"},
+    ],
+    "coll-operational": [
+        {"item_id": "dashboard-breaks", "item_type": "dashboard"},
+        {"item_id": "dashboard-recon", "item_type": "dashboard"},
+        {"item_id": "chart-breaks-by-reason", "item_type": "chart"},
+        {"item_id": "chart-recon-by-system", "item_type": "chart"},
+        {"item_id": "query-table-critical-breaks", "item_type": "query"},
+    ],
+    "coll-analysis": [
+        {"item_id": "dashboard-geo", "item_type": "dashboard"},
+        {"item_id": "chart-scatter-amount-age", "item_type": "chart"},
+        {"item_id": "chart-radar-region", "item_type": "chart"},
+        {"item_id": "chart-funnel-processing", "item_type": "chart"},
+        {"item_id": "query-breaks-by-reason", "item_type": "query"},
+        {"item_id": "query-geo-country-top", "item_type": "query"},
+    ],
+}
+
+
+async def check_collections_exist(session: AsyncSession) -> bool:
+    """Check if collections already exist."""
+    result = await session.execute(select(func.count()).select_from(Collection))
+    count = result.scalar()
+    return count is not None and count > 0
+
+
+async def seed_default_collections(session: AsyncSession) -> None:
+    """Seed default collections and link items to them."""
+    exists = await check_collections_exist(session)
+    if exists:
+        logger.info("Collections already exist. Skipping collection seed.")
+        return
+
+    logger.info("=" * 60)
+    logger.info("Seeding default collections...")
+    logger.info("=" * 60)
+
+    # Create collections
+    for coll_data in DEFAULT_COLLECTIONS:
+        collection = Collection(
+            id=coll_data["id"],
+            name=coll_data["name"],
+            description=coll_data["description"],
+            color=coll_data["color"],
+        )
+        session.add(collection)
+    await session.flush()
+
+    # Add items to collections
+    item_count = 0
+    for collection_id, items in COLLECTION_ITEMS_MAP.items():
+        for item_data in items:
+            collection_item = CollectionItem(
+                id=str(uuid4()),
+                collection_id=collection_id,
+                item_id=item_data["item_id"],
+                item_type=item_data["item_type"],
+            )
+            session.add(collection_item)
+            item_count += 1
+    await session.flush()
+
+    await session.commit()
+
+    logger.info("=" * 60)
+    logger.info("Collections seeding complete!")
+    logger.info(f"  - Collections: {len(DEFAULT_COLLECTIONS)}")
+    logger.info(f"  - Collection Items: {item_count}")
+    logger.info("=" * 60)
+
+
 async def check_dashboards_exist(session: AsyncSession) -> bool:
     """Check if sample dashboards already exist."""
     result = await session.execute(select(func.count()).select_from(Dashboard))
@@ -1050,3 +1160,6 @@ async def seed_sample_dashboards(session: AsyncSession) -> None:
     logger.info(f"  - Charts: {len(SAMPLE_CHARTS)}")
     logger.info(f"  - Dashboards: {len(SAMPLE_DASHBOARDS)}")
     logger.info("=" * 60)
+
+    # Seed default collections
+    await seed_default_collections(session)

@@ -145,6 +145,52 @@ class UploadedFile(Base):
 
 
 # ============================================================================
+# COLLECTIONS (for organizing queries, charts, dashboards)
+# ============================================================================
+
+
+class Collection(Base):
+    """Collections for organizing queries, charts, and dashboards."""
+
+    __tablename__ = "collections"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    color: Mapped[str] = mapped_column(String(7), default="#3B82F6", nullable=False)  # Hex color
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    # Relationships
+    items: Mapped[list["CollectionItem"]] = relationship(
+        back_populates="collection", cascade="all, delete-orphan"
+    )
+
+
+class CollectionItem(Base):
+    """Junction table linking collections to items (queries, charts, dashboards)."""
+
+    __tablename__ = "collection_items"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    collection_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("collections.id", ondelete="CASCADE"), nullable=False
+    )
+    item_id: Mapped[str] = mapped_column(String(36), nullable=False)  # ID of query/chart/dashboard
+    item_type: Mapped[str] = mapped_column(String(20), nullable=False)  # "query", "chart", "dashboard"
+    added_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False
+    )
+
+    # Relationships
+    collection: Mapped["Collection"] = relationship(back_populates="items")
+
+
+# ============================================================================
 # MOCK DATA TABLES (for demo/prototype)
 # ============================================================================
 

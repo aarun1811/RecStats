@@ -8,6 +8,11 @@ const routes: Routes = [
       .then(m => m.DashboardViewerModule)
   },
   {
+    path: 'collections',
+    loadChildren: () => import('./features/collections/collections.module')
+      .then(m => m.CollectionsModule)
+  },
+  {
     path: 'dashboards',
     loadChildren: () => import('./features/dashboard-builder/dashboard-builder.module')
       .then(m => m.DashboardBuilderModule)
