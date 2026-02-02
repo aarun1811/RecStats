@@ -1,6 +1,7 @@
 """Data sources API endpoints."""
 
 import json
+from datetime import datetime
 from typing import Optional
 from uuid import uuid4
 
@@ -17,20 +18,9 @@ from app.schemas.datasource import (
     ConnectionTestResult,
     SchemaInfo,
 )
-from app.connectors.mock import MockConnector
+from app.connectors import get_connector
 
 router = APIRouter()
-
-
-def get_connector(data_source: DataSource):
-    """Get the appropriate connector for a data source."""
-    config = json.loads(data_source.connection_config) if data_source.connection_config else {}
-
-    if data_source.type == "mock":
-        return MockConnector(config)
-    # TODO: Add oracle, hive connectors
-    else:
-        return MockConnector(config)  # Fallback to mock for now
 
 
 @router.post("", response_model=DataSourceResponse, status_code=status.HTTP_201_CREATED)
@@ -45,6 +35,7 @@ async def create_data_source(
         type=data.type.value,
         description=data.description,
         connection_config=json.dumps(data.connection_config) if data.connection_config else None,
+        connection_status="not_tested",
     )
     db.add(data_source)
     await db.commit()
@@ -96,6 +87,10 @@ async def update_data_source(
         data_source.description = data.description
     if data.connection_config is not None:
         data_source.connection_config = json.dumps(data.connection_config)
+        # Reset connection status when config changes
+        data_source.connection_status = "not_tested"
+        data_source.connection_message = None
+        data_source.last_tested_at = None
 
     await db.commit()
     await db.refresh(data_source)
@@ -122,13 +117,42 @@ async def test_connection(
     data_source_id: str,
     db: AsyncSession = Depends(get_db),
 ):
-    """Test a data source connection."""
+    """Test a data source connection and persist the result."""
     result = await db.execute(select(DataSource).where(DataSource.id == data_source_id))
     data_source = result.scalar_one_or_none()
     if not data_source:
         raise HTTPException(status_code=404, detail="Data source not found")
 
-    connector = get_connector(data_source)
+    config = json.loads(data_source.connection_config) if data_source.connection_config else {}
+    connector = get_connector(data_source.type, config)
+
+    try:
+        success, message = await connector.test_connection()
+
+        # Persist the test result
+        data_source.connection_status = "connected" if success else "failed"
+        data_source.connection_message = message
+        data_source.last_tested_at = datetime.utcnow()
+        await db.commit()
+
+        return ConnectionTestResult(success=success, message=message)
+    except Exception as e:
+        # Persist the failure
+        data_source.connection_status = "failed"
+        data_source.connection_message = str(e)
+        data_source.last_tested_at = datetime.utcnow()
+        await db.commit()
+
+        return ConnectionTestResult(success=False, message=str(e))
+    finally:
+        await connector.close()
+
+
+@router.post("/test-inline", response_model=ConnectionTestResult)
+async def test_connection_inline(data: DataSourceCreate):
+    """Test a connection without saving - for create/edit forms."""
+    connector = get_connector(data.type.value, data.connection_config or {})
+
     try:
         success, message = await connector.test_connection()
         return ConnectionTestResult(success=success, message=message)
@@ -149,7 +173,9 @@ async def get_schema(
     if not data_source:
         raise HTTPException(status_code=404, detail="Data source not found")
 
-    connector = get_connector(data_source)
+    config = json.loads(data_source.connection_config) if data_source.connection_config else {}
+    connector = get_connector(data_source.type, config)
+
     try:
         schema = await connector.get_schema()
         return schema

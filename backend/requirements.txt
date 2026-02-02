@@ -14,10 +14,7 @@ pyarrow==15.0.0
 openpyxl==3.1.2
 
 # Database connectors
-oracledb==2.0.1
-pyhive[hive]==0.7.0
-thrift==0.16.0
-thrift-sasl==0.4.3
+oracledb>=2.0.1
 
 # Utilities
 pydantic==2.5.3

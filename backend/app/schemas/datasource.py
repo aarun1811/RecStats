@@ -10,13 +10,14 @@ from pydantic import BaseModel, Field
 class DataSourceType(str, Enum):
     """Supported data source types."""
 
-    SQLITE = "sqlite"  # Local SQLite database
+    SQLITE = "sqlite"
     ORACLE = "oracle"
-    HIVE = "hive"
-    POSTGRES = "postgres"
-    CSV = "csv"
-    EXCEL = "excel"
-    MOCK = "mock"  # For development/demo
+
+
+class SQLiteConnectionConfig(BaseModel):
+    """SQLite connection configuration."""
+
+    database_path: str
 
 
 class OracleConnectionConfig(BaseModel):
@@ -27,23 +28,6 @@ class OracleConnectionConfig(BaseModel):
     service_name: str
     user: str
     password: str
-
-
-class HiveConnectionConfig(BaseModel):
-    """Hive connection configuration."""
-
-    host: str
-    port: int = 10000
-    database: str = "default"
-    user: Optional[str] = None
-    password: Optional[str] = None
-    auth: str = "NONE"  # NONE, LDAP, KERBEROS
-
-
-class FileConnectionConfig(BaseModel):
-    """File-based data source configuration."""
-
-    file_id: str  # Reference to uploaded_files table
 
 
 class DataSourceCreate(BaseModel):
@@ -70,6 +54,9 @@ class DataSourceResponse(BaseModel):
     name: str
     type: DataSourceType
     description: Optional[str] = None
+    connection_status: str = "not_tested"
+    connection_message: Optional[str] = None
+    last_tested_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
 

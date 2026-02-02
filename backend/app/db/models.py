@@ -16,9 +16,17 @@ class DataSource(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    type: Mapped[str] = mapped_column(String(50), nullable=False)  # oracle, hive, csv, excel
+    type: Mapped[str] = mapped_column(String(50), nullable=False)  # sqlite, oracle
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     connection_config: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON
+
+    # Connection status tracking
+    connection_status: Mapped[str] = mapped_column(
+        String(20), default="not_tested", nullable=False
+    )  # "connected", "failed", "not_tested"
+    connection_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    last_tested_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False
     )

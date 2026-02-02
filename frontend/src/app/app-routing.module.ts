@@ -29,13 +29,8 @@ const routes: Routes = [
   },
   {
     path: 'datasources',
-    loadChildren: () => import('./features/placeholder/placeholder.module')
-      .then(m => m.PlaceholderModule)
-  },
-  {
-    path: 'upload',
-    loadChildren: () => import('./features/placeholder/placeholder.module')
-      .then(m => m.PlaceholderModule)
+    loadChildren: () => import('./features/data-sources/data-sources.module')
+      .then(m => m.DataSourcesModule)
   },
   {
     path: 'settings',
