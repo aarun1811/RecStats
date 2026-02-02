@@ -187,6 +187,46 @@ export interface WidgetSelection {
     </div>
   `,
     styles: [`
+    /* ═══════════════════════════════════════════════════════════
+       ANIMATIONS
+    ═══════════════════════════════════════════════════════════ */
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes slideIn {
+      from { transform: translateX(100%); }
+      to { transform: translateX(0); }
+    }
+
+    @keyframes slideInFromRight {
+      from {
+        opacity: 0;
+        transform: translateX(12px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    @keyframes checkPop {
+      0% { transform: scale(0); }
+      70% { transform: scale(1.2); }
+      100% { transform: scale(1); }
+    }
+
+    @keyframes tabPop {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.03); }
+    }
+
+    @keyframes softBounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+    }
+
     .panel-overlay {
       position: fixed;
       inset: 0;
@@ -194,11 +234,6 @@ export interface WidgetSelection {
       backdrop-filter: blur(2px);
       z-index: 1000;
       animation: fadeIn 0.2s ease;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
     }
 
     .panel-container {
@@ -212,17 +247,8 @@ export interface WidgetSelection {
       border-left: 1px solid var(--border-color);
       display: flex;
       flex-direction: column;
-      animation: slideIn 0.3s ease;
+      animation: slideIn 0.3s cubic-bezier(0.22, 1, 0.36, 1);
       box-shadow: -8px 0 32px rgba(0, 0, 0, 0.3);
-    }
-
-    @keyframes slideIn {
-      from {
-        transform: translateX(100%);
-      }
-      to {
-        transform: translateX(0);
-      }
     }
 
     .panel-header {
@@ -280,17 +306,20 @@ export interface WidgetSelection {
       font-size: var(--font-size-sm);
       font-weight: var(--font-weight-medium);
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 
       &:hover {
         background: var(--bg-tertiary);
         color: var(--text-primary);
+        transform: scale(1.02);
       }
 
       &.active {
         background: var(--color-primary);
         border-color: var(--color-primary);
         color: white;
+        animation: tabPop 0.25s ease-out;
+        box-shadow: 0 0 12px rgba(var(--color-primary-rgb), 0.3);
       }
 
       .tab-count {
@@ -390,6 +419,8 @@ export interface WidgetSelection {
       cursor: pointer;
       transition: all 0.2s ease;
       position: relative;
+      opacity: 0;
+      animation: slideInFromRight 250ms ease-out forwards;
 
       &:hover {
         border-color: var(--border-color);
@@ -401,6 +432,18 @@ export interface WidgetSelection {
         background: rgba(var(--color-primary-rgb), 0.1);
       }
     }
+
+    /* Stagger chart cards */
+    .chart-card:nth-child(1) { animation-delay: 30ms; }
+    .chart-card:nth-child(2) { animation-delay: 60ms; }
+    .chart-card:nth-child(3) { animation-delay: 90ms; }
+    .chart-card:nth-child(4) { animation-delay: 120ms; }
+    .chart-card:nth-child(5) { animation-delay: 150ms; }
+    .chart-card:nth-child(6) { animation-delay: 180ms; }
+    .chart-card:nth-child(7) { animation-delay: 210ms; }
+    .chart-card:nth-child(8) { animation-delay: 240ms; }
+    .chart-card:nth-child(9) { animation-delay: 270ms; }
+    .chart-card:nth-child(10) { animation-delay: 300ms; }
 
     .chart-preview-container {
       width: 80px;
@@ -474,9 +517,12 @@ export interface WidgetSelection {
       cursor: pointer;
       transition: all 0.2s ease;
       position: relative;
+      opacity: 0;
+      animation: slideInFromRight 250ms ease-out forwards;
 
       &:hover {
         border-color: var(--border-color);
+        transform: translateX(-4px);
       }
 
       &.selected {
@@ -484,6 +530,18 @@ export interface WidgetSelection {
         background: rgba(var(--color-primary-rgb), 0.1);
       }
     }
+
+    /* Stagger query items */
+    .query-item:nth-child(1) { animation-delay: 30ms; }
+    .query-item:nth-child(2) { animation-delay: 60ms; }
+    .query-item:nth-child(3) { animation-delay: 90ms; }
+    .query-item:nth-child(4) { animation-delay: 120ms; }
+    .query-item:nth-child(5) { animation-delay: 150ms; }
+    .query-item:nth-child(6) { animation-delay: 180ms; }
+    .query-item:nth-child(7) { animation-delay: 210ms; }
+    .query-item:nth-child(8) { animation-delay: 240ms; }
+    .query-item:nth-child(9) { animation-delay: 270ms; }
+    .query-item:nth-child(10) { animation-delay: 300ms; }
 
     .query-icon {
       width: 40px;
@@ -540,6 +598,8 @@ export interface WidgetSelection {
       align-items: center;
       justify-content: center;
       color: white;
+      animation: checkPop 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+      box-shadow: 0 0 8px rgba(var(--color-primary-rgb), 0.4);
     }
 
     .empty-state {
@@ -552,8 +612,11 @@ export interface WidgetSelection {
       text-align: center;
 
       app-icon {
-        opacity: 0.5;
+        opacity: 0.6;
         margin-bottom: var(--spacing-2);
+        color: var(--color-primary);
+        animation: softBounce 3s ease-in-out infinite;
+        filter: drop-shadow(0 0 6px rgba(var(--color-primary-rgb), 0.3));
       }
 
       p {

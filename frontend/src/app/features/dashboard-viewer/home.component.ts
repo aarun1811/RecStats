@@ -210,10 +210,57 @@ interface Collection {
     </div>
   `,
   styles: [`
+    /* ═══════════════════════════════════════════════════════════
+       ANIMATIONS
+    ═══════════════════════════════════════════════════════════ */
+    @keyframes contentFade {
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fadeInStagger {
+      from {
+        opacity: 0;
+        transform: translateY(16px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes slideInFromLeft {
+      from {
+        opacity: 0;
+        transform: translateX(-12px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    @keyframes softBounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+
+    @keyframes iconGlow {
+      0%, 100% { filter: drop-shadow(0 0 0 transparent); }
+      50% { filter: drop-shadow(0 0 8px currentColor); }
+    }
+
     .home-page {
       max-width: var(--content-max-width);
       margin: 0 auto;
       transition: padding-right 0.3s ease;
+      animation: contentFade 350ms ease-out;
     }
 
     .home-page.sidebar-open {
@@ -266,7 +313,16 @@ interface Collection {
       background: var(--bg-tertiary);
       border-radius: var(--radius-lg);
       transition: all var(--transition-normal);
+      opacity: 0;
+      animation: slideInFromLeft 250ms ease-out forwards;
     }
+
+    // Stagger steps entrance
+    .step:nth-child(1) { animation-delay: 50ms; }
+    .step:nth-child(2) { animation-delay: 100ms; }
+    .step:nth-child(3) { animation-delay: 150ms; }
+    .step:nth-child(4) { animation-delay: 200ms; }
+    .step:nth-child(5) { animation-delay: 250ms; }
 
     .step:hover {
       background: var(--bg-hover);
@@ -321,7 +377,16 @@ interface Collection {
       margin-bottom: var(--spacing-10);
       padding-top: var(--spacing-6);
       position: relative;
+      opacity: 0;
+      animation: contentFade 300ms ease-out forwards;
     }
+
+    // Stagger sections entrance
+    .section:nth-of-type(1) { animation-delay: 100ms; }
+    .section:nth-of-type(2) { animation-delay: 150ms; }
+    .section:nth-of-type(3) { animation-delay: 200ms; }
+    .section:nth-of-type(4) { animation-delay: 250ms; }
+    .section:nth-of-type(5) { animation-delay: 300ms; }
 
     // Gradient divider before each section (theme-aware)
     .section::before {
@@ -374,6 +439,23 @@ interface Collection {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
       gap: var(--spacing-4);
+
+      // Stagger card entrance
+      ::ng-deep app-item-card {
+        opacity: 0;
+        animation: fadeInStagger 250ms ease-out forwards;
+      }
+
+      ::ng-deep app-item-card:nth-child(1) { animation-delay: 50ms; }
+      ::ng-deep app-item-card:nth-child(2) { animation-delay: 100ms; }
+      ::ng-deep app-item-card:nth-child(3) { animation-delay: 150ms; }
+      ::ng-deep app-item-card:nth-child(4) { animation-delay: 200ms; }
+      ::ng-deep app-item-card:nth-child(5) { animation-delay: 250ms; }
+      ::ng-deep app-item-card:nth-child(6) { animation-delay: 300ms; }
+      ::ng-deep app-item-card:nth-child(7) { animation-delay: 350ms; }
+      ::ng-deep app-item-card:nth-child(8) { animation-delay: 400ms; }
+      ::ng-deep app-item-card:nth-child(9) { animation-delay: 450ms; }
+      ::ng-deep app-item-card:nth-child(10) { animation-delay: 500ms; }
     }
 
     // Quick Actions
@@ -386,6 +468,14 @@ interface Collection {
     .action-card {
       text-align: center;
       cursor: pointer;
+      opacity: 0;
+      animation: fadeInStagger 300ms ease-out forwards;
+
+      // Stagger action cards
+      &:nth-child(1) { animation-delay: 100ms; }
+      &:nth-child(2) { animation-delay: 160ms; }
+      &:nth-child(3) { animation-delay: 220ms; }
+      &:nth-child(4) { animation-delay: 280ms; }
 
       .action-icon {
         width: 56px;
@@ -395,7 +485,8 @@ interface Collection {
         align-items: center;
         justify-content: center;
         margin: 0 auto var(--spacing-4);
-        transition: transform var(--transition-normal);
+        transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+                    box-shadow 0.25s ease;
 
         &.primary {
           background: rgba(var(--color-primary-rgb), 0.15);
@@ -416,10 +507,24 @@ interface Collection {
           background: rgba(var(--color-info-rgb), 0.15);
           color: var(--color-info);
         }
+
+        app-icon {
+          transition: transform 0.25s ease, filter 0.25s ease;
+        }
       }
 
       &:hover .action-icon {
         transform: scale(1.1);
+
+        &.primary { box-shadow: 0 0 20px rgba(var(--color-primary-rgb), 0.3); }
+        &.success { box-shadow: 0 0 20px rgba(var(--color-success-rgb), 0.3); }
+        &.warning { box-shadow: 0 0 20px rgba(var(--color-warning-rgb), 0.3); }
+        &.info { box-shadow: 0 0 20px rgba(var(--color-info-rgb), 0.3); }
+
+        app-icon {
+          transform: scale(1.1);
+          filter: drop-shadow(0 0 4px currentColor);
+        }
       }
 
       h3 {
@@ -455,12 +560,24 @@ interface Collection {
       transition: all var(--transition-normal);
       position: relative;
       overflow: hidden;
+      opacity: 0;
+      animation: fadeInStagger 250ms ease-out forwards;
+
+      // Stagger collection cards
+      &:nth-child(1) { animation-delay: 50ms; }
+      &:nth-child(2) { animation-delay: 100ms; }
+      &:nth-child(3) { animation-delay: 150ms; }
+      &:nth-child(4) { animation-delay: 200ms; }
+      &:nth-child(5) { animation-delay: 250ms; }
+      &:nth-child(6) { animation-delay: 300ms; }
+      &:nth-child(7) { animation-delay: 350ms; }
+      &:nth-child(8) { animation-delay: 400ms; }
     }
 
     .collection-card:hover {
       border-color: rgba(var(--color-primary-rgb), 0.3);
       box-shadow: var(--glow-primary);
-      transform: translateY(-2px);
+      transform: translateY(-4px);
     }
 
     .collection-card-inner {
@@ -478,11 +595,21 @@ interface Collection {
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
-      transition: transform var(--transition-normal);
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+                  box-shadow 0.25s ease;
+
+      app-icon {
+        transition: filter 0.25s ease;
+      }
     }
 
     .collection-card:hover .collection-icon {
-      transform: scale(1.08);
+      transform: scale(1.1);
+      box-shadow: 0 0 16px rgba(var(--color-primary-rgb), 0.2);
+
+      app-icon {
+        filter: drop-shadow(0 0 4px currentColor);
+      }
     }
 
     .collection-info {
@@ -540,6 +667,7 @@ interface Collection {
     .empty-state {
       text-align: center;
       padding: var(--spacing-12) var(--spacing-6);
+      animation: contentFade 400ms ease-out;
 
       .empty-icon {
         width: 80px;
@@ -551,6 +679,11 @@ interface Collection {
         justify-content: center;
         margin: 0 auto var(--spacing-6);
         color: var(--text-muted);
+        animation: softBounce 3s ease-in-out infinite;
+
+        app-icon {
+          filter: drop-shadow(0 0 8px rgba(var(--color-primary-rgb), 0.3));
+        }
       }
 
       h3 {

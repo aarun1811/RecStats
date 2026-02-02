@@ -98,7 +98,7 @@ interface CollectionForm {
           Edit
         </button>
         <button class="menu-item danger" (click)="deleteCollection()">
-          <app-icon name="trash-2" [size]="16"></app-icon>
+          <app-icon name="trash" [size]="16"></app-icon>
           Delete
         </button>
       </div>
@@ -158,9 +158,63 @@ interface CollectionForm {
     </div>
   `,
   styles: [`
+    /* ═══════════════════════════════════════════════════════════
+       ANIMATIONS
+    ═══════════════════════════════════════════════════════════ */
+    @keyframes contentFade {
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fadeInStagger {
+      from {
+        opacity: 0;
+        transform: translateY(16px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes contextMenuIn {
+      from {
+        opacity: 0;
+        transform: scale(0.95) translateY(-4px);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+
+    @keyframes softBounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+
+    @keyframes trashWiggle {
+      0%, 100% { transform: rotate(0deg); }
+      25% { transform: rotate(-10deg); }
+      75% { transform: rotate(10deg); }
+    }
+
+    @keyframes colorPop {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.2); }
+      100% { transform: scale(1.1); }
+    }
+
     .collections-page {
       max-width: 1400px;
       margin: 0 auto;
+      animation: contentFade 350ms ease-out;
     }
 
     .page-header {
@@ -212,6 +266,11 @@ interface CollectionForm {
       justify-content: center;
       color: var(--color-primary);
       margin-bottom: var(--spacing-4);
+      animation: softBounce 3s ease-in-out infinite;
+
+      app-icon {
+        filter: drop-shadow(0 0 8px rgba(var(--color-primary-rgb), 0.4));
+      }
     }
 
     .empty-state h3 {
@@ -241,12 +300,26 @@ interface CollectionForm {
       transition: all var(--transition-normal);
       position: relative;
       overflow: hidden;
+      opacity: 0;
+      animation: fadeInStagger 250ms ease-out forwards;
     }
+
+    // Stagger collection cards
+    .collection-card:nth-child(1) { animation-delay: 50ms; }
+    .collection-card:nth-child(2) { animation-delay: 100ms; }
+    .collection-card:nth-child(3) { animation-delay: 150ms; }
+    .collection-card:nth-child(4) { animation-delay: 200ms; }
+    .collection-card:nth-child(5) { animation-delay: 250ms; }
+    .collection-card:nth-child(6) { animation-delay: 300ms; }
+    .collection-card:nth-child(7) { animation-delay: 350ms; }
+    .collection-card:nth-child(8) { animation-delay: 400ms; }
+    .collection-card:nth-child(9) { animation-delay: 450ms; }
+    .collection-card:nth-child(10) { animation-delay: 500ms; }
 
     .collection-card:hover {
       border-color: rgba(var(--color-primary-rgb), 0.3);
       box-shadow: var(--glow-primary);
-      transform: translateY(-2px);
+      transform: translateY(-4px);
     }
 
     .card-header {
@@ -263,11 +336,21 @@ interface CollectionForm {
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: transform var(--transition-normal);
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+                  box-shadow 0.25s ease;
+
+      app-icon {
+        transition: filter 0.25s ease;
+      }
     }
 
     .collection-card:hover .collection-icon {
-      transform: scale(1.05);
+      transform: scale(1.1);
+      box-shadow: 0 0 20px rgba(var(--color-primary-rgb), 0.2);
+
+      app-icon {
+        filter: drop-shadow(0 0 4px currentColor);
+      }
     }
 
     .card-menu-btn {
@@ -356,6 +439,8 @@ interface CollectionForm {
       min-width: 160px;
       box-shadow: var(--shadow-xl);
       z-index: 1000;
+      animation: contextMenuIn 150ms ease-out;
+      transform-origin: top left;
     }
 
     .menu-item {
@@ -371,10 +456,18 @@ interface CollectionForm {
       font-size: var(--font-size-sm);
       cursor: pointer;
       transition: background var(--transition-fast);
+
+      app-icon {
+        transition: transform 0.2s ease, filter 0.2s ease;
+      }
     }
 
     .menu-item:hover {
       background: var(--bg-hover);
+
+      app-icon {
+        transform: scale(1.15);
+      }
     }
 
     .menu-item.danger {
@@ -383,6 +476,10 @@ interface CollectionForm {
 
     .menu-item.danger:hover {
       background: rgba(var(--color-error-rgb), 0.1);
+
+      app-icon {
+        animation: trashWiggle 0.3s ease-in-out;
+      }
     }
 
     /* Modal Form */
@@ -439,16 +536,18 @@ interface CollectionForm {
       border-radius: var(--radius-full);
       border: 3px solid transparent;
       cursor: pointer;
-      transition: all var(--transition-fast);
+      transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
 
     .color-option:hover {
-      transform: scale(1.1);
+      transform: scale(1.15);
+      box-shadow: 0 0 12px currentColor;
     }
 
     .color-option.selected {
       border-color: var(--text-primary);
-      box-shadow: 0 0 0 2px var(--bg-primary);
+      box-shadow: 0 0 0 2px var(--bg-primary), 0 0 16px currentColor;
+      animation: colorPop 0.25s ease-out;
     }
 
     .modal-actions {

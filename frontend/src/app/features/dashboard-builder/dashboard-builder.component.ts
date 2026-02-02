@@ -93,11 +93,60 @@ interface DashboardResponse {
     </div>
   `,
     styles: [`
+    /* ═══════════════════════════════════════════════════════════
+       ANIMATIONS
+    ═══════════════════════════════════════════════════════════ */
+    @keyframes contentFade {
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes slideInDown {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes softBounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+
+    @keyframes savePulse {
+      0%, 100% {
+        box-shadow: 0 0 0 0 rgba(var(--color-primary-rgb), 0);
+      }
+      50% {
+        box-shadow: 0 0 0 4px rgba(var(--color-primary-rgb), 0.3);
+      }
+    }
+
+    @keyframes inputFocusGlow {
+      0%, 100% {
+        box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb), 0.2);
+      }
+      50% {
+        box-shadow: 0 0 0 4px rgba(var(--color-primary-rgb), 0.15);
+      }
+    }
+
     .dashboard-builder {
       display: flex;
       flex-direction: column;
       height: calc(100vh - 64px);
       background: var(--bg-primary);
+      animation: contentFade 350ms ease-out;
     }
 
     .toolbar {
@@ -108,6 +157,7 @@ interface DashboardResponse {
       background: var(--bg-secondary);
       border-bottom: 1px solid var(--border-color);
       gap: var(--spacing-4);
+      animation: slideInDown 250ms ease-out;
     }
 
     .toolbar-left, .toolbar-right {
@@ -129,30 +179,64 @@ interface DashboardResponse {
       cursor: pointer;
       transition: all 0.2s ease;
 
+      app-icon {
+        transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+
       &:hover {
         background: var(--bg-hover);
         color: var(--text-primary);
         border-color: var(--border-hover);
+
+        app-icon {
+          transform: translateX(-3px);
+        }
       }
     }
 
     .dashboard-title-input {
       background: transparent;
-      border: none;
+      border: 2px solid transparent;
       font-size: var(--font-size-lg);
       font-weight: var(--font-weight-semibold);
       color: var(--text-primary);
-      padding: var(--spacing-2);
+      padding: var(--spacing-2) var(--spacing-3);
       min-width: 200px;
+      border-radius: var(--radius-md);
+      transition: all 0.25s ease;
+
+      &:hover {
+        background: rgba(var(--color-primary-rgb), 0.05);
+      }
 
       &:focus {
         outline: none;
         background: var(--bg-tertiary);
-        border-radius: var(--radius-md);
+        border-color: rgba(var(--color-primary-rgb), 0.3);
+        animation: inputFocusGlow 2s ease-in-out infinite;
       }
 
       &::placeholder {
         color: var(--text-muted);
+      }
+    }
+
+    /* Button micro-interactions */
+    :host ::ng-deep .toolbar-right {
+
+      /* Add Widget button - plus icon rotation */
+      app-button[variant="secondary"]:hover app-icon {
+        transform: rotate(90deg);
+        transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+
+      /* Save button - icon tilt */
+      app-button[variant="primary"] app-icon {
+        transition: transform 0.2s ease;
+      }
+
+      app-button[variant="primary"]:hover app-icon {
+        transform: rotate(-15deg);
       }
     }
 
@@ -162,9 +246,9 @@ interface DashboardResponse {
       overflow-x: hidden;
       padding: var(--spacing-4);
       padding-right: var(--spacing-5);
-      min-height: 0; /* Important for flex child to respect parent height */
+      min-height: 0;
+      animation: contentFade 350ms ease-out 100ms backwards;
 
-      // Dark scrollbar styling
       &::-webkit-scrollbar {
         width: 6px;
       }
@@ -188,18 +272,23 @@ interface DashboardResponse {
       height: 100%;
       text-align: center;
       color: var(--text-muted);
+      animation: contentFade 400ms ease-out 200ms backwards;
 
       .empty-icon {
         width: 80px;
         height: 80px;
-        background: var(--bg-secondary);
+        background: linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.2), rgba(var(--color-primary-rgb), 0.05));
         border-radius: var(--radius-xl);
         display: flex;
         align-items: center;
         justify-content: center;
         margin-bottom: var(--spacing-4);
         color: var(--color-primary);
-        opacity: 0.6;
+        animation: softBounce 3s ease-in-out infinite;
+
+        app-icon {
+          filter: drop-shadow(0 0 8px rgba(var(--color-primary-rgb), 0.4));
+        }
       }
 
       h3 {
@@ -213,6 +302,12 @@ interface DashboardResponse {
         font-size: var(--font-size-sm);
         margin: 0 0 var(--spacing-4) 0;
         max-width: 300px;
+      }
+
+      /* Empty state Add Widget button hover */
+      app-button:hover app-icon {
+        transform: rotate(90deg);
+        transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
       }
     }
   `],
