@@ -11,14 +11,18 @@ import { DashboardFilter, ChartColumn } from './filters/models/filter.models';
 import { FilterStateService } from './services/filter-state.service';
 import { FilterConfigService } from './services/filter-config.service';
 
+import { KpiWidgetConfig } from './rich-kpi-card/rich-kpi-card.component';
+
 export interface DashboardWidget extends GridsterItem {
   id: string;
-  type: 'chart' | 'table';
+  type: 'chart' | 'table' | 'kpi';
   chartId?: string;   // Reference to chart in library
   queryId?: string;   // Reference to saved query
   title: string;
   chartType?: string;
   config?: any;
+  kpiConfig?: KpiWidgetConfig;  // For KPI widgets
+  widgetStyle?: 'glass' | 'solid';  // Visual style
 }
 
 interface DashboardResponse {
@@ -372,7 +376,7 @@ export class DashboardBuilderComponent implements OnInit, OnDestroy {
   chartInfos = signal<ChartInfo[]>([]);
   dataSources = signal<{ id: string; name: string }[]>([]);
 
-  // Gridster options
+  // Gridster options - 48px row height for finer control
   gridOptions: GridsterConfig = {
     gridType: GridType.ScrollVertical,  // Allow vertical scrolling
     displayGrid: DisplayGrid.OnDragAndResize,
@@ -388,18 +392,48 @@ export class DashboardBuilderComponent implements OnInit, OnDestroy {
     },
     minCols: 12,
     maxCols: 12,
-    minRows: 8,
+    minRows: 10,
     maxRows: 1000,  // Effectively unlimited
-    fixedRowHeight: 80,  // Fixed row height for scroll mode
+    fixedRowHeight: 48,  // Finer 48px row height for better positioning
     defaultItemCols: 4,
-    defaultItemRows: 3,
-    margin: 16,
+    defaultItemRows: 5,  // 5 rows × 48px = 240px default height
+    margin: 12,  // Slightly tighter margins
     outerMargin: true,
     outerMarginTop: 0,
     outerMarginRight: 12,
     outerMarginBottom: 0,
     outerMarginLeft: 0
   };
+
+  // Default widget sizes for 48px grid
+  private readonly DEFAULT_WIDGET_SIZES: Record<string, { cols: number; rows: number }> = {
+    kpi: { cols: 3, rows: 4 },         // 144px × 192px
+    pie: { cols: 4, rows: 5 },         // 192px × 240px
+    donut: { cols: 4, rows: 5 },       // 192px × 240px
+    gauge: { cols: 3, rows: 4 },       // 144px × 192px
+    speedometer: { cols: 3, rows: 4 }, // 144px × 192px
+    radialBar: { cols: 3, rows: 4 },   // 144px × 192px
+    bar: { cols: 6, rows: 6 },         // 288px × 288px
+    column: { cols: 6, rows: 6 },      // 288px × 288px
+    line: { cols: 6, rows: 6 },        // 288px × 288px
+    area: { cols: 6, rows: 6 },        // 288px × 288px
+    scatter: { cols: 6, rows: 6 },     // 288px × 288px
+    heatmap: { cols: 8, rows: 6 },     // 384px × 288px
+    treemap: { cols: 6, rows: 6 },     // 288px × 288px
+    funnel: { cols: 4, rows: 6 },      // 192px × 288px
+    radar: { cols: 5, rows: 5 },       // 240px × 240px
+    table: { cols: 8, rows: 8 },       // 384px × 384px
+    default: { cols: 6, rows: 5 }      // 288px × 240px
+  };
+
+  private getDefaultWidgetSize(type: string, chartType?: string): { cols: number; rows: number } {
+    if (type === 'kpi') return this.DEFAULT_WIDGET_SIZES['kpi'];
+    if (type === 'table') return this.DEFAULT_WIDGET_SIZES['table'];
+    if (chartType && this.DEFAULT_WIDGET_SIZES[chartType]) {
+      return this.DEFAULT_WIDGET_SIZES[chartType];
+    }
+    return this.DEFAULT_WIDGET_SIZES['default'];
+  }
 
   ngOnInit() {
     // Load dashboard if ID provided
@@ -528,18 +562,22 @@ export class DashboardBuilderComponent implements OnInit, OnDestroy {
   }
 
   addWidget(selection: WidgetSelection) {
+    const defaultSize = this.getDefaultWidgetSize(selection.type, selection.chartType);
+
     const newWidget: DashboardWidget = {
       id: `w${Date.now()}`,
       x: 0,
       y: 0,
-      cols: selection.cols,
-      rows: selection.rows,
+      cols: selection.cols || defaultSize.cols,
+      rows: selection.rows || defaultSize.rows,
       type: selection.type,
       chartId: selection.chartId,
       queryId: selection.queryId,
       chartType: selection.chartType,
       title: selection.title,
-      config: selection.config
+      config: selection.config,
+      kpiConfig: selection.kpiConfig,
+      widgetStyle: 'glass'  // Default to glass style
     };
 
     this.widgets.update(widgets => [...widgets, newWidget]);
@@ -697,7 +735,9 @@ export class DashboardBuilderComponent implements OnInit, OnDestroy {
           queryId: w.queryId,
           chartType: w.chartType,
           title: w.title,
-          config: w.config
+          config: w.config,
+          kpiConfig: w.kpiConfig,
+          widgetStyle: w.widgetStyle || 'glass'
         }))
       }
     };

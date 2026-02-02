@@ -3,6 +3,7 @@ import { RouterModule, Routes } from '@angular/router';
 import { SharedModule } from '../../shared/shared.module';
 import { GridsterModule } from 'angular-gridster2';
 import { AgGridModule } from 'ag-grid-angular';
+import { NgxEchartsModule } from 'ngx-echarts';
 
 import { DashboardListComponent } from './dashboard-list.component';
 import { DashboardBuilderComponent } from './dashboard-builder.component';
@@ -10,6 +11,7 @@ import { DashboardGridComponent } from './dashboard-grid.component';
 import { WidgetWrapperComponent } from './widget-wrapper.component';
 import { ChartPickerPanelComponent } from './chart-picker-panel.component';
 import { TableWidgetComponent } from './table-widget.component';
+import { RichKpiCardComponent } from './rich-kpi-card/rich-kpi-card.component';
 
 // Filter components
 import { FilterWidgetComponent } from './filters/filter-widget/filter-widget.component';
@@ -33,6 +35,7 @@ const routes: Routes = [
     WidgetWrapperComponent,
     ChartPickerPanelComponent,
     TableWidgetComponent,
+    RichKpiCardComponent,
     // Filter components
     FilterWidgetComponent,
     FilterBarComponent,
@@ -43,7 +46,8 @@ const routes: Routes = [
     RouterModule.forChild(routes),
     GridsterModule,
     AgGridModule,
-    ChartPreviewModule
+    ChartPreviewModule,
+    NgxEchartsModule.forChild()
   ]
 })
 export class DashboardBuilderModule { }

@@ -16,15 +16,18 @@ interface SavedQuery {
   sql_text: string;
 }
 
+import { KpiWidgetConfig } from './rich-kpi-card/rich-kpi-card.component';
+
 export interface WidgetSelection {
-  type: 'chart' | 'table';
+  type: 'chart' | 'table' | 'kpi';
   chartId?: string;
   queryId?: string;
   title: string;
-  cols: number;
-  rows: number;
+  cols?: number;
+  rows?: number;
   chartType?: string;
   config?: any;
+  kpiConfig?: KpiWidgetConfig;
 }
 
 @Component({
@@ -49,6 +52,13 @@ export interface WidgetSelection {
             <app-icon name="bar-chart-2" [size]="16"></app-icon>
             Charts
             <span class="tab-count">{{ charts().length }}</span>
+          </button>
+          <button
+            class="tab-btn"
+            [class.active]="activeTab() === 'kpis'"
+            (click)="activeTab.set('kpis')">
+            <app-icon name="trending-up" [size]="16"></app-icon>
+            KPIs
           </button>
           <button
             class="tab-btn"
@@ -110,6 +120,102 @@ export interface WidgetSelection {
             </div>
           </div>
 
+          <!-- KPI Templates -->
+          <div class="kpi-templates" *ngIf="!loading() && activeTab() === 'kpis'">
+            <p class="kpi-intro">Create a custom KPI card with a value, trend, and sparkline.</p>
+
+            <div class="kpi-form">
+              <div class="form-group">
+                <label class="form-label">Value</label>
+                <input type="number" class="form-input"
+                       [ngModel]="kpiValue()"
+                       (ngModelChange)="kpiValue.set($event)"
+                       placeholder="12500">
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Label</label>
+                <input type="text" class="form-input"
+                       [ngModel]="kpiLabel()"
+                       (ngModelChange)="kpiLabel.set($event)"
+                       placeholder="Total Revenue">
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">Format</label>
+                  <select class="form-input"
+                          [ngModel]="kpiFormat()"
+                          (ngModelChange)="kpiFormat.set($event)">
+                    <option value="number">Number</option>
+                    <option value="currency">Currency</option>
+                    <option value="percent">Percent</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Variant</label>
+                  <select class="form-input"
+                          [ngModel]="kpiVariant()"
+                          (ngModelChange)="kpiVariant.set($event)">
+                    <option value="default">Default</option>
+                    <option value="success">Success</option>
+                    <option value="warning">Warning</option>
+                    <option value="danger">Danger</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Trend</label>
+                <div class="trend-options">
+                  <button type="button" class="trend-btn"
+                          [class.active]="kpiTrendDir() === 'up'"
+                          (click)="kpiTrendDir.set('up')">
+                    <app-icon name="trending-up" [size]="18"></app-icon>
+                    Up
+                  </button>
+                  <button type="button" class="trend-btn"
+                          [class.active]="kpiTrendDir() === 'neutral'"
+                          (click)="kpiTrendDir.set('neutral')">
+                    <app-icon name="minus" [size]="18"></app-icon>
+                    Flat
+                  </button>
+                  <button type="button" class="trend-btn"
+                          [class.active]="kpiTrendDir() === 'down'"
+                          (click)="kpiTrendDir.set('down')">
+                    <app-icon name="trending-down" [size]="18"></app-icon>
+                    Down
+                  </button>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Trend Value</label>
+                <input type="text" class="form-input"
+                       [ngModel]="kpiTrendVal()"
+                       (ngModelChange)="kpiTrendVal.set($event)"
+                       placeholder="+12.5%">
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Comparison Text</label>
+                <input type="text" class="form-input"
+                       [ngModel]="kpiComparison()"
+                       (ngModelChange)="kpiComparison.set($event)"
+                       placeholder="vs last month">
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">
+                  <input type="checkbox"
+                         [ngModel]="kpiShowSparkline()"
+                         (ngModelChange)="kpiShowSparkline.set($event)">
+                  Show sparkline (sample data)
+                </label>
+              </div>
+            </div>
+          </div>
+
           <!-- Queries List -->
           <div class="queries-list" *ngIf="!loading() && activeTab() === 'tables'">
             <div
@@ -139,7 +245,7 @@ export interface WidgetSelection {
         </div>
 
         <!-- Configuration Footer -->
-        <div class="panel-footer" *ngIf="selectedChart() || selectedQuery()">
+        <div class="panel-footer" *ngIf="selectedChart() || selectedQuery() || activeTab() === 'kpis'">
           <div class="config-section">
             <div class="config-row">
               <div class="form-group">
@@ -675,6 +781,102 @@ export interface WidgetSelection {
         border-color: var(--color-primary);
       }
     }
+
+    /* KPI Templates */
+    .kpi-templates {
+      padding: var(--spacing-4);
+    }
+
+    .kpi-intro {
+      font-size: var(--font-size-sm);
+      color: var(--text-secondary);
+      margin: 0 0 var(--spacing-4) 0;
+    }
+
+    .kpi-form {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-3);
+
+      .form-row {
+        display: flex;
+        gap: var(--spacing-3);
+
+        .form-group {
+          flex: 1;
+        }
+      }
+
+      .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-1);
+
+        .form-label {
+          font-size: var(--font-size-xs);
+          font-weight: var(--font-weight-medium);
+          color: var(--text-muted);
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-2);
+
+          input[type="checkbox"] {
+            accent-color: var(--color-primary);
+          }
+        }
+
+        .form-input {
+          height: 36px;
+          padding: 0 var(--spacing-3);
+          background: var(--bg-tertiary);
+          border: 1px solid var(--border-color);
+          border-radius: var(--radius-md);
+          color: var(--text-primary);
+          font-size: var(--font-size-sm);
+          transition: all 0.2s ease;
+
+          &:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb), 0.1);
+          }
+        }
+      }
+
+      .trend-options {
+        display: flex;
+        gap: var(--spacing-2);
+      }
+
+      .trend-btn {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: var(--spacing-1);
+        padding: var(--spacing-2) var(--spacing-3);
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        color: var(--text-secondary);
+        font-size: var(--font-size-sm);
+        cursor: pointer;
+        transition: all 0.2s ease;
+
+        &:hover {
+          border-color: var(--text-muted);
+          color: var(--text-primary);
+        }
+
+        &.active {
+          background: rgba(var(--color-primary-rgb), 0.15);
+          border-color: var(--color-primary);
+          color: var(--color-primary);
+        }
+      }
+    }
   `],
     standalone: false
 })
@@ -686,11 +888,21 @@ export class ChartPickerPanelComponent implements OnInit {
 
   isOpen = signal(true);
   loading = signal(true);
-  activeTab = signal<'charts' | 'tables'>('charts');
+  activeTab = signal<'charts' | 'tables' | 'kpis'>('charts');
   searchTerm = signal('');
 
   charts = signal<Chart[]>([]);
   queries = signal<SavedQuery[]>([]);
+
+  // KPI configuration signals
+  kpiValue = signal<number>(12500);
+  kpiLabel = signal('Total Revenue');
+  kpiFormat = signal<'number' | 'currency' | 'percent'>('currency');
+  kpiVariant = signal<'default' | 'success' | 'warning' | 'danger'>('default');
+  kpiTrendDir = signal<'up' | 'down' | 'neutral'>('up');
+  kpiTrendVal = signal('+12.5%');
+  kpiComparison = signal('vs last month');
+  kpiShowSparkline = signal(true);
 
   selectedChart = signal<Chart | null>(null);
   selectedQuery = signal<SavedQuery | null>(null);
@@ -784,7 +996,31 @@ export class ChartPickerPanelComponent implements OnInit {
     const chart = this.selectedChart();
     const query = this.selectedQuery();
 
-    if (chart) {
+    if (this.activeTab() === 'kpis') {
+      // Create KPI widget
+      const sparklineData = this.kpiShowSparkline()
+        ? [42, 55, 48, 62, 58, 75, 68, 82, 78, 95, 88, 110]
+        : undefined;
+
+      this.widgetSelected.emit({
+        type: 'kpi',
+        title: this.widgetTitle() || this.kpiLabel(),
+        cols: this.widgetCols(),
+        rows: this.widgetRows(),
+        kpiConfig: {
+          value: this.kpiValue(),
+          label: this.kpiLabel(),
+          format: this.kpiFormat(),
+          variant: this.kpiVariant(),
+          trend: {
+            direction: this.kpiTrendDir(),
+            value: this.kpiTrendVal()
+          },
+          sparkline: sparklineData ? { data: sparklineData } : undefined,
+          comparison: this.kpiComparison()
+        }
+      });
+    } else if (chart) {
       this.widgetSelected.emit({
         type: 'chart',
         chartId: chart.id,
