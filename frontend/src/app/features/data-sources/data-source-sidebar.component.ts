@@ -302,7 +302,7 @@ interface FormData {
               <span>Edit</span>
             </button>
             <button class="action-btn danger-btn" (click)="onDelete()">
-              <app-icon name="trash-2" [size]="16"></app-icon>
+              <app-icon name="trash" [size]="16"></app-icon>
               <span>Delete</span>
             </button>
           </div>
