@@ -22,7 +22,7 @@ from app.schemas.dashboard import (
     DashboardChartResponse,
     DashboardFullResponse,
 )
-from app.connectors.mock import MockConnector
+from app.connectors import get_connector as get_db_connector
 
 router = APIRouter()
 
@@ -140,9 +140,7 @@ async def get_kpi_summary(db: AsyncSession = Depends(get_db)):
 def get_connector(data_source: DataSource):
     """Get the appropriate connector for a data source."""
     config = json.loads(data_source.connection_config) if data_source.connection_config else {}
-    if data_source.type == "mock":
-        return MockConnector(config)
-    return MockConnector(config)
+    return get_db_connector(data_source.type, config)
 
 
 def dashboard_to_response(dashboard: Dashboard) -> DashboardResponse:

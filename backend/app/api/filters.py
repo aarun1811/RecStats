@@ -32,7 +32,7 @@ from app.schemas.filter import (
     FilteredChartDataResponse,
     ReorderFiltersRequest,
 )
-from app.connectors.mock import MockConnector
+from app.connectors import get_connector as get_db_connector
 
 router = APIRouter()
 
@@ -45,7 +45,7 @@ router = APIRouter()
 def get_connector(data_source: DataSource):
     """Get the appropriate connector for a data source."""
     config = json.loads(data_source.connection_config) if data_source.connection_config else {}
-    return MockConnector(config)
+    return get_db_connector(data_source.type, config)
 
 
 def filter_to_response(
