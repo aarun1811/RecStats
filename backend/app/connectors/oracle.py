@@ -97,56 +97,68 @@ class OracleConnector(BaseConnector):
                     table_rows = cursor.fetchall()
 
                     for (table_name,) in table_rows:
-                        columns: list[ColumnInfo] = []
+                        try:
+                            columns: list[ColumnInfo] = []
 
-                        # Get column information
-                        cursor.execute(
-                            """
-                            SELECT column_name, data_type, nullable
-                            FROM user_tab_columns
-                            WHERE table_name = :tbl
-                            ORDER BY column_id
-                            """,
-                            {"tbl": table_name},
-                        )
-                        col_rows = cursor.fetchall()
+                            # Get column information
+                            cursor.execute(
+                                """
+                                SELECT column_name, data_type, nullable
+                                FROM user_tab_columns
+                                WHERE table_name = :tbl
+                                ORDER BY column_id
+                                """,
+                                {"tbl": table_name},
+                            )
+                            col_rows = cursor.fetchall()
 
-                        for col_name, data_type, nullable in col_rows:
-                            columns.append(
-                                ColumnInfo(
-                                    name=col_name,
-                                    data_type=data_type,
-                                    nullable=nullable == "Y",
+                            for col_name, data_type, nullable in col_rows:
+                                columns.append(
+                                    ColumnInfo(
+                                        name=col_name,
+                                        data_type=data_type,
+                                        nullable=nullable == "Y",
+                                    )
+                                )
+
+                            # Get primary key columns
+                            cursor.execute(
+                                """
+                                SELECT cols.column_name
+                                FROM user_constraints cons
+                                JOIN user_cons_columns cols ON cons.constraint_name = cols.constraint_name
+                                WHERE cons.table_name = :tbl AND cons.constraint_type = 'P'
+                                """,
+                                {"tbl": table_name},
+                            )
+                            pk_cols = {row[0] for row in cursor.fetchall()}
+                            for col in columns:
+                                col.primary_key = col.name in pk_cols
+
+                            # Get row count - use quoted identifier to handle special chars
+                            cursor.execute(
+                                f'SELECT COUNT(*) FROM "{table_name}"'
+                            )
+                            row_count = cursor.fetchone()[0]
+
+                            tables.append(
+                                TableInfo(
+                                    name=table_name,
+                                    columns=columns,
+                                    row_count=row_count,
                                 )
                             )
-
-                        # Get primary key columns
-                        cursor.execute(
-                            """
-                            SELECT cols.column_name
-                            FROM user_constraints cons
-                            JOIN user_cons_columns cols ON cons.constraint_name = cols.constraint_name
-                            WHERE cons.table_name = :tbl AND cons.constraint_type = 'P'
-                            """,
-                            {"tbl": table_name},
-                        )
-                        pk_cols = {row[0] for row in cursor.fetchall()}
-                        for col in columns:
-                            col.primary_key = col.name in pk_cols
-
-                        # Get row count (approximate for large tables)
-                        cursor.execute(
-                            f"SELECT COUNT(*) FROM {table_name}"
-                        )
-                        row_count = cursor.fetchone()[0]
-
-                        tables.append(
-                            TableInfo(
-                                name=table_name,
-                                columns=columns,
-                                row_count=row_count,
-                            )
-                        )
+                        except Exception:
+                            # Skip tables that fail (permissions, special tables, etc.)
+                            # Still add the table with 0 row count
+                            if columns:
+                                tables.append(
+                                    TableInfo(
+                                        name=table_name,
+                                        columns=columns,
+                                        row_count=0,
+                                    )
+                                )
             finally:
                 conn.close()
 
