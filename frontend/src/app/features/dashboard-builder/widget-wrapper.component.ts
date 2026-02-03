@@ -141,13 +141,26 @@ import { IndicatorType } from '../../shared/components/cross-filter-indicator/cr
       border: 1px solid var(--border-color);
     }
 
-    /* Liquid Glass Effect */
+    /* Liquid Glass Effect - Premium */
     .widget-wrapper.glass-style {
       background: var(--glass-widget-bg);
       backdrop-filter: blur(var(--glass-blur));
       -webkit-backdrop-filter: blur(var(--glass-blur));
       border: 1px solid var(--glass-widget-border);
       box-shadow: var(--glass-widget-shadow);
+
+      /* Premium top accent line */
+      &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 20%;
+        right: 20%;
+        height: 1px;
+        background: var(--glass-widget-accent);
+        border-radius: 0 0 50% 50%;
+        z-index: 1;
+      }
 
       /* Fallback for browsers without backdrop-filter */
       @supports not (backdrop-filter: blur(1px)) {
@@ -157,7 +170,18 @@ import { IndicatorType } from '../../shared/components/cross-filter-indicator/cr
       &:hover {
         border-color: var(--glass-widget-border-hover);
         box-shadow: var(--glass-widget-shadow-hover);
-        transform: translateY(-2px);
+        transform: translateY(-3px);
+
+        &::before {
+          left: 10%;
+          right: 10%;
+          background: linear-gradient(
+            90deg,
+            transparent 0%,
+            rgba(var(--color-primary-rgb), 0.5) 50%,
+            transparent 100%
+          );
+        }
       }
     }
 
