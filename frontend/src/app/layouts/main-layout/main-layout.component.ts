@@ -219,8 +219,20 @@ interface NavItem {
       }
     }
 
+    .sidebar-collapsed .sidebar-header {
+      flex-direction: column;
+      gap: var(--spacing-2);
+      padding: var(--spacing-3);
+    }
+
+    .sidebar-collapsed .logo {
+      justify-content: center;
+    }
+
     .sidebar-collapsed .collapse-btn {
-      display: none;
+      /* Show as expand button below logo */
+      width: 100%;
+      justify-content: center;
     }
 
     .sidebar-nav {
