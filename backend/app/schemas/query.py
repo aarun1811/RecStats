@@ -68,9 +68,10 @@ class QueryExecuteResponse(BaseModel):
 
 
 class DirectQueryRequest(BaseModel):
-    """Schema for direct SQL execution (no data source required)."""
+    """Schema for direct SQL execution."""
 
     sql: str = Field(..., min_length=1)
+    data_source_id: Optional[str] = None
     limit: int = Field(default=1000, ge=1, le=100000)
     offset: int = Field(default=0, ge=0)
 

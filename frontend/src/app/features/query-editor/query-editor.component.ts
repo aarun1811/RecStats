@@ -1879,9 +1879,15 @@ export class QueryEditorComponent implements OnInit {
     this.queryResult.set(null);
 
     try {
-      // Execute query via backend API
+      // Execute query via backend API with selected data source
+      const ds = this.selectedDataSource();
+      const payload: any = { sql: this.sqlText };
+      if (ds) {
+        payload.data_source_id = ds.id;
+      }
+
       const result = await firstValueFrom(
-        this.api.post<QueryResult>('/queries/direct', { sql: this.sqlText })
+        this.api.post<QueryResult>('/queries/direct', payload)
       );
 
       this.executionTime.set(result.execution_time_ms || 0);

@@ -66,14 +66,48 @@ async def execute_direct_query(
     request: DirectQueryRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    """Execute SQL directly against the mock data tables.
+    """Execute SQL directly against a data source or local mock tables.
 
-    This endpoint allows querying the transactions, breaks, and daily_metrics tables
-    without requiring a data source configuration.
+    If data_source_id is provided, executes against that data source.
+    Otherwise, executes against local mock data tables.
     """
     # Validate SQL for safety
     validate_sql(request.sql)
 
+    # If data source specified, use its connector
+    if request.data_source_id:
+        result = await db.execute(select(DataSource).where(DataSource.id == request.data_source_id))
+        data_source = result.scalar_one_or_none()
+        if not data_source:
+            raise HTTPException(status_code=404, detail="Data source not found")
+
+        connector = get_connector(data_source)
+        try:
+            query_result = await connector.execute_query(
+                sql=request.sql,
+                limit=request.limit,
+                offset=request.offset,
+            )
+
+            columns = [
+                ColumnMetadata(name=col["name"], data_type=col["data_type"])
+                for col in query_result.columns
+            ]
+
+            return QueryExecuteResponse(
+                columns=columns,
+                data=query_result.data,
+                row_count=query_result.row_count,
+                total_count=query_result.total_count,
+                execution_time_ms=query_result.execution_time_ms,
+                truncated=query_result.truncated,
+            )
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Query execution failed: {str(e)}")
+        finally:
+            await connector.close()
+
+    # Fallback: execute against local SQLite mock tables
     start_time = time.time()
 
     try:
