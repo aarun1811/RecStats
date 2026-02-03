@@ -1,15 +1,15 @@
 # RecStats Codebase Analytics
 
-*Last updated: 2026-02-03*
+*Last updated: 2025-02-03*
 
 ## Overview
 
 | Metric | Value |
 |--------|-------|
-| Total Source Files | 107 |
-| Total Lines of Code | 35,068 |
+| Total Source Files | 105 |
+| Total Lines of Code | 34,505 |
 | Project Age | 8 days |
-| Total Commits | 91 |
+| Total Commits | 94 |
 
 ---
 
@@ -17,9 +17,9 @@
 
 | Type | Files | Percentage |
 |------|-------|------------|
-| TypeScript | 76 | 71% |
-| Python | 31 | 29% |
-| **Total** | **107** | **100%** |
+| TypeScript | 76 | 72% |
+| Python | 29 | 28% |
+| **Total** | **105** | **100%** |
 
 ---
 
@@ -27,9 +27,9 @@
 
 | Language | Lines | Percentage |
 |----------|-------|------------|
-| TypeScript | 28,598 | 82% |
-| Python | 6,470 | 18% |
-| **Total** | **35,068** | **100%** |
+| TypeScript | 28,598 | 83% |
+| Python | 5,907 | 17% |
+| **Total** | **34,505** | **100%** |
 
 ---
 
@@ -78,11 +78,11 @@
 
 | Category | Count |
 |----------|-------|
-| API Endpoints | 11 |
+| API Endpoints | 10 |
 | Pydantic Schemas | 7 |
-| Data Connectors | 5 |
+| Data Connectors | 4 |
 | Database Models | 5 |
-| **Total** | **28** |
+| **Total** | **26** |
 
 ---
 
@@ -90,16 +90,16 @@
 
 | Lines | File |
 |-------|------|
+| 2,226 | `features/chart-builder/chart-builder.component.ts` |
 | 2,066 | `features/query-editor/query-editor.component.ts` |
-| 2,026 | `features/chart-builder/chart-builder.component.ts` |
+| 1,597 | `backend/app/db/seed_data.py` |
 | 1,439 | `features/chart-builder/chart-list.component.ts` |
 | 1,435 | `features/data-sources/data-source-sidebar.component.ts` |
 | 1,227 | `features/dashboard-builder/dashboard-list.component.ts` |
-| 1,165 | `backend/app/db/seed_data.py` |
+| 1,127 | `shared/components/select/select.component.ts` |
 | 1,120 | `features/data-sources/data-source-list.component.ts` |
-| 854 | `features/dashboard-builder/chart-picker-panel.component.ts` |
-| 838 | `features/dashboard-viewer/home.component.ts` |
-| 729 | `features/collections/collections-list.component.ts` |
+| 1,115 | `features/dashboard-builder/filters/filter-config-modal/filter-config-modal.component.ts` |
+| 1,082 | `shared/components/date-range-picker/date-range-picker.component.ts` |
 
 ---
 
@@ -107,9 +107,9 @@
 
 | Metric | Value |
 |--------|-------|
-| Total Commits | 91 |
+| Total Commits | 94 |
 | Project Age | 8 days |
-| Commits per Day | 11.4 |
+| Commits per Day | 11.8 |
 | Start Date | 2026-01-26 |
 | Latest Commit | 2026-02-03 |
 
