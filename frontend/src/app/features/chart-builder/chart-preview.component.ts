@@ -114,7 +114,7 @@ interface ChartDataResponse {
       font-size: var(--font-size-sm);
     }
 
-    .chart-loading app-icon {
+    .chart-loading ::ng-deep app-icon {
       animation: spin 1s linear infinite;
     }
 

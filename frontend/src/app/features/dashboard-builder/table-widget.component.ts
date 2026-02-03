@@ -73,7 +73,7 @@ interface QueryExecuteResponse {
       }
     }
 
-    .loading-state app-icon {
+    .loading-state ::ng-deep app-icon {
       animation: spin 1s linear infinite;
     }
 
