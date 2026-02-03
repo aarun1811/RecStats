@@ -342,6 +342,25 @@ interface DataSource extends DataSourceResponse {
       height: calc(100vh - 64px);
       gap: 0;
       animation: contentFade 250ms ease-out;
+
+      // Global scrollbar styling for dark mode
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+
+      ::-webkit-scrollbar-track {
+        background: var(--bg-secondary);
+      }
+
+      ::-webkit-scrollbar-thumb {
+        background: var(--bg-tertiary);
+        border-radius: 4px;
+
+        &:hover {
+          background: var(--bg-hover);
+        }
+      }
     }
 
     @keyframes contentFade {

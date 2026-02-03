@@ -90,9 +90,9 @@ class OracleConnector(BaseConnector):
 
             try:
                 with conn.cursor() as cursor:
-                    # Get tables owned by the user
+                    # Get tables owned by the user (limit to 30 for performance)
                     cursor.execute(
-                        "SELECT table_name FROM user_tables ORDER BY table_name"
+                        "SELECT table_name FROM user_tables ORDER BY table_name FETCH FIRST 30 ROWS ONLY"
                     )
                     table_rows = cursor.fetchall()
 
