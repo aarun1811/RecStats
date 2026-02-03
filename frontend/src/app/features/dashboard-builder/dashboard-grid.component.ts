@@ -44,35 +44,63 @@ import { DashboardWidget } from './dashboard-builder.component';
       }
     }
 
+    /* Gridster item styling for liquid glass widgets */
     ::ng-deep .gridster-item {
-      border-radius: var(--radius-xl);
-      overflow: hidden;
-      transition: box-shadow 0.2s ease;
+      /* No border-radius here - widget-wrapper handles its own radius */
+      overflow: visible; /* Allow box-shadow to extend */
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                  z-index 0s;
 
       &:hover {
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        z-index: 10;
       }
     }
 
+    /* Resize handles with primary color */
     ::ng-deep .gridster-item-resizable-handler {
+      opacity: 0;
+      transition: opacity 0.2s ease;
+
       &.handle-se {
         border-color: var(--color-primary) !important;
+        width: 12px !important;
+        height: 12px !important;
       }
 
       &.handle-ne, &.handle-sw, &.handle-nw {
         border-color: var(--color-primary) !important;
       }
+
+      &.handle-n, &.handle-s {
+        height: 8px !important;
+        background: rgba(var(--color-primary-rgb), 0.3);
+        border-radius: 4px;
+      }
+
+      &.handle-e, &.handle-w {
+        width: 8px !important;
+        background: rgba(var(--color-primary-rgb), 0.3);
+        border-radius: 4px;
+      }
     }
 
+    ::ng-deep .gridster-item:hover .gridster-item-resizable-handler {
+      opacity: 1;
+    }
+
+    /* Preview ghost for drag/resize */
     ::ng-deep .gridster-preview {
-      background: rgba(var(--color-primary-rgb), 0.2) !important;
-      border: 2px dashed var(--color-primary) !important;
+      background: rgba(var(--color-primary-rgb), 0.15) !important;
+      border: 2px dashed rgba(var(--color-primary-rgb), 0.5) !important;
       border-radius: var(--radius-xl) !important;
+      backdrop-filter: blur(4px);
+      box-shadow: 0 0 20px rgba(var(--color-primary-rgb), 0.2);
     }
 
+    /* Widget item base - now handled by widget-wrapper */
     .widget-item {
-      background: var(--bg-secondary);
-      border: 1px solid var(--border-color);
+      background: transparent;
+      border: none;
     }
   `],
     standalone: false

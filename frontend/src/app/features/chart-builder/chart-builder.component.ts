@@ -237,6 +237,91 @@ type Step = 'data' | 'chart' | 'configure';
                 </div>
               </div>
 
+              <!-- KPI Options (only for KPI Card) -->
+              <div class="config-section kpi-options" *ngIf="selectedChartType() === 'kpiCard'">
+                <h4>KPI Options</h4>
+                <div class="form-field">
+                  <label>Aggregation</label>
+                  <select [ngModel]="getKpiOption('aggregation')" (ngModelChange)="updateKpiOption('aggregation', $event)">
+                    <option value="sum">Sum</option>
+                    <option value="average">Average</option>
+                    <option value="min">Minimum</option>
+                    <option value="max">Maximum</option>
+                    <option value="count">Count</option>
+                    <option value="last">Last Value</option>
+                  </select>
+                </div>
+
+                <div class="form-field">
+                  <label>Format</label>
+                  <select [ngModel]="getKpiOption('format')" (ngModelChange)="updateKpiOption('format', $event)">
+                    <option value="number">Number</option>
+                    <option value="currency">Currency</option>
+                    <option value="percent">Percentage</option>
+                  </select>
+                </div>
+
+                <div class="form-field" *ngIf="getKpiOption('format') === 'currency'">
+                  <label>Currency</label>
+                  <select [ngModel]="getKpiOption('currencyCode')" (ngModelChange)="updateKpiOption('currencyCode', $event)">
+                    <option value="USD">USD ($)</option>
+                    <option value="EUR">EUR (€)</option>
+                    <option value="GBP">GBP (£)</option>
+                    <option value="JPY">JPY (¥)</option>
+                  </select>
+                </div>
+
+                <div class="form-field">
+                  <label>Decimal Places</label>
+                  <select [ngModel]="getKpiOption('decimals')" (ngModelChange)="updateKpiOption('decimals', +$event)">
+                    <option [value]="0">0</option>
+                    <option [value]="1">1</option>
+                    <option [value]="2">2</option>
+                  </select>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-field half">
+                    <label>Prefix</label>
+                    <input type="text" [ngModel]="getKpiOption('prefix')" (ngModelChange)="updateKpiOption('prefix', $event)" placeholder="e.g. '$'">
+                  </div>
+                  <div class="form-field half">
+                    <label>Suffix</label>
+                    <input type="text" [ngModel]="getKpiOption('suffix')" (ngModelChange)="updateKpiOption('suffix', $event)" placeholder="e.g. ' units'">
+                  </div>
+                </div>
+
+                <div class="trend-section">
+                  <label class="checkbox-label">
+                    <input type="checkbox" [ngModel]="getKpiOption('showTrend')" (ngModelChange)="updateKpiOption('showTrend', $event)">
+                    Show Trend Indicator
+                  </label>
+
+                  <div class="trend-config" *ngIf="getKpiOption('showTrend')">
+                    <div class="form-field">
+                      <label>Compare By Field</label>
+                      <select [ngModel]="getKpiOption('trendCompareField')" (ngModelChange)="updateKpiOption('trendCompareField', $event)">
+                        <option value="">Select date/time field</option>
+                        <option *ngFor="let col of columns()" [value]="col.name">{{ col.name }}</option>
+                      </select>
+                    </div>
+
+                    <div class="form-field">
+                      <label>Comparison Mode</label>
+                      <select [ngModel]="getKpiOption('trendMode')" (ngModelChange)="updateKpiOption('trendMode', $event)">
+                        <option value="previous">Last vs Previous</option>
+                        <option value="first_last">First vs Last</option>
+                      </select>
+                    </div>
+
+                    <label class="checkbox-label">
+                      <input type="checkbox" [ngModel]="getKpiOption('trendUpIsGood')" (ngModelChange)="updateKpiOption('trendUpIsGood', $event)">
+                      Increase is positive (green)
+                    </label>
+                  </div>
+                </div>
+              </div>
+
               <div class="config-section">
                 <h4>Chart Info</h4>
                 <div class="form-field">
@@ -1066,6 +1151,62 @@ type Step = 'data' | 'chart' | 'configure';
     }
 
     // ========================================
+    // KPI OPTIONS SECTION
+    // ========================================
+    .kpi-options {
+      .form-row {
+        display: flex;
+        gap: var(--spacing-3);
+      }
+
+      .form-field.half {
+        flex: 1;
+      }
+
+      .checkbox-label {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-2);
+        font-size: var(--font-size-sm);
+        color: var(--text-secondary);
+        cursor: pointer;
+        margin-bottom: var(--spacing-2);
+
+        input[type="checkbox"] {
+          width: auto;
+          accent-color: var(--color-primary);
+        }
+      }
+
+      .trend-section {
+        margin-top: var(--spacing-3);
+        padding-top: var(--spacing-3);
+        border-top: 1px dashed var(--border-color);
+      }
+
+      .trend-config {
+        margin-top: var(--spacing-2);
+        padding: var(--spacing-3);
+        background: var(--bg-primary);
+        border-radius: var(--radius-md);
+        animation: fadeIn 0.2s ease-out;
+
+        .form-field {
+          margin-bottom: var(--spacing-2);
+
+          &:last-of-type {
+            margin-bottom: var(--spacing-2);
+          }
+        }
+      }
+
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+    }
+
+    // ========================================
     // PANEL FOOTER - Enhanced save button
     // ========================================
     .panel-footer {
@@ -1548,12 +1689,52 @@ export class ChartBuilderComponent implements OnInit {
     showLegend: true,
     showLabels: false,
     enableAnimation: true,
-    enableTooltip: true
+    enableTooltip: true,
+    kpiOptions: {
+      aggregation: 'sum',
+      format: 'number',
+      currencyCode: 'USD',
+      decimals: 0,
+      prefix: '',
+      suffix: '',
+      showTrend: false,
+      trendCompareField: '',
+      trendMode: 'previous',
+      trendUpIsGood: true
+    }
   });
 
   // Helper to update config and trigger change detection
   updateConfig(key: string, value: any) {
     this.chartConfig.update(config => ({ ...config, [key]: value }));
+  }
+
+  // KPI Options helpers
+  getKpiOption(key: string): any {
+    const kpiOpts = this.chartConfig().kpiOptions || {};
+    const defaults: Record<string, any> = {
+      aggregation: 'sum',
+      format: 'number',
+      currencyCode: 'USD',
+      decimals: 0,
+      prefix: '',
+      suffix: '',
+      showTrend: false,
+      trendCompareField: '',
+      trendMode: 'previous',
+      trendUpIsGood: true
+    };
+    return kpiOpts[key] ?? defaults[key];
+  }
+
+  updateKpiOption(key: string, value: any) {
+    this.chartConfig.update(config => ({
+      ...config,
+      kpiOptions: {
+        ...config.kpiOptions,
+        [key]: value
+      }
+    }));
   }
 
   // UI state
@@ -1656,6 +1837,7 @@ export class ChartBuilderComponent implements OnInit {
 
         // Extract config values
         const config = chart.config || {};
+        const savedKpiOptions = config.custom_options?.kpi_options || {};
         this.chartConfig.set({
           title: chart.name || '',
           subtitle: chart.description || '',
@@ -1666,7 +1848,19 @@ export class ChartBuilderComponent implements OnInit {
           showLegend: config.show_legend !== false,
           showLabels: config.show_labels === true,
           enableAnimation: config.custom_options?.enable_animation !== false,
-          enableTooltip: config.show_tooltip !== false
+          enableTooltip: config.show_tooltip !== false,
+          kpiOptions: {
+            aggregation: savedKpiOptions.aggregation || 'sum',
+            format: savedKpiOptions.format || 'number',
+            currencyCode: savedKpiOptions.currencyCode || 'USD',
+            decimals: savedKpiOptions.decimals ?? 0,
+            prefix: savedKpiOptions.prefix || '',
+            suffix: savedKpiOptions.suffix || '',
+            showTrend: savedKpiOptions.showTrend || false,
+            trendCompareField: savedKpiOptions.trendCompareField || '',
+            trendMode: savedKpiOptions.trendMode || 'previous',
+            trendUpIsGood: savedKpiOptions.trendUpIsGood !== false
+          }
         });
 
         // Mark steps as completed
@@ -1919,6 +2113,11 @@ export class ChartBuilderComponent implements OnInit {
 
   canSave(): boolean {
     const config = this.chartConfig();
+    const chartType = this.selectedChartType();
+    // KPI-type charts only need yAxis (value field), not xAxis
+    if (['kpiCard', 'gauge', 'radialBar'].includes(chartType)) {
+      return this.isStepCompleted('chart') && !!config.yAxis;
+    }
     return this.isStepCompleted('chart') && !!config.xAxis && !!config.yAxis;
   }
 
@@ -1963,7 +2162,8 @@ export class ChartBuilderComponent implements OnInit {
         show_labels: config.showLabels,
         custom_options: {
           color_scheme: config.colorScheme,
-          enable_animation: config.enableAnimation
+          enable_animation: config.enableAnimation,
+          kpi_options: this.selectedChartType() === 'kpiCard' ? config.kpiOptions : undefined
         }
       }
     };

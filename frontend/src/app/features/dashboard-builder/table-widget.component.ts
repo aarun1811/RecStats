@@ -2,9 +2,14 @@ import { Component, Input, OnInit, OnChanges, SimpleChanges, signal, inject } fr
 import { ApiService } from '../../core/services/api.service';
 import { ColDef, GridOptions } from 'ag-grid-enterprise';
 
+interface ColumnMetadata {
+  name: string;
+  data_type: string;
+}
+
 interface QueryExecuteResponse {
   data: any[];
-  columns: string[];
+  columns: ColumnMetadata[];
   row_count: number;
   execution_time_ms: number;
 }
@@ -68,7 +73,7 @@ interface QueryExecuteResponse {
       }
     }
 
-    .loading-state app-icon {
+    .loading-state ::ng-deep app-icon {
       animation: spin 1s linear infinite;
     }
 
@@ -192,10 +197,10 @@ export class TableWidgetComponent implements OnInit, OnChanges {
     });
   }
 
-  private buildColumnDefs(columns: string[]): ColDef[] {
+  private buildColumnDefs(columns: ColumnMetadata[]): ColDef[] {
     return columns.map(col => ({
-      field: col,
-      headerName: this.formatColumnName(col),
+      field: col.name,
+      headerName: this.formatColumnName(col.name),
       flex: 1,
       minWidth: 100,
       cellRenderer: (params: any) => {
@@ -205,6 +210,9 @@ export class TableWidgetComponent implements OnInit, OnChanges {
         }
         if (typeof value === 'number') {
           return this.formatNumber(value);
+        }
+        if (this.isDateValue(value)) {
+          return this.formatDate(value);
         }
         return value;
       }
@@ -226,5 +234,33 @@ export class TableWidgetComponent implements OnInit, OnChanges {
       return value.toLocaleString();
     }
     return value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  private isDateValue(value: unknown): boolean {
+    if (typeof value !== 'string') return false;
+    // Check for ISO date format (2024-01-15 or 2024-01-15T10:30:00)
+    const isoPattern = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2})?/;
+    if (!isoPattern.test(value)) return false;
+    const date = new Date(value);
+    return !isNaN(date.getTime());
+  }
+
+  private formatDate(value: string): string {
+    const date = new Date(value);
+    // Check if it has time component
+    if (value.includes('T')) {
+      return date.toLocaleString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+    return date.toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
   }
 }

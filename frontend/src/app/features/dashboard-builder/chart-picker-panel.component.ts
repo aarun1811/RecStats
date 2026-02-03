@@ -21,8 +21,8 @@ export interface WidgetSelection {
   chartId?: string;
   queryId?: string;
   title: string;
-  cols: number;
-  rows: number;
+  cols?: number;
+  rows?: number;
   chartType?: string;
   config?: any;
 }
@@ -675,6 +675,7 @@ export interface WidgetSelection {
         border-color: var(--color-primary);
       }
     }
+
   `],
     standalone: false
 })
