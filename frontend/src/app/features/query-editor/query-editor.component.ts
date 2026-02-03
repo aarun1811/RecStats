@@ -1823,8 +1823,10 @@ export class QueryEditorComponent implements OnInit {
   async loadSchema() {
     this.isLoadingSchema.set(true);
     try {
+      const ds = this.selectedDataSource();
+      const url = ds ? `/queries/schema?data_source_id=${ds.id}` : '/queries/schema';
       const response = await firstValueFrom(
-        this.api.get<{ tables: TableSchema[] }>('/queries/schema')
+        this.api.get<{ tables: TableSchema[] }>(url)
       );
       this.schemaTables.set(response.tables || []);
     } catch (error) {

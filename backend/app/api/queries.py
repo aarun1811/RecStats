@@ -114,11 +114,46 @@ async def execute_direct_query(
 
 
 @router.get("/schema", response_model=SchemaResponse)
-async def get_schema(db: AsyncSession = Depends(get_db)):
-    """Get database schema for the mock data tables.
+async def get_schema(
+    data_source_id: str = None,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get database schema for a data source.
 
-    Returns table names, columns, and types for transactions, breaks, and daily_metrics.
+    If data_source_id is provided, fetches schema from that data source.
+    Otherwise, returns schema for the local mock data tables.
     """
+    # If data source specified, use its connector
+    if data_source_id:
+        result = await db.execute(select(DataSource).where(DataSource.id == data_source_id))
+        data_source = result.scalar_one_or_none()
+        if not data_source:
+            raise HTTPException(status_code=404, detail="Data source not found")
+
+        connector = get_connector(data_source)
+        try:
+            schema_info = await connector.get_schema()
+            tables = [
+                TableSchema(
+                    name=table.name,
+                    columns=[
+                        TableColumnSchema(
+                            name=col.name,
+                            type=col.data_type,
+                            nullable=col.nullable,
+                            primary_key=col.primary_key,
+                        )
+                        for col in table.columns
+                    ],
+                    row_count=table.row_count,
+                )
+                for table in schema_info.tables
+            ]
+            return SchemaResponse(tables=tables)
+        finally:
+            await connector.close()
+
+    # Fallback: local mock data tables (SQLite)
     tables = []
 
     for table_name in ALLOWED_TABLES:
