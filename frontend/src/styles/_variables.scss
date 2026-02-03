@@ -326,51 +326,45 @@
   --glass-blur-lg: 28px;
 
   // Premium Frosted Glass Widget Variables - Light Theme
-  // Soft gradient for elegant depth
+  // Clean white with subtle cool undertone for crisp glass feel
   --glass-widget-bg: linear-gradient(
     165deg,
-    rgba(255, 255, 255, 0.92) 0%,
-    rgba(248, 250, 252, 0.88) 50%,
-    rgba(241, 245, 249, 0.9) 100%
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(255, 255, 255, 0.92) 100%
   );
   --glass-widget-bg-solid: linear-gradient(
     165deg,
-    rgba(255, 255, 255, 0.98) 0%,
-    rgba(250, 251, 252, 0.97) 100%
+    rgba(255, 255, 255, 0.99) 0%,
+    rgba(255, 255, 255, 0.98) 100%
   );
-  // Subtle border with soft highlight
-  --glass-widget-border: rgba(0, 0, 0, 0.06);
-  --glass-widget-border-hover: rgba(var(--color-primary-rgb), 0.3);
-  // Refined shadows for light theme - softer, more diffuse
+  // More visible border for definition against light backgrounds
+  --glass-widget-border: rgba(0, 0, 0, 0.08);
+  --glass-widget-border-hover: rgba(var(--color-primary-rgb), 0.35);
+  // Crisp shadows for light theme - more defined edges
   --glass-widget-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.04),
-    0 4px 12px rgba(0, 0, 0, 0.06),
-    0 12px 32px rgba(0, 0, 0, 0.04),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+    0 1px 3px rgba(0, 0, 0, 0.06),
+    0 4px 16px rgba(0, 0, 0, 0.08),
+    0 8px 24px rgba(0, 0, 0, 0.04);
   --glass-widget-shadow-hover:
-    0 2px 4px rgba(0, 0, 0, 0.05),
-    0 8px 20px rgba(0, 0, 0, 0.08),
-    0 20px 48px rgba(0, 0, 0, 0.06),
-    0 0 0 1px rgba(var(--color-primary-rgb), 0.12),
-    0 0 30px rgba(var(--color-primary-rgb), 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.6);
-  // Light header gradient
+    0 2px 6px rgba(0, 0, 0, 0.08),
+    0 8px 24px rgba(0, 0, 0, 0.1),
+    0 16px 40px rgba(0, 0, 0, 0.06),
+    0 0 0 1px rgba(var(--color-primary-rgb), 0.15);
+  // Light header gradient - subtle fade
   --glass-drag-handle-bg: linear-gradient(
     180deg,
-    rgba(255, 255, 255, 0.95) 0%,
-    rgba(250, 251, 252, 0.9) 40%,
-    rgba(248, 250, 252, 0.7) 80%,
+    rgba(255, 255, 255, 0.98) 0%,
+    rgba(255, 255, 255, 0.95) 40%,
+    rgba(255, 255, 255, 0.8) 80%,
     transparent 100%
   );
   // Subtle inner glow for depth
   --glass-widget-inner-glow: inset 0 0 40px rgba(var(--color-primary-rgb), 0.02);
-  // Accent line for premium detail
+  // Accent line for premium detail - slightly more visible
   --glass-widget-accent: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(var(--color-primary-rgb), 0.2) 50%,
+    rgba(var(--color-primary-rgb), 0.25) 50%,
     transparent 100%
   );
 

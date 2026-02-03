@@ -185,7 +185,7 @@ import { IndicatorType } from '../../shared/components/cross-filter-indicator/cr
       }
     }
 
-    /* Gradient Border Overlay */
+    /* Gradient Border Overlay - only for dark mode */
     .gradient-border-overlay {
       position: absolute;
       inset: 0;
@@ -203,6 +203,11 @@ import { IndicatorType } from '../../shared/components/cross-filter-indicator/cr
       pointer-events: none;
       opacity: 0.6;
       transition: opacity 0.3s ease;
+    }
+
+    /* Hide gradient overlay in light mode - use clean borders instead */
+    :host-context([data-theme="light"]) .gradient-border-overlay {
+      display: none;
     }
 
     .widget-wrapper:hover .gradient-border-overlay {
@@ -266,6 +271,11 @@ import { IndicatorType } from '../../shared/components/cross-filter-indicator/cr
       max-width: calc(100% - 80px);
     }
 
+    /* Light mode title - no text shadow needed */
+    :host-context([data-theme="light"]) .widget-title {
+      text-shadow: none;
+    }
+
     /* Drag Handle Behavior */
     .widget-integrated-header.drag-handle {
       cursor: grab;
@@ -327,15 +337,15 @@ import { IndicatorType } from '../../shared/components/cross-filter-indicator/cr
       justify-content: center;
       width: 30px;
       height: 30px;
-      background: rgba(22, 27, 34, 0.9);
+      background: var(--bg-tertiary);
       backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      border: 1px solid var(--border-color);
       border-radius: var(--radius-md);
       color: var(--text-muted);
       cursor: pointer;
       transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      box-shadow: var(--shadow-md);
 
       app-icon {
         transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),

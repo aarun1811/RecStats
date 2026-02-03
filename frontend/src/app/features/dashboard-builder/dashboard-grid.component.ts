@@ -46,7 +46,7 @@ import { DashboardWidget } from './dashboard-builder.component';
 
     /* Gridster item styling for liquid glass widgets */
     ::ng-deep .gridster-item {
-      border-radius: var(--radius-xl);
+      /* No border-radius here - widget-wrapper handles its own radius */
       overflow: visible; /* Allow box-shadow to extend */
       transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
                   z-index 0s;
