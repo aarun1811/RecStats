@@ -31,12 +31,12 @@ import { IndicatorType } from '../../shared/components/cross-filter-indicator/cr
                   [class.spinning]="isRefreshing"
                   (click)="onRefresh($event)"
                   title="Refresh">
-            <app-icon name="refresh-cw" [size]="14"></app-icon>
+            <app-icon name="refresh" [size]="14"></app-icon>
           </button>
           <button class="floating-action-btn delete-btn"
                   (click)="onRemove($event)"
                   title="Remove">
-            <app-icon name="trash-2" [size]="14"></app-icon>
+            <app-icon name="trash" [size]="14"></app-icon>
           </button>
         </div>
 
