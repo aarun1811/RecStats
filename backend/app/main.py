@@ -20,19 +20,37 @@ from app.services.elasticsearch import ElasticsearchService
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    import logging
+
+    logger = logging.getLogger(__name__)
+
     # Startup: create shared HTTP client for Superset
     app.state.superset_http = httpx.AsyncClient(
         base_url=settings.superset_url,
         timeout=30.0,
     )
-    # Startup: Elasticsearch service
-    app.state.elasticsearch = ElasticsearchService(settings.elasticsearch_url)
-    # Startup: Redis cache service
-    app.state.cache = CacheService(settings.redis_url)
+
+    # Startup: Elasticsearch service (graceful — don't crash if ES unavailable)
+    try:
+        app.state.elasticsearch = ElasticsearchService(settings.elasticsearch_url)
+    except Exception as e:
+        logger.warning("Elasticsearch unavailable: %s", e)
+        app.state.elasticsearch = None
+
+    # Startup: Redis cache service (graceful — don't crash if Redis unavailable)
+    try:
+        app.state.cache = CacheService(settings.redis_url)
+    except Exception as e:
+        logger.warning("Redis unavailable: %s", e)
+        app.state.cache = None
+
     yield
+
     # Shutdown: close all connections
-    await app.state.cache.close()
-    await app.state.elasticsearch.close()
+    if app.state.cache:
+        await app.state.cache.close()
+    if app.state.elasticsearch:
+        await app.state.elasticsearch.close()
     await app.state.superset_http.aclose()
 
 
