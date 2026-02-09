@@ -74,38 +74,40 @@ async def execute_direct_query(
     # Validate SQL for safety
     validate_sql(request.sql)
 
-    # If data source specified, use its connector
+    # If data source specified, use its connector (except for sqlite/mock which use local DB)
     if request.data_source_id:
         result = await db.execute(select(DataSource).where(DataSource.id == request.data_source_id))
         data_source = result.scalar_one_or_none()
         if not data_source:
             raise HTTPException(status_code=404, detail="Data source not found")
 
-        connector = get_connector(data_source)
-        try:
-            query_result = await connector.execute_query(
-                sql=request.sql,
-                limit=request.limit,
-                offset=request.offset,
-            )
+        # For sqlite/mock, fall through to local execution below
+        if data_source.type not in ("sqlite", "mock"):
+            connector = get_connector(data_source)
+            try:
+                query_result = await connector.execute_query(
+                    sql=request.sql,
+                    limit=request.limit,
+                    offset=request.offset,
+                )
 
-            columns = [
-                ColumnMetadata(name=col["name"], data_type=col["data_type"])
-                for col in query_result.columns
-            ]
+                columns = [
+                    ColumnMetadata(name=col["name"], data_type=col["data_type"])
+                    for col in query_result.columns
+                ]
 
-            return QueryExecuteResponse(
-                columns=columns,
-                data=query_result.data,
-                row_count=query_result.row_count,
-                total_count=query_result.total_count,
-                execution_time_ms=query_result.execution_time_ms,
-                truncated=query_result.truncated,
-            )
-        except Exception as e:
-            raise HTTPException(status_code=400, detail=f"Query execution failed: {str(e)}")
-        finally:
-            await connector.close()
+                return QueryExecuteResponse(
+                    columns=columns,
+                    data=query_result.data,
+                    row_count=query_result.row_count,
+                    total_count=query_result.total_count,
+                    execution_time_ms=query_result.execution_time_ms,
+                    truncated=query_result.truncated,
+                )
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Query execution failed: {str(e)}")
+            finally:
+                await connector.close()
 
     # Fallback: execute against local SQLite mock tables
     start_time = time.time()
@@ -157,35 +159,37 @@ async def get_schema(
     If data_source_id is provided, fetches schema from that data source.
     Otherwise, returns schema for the local mock data tables.
     """
-    # If data source specified, use its connector
+    # If data source specified, use its connector (except for sqlite/mock which use local DB)
     if data_source_id:
         result = await db.execute(select(DataSource).where(DataSource.id == data_source_id))
         data_source = result.scalar_one_or_none()
         if not data_source:
             raise HTTPException(status_code=404, detail="Data source not found")
 
-        connector = get_connector(data_source)
-        try:
-            schema_info = await connector.get_schema()
-            tables = [
-                TableSchema(
-                    name=table.name,
-                    columns=[
-                        TableColumnSchema(
-                            name=col.name,
-                            type=col.data_type,
-                            nullable=col.nullable,
-                            primary_key=col.primary_key,
-                        )
-                        for col in table.columns
-                    ],
-                    row_count=table.row_count,
-                )
-                for table in schema_info.tables
-            ]
-            return SchemaResponse(tables=tables)
-        finally:
-            await connector.close()
+        # For sqlite/mock, fall through to local schema below
+        if data_source.type not in ("sqlite", "mock"):
+            connector = get_connector(data_source)
+            try:
+                schema_info = await connector.get_schema()
+                tables = [
+                    TableSchema(
+                        name=table.name,
+                        columns=[
+                            TableColumnSchema(
+                                name=col.name,
+                                type=col.data_type,
+                                nullable=col.nullable,
+                                primary_key=col.primary_key,
+                            )
+                            for col in table.columns
+                        ],
+                        row_count=table.row_count,
+                    )
+                    for table in schema_info.tables
+                ]
+                return SchemaResponse(tables=tables)
+            finally:
+                await connector.close()
 
     # Fallback: local mock data tables (SQLite)
     tables = []
