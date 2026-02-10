@@ -5,6 +5,7 @@ import { useFilterStore } from '@/stores/filter-store'
 import { FilterBar } from '@/components/dashboard/filter-bar'
 import { KpiRow } from '@/components/dashboard/kpi-row'
 import { ChartGrid } from '@/components/dashboard/chart-grid'
+import { DataGrid } from '@/components/grid/data-grid'
 import type { ChartClickEvent } from '@/types/chart'
 
 export const Route = createFileRoute('/dashboards/$dashboardId')({
@@ -39,6 +40,7 @@ function DashboardDetail() {
       <FilterBar />
       <KpiRow />
       <ChartGrid onChartClick={handleChartClick} />
+      <DataGrid />
     </div>
   )
 }

@@ -18,6 +18,7 @@
     "@tanstack/router-plugin": "^1.159.5",
     "ag-charts-enterprise": "^13.0.1",
     "ag-charts-react": "^13.0.1",
+    "ag-grid-community": "^35.0.1",
     "ag-grid-enterprise": "^35.0.1",
     "ag-grid-react": "^35.0.1",
     "class-variance-authority": "^0.7.1",

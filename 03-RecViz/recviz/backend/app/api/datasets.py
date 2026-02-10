@@ -60,6 +60,46 @@ async def get_dataset(dataset_id: int, superset: SupersetDep):
     return {"error": "dataset not found"}
 
 
+# All columns to fetch for each dataset (raw row data)
+DATASET_COLUMNS: dict[int, list[str]] = {
+    5: [
+        "id", "transaction_id", "reason", "category", "break_type",
+        "amount", "currency", "region", "country", "lob", "desk",
+        "status", "aging_days", "aging_bucket", "sla_breach",
+        "assigned_to", "priority", "created_date", "resolved_date", "notes",
+    ],
+}
+
+
+def _build_adhoc_filters(filters: GlobalFilters | None, dataset_id: int) -> list[dict]:
+    """Convert GlobalFilters to Superset adhoc_filters for row queries."""
+    if not filters:
+        return []
+    adhoc: list[dict] = []
+    for col, vals in [
+        ("status", filters.status), ("desk", filters.desk),
+        ("region", filters.region), ("lob", filters.lob),
+        ("currency", filters.currency), ("country", filters.country),
+    ]:
+        if vals:
+            adhoc.append({
+                "expressionType": "SIMPLE", "clause": "WHERE",
+                "subject": col, "operator": "IN", "comparator": vals,
+            })
+    date_col = "created_date" if dataset_id == 5 else "trade_date"
+    if filters.date_from:
+        adhoc.append({
+            "expressionType": "SIMPLE", "clause": "WHERE",
+            "subject": date_col, "operator": ">=", "comparator": filters.date_from,
+        })
+    if filters.date_to:
+        adhoc.append({
+            "expressionType": "SIMPLE", "clause": "WHERE",
+            "subject": date_col, "operator": "<=", "comparator": filters.date_to,
+        })
+    return adhoc
+
+
 @router.post("/{dataset_id}/data")
 async def get_dataset_data(
     dataset_id: int,
@@ -70,13 +110,19 @@ async def get_dataset_data(
     sort_by: str | None = None,
     sort_desc: bool = False,
 ):
-    if superset:
+    columns = DATASET_COLUMNS.get(dataset_id)
+
+    if superset and columns:
         try:
             query: dict[str, Any] = {
-                "columns": ["*"],
+                "columns": columns,
                 "row_limit": page_size,
                 "row_offset": (page - 1) * page_size,
             }
+
+            adhoc = _build_adhoc_filters(filters, dataset_id)
+            if adhoc:
+                query["filters"] = adhoc
 
             if sort_by:
                 query["orderby"] = [[sort_by, not sort_desc]]
@@ -90,6 +136,7 @@ async def get_dataset_data(
                 "page_size": page_size,
             }
         except Exception:
-            pass
+            import traceback
+            traceback.print_exc()
 
     return {"data": [], "row_count": 0, "page": page, "page_size": page_size}
