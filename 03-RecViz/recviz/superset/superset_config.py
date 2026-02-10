@@ -46,5 +46,9 @@ class CeleryConfig:
 
 CELERY_CONFIG = CeleryConfig
 
+# Results backend for SQL Lab (required for sync queries)
+from cachelib.redis import RedisCache
+RESULTS_BACKEND = RedisCache(host="localhost", port=6379, db=4, key_prefix="recviz_results_")
+
 # Prevent Superset from showing its own frontend chrome
 ENABLE_JAVASCRIPT_CONTROLS = False
