@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/breadcrumb'
 import { Button } from '@/components/ui/button'
 import { useSidebar } from '@/components/ui/sidebar'
-import { Search } from './search'
+import { CommandPalette } from './command-palette'
 import { ThemeSwitch } from './theme-switch'
 
 function useBreadcrumbs() {
@@ -49,7 +49,7 @@ export function Header() {
         </Breadcrumb>
 
         <div className="ml-auto flex items-center gap-2">
-          <Search />
+          <CommandPalette />
           <Button size="icon-sm" variant="ghost" className="relative">
             <BellIcon />
             <span className="sr-only">Notifications</span>

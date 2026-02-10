@@ -1,4 +1,5 @@
 import { useCallback } from 'react'
+import { useDrillStore } from '@/stores/drill-store'
 import { useFilterStore } from '@/stores/filter-store'
 import { useChartDataWithFilters } from './use-chart-data'
 import type { GlobalFilters } from '@/types/filter'
@@ -8,11 +9,11 @@ import type { GlobalFilters } from '@/types/filter'
  * Each drill level adds a filter constraint and fetches new data.
  */
 export function useDrillDown(chartId: string) {
-  const drillState = useFilterStore((s) => s.drillStates[chartId])
+  const drillState = useDrillStore((s) => s.drillState[chartId])
   const globalFilters = useFilterStore((s) => s.globalFilters)
-  const pushDrill = useFilterStore((s) => s.pushDrill)
-  const popDrill = useFilterStore((s) => s.popDrill)
-  const resetDrill = useFilterStore((s) => s.resetDrill)
+  const drillDown = useDrillStore((s) => s.drillDown)
+  const drillUp = useDrillStore((s) => s.drillUp)
+  const resetDrill = useDrillStore((s) => s.resetDrill)
 
   const levels = drillState?.levels ?? []
 
@@ -33,12 +34,12 @@ export function useDrillDown(chartId: string) {
 
   const drill = useCallback(
     (column: string, value: string) => {
-      pushDrill(chartId, { level: levels.length + 1, column, value })
+      drillDown(chartId, { level: levels.length + 1, column, value })
     },
-    [chartId, levels.length, pushDrill],
+    [chartId, levels.length, drillDown],
   )
 
-  const back = useCallback(() => popDrill(chartId), [chartId, popDrill])
+  const back = useCallback(() => drillUp(chartId), [chartId, drillUp])
   const reset = useCallback(() => resetDrill(chartId), [chartId, resetDrill])
 
   return {
