@@ -5,6 +5,7 @@ import { useFilterStore } from '@/stores/filter-store'
 import { FilterBar } from '@/components/dashboard/filter-bar'
 import { KpiRow } from '@/components/dashboard/kpi-row'
 import { ChartGrid } from '@/components/dashboard/chart-grid'
+import { CrossFilterBar } from '@/components/dashboard/cross-filter-bar'
 import { DataGrid } from '@/components/grid/data-grid'
 import type { ChartClickEvent } from '@/types/chart'
 
@@ -39,6 +40,7 @@ function DashboardDetail() {
 
       <FilterBar />
       <KpiRow />
+      <CrossFilterBar />
       <ChartGrid onChartClick={handleChartClick} />
       <DataGrid />
     </div>

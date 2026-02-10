@@ -1,6 +1,8 @@
+import { useMemo } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useChartData } from '@/hooks/use-chart-data'
 import { useFilterStore } from '@/stores/filter-store'
+import { applyCrossFilters } from '@/lib/cross-filter'
 import { ChartPanel, ChartPanelSkeleton } from './chart-panel'
 import type { ChartConfig, ChartClickEvent } from '@/types/chart'
 
@@ -46,6 +48,13 @@ function ChartGridItem({
   const { data, isLoading, error } = useChartData(config.id)
   const queryClient = useQueryClient()
   const globalFilters = useFilterStore((s) => s.globalFilters)
+  const crossFilters = useFilterStore((s) => s.crossFilters)
+
+  // Apply cross-filters client-side (exclude self-chart)
+  const filteredData = useMemo(
+    () => applyCrossFilters(data, crossFilters, config.id),
+    [data, crossFilters, config.id],
+  )
 
   const handleRefresh = () => {
     queryClient.invalidateQueries({
@@ -57,7 +66,7 @@ function ChartGridItem({
     <ChartPanel
       chartId={config.id}
       config={config}
-      data={data}
+      data={filteredData}
       isLoading={isLoading}
       error={error ?? null}
       onChartClick={onChartClick}

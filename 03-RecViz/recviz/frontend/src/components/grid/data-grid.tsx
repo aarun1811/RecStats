@@ -1,8 +1,10 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AgGridReact } from 'ag-grid-react'
-import type { ColDef, GridApi, GridReadyEvent, PaginationChangedEvent, ValueFormatterParams } from 'ag-grid-community'
+import type { ColDef, GridApi, GridReadyEvent, IRowNode, PaginationChangedEvent, ValueFormatterParams } from 'ag-grid-community'
 import { useTheme } from '@/components/layout/theme-provider'
 import { useBreaksData } from '@/hooks/use-breaks-data'
+import { useFilterStore } from '@/stores/filter-store'
+import { rowPassesCrossFilters } from '@/lib/cross-filter'
 import { GridToolbar } from './grid-toolbar'
 import { StatusCell } from './cell-renderers/status-cell'
 import { AmountCell } from './cell-renderers/amount-cell'
@@ -57,10 +59,29 @@ export function DataGrid() {
   const [quickFilter, setQuickFilter] = useState('')
   const [displayedRows, setDisplayedRows] = useState(0)
   const { resolvedTheme } = useTheme()
+  const crossFilters = useFilterStore((s) => s.crossFilters)
 
   const { data, isLoading } = useBreaksData(PAGE_SIZE * 20) // fetch plenty of rows for client-side pagination
 
   const themeClass = resolvedTheme === 'dark' ? 'ag-theme-quartz-dark' : 'ag-theme-quartz'
+
+  // Re-apply external filter when crossFilters change
+  useEffect(() => {
+    gridApi?.onFilterChanged()
+    setTimeout(() => {
+      if (gridApi) setDisplayedRows(gridApi.getDisplayedRowCount())
+    }, 50)
+  }, [crossFilters, gridApi])
+
+  const isExternalFilterPresent = useCallback(() => crossFilters.length > 0, [crossFilters])
+
+  const doesExternalFilterPass = useCallback(
+    (node: IRowNode) => {
+      if (!node.data) return true
+      return rowPassesCrossFilters(node.data as Record<string, unknown>, crossFilters)
+    },
+    [crossFilters],
+  )
 
   const onGridReady = useCallback((event: GridReadyEvent) => {
     setGridApi(event.api)
@@ -123,6 +144,8 @@ export function DataGrid() {
             suppressRowClickSelection
             enableCellTextSelection
             tooltipShowDelay={500}
+            isExternalFilterPresent={isExternalFilterPresent}
+            doesExternalFilterPass={doesExternalFilterPass}
             onGridReady={onGridReady}
             onFilterChanged={onFilterChanged}
             onPaginationChanged={(e: PaginationChangedEvent) => {

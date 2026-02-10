@@ -48,12 +48,21 @@ export const useFilterStore = create<FilterState>((set) => ({
   resetGlobalFilters: () => set({ globalFilters: { ...DEFAULT_FILTERS } }),
 
   addCrossFilter: (filter) =>
-    set((s) => ({
-      crossFilters: [
-        ...s.crossFilters.filter((f) => f.sourceChartId !== filter.sourceChartId),
-        filter,
-      ],
-    })),
+    set((s) => {
+      // Toggle: clicking the same chart+value removes the filter
+      const existing = s.crossFilters.find(
+        (f) => f.sourceChartId === filter.sourceChartId && f.column === filter.column && f.value === filter.value,
+      )
+      if (existing) {
+        return { crossFilters: s.crossFilters.filter((f) => f !== existing) }
+      }
+      return {
+        crossFilters: [
+          ...s.crossFilters.filter((f) => f.sourceChartId !== filter.sourceChartId),
+          filter,
+        ],
+      }
+    }),
 
   removeCrossFilter: (sourceChartId) =>
     set((s) => ({

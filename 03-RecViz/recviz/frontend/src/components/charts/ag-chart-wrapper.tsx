@@ -136,7 +136,6 @@ export function AgChartWrapper({
   onChartClick,
   className,
 }: ChartWrapperProps) {
-  const chartRef = useRef<{ chart?: { addEventListener?: (type: string, cb: (e: unknown) => void) => void } }>(null)
   const { resolvedTheme } = useTheme()
 
   // Defer theme read until after the dark/light CSS class is applied to the DOM
@@ -146,22 +145,9 @@ export function AgChartWrapper({
     return () => cancelAnimationFrame(frame)
   }, [resolvedTheme])
 
-  // Wire cross-filter click via chart ref
-  useEffect(() => {
-    if (!onChartClick || !chartRef.current?.chart?.addEventListener) return
-    const handler = (e: unknown) => {
-      const event = e as { datum?: Record<string, unknown> }
-      if (!event.datum) return
-      const col = data?.columns[0] ?? ''
-      onChartClick({
-        chartId,
-        column: col,
-        value: event.datum[col] as string | number,
-        row: event.datum,
-      })
-    }
-    chartRef.current.chart.addEventListener('nodeClick', handler)
-  }, [onChartClick, chartId, data?.columns])
+  // Stable click handler ref to avoid re-creating chart options on every render
+  const clickHandlerRef = useRef(onChartClick)
+  clickHandlerRef.current = onChartClick
 
   const options = useMemo((): AgChartOptions => {
     if (!data?.data?.length) {
@@ -181,8 +167,19 @@ export function AgChartWrapper({
       },
       background: { fill: 'transparent' },
       padding: { top: 10, right: 10, bottom: 10, left: 10 },
+      listeners: {
+        seriesNodeClick: (event: { datum: Record<string, unknown> }) => {
+          if (!clickHandlerRef.current || !event.datum) return
+          clickHandlerRef.current({
+            chartId,
+            column: categoryKey,
+            value: event.datum[categoryKey] as string | number,
+            row: event.datum,
+          })
+        },
+      },
     } as AgChartOptions
-  }, [data, config.vizType, theme])
+  }, [data, config.vizType, theme, chartId])
 
   if (isLoading) {
     return <Skeleton className={cn('h-[300px] w-full rounded-lg', className)} />
@@ -211,7 +208,7 @@ export function AgChartWrapper({
 
   return (
     <div className={cn('h-[300px] w-full', className)}>
-      <AgCharts ref={chartRef as React.Ref<never>} options={options} />
+      <AgCharts options={options} />
     </div>
   )
 }
