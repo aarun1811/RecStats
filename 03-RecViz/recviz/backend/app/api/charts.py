@@ -157,6 +157,16 @@ async def get_chart(chart_id: str, superset: SupersetDep):
     return {"error": "chart not found"}
 
 
+AGING_BUCKET_ORDER = {"0-1d": 0, "2-3d": 1, "4-7d": 2, "8-14d": 3, "15-30d": 4, "30d+": 5}
+
+
+def _post_process(chart_id: str, data: list[dict]) -> list[dict]:
+    """Apply chart-specific sorting/transforms after Superset returns data."""
+    if chart_id == "aging-distribution" and data:
+        return sorted(data, key=lambda r: AGING_BUCKET_ORDER.get(r.get("aging_bucket", ""), 99))
+    return data
+
+
 @router.post("/{chart_id}/data")
 async def get_chart_data(chart_id: str, superset: SupersetDep, body: ChartDataRequest | None = None):
     ds_id = CHART_DATASOURCE_MAP.get(chart_id)
@@ -171,10 +181,11 @@ async def get_chart_data(chart_id: str, superset: SupersetDep, body: ChartDataRe
 
             result = await superset.get_chart_data(ds_id, [query])
             chart_result = result.get("result", [{}])[0]
+            rows = _post_process(chart_id, chart_result.get("data", []))
             return {
                 "chart_id": chart_id,
-                "columns": list(chart_result.get("data", [{}])[0].keys()) if chart_result.get("data") else [],
-                "data": chart_result.get("data", []),
+                "columns": list(rows[0].keys()) if rows else [],
+                "data": rows,
                 "row_count": chart_result.get("rowcount", 0),
             }
         except Exception:
@@ -182,9 +193,10 @@ async def get_chart_data(chart_id: str, superset: SupersetDep, body: ChartDataRe
 
     # Mock fallback
     mock = MOCK_CHART_DATA.get(chart_id, {"columns": [], "data": []})
+    rows = _post_process(chart_id, mock.get("data", []))
     return {
         "chart_id": chart_id,
         "columns": mock.get("columns", []),
-        "data": mock.get("data", []),
-        "row_count": len(mock.get("data", [])),
+        "data": rows,
+        "row_count": len(rows),
     }

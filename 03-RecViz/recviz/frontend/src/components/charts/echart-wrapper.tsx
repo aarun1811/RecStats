@@ -1,10 +1,11 @@
-import { useMemo } from 'react'
+import { useMemo, useEffect, useState } from 'react'
 import ReactEChartsCore from 'echarts-for-react/lib/core'
 import * as echarts from 'echarts/core'
 import { SankeyChart, RadarChart, SunburstChart, GaugeChart, FunnelChart, GraphChart, ParallelChart } from 'echarts/charts'
 import { TitleComponent, TooltipComponent, LegendComponent, GridComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import { getEChartsTheme, getChartPalette } from '@/lib/chart-themes'
+import { useTheme } from '@/components/layout/theme-provider'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
@@ -27,12 +28,12 @@ echarts.use([
   CanvasRenderer,
 ])
 
-// Register custom theme once
-let themeRegistered = false
-function ensureTheme() {
-  if (!themeRegistered) {
+// Re-register theme whenever resolvedTheme changes (light ↔ dark)
+let lastRegisteredTheme = ''
+function ensureTheme(resolvedTheme: string) {
+  if (lastRegisteredTheme !== resolvedTheme) {
     echarts.registerTheme('recviz', getEChartsTheme())
-    themeRegistered = true
+    lastRegisteredTheme = resolvedTheme
   }
 }
 
@@ -208,12 +209,23 @@ export function EChartWrapper({
   onChartClick,
   className,
 }: ChartWrapperProps) {
-  ensureTheme()
+  const { resolvedTheme } = useTheme()
+
+  // Defer theme registration until after the dark/light CSS class is applied
+  const [themeReady, setThemeReady] = useState(false)
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      ensureTheme(resolvedTheme)
+      setThemeReady((v) => !v) // toggle to force re-render
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [resolvedTheme])
 
   const option = useMemo(() => {
     if (!data?.data?.length) return {}
     return buildEChartsOption(config.vizType, data.columns, data.data)
-  }, [data, config.vizType])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, config.vizType, themeReady])
 
   const onEvents = useMemo((): Record<string, Function> | undefined => {
     if (!onChartClick) return undefined

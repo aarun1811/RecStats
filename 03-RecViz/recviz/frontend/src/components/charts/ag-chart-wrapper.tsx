@@ -1,12 +1,24 @@
-import { useMemo, useRef, useEffect } from 'react'
+import { useMemo, useRef, useEffect, useState } from 'react'
 import { AgCharts } from 'ag-charts-react'
 import type { AgChartOptions } from 'ag-charts-enterprise'
 import { getAgChartsTheme } from '@/lib/chart-themes'
+import { useTheme } from '@/components/layout/theme-provider'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
 import type { ChartWrapperProps } from '@/types/chart'
 import { cn } from '@/lib/utils'
+
+/** Detect epoch-ms values and convert to short date strings for axis labels. */
+function formatDates(rows: Record<string, unknown>[], categoryKey: string): Record<string, unknown>[] {
+  if (!rows.length) return rows
+  const first = rows[0][categoryKey]
+  if (typeof first !== 'number' || first < 1e10) return rows
+  return rows.map((r) => ({
+    ...r,
+    [categoryKey]: new Date(r[categoryKey] as number).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+  }))
+}
 
 function buildSeries(vizType: string, columns: string[]) {
   const categoryKey = columns[0] ?? 'category'
@@ -125,7 +137,14 @@ export function AgChartWrapper({
   className,
 }: ChartWrapperProps) {
   const chartRef = useRef<{ chart?: { addEventListener?: (type: string, cb: (e: unknown) => void) => void } }>(null)
-  const theme = useMemo(() => getAgChartsTheme(), [])
+  const { resolvedTheme } = useTheme()
+
+  // Defer theme read until after the dark/light CSS class is applied to the DOM
+  const [theme, setTheme] = useState(() => getAgChartsTheme())
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setTheme(getAgChartsTheme()))
+    return () => cancelAnimationFrame(frame)
+  }, [resolvedTheme])
 
   // Wire cross-filter click via chart ref
   useEffect(() => {
@@ -149,10 +168,12 @@ export function AgChartWrapper({
       return { data: [], series: [] } as AgChartOptions
     }
 
+    const categoryKey = data.columns[0] ?? 'category'
     const series = buildSeries(config.vizType, data.columns)
+    const rows = formatDates(data.data as Record<string, unknown>[], categoryKey)
 
     return {
-      data: data.data as Record<string, unknown>[],
+      data: rows,
       series,
       theme: {
         palette: theme.palette,
