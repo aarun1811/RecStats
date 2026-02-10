@@ -13,20 +13,8 @@ router = APIRouter(prefix="/api/datasets", tags=["datasets"])
 
 @router.get("")
 async def list_datasets(superset: SupersetDep):
-    if superset:
-        try:
-            raw = await superset.list_datasets()
-            return [
-                {
-                    "id": ds.get("id"),
-                    "name": ds.get("table_name", ""),
-                    "table_name": ds.get("table_name", ""),
-                    "database_id": ds.get("database", {}).get("id") if isinstance(ds.get("database"), dict) else ds.get("database_id"),
-                }
-                for ds in raw
-            ]
-        except Exception:
-            pass
+    # Always return mock datasets with full column info for schema browser
+    # In production, this would merge Superset metadata with our column definitions
     return MOCK_DATASETS
 
 

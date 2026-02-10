@@ -1,14 +1,145 @@
+import { useState, useCallback } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
+import { useSqlExecute } from '@/hooks/use-sql-execute'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { SqlEditor } from '@/components/explorer/sql-editor'
+import { SchemaBrowser } from '@/components/explorer/schema-browser'
+import { QueryResults } from '@/components/explorer/query-results'
+import { QueryHistory } from '@/components/explorer/query-history'
+import { ChartBuilderDialog } from '@/components/explorer/chart-builder-dialog'
+import type { SqlResult } from '@/types/api'
 
 export const Route = createFileRoute('/explorer/')({
   component: Explorer,
 })
 
+const DEFAULT_SQL = `SELECT * FROM breaks WHERE desk = 'Operations' LIMIT 20`
+
 function Explorer() {
+  const [sql, setSql] = useState(DEFAULT_SQL)
+  const [result, setResult] = useState<SqlResult | null>(null)
+  const [executionTime, setExecutionTime] = useState<number | null>(null)
+  const [chartOpen, setChartOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState('results')
+
+  const executeMutation = useSqlExecute()
+
+  const handleRun = useCallback(() => {
+    if (!sql.trim() || executeMutation.isPending) return
+    const start = performance.now()
+    executeMutation.mutate(
+      { sql },
+      {
+        onSuccess: (data) => {
+          setResult(data)
+          setExecutionTime(Math.round(performance.now() - start))
+          setActiveTab('results')
+        },
+        onError: (err) => {
+          setResult({
+            status: 'error',
+            columns: [],
+            data: [],
+            rowCount: 0,
+            error: err.message,
+          })
+          setExecutionTime(Math.round(performance.now() - start))
+          setActiveTab('results')
+        },
+      },
+    )
+  }, [sql, executeMutation])
+
+  const handleInsertTable = useCallback((tableName: string) => {
+    setSql((prev) => prev + (prev.endsWith(' ') ? '' : ' ') + tableName)
+  }, [])
+
+  const handleInsertColumn = useCallback((columnName: string) => {
+    setSql((prev) => prev + (prev.endsWith(' ') ? '' : ' ') + columnName)
+  }, [])
+
+  const handleLoadQuery = useCallback((query: string) => {
+    setSql(query)
+    setActiveTab('results')
+  }, [])
+
+  const handleChartIt = useCallback(() => {
+    if (result?.status === 'success' && result.data.length > 0) {
+      setChartOpen(true)
+    }
+  }, [result])
+
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Data Explorer</h1>
-      <p className="text-muted-foreground mt-2">SQL editor + schema browser — coming in Phase 15.</p>
+    <div className="flex flex-col h-[calc(100vh-3.5rem)]">
+      <div className="px-6 pt-4 pb-3 shrink-0">
+        <h1 className="text-2xl font-semibold tracking-tight">Data Explorer</h1>
+      </div>
+
+      {/* IDE layout: schema sidebar (left) + editor/results (right) */}
+      <div className="flex-1 min-h-0 px-4 pb-4 flex gap-3">
+        {/* LEFT: Schema Browser — fixed width sidebar */}
+        <div className="w-64 shrink-0 rounded-lg border bg-card overflow-hidden">
+          <SchemaBrowser
+            onInsertTable={handleInsertTable}
+            onInsertColumn={handleInsertColumn}
+          />
+        </div>
+
+        {/* RIGHT: Editor (top) + Results (bottom) — stacked vertically */}
+        <div className="flex-1 min-w-0 flex flex-col gap-3">
+          {/* SQL Editor — 40% height */}
+          <div className="h-[40%] min-h-[200px] rounded-lg border bg-card overflow-hidden">
+            <SqlEditor
+              value={sql}
+              onChange={setSql}
+              onRun={handleRun}
+              isRunning={executeMutation.isPending}
+            />
+          </div>
+
+          {/* Results / History — fills remaining 60% */}
+          <div className="flex-1 min-h-0 rounded-lg border bg-card overflow-hidden">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
+              <div className="border-b bg-muted/40 px-4 shrink-0">
+                <TabsList className="h-9 bg-transparent p-0 gap-0">
+                  <TabsTrigger
+                    value="results"
+                    className="text-xs rounded-none border-b-2 border-transparent px-4 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+                  >
+                    Results
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="history"
+                    className="text-xs rounded-none border-b-2 border-transparent px-4 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+                  >
+                    History
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+              <TabsContent value="results" className="flex-1 min-h-0 mt-0">
+                <QueryResults
+                  result={result}
+                  isLoading={executeMutation.isPending}
+                  executionTime={executionTime}
+                  onChartIt={handleChartIt}
+                />
+              </TabsContent>
+              <TabsContent value="history" className="flex-1 min-h-0 mt-0">
+                <QueryHistory onLoadQuery={handleLoadQuery} />
+              </TabsContent>
+            </Tabs>
+          </div>
+        </div>
+      </div>
+
+      {/* Chart Builder Dialog */}
+      {result?.status === 'success' && result.data.length > 0 && (
+        <ChartBuilderDialog
+          open={chartOpen}
+          onOpenChange={setChartOpen}
+          result={result}
+        />
+      )}
     </div>
   )
 }

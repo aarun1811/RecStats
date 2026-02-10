@@ -117,6 +117,56 @@ MOCK_DATABASES = [
     {"id": 1, "database_name": "recon_data", "backend": "postgresql"},
 ]
 
+import random as _random
+
+_random.seed(42)
+
+_DESKS = ["Operations", "Treasury", "Settlements", "FX", "Equity"]
+_CATEGORIES = ["Critical", "High", "Medium", "Low"]
+_STATUSES = ["Open", "Resolved", "Pending Review", "Escalated"]
+_REGIONS = ["NA", "EMEA", "APAC", "LATAM"]
+_CURRENCIES = ["USD", "EUR", "GBP", "JPY", "CHF"]
+_REASONS = ["Amount mismatch", "Missing counterparty", "Date discrepancy", "Duplicate entry", "System error"]
+_LOBS = ["Investment Banking", "Markets", "Wealth Management", "Commercial Banking"]
+_COUNTRIES = ["US", "UK", "Germany", "Japan", "Singapore", "Brazil", "France", "Australia"]
+_BREAK_TYPES = ["Position", "Cash", "Trade", "Settlement"]
+_ASSIGNEES = ["Alice Smith", "Bob Johnson", "Carol Williams", "David Brown", "Eva Chen"]
+_AGING_BUCKETS = ["0-2 days", "3-5 days", "6-10 days", "11-30 days", "30+ days"]
+
+MOCK_BREAK_ROWS: list[dict] = []
+for _i in range(1, 201):
+    _aging = _random.randint(0, 45)
+    _bucket = (
+        "0-2 days" if _aging <= 2 else
+        "3-5 days" if _aging <= 5 else
+        "6-10 days" if _aging <= 10 else
+        "11-30 days" if _aging <= 30 else
+        "30+ days"
+    )
+    MOCK_BREAK_ROWS.append({
+        "id": f"BRK-{_i:05d}",
+        "transaction_id": f"TXN-{_random.randint(100000, 999999)}",
+        "reason": _random.choice(_REASONS),
+        "category": _random.choice(_CATEGORIES),
+        "break_type": _random.choice(_BREAK_TYPES),
+        "amount": round(_random.uniform(1000, 500000), 2),
+        "currency": _random.choice(_CURRENCIES),
+        "region": _random.choice(_REGIONS),
+        "country": _random.choice(_COUNTRIES),
+        "lob": _random.choice(_LOBS),
+        "desk": _random.choice(_DESKS),
+        "status": _random.choice(_STATUSES),
+        "aging_days": _aging,
+        "aging_bucket": _bucket,
+        "sla_breach": _aging > 10,
+        "assigned_to": _random.choice(_ASSIGNEES),
+        "priority": _random.randint(1, 5),
+        "created_date": f"2026-01-{_random.randint(1, 31):02d}",
+        "resolved_date": f"2026-02-{_random.randint(1, 10):02d}" if _random.random() > 0.4 else None,
+        "notes": f"Auto-generated break record #{_i}",
+    })
+
+
 MOCK_CHART_DATA = {
     "breaks-by-category": {
         "columns": ["category", "count"],
