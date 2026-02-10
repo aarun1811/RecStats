@@ -4,7 +4,9 @@ import type { ColDef, GridApi, GridReadyEvent, IRowNode, PaginationChangedEvent,
 import { useTheme } from '@/components/layout/theme-provider'
 import { useBreaksData } from '@/hooks/use-breaks-data'
 import { useFilterStore } from '@/stores/filter-store'
+import { useDrillStore } from '@/stores/drill-store'
 import { rowPassesCrossFilters } from '@/lib/cross-filter'
+import { drillRowFilter } from '@/hooks/use-drill-down'
 import { GridToolbar } from './grid-toolbar'
 import { StatusCell } from './cell-renderers/status-cell'
 import { AmountCell } from './cell-renderers/amount-cell'
@@ -60,27 +62,34 @@ export function DataGrid() {
   const [displayedRows, setDisplayedRows] = useState(0)
   const { resolvedTheme } = useTheme()
   const crossFilters = useFilterStore((s) => s.crossFilters)
+  const drillLevels = useDrillStore((s) => s.levels)
 
   const { data, isLoading } = useBreaksData(PAGE_SIZE * 20) // fetch plenty of rows for client-side pagination
 
   const themeClass = resolvedTheme === 'dark' ? 'ag-theme-quartz-dark' : 'ag-theme-quartz'
 
-  // Re-apply external filter when crossFilters change
+  const drillFilter = useMemo(() => drillRowFilter(drillLevels), [drillLevels])
+
+  // Re-apply external filter when crossFilters or drillLevels change
   useEffect(() => {
     gridApi?.onFilterChanged()
     setTimeout(() => {
       if (gridApi) setDisplayedRows(gridApi.getDisplayedRowCount())
     }, 50)
-  }, [crossFilters, gridApi])
+  }, [crossFilters, drillLevels, gridApi])
 
-  const isExternalFilterPresent = useCallback(() => crossFilters.length > 0, [crossFilters])
+  const isExternalFilterPresent = useCallback(
+    () => crossFilters.length > 0 || drillLevels.length > 0,
+    [crossFilters, drillLevels],
+  )
 
   const doesExternalFilterPass = useCallback(
     (node: IRowNode) => {
       if (!node.data) return true
-      return rowPassesCrossFilters(node.data as Record<string, unknown>, crossFilters)
+      const row = node.data as Record<string, unknown>
+      return rowPassesCrossFilters(row, crossFilters) && drillFilter(row)
     },
-    [crossFilters],
+    [crossFilters, drillFilter],
   )
 
   const onGridReady = useCallback((event: GridReadyEvent) => {

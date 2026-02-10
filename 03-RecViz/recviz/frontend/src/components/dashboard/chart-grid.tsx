@@ -1,7 +1,8 @@
 import { useMemo, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useChartData } from '@/hooks/use-chart-data'
-import { useDrillDown } from '@/hooks/use-drill-down'
+import { useDrillStore } from '@/stores/drill-store'
+import { applyDrillFilters } from '@/hooks/use-drill-down'
 import { useFilterStore } from '@/stores/filter-store'
 import { applyCrossFilters } from '@/lib/cross-filter'
 import { ChartPanel, ChartPanelSkeleton } from './chart-panel'
@@ -43,23 +44,27 @@ const DASHBOARD_CHARTS: ChartConfig[] = [
 function ChartGridItem({
   config,
   onChartClick,
+  onChartDoubleClick,
 }: {
   config: ChartConfig
   onChartClick?: (event: ChartClickEvent) => void
+  onChartDoubleClick?: (event: ChartClickEvent) => void
 }) {
-  const { data: baseData, isLoading, error } = useChartData(config.id)
-  const { levels, data: drilledData, drill, back, reset, navigateTo } = useDrillDown(config.id)
+  const { data, isLoading, error } = useChartData(config.id)
   const queryClient = useQueryClient()
   const globalFilters = useFilterStore((s) => s.globalFilters)
   const crossFilters = useFilterStore((s) => s.crossFilters)
+  const drillLevels = useDrillStore((s) => s.levels)
 
-  // Use drilled data if drilling, otherwise base data
-  const chartData = levels.length > 0 ? drilledData : baseData
+  // Apply drill filters first (dashboard-wide), then cross-filters
+  const drilledData = useMemo(
+    () => applyDrillFilters(data, drillLevels),
+    [data, drillLevels],
+  )
 
-  // Apply cross-filters client-side (exclude self-chart)
   const filteredData = useMemo(
-    () => applyCrossFilters(chartData, crossFilters, config.id),
-    [chartData, crossFilters, config.id],
+    () => applyCrossFilters(drilledData, crossFilters, config.id),
+    [drilledData, crossFilters, config.id],
   )
 
   // Highlight selected segment on source chart
@@ -69,13 +74,6 @@ function ChartGridItem({
     return { column: selfFilter.column, value: selfFilter.value }
   }, [crossFilters, config.id])
 
-  const handleDoubleClick = useCallback(
-    (event: ChartClickEvent) => {
-      drill(event.column, String(event.value))
-    },
-    [drill],
-  )
-
   const handleRefresh = () => {
     queryClient.invalidateQueries({
       queryKey: ['chart-data', config.id, globalFilters],
@@ -83,26 +81,17 @@ function ChartGridItem({
   }
 
   return (
-    <div className="flex flex-col gap-1">
-      <DrillBreadcrumb
-        levels={levels}
-        onNavigate={navigateTo}
-        onBack={back}
-        onReset={reset}
-      />
-      <ChartPanel
-        chartId={config.id}
-        config={config}
-        data={filteredData}
-        isLoading={isLoading}
-        error={error ?? null}
-        onChartClick={onChartClick}
-        onChartDoubleClick={handleDoubleClick}
-        activeSelection={activeSelection}
-        drillLevels={levels}
-        onRefresh={handleRefresh}
-      />
-    </div>
+    <ChartPanel
+      chartId={config.id}
+      config={config}
+      data={filteredData}
+      isLoading={isLoading}
+      error={error ?? null}
+      onChartClick={onChartClick}
+      onChartDoubleClick={onChartDoubleClick}
+      activeSelection={activeSelection}
+      onRefresh={handleRefresh}
+    />
   )
 }
 
@@ -113,16 +102,48 @@ interface ChartGridProps {
 
 export function ChartGrid({ charts, onChartClick }: ChartGridProps) {
   const chartList = charts ?? DASHBOARD_CHARTS
+  const drillLevels = useDrillStore((s) => s.levels)
+  const drillDown = useDrillStore((s) => s.drillDown)
+  const drillUp = useDrillStore((s) => s.drillUp)
+  const drillToLevel = useDrillStore((s) => s.drillToLevel)
+  const resetDrill = useDrillStore((s) => s.resetDrill)
+
+  const isDetailMode = drillLevels.length >= 3
+
+  const handleDoubleClick = useCallback(
+    (event: ChartClickEvent) => {
+      drillDown(event.chartId, {
+        level: drillLevels.length + 1,
+        column: event.column,
+        value: String(event.value),
+      })
+    },
+    [drillDown, drillLevels.length],
+  )
+
+  // At level 3+, charts hide and grid takes over (handled in dashboard page)
+  if (isDetailMode) return null
 
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-      {chartList.map((config) => (
-        <ChartGridItem
-          key={config.id}
-          config={config}
-          onChartClick={onChartClick}
+    <div className="flex flex-col gap-3">
+      {drillLevels.length > 0 && (
+        <DrillBreadcrumb
+          levels={drillLevels}
+          onNavigate={drillToLevel}
+          onBack={drillUp}
+          onReset={resetDrill}
         />
-      ))}
+      )}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {chartList.map((config) => (
+          <ChartGridItem
+            key={config.id}
+            config={config}
+            onChartClick={onChartClick}
+            onChartDoubleClick={handleDoubleClick}
+          />
+        ))}
+      </div>
     </div>
   )
 }
