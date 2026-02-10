@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { format } from 'date-fns'
+import { toast } from 'sonner'
 import {
+  BookmarkPlus,
   CalendarIcon,
   Check,
   ChevronsUpDown,
@@ -10,6 +12,7 @@ import {
   X,
 } from 'lucide-react'
 import { useFilterStore } from '@/stores/filter-store'
+import { useCreateView } from '@/hooks/use-saved-views'
 import { api } from '@/lib/api-client'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
@@ -37,6 +40,15 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
 const STATUS_OPTIONS = ['Open', 'Resolved', 'Investigating', 'Escalated']
@@ -57,6 +69,27 @@ export function FilterBar() {
     globalFilters.dateTo ? new Date(globalFilters.dateTo) : undefined,
   )
   const [entityOpen, setEntityOpen] = useState(false)
+  const [saveOpen, setSaveOpen] = useState(false)
+  const [viewName, setViewName] = useState('')
+  const createView = useCreateView()
+
+  const handleSaveView = () => {
+    if (!viewName.trim()) return
+    createView.mutate(
+      {
+        name: viewName.trim(),
+        dashboardId: 'ops-dashboard',
+        filters: globalFilters as Record<string, unknown>,
+      },
+      {
+        onSuccess: () => {
+          toast.success('View saved', { description: `"${viewName.trim()}" saved successfully.` })
+          setViewName('')
+          setSaveOpen(false)
+        },
+      },
+    )
+  }
 
   const selectedStatuses = globalFilters.status ?? []
   const selectedDesks = globalFilters.desk ?? []
@@ -316,6 +349,37 @@ export function FilterBar() {
             <RotateCcw className="mr-2 size-4" />
             Reset
           </Button>
+          <Dialog open={saveOpen} onOpenChange={setSaveOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <BookmarkPlus className="mr-2 size-4" />
+                Save View
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-sm">
+              <DialogHeader>
+                <DialogTitle>Save Current View</DialogTitle>
+              </DialogHeader>
+              <div className="py-2">
+                <Label className="text-sm">View Name</Label>
+                <Input
+                  value={viewName}
+                  onChange={(e) => setViewName(e.target.value)}
+                  placeholder="e.g. My Operations View"
+                  className="mt-1.5"
+                  onKeyDown={(e) => e.key === 'Enter' && handleSaveView()}
+                />
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setSaveOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleSaveView} disabled={!viewName.trim() || createView.isPending}>
+                  Save
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
