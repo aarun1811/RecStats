@@ -36,7 +36,8 @@ React SPA (frontend) → FastAPI (backend/proxy) → Superset (headless engine) 
 | Routing | TanStack Router 1 (file-based) |
 | Server State | TanStack Query 5 |
 | Client State | Zustand 5 |
-| Animations | Framer Motion 11 |
+| Animations | Motion (`motion/react` — NOT `framer-motion`) |
+| Resizable Panels | react-resizable-panels |
 | Icons | Lucide React |
 | Dates | date-fns 4 |
 | SQL Editor | Monaco Editor |
@@ -192,7 +193,7 @@ recviz/
 - **Color**: Shadcn CSS variable system. 2-3 accent colors max. Muted backgrounds. No harsh colors.
 - **AG Grid theme**: Quartz theme customized to match Shadcn's CSS variables.
 - **AG Charts theme**: Custom theme matching Shadcn's color system.
-- **Animations**: Framer Motion for page transitions, chart load animations, KPI counter roll-up. Keep them fast (200-300ms) and purposeful.
+- **Animations**: `motion/react` for page transitions, chart load animations, KPI counter roll-up. Keep them fast (200-300ms) and purposeful. Import from `motion/react`, NOT `framer-motion`.
 
 ## Charting Rules
 
@@ -214,6 +215,107 @@ recviz/
 - FastAPI proxies all Superset API calls — frontend never talks to Superset directly.
 - Auth strategy TBD (will be added later, likely SSO/SAML/OIDC).
 
+## Reference UI Kit
+
+`_references/shadcn-ui-kit-dashboard/` is the visual baseline. Adapt these components and patterns:
+
+### Components to copy + adapt into `src/components/ui/`
+| Component | Source | Purpose |
+|-----------|--------|---------|
+| `empty.tsx` | `components/ui/` | Composable empty state (Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription, EmptyContent) |
+| `spinner.tsx` | `components/ui/` | Loading spinner (Loader2Icon) |
+| `kbd.tsx` | `components/ui/` | Keyboard shortcut badges (Cmd+K display) |
+| `timeline.tsx` | `components/ui/` | Timeline for query history |
+| `resizable.tsx` | `components/ui/` | Resizable split panels (Data Explorer layout) |
+
+### Components to adapt into `src/components/`
+| Component | Source | Purpose |
+|-----------|--------|---------|
+| `count-animation.tsx` | `components/ui/custom/` | KPI animated counters using `motion/react` |
+| `app-sidebar.tsx` | `components/layout/sidebar/` | Sidebar structure, collapsible icon mode |
+| `nav-main.tsx` | `components/layout/sidebar/` | Nav groups with collapsible sub-items + dropdown in icon mode |
+| `nav-user.tsx` | `components/layout/sidebar/` | User avatar + dropdown in sidebar footer |
+| `search.tsx` | `components/layout/header/` | Cmd+K search input → CommandDialog |
+| `theme-switch.tsx` | `components/layout/header/` | Sun/moon theme toggle |
+
+### Adaptation rules
+- Replace `usePathname()` → `useLocation().pathname` (TanStack Router)
+- Replace `next/link` `<Link>` → TanStack Router `<Link>`
+- Replace `useRouter().push()` → `useNavigate()()`
+- Remove `"use client"` directives (not needed in Vite/React)
+- Keep all Tailwind classes and Shadcn patterns exactly as-is
+
+---
+
+## Styling Consistency Rules
+
+These rules ensure visual uniformity across all phases and all components.
+
+### Spacing
+- Page padding: `p-6` (pages own their own padding, layout provides none)
+- Section gaps: `gap-6` between major sections (filter bar → KPIs → charts → grid)
+- Card internal padding: use Shadcn Card defaults (don't override)
+- Grid gaps: `gap-4` for chart grids, `gap-4` for KPI rows
+
+### Colors
+- **ONLY** use Shadcn CSS variable colors: `text-foreground`, `bg-background`, `text-muted-foreground`, `bg-muted`, `border`, `bg-primary`, `text-primary-foreground`, etc.
+- **NEVER** hardcode hex/rgb/hsl values. Everything goes through CSS variables.
+- Status colors: use semantic classes — `text-green-600 dark:text-green-400` for positive, `text-red-600 dark:text-red-400` for negative. Always include dark variant.
+- Chart colors: read from CSS variables via `getComputedStyle`, build palette from Shadcn theme.
+
+### Typography
+- Font: Inter (loaded via Google Fonts or local)
+- Page title: `text-2xl font-semibold tracking-tight`
+- Section title: `text-lg font-medium`
+- Body: `text-sm` (14px default)
+- Caption/label: `text-xs text-muted-foreground`
+- Monospace (code/SQL): `font-mono text-sm`
+
+### Borders & Radius
+- Use Shadcn's `--radius` variable (via `rounded-md`, `rounded-lg`)
+- Borders: `border` class (uses Shadcn's `--border` color)
+- No custom border colors or widths
+
+### Shadows
+- Cards: Shadcn default (no extra shadow)
+- Hover elevation: `hover:shadow-md` + `hover:-translate-y-0.5` (subtle lift)
+- Dropdowns/popovers: Shadcn defaults
+
+### Dark Mode
+- Every component MUST work in dark mode. No exceptions.
+- Test both modes during each phase before marking complete.
+- AG Grid: Quartz theme auto-detects via CSS variables
+- AG Charts: theme reads CSS variables, updates on toggle
+- Monaco Editor: `vs-dark` in dark mode, light theme in light mode
+
+### Animation Durations
+- Page transitions: 200ms ease-out
+- Chart load: 200ms ease-out (fade + scale 0.97→1.0)
+- KPI counter: ~1s with motion/react `animate()`
+- Tooltip delay: 300ms
+- Sidebar collapse: spring animation (Shadcn default)
+- Toast: slide-in (Sonner default)
+
+---
+
+## Infrastructure
+
+### Local Dev Setup
+- **Docker Compose**: Redis (v7) + PostgreSQL (v16) only — supporting services
+- **Native (pip install)**: Apache Superset — query engine, runs with `superset run`
+- **Native (pnpm)**: React frontend — runs with `pnpm dev`
+- **Native (uvicorn)**: FastAPI backend — runs with `uvicorn app.main:app --reload`
+
+### Database Strategy
+- Superset metadata: PostgreSQL (Docker) — swappable to Oracle via config
+- Recon data: PostgreSQL (Docker) — stands in for Oracle in dev. Same SQLAlchemy URI pattern.
+- Cache: Redis (Docker) — Superset query cache + Celery broker
+
+---
+
 ## References
 
 - Full design document: `RECVIZ_PLAN.md`
+- Build plan: `RECVIZ_V2_BUILD_PLAN.md`
+- Reference UI kit: `_references/shadcn-ui-kit-dashboard/`
+- V1 lessons: `02-RecViz-Old/LESSONS_FOR_NEXT_BUILD.md`
