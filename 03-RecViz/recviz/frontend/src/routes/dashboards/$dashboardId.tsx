@@ -41,7 +41,7 @@ function DashboardDetail() {
         </div>
       ) : null}
 
-      <p className="text-muted-foreground">Chart grid will be built in Phase 11.</p>
+      <p className="text-muted-foreground">Chart grid coming in Phase 14.</p>
     </div>
   )
 }

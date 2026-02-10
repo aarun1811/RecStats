@@ -25,4 +25,7 @@ export interface DashboardListItem {
   title: string
   slug: string
   description?: string | null
+  status?: 'active' | 'draft'
+  chartCount?: number
+  changedOn?: string
 }

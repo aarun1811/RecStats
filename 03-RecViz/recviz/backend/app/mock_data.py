@@ -92,6 +92,9 @@ MOCK_DASHBOARDS = [
         "title": "Recon Overview",
         "slug": "recon-overview",
         "description": "High-level reconciliation dashboard with KPIs, break trends, and aging analysis",
+        "status": "active",
+        "chart_count": 6,
+        "changed_on": "2 hours ago",
         "charts": MOCK_CHARTS,
         "layout": [
             {"chart_id": "break-trend", "x": 0, "y": 0, "w": 12, "h": 4},
