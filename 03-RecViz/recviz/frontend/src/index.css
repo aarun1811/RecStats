@@ -123,3 +123,23 @@
     font-family: "Inter", system-ui, sans-serif;
   }
 }
+
+/* Micro-interactions */
+@layer components {
+  /* Card hover: subtle lift + shadow */
+  [data-slot="card"]:not([data-static]) {
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+  }
+  [data-slot="card"]:not([data-static]):hover {
+    box-shadow: 0 4px 12px rgb(0 0 0 / 0.08);
+    transform: translateY(-1px);
+  }
+  .dark [data-slot="card"]:not([data-static]):hover {
+    box-shadow: 0 4px 12px rgb(0 0 0 / 0.3);
+  }
+
+  /* Smooth focus transitions */
+  input, select, textarea, button {
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+}
