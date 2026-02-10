@@ -84,42 +84,52 @@ CHART_QUERIES: dict[str, dict[str, Any]] = {
 
 
 def _build_superset_filters(filters: ChartDataRequest | None) -> list[dict]:
-    """Convert our GlobalFilters into Superset adhoc_filters format."""
-    if not filters or not filters.filters:
-        return []
-
+    """Convert our GlobalFilters + drill filters into Superset adhoc_filters format."""
     adhoc: list[dict] = []
-    f = filters.filters
-    for col, values in [
-        ("region", f.region), ("country", f.country), ("lob", f.lob),
-        ("desk", f.desk), ("currency", f.currency), ("status", f.status),
-        ("counterparty", f.counterparty),
-    ]:
-        if values:
+
+    if filters and filters.filters:
+        f = filters.filters
+        for col, values in [
+            ("region", f.region), ("country", f.country), ("lob", f.lob),
+            ("desk", f.desk), ("currency", f.currency), ("status", f.status),
+            ("counterparty", f.counterparty),
+        ]:
+            if values:
+                adhoc.append({
+                    "expressionType": "SIMPLE",
+                    "clause": "WHERE",
+                    "subject": col,
+                    "operator": "IN",
+                    "comparator": values,
+                })
+
+        if f.date_from:
             adhoc.append({
                 "expressionType": "SIMPLE",
                 "clause": "WHERE",
-                "subject": col,
-                "operator": "IN",
-                "comparator": values,
+                "subject": "created_date",
+                "operator": ">=",
+                "comparator": f.date_from,
+            })
+        if f.date_to:
+            adhoc.append({
+                "expressionType": "SIMPLE",
+                "clause": "WHERE",
+                "subject": "created_date",
+                "operator": "<=",
+                "comparator": f.date_to,
             })
 
-    if f.date_from:
-        adhoc.append({
-            "expressionType": "SIMPLE",
-            "clause": "WHERE",
-            "subject": "created_date",
-            "operator": ">=",
-            "comparator": f.date_from,
-        })
-    if f.date_to:
-        adhoc.append({
-            "expressionType": "SIMPLE",
-            "clause": "WHERE",
-            "subject": "created_date",
-            "operator": "<=",
-            "comparator": f.date_to,
-        })
+    # Add drill-down filters as extra WHERE clauses
+    if filters and filters.drill:
+        for dl in filters.drill:
+            adhoc.append({
+                "expressionType": "SIMPLE",
+                "clause": "WHERE",
+                "subject": dl.column,
+                "operator": "==",
+                "comparator": dl.value,
+            })
 
     return adhoc
 

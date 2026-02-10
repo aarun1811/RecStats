@@ -48,6 +48,7 @@ export interface ChartWrapperProps {
   isLoading?: boolean
   error?: Error | null
   onChartClick?: (event: ChartClickEvent) => void
+  onChartDoubleClick?: (event: ChartClickEvent) => void
   /** When set, the chart highlights the selected segment and dims the rest. */
   activeSelection?: ChartSelection
   className?: string

@@ -26,6 +26,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { ChartFactory } from '@/components/charts/chart-factory'
 import type { ChartConfig, ChartDataResponse, ChartClickEvent, ChartSelection } from '@/types/chart'
+import type { DrillLevel } from '@/types/filter'
 import { cn } from '@/lib/utils'
 
 interface ChartPanelProps {
@@ -35,7 +36,9 @@ interface ChartPanelProps {
   isLoading?: boolean
   error?: Error | null
   onChartClick?: (event: ChartClickEvent) => void
+  onChartDoubleClick?: (event: ChartClickEvent) => void
   activeSelection?: ChartSelection
+  drillLevels?: DrillLevel[]
   onRefresh?: () => void
   className?: string
 }
@@ -47,7 +50,9 @@ export function ChartPanel({
   isLoading,
   error,
   onChartClick,
+  onChartDoubleClick,
   activeSelection,
+  drillLevels,
   onRefresh,
   className,
 }: ChartPanelProps) {
@@ -177,6 +182,7 @@ export function ChartPanel({
           isLoading={isLoading}
           error={error}
           onChartClick={onChartClick}
+          onChartDoubleClick={onChartDoubleClick}
           activeSelection={activeSelection}
           className={isFullscreen ? 'h-[calc(100vh-140px)]' : undefined}
         />

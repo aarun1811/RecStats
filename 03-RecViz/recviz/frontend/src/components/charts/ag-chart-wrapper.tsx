@@ -156,6 +156,7 @@ export function AgChartWrapper({
   isLoading,
   error,
   onChartClick,
+  onChartDoubleClick,
   activeSelection,
   className,
 }: ChartWrapperProps) {
@@ -168,9 +169,14 @@ export function AgChartWrapper({
     return () => cancelAnimationFrame(frame)
   }, [resolvedTheme])
 
-  // Stable click handler ref to avoid re-creating chart options on every render
+  // Stable click handler refs to avoid re-creating chart options on every render
   const clickHandlerRef = useRef(onChartClick)
   clickHandlerRef.current = onChartClick
+  const dblClickHandlerRef = useRef(onChartDoubleClick)
+  dblClickHandlerRef.current = onChartDoubleClick
+
+  // Debounce single-click to distinguish from double-click
+  const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const options = useMemo((): AgChartOptions => {
     if (!data?.data?.length) {
@@ -192,8 +198,28 @@ export function AgChartWrapper({
       padding: { top: 10, right: 10, bottom: 10, left: 10 },
       listeners: {
         seriesNodeClick: (event: { datum: Record<string, unknown> }) => {
-          if (!clickHandlerRef.current || !event.datum) return
-          clickHandlerRef.current({
+          if (!event.datum) return
+          const payload = {
+            chartId,
+            column: categoryKey,
+            value: event.datum[categoryKey] as string | number,
+            row: event.datum,
+          }
+          // Delay single-click so double-click can cancel it
+          if (clickTimerRef.current) clearTimeout(clickTimerRef.current)
+          clickTimerRef.current = setTimeout(() => {
+            clickHandlerRef.current?.(payload)
+            clickTimerRef.current = null
+          }, 250)
+        },
+        seriesNodeDoubleClick: (event: { datum: Record<string, unknown> }) => {
+          if (!event.datum) return
+          // Cancel the pending single-click
+          if (clickTimerRef.current) {
+            clearTimeout(clickTimerRef.current)
+            clickTimerRef.current = null
+          }
+          dblClickHandlerRef.current?.({
             chartId,
             column: categoryKey,
             value: event.datum[categoryKey] as string | number,
