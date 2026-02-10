@@ -4,7 +4,7 @@ import { useChartData } from '@/hooks/use-chart-data'
 import { useFilterStore } from '@/stores/filter-store'
 import { applyCrossFilters } from '@/lib/cross-filter'
 import { ChartPanel, ChartPanelSkeleton } from './chart-panel'
-import type { ChartConfig, ChartClickEvent } from '@/types/chart'
+import type { ChartConfig, ChartClickEvent, ChartSelection } from '@/types/chart'
 
 /** The 4 charts rendered on the Recon Overview dashboard. */
 const DASHBOARD_CHARTS: ChartConfig[] = [
@@ -56,6 +56,13 @@ function ChartGridItem({
     [data, crossFilters, config.id],
   )
 
+  // Highlight selected segment on source chart
+  const activeSelection = useMemo((): ChartSelection | undefined => {
+    const selfFilter = crossFilters.find((f) => f.sourceChartId === config.id)
+    if (!selfFilter) return undefined
+    return { column: selfFilter.column, value: selfFilter.value }
+  }, [crossFilters, config.id])
+
   const handleRefresh = () => {
     queryClient.invalidateQueries({
       queryKey: ['chart-data', config.id, globalFilters],
@@ -70,6 +77,7 @@ function ChartGridItem({
       isLoading={isLoading}
       error={error ?? null}
       onChartClick={onChartClick}
+      activeSelection={activeSelection}
       onRefresh={handleRefresh}
     />
   )

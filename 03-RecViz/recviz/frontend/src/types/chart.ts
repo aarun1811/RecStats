@@ -35,6 +35,12 @@ export interface ChartClickEvent {
   row: Record<string, unknown>
 }
 
+/** Active selection highlight for source chart of a cross-filter. */
+export interface ChartSelection {
+  column: string
+  value: string | number
+}
+
 export interface ChartWrapperProps {
   chartId: string
   config: ChartConfig
@@ -42,5 +48,7 @@ export interface ChartWrapperProps {
   isLoading?: boolean
   error?: Error | null
   onChartClick?: (event: ChartClickEvent) => void
+  /** When set, the chart highlights the selected segment and dims the rest. */
+  activeSelection?: ChartSelection
   className?: string
 }

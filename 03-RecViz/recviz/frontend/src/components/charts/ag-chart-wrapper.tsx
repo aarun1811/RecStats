@@ -6,7 +6,7 @@ import { useTheme } from '@/components/layout/theme-provider'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
-import type { ChartWrapperProps } from '@/types/chart'
+import type { ChartWrapperProps, ChartSelection } from '@/types/chart'
 import { cn } from '@/lib/utils'
 
 /** Detect epoch-ms values and convert to short date strings for axis labels. */
@@ -20,9 +20,25 @@ function formatDates(rows: Record<string, unknown>[], categoryKey: string): Reco
   }))
 }
 
-function buildSeries(vizType: string, columns: string[]) {
+/** Returns an itemStyler that dims non-selected items when a selection is active. */
+function makeItemStyler(
+  categoryKey: string,
+  selection: ChartSelection | undefined,
+) {
+  if (!selection) return undefined
+  return (params: { datum: Record<string, unknown>; fillOpacity?: number; strokeWidth?: number }) => {
+    const val = params.datum[categoryKey]
+    if (val === selection.value) {
+      return { fillOpacity: 1, strokeWidth: 2 }
+    }
+    return { fillOpacity: 0.25, strokeWidth: 0 }
+  }
+}
+
+function buildSeries(vizType: string, columns: string[], selection?: ChartSelection) {
   const categoryKey = columns[0] ?? 'category'
   const metricKeys = columns.slice(1)
+  const styler = makeItemStyler(categoryKey, selection)
 
   switch (vizType) {
     case 'bar':
@@ -34,6 +50,7 @@ function buildSeries(vizType: string, columns: string[]) {
         yName: key,
         stacked: vizType === 'stacked-bar',
         cornerRadius: 4,
+        ...(styler ? { itemStyler: styler } : {}),
       }))
 
     case 'line':
@@ -64,6 +81,7 @@ function buildSeries(vizType: string, columns: string[]) {
           angleKey: metricKeys[0] ?? 'count',
           calloutLabelKey: categoryKey,
           sectorLabelKey: metricKeys[0] ?? 'count',
+          ...(styler ? { itemStyler: styler } : {}),
         },
       ]
 
@@ -74,6 +92,7 @@ function buildSeries(vizType: string, columns: string[]) {
           angleKey: metricKeys[0] ?? 'count',
           calloutLabelKey: categoryKey,
           innerRadiusRatio: 0.6,
+          ...(styler ? { itemStyler: styler } : {}),
         },
       ]
 
@@ -94,6 +113,7 @@ function buildSeries(vizType: string, columns: string[]) {
           xKey: categoryKey,
           yKey: metricKeys[0] ?? 'count',
           cornerRadius: 2,
+          ...(styler ? { itemStyler: styler } : {}),
         },
       ]
 
@@ -103,13 +123,14 @@ function buildSeries(vizType: string, columns: string[]) {
           type: 'bar' as const,
           xKey: categoryKey,
           yKey: metricKeys[0] ?? 'value',
+          ...(styler ? { itemStyler: styler } : {}),
         },
       ]
 
     case 'combo':
       return [
         ...(metricKeys[0]
-          ? [{ type: 'bar' as const, xKey: categoryKey, yKey: metricKeys[0], yName: metricKeys[0], cornerRadius: 4 }]
+          ? [{ type: 'bar' as const, xKey: categoryKey, yKey: metricKeys[0], yName: metricKeys[0], cornerRadius: 4, ...(styler ? { itemStyler: styler } : {}) }]
           : []),
         ...(metricKeys[1]
           ? [{ type: 'line' as const, xKey: categoryKey, yKey: metricKeys[1], yName: metricKeys[1], strokeWidth: 2 }]
@@ -123,6 +144,7 @@ function buildSeries(vizType: string, columns: string[]) {
         yKey: key,
         yName: key,
         cornerRadius: 4,
+        ...(styler ? { itemStyler: styler } : {}),
       }))
   }
 }
@@ -134,6 +156,7 @@ export function AgChartWrapper({
   isLoading,
   error,
   onChartClick,
+  activeSelection,
   className,
 }: ChartWrapperProps) {
   const { resolvedTheme } = useTheme()
@@ -155,7 +178,7 @@ export function AgChartWrapper({
     }
 
     const categoryKey = data.columns[0] ?? 'category'
-    const series = buildSeries(config.vizType, data.columns)
+    const series = buildSeries(config.vizType, data.columns, activeSelection)
     const rows = formatDates(data.data as Record<string, unknown>[], categoryKey)
 
     return {
@@ -179,7 +202,7 @@ export function AgChartWrapper({
         },
       },
     } as AgChartOptions
-  }, [data, config.vizType, theme, chartId])
+  }, [data, config.vizType, theme, chartId, activeSelection])
 
   if (isLoading) {
     return <Skeleton className={cn('h-[300px] w-full rounded-lg', className)} />

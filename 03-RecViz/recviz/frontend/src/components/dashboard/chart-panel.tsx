@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ChartFactory } from '@/components/charts/chart-factory'
-import type { ChartConfig, ChartDataResponse, ChartClickEvent } from '@/types/chart'
+import type { ChartConfig, ChartDataResponse, ChartClickEvent, ChartSelection } from '@/types/chart'
 import { cn } from '@/lib/utils'
 
 interface ChartPanelProps {
@@ -35,6 +35,7 @@ interface ChartPanelProps {
   isLoading?: boolean
   error?: Error | null
   onChartClick?: (event: ChartClickEvent) => void
+  activeSelection?: ChartSelection
   onRefresh?: () => void
   className?: string
 }
@@ -46,6 +47,7 @@ export function ChartPanel({
   isLoading,
   error,
   onChartClick,
+  activeSelection,
   onRefresh,
   className,
 }: ChartPanelProps) {
@@ -175,6 +177,7 @@ export function ChartPanel({
           isLoading={isLoading}
           error={error}
           onChartClick={onChartClick}
+          activeSelection={activeSelection}
           className={isFullscreen ? 'h-[calc(100vh-140px)]' : undefined}
         />
       </CardContent>
