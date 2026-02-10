@@ -18,9 +18,9 @@ export function buildAgChartOptions(
   const opts = config.options
   const xKey = (opts['xKey'] as string | undefined) ?? 'date'
   const yKey = (opts['yKey'] as string | undefined) ?? 'value'
-  const seriesKey = opts['seriesKey'] as string | undefined
-  const categoryKey = (opts['categoryKey'] as string | undefined) ?? 'category'
-  const valueKey = (opts['valueKey'] as string | undefined) ?? 'value'
+  const seriesKey = (opts['seriesKey'] as string | undefined) ?? (opts['seriesGrouping'] as string | undefined)
+  const categoryKey = (opts['categoryKey'] as string | undefined) ?? (opts['calloutLabelKey'] as string | undefined) ?? 'category'
+  const valueKey = (opts['valueKey'] as string | undefined) ?? (opts['angleKey'] as string | undefined) ?? 'value'
 
   switch (config.type) {
     case 'line':

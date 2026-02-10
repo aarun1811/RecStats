@@ -2,6 +2,8 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from app.models.base import CamelModel
+
 
 class SqlExecuteRequest(BaseModel):
     database_id: int
@@ -10,11 +12,26 @@ class SqlExecuteRequest(BaseModel):
     limit: int = 1000
 
 
-class SqlExecuteResponse(BaseModel):
-    columns: list[str]
-    data: list[dict[str, Any]]
+class SqlColumnInfo(CamelModel):
+    """Matches frontend columns: { name: string; type: string }[]."""
+
+    name: str
+    type: str
+
+
+class SqlQueryMeta(CamelModel):
+    """Matches frontend query: { executionTime: number; rowCount: number }."""
+
+    execution_time: float
     row_count: int
-    query_id: str | None = None
+
+
+class SqlExecuteResponse(CamelModel):
+    """Matches frontend SqlExecuteResponse type."""
+
+    data: list[dict[str, Any]]
+    columns: list[SqlColumnInfo]
+    query: SqlQueryMeta
 
 
 class DatabaseResponse(BaseModel):

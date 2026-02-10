@@ -11,7 +11,7 @@ from app.models.chart_data import (
     ChartDefinition,
     ChartListResponse,
 )
-from app.models.filters import SupersetFilter
+from app.models.filters import GlobalFilters
 from app.services.filter_converter import to_superset_filters
 from app.services.superset_client import SupersetClient
 
@@ -22,64 +22,78 @@ router = APIRouter()
 
 @router.get("", response_model=ChartListResponse)
 async def list_charts(
-    superset: SupersetClient = Depends(get_superset_client),
+    superset: SupersetClient | None = Depends(get_superset_client),
 ) -> ChartListResponse:
     """List all available charts."""
-    try:
-        result = await superset.list_charts()
-        charts = [ChartDefinition(**c) for c in result]
-        return ChartListResponse(charts=charts, count=len(charts))
-    except (SupersetError, NotImplementedError):
-        logger.info("Superset unavailable, returning mock charts")
-        return ChartListResponse(charts=MOCK_CHARTS, count=len(MOCK_CHARTS))
+    if superset is not None:
+        try:
+            result = await superset.list_charts()
+            charts = [ChartDefinition(**c) for c in result]
+            return ChartListResponse(charts=charts, count=len(charts))
+        except (SupersetError, NotImplementedError):
+            logger.info("Superset unavailable, returning mock charts")
+    return ChartListResponse(charts=MOCK_CHARTS, count=len(MOCK_CHARTS))
 
 
 @router.get("/{chart_id}", response_model=ChartDefinition)
 async def get_chart(
-    chart_id: int,
-    superset: SupersetClient = Depends(get_superset_client),
+    chart_id: str,
+    superset: SupersetClient | None = Depends(get_superset_client),
 ) -> ChartDefinition:
     """Get chart definition by ID."""
-    try:
-        result = await superset.get_chart(chart_id)
-        return ChartDefinition(**result)
-    except (SupersetError, NotImplementedError):
-        logger.info("Superset unavailable, returning mock chart %d", chart_id)
-        for chart in MOCK_CHARTS:
-            if chart.id == chart_id:
-                return chart
-        raise HTTPException(status_code=404, detail=f"Chart {chart_id} not found") from None
+    if superset is not None:
+        try:
+            result = await superset.get_chart(int(chart_id))
+            return ChartDefinition(**result)
+        except (SupersetError, NotImplementedError, ValueError):
+            logger.info("Superset unavailable, returning mock chart %s", chart_id)
+    for chart in MOCK_CHARTS:
+        if str(chart.id) == chart_id:
+            return chart
+    raise HTTPException(status_code=404, detail=f"Chart {chart_id} not found")
 
 
-@router.post("/{chart_id}/data", response_model=ChartDataResponse)
+@router.post("/{chart_id}/data")
 async def get_chart_data(
-    chart_id: int,
+    chart_id: str,
     body: ChartDataRequest,
-    superset: SupersetClient = Depends(get_superset_client),
-) -> ChartDataResponse:
+    superset: SupersetClient | None = Depends(get_superset_client),
+) -> dict:
     """Fetch chart data with filters."""
-    try:
-        filters = _to_filter_dicts(to_superset_filters(body.filters))
-        result = await superset.get_chart_data(chart_id, filters)
-        return ChartDataResponse(
-            data=result.get("data", []),
-            columns=result.get("columns", []),
-            row_count=len(result.get("data", [])),
+    if superset is not None:
+        try:
+            filters = _normalize_filters(body.filters)
+            result = await superset.get_chart_data(int(chart_id), filters)
+            response = ChartDataResponse(
+                data=result.get("data", []),
+                columns=result.get("columns", []),
+                row_count=len(result.get("data", [])),
+            )
+            return response.model_dump(by_alias=True)
+        except (SupersetError, NotImplementedError, ValueError):
+            logger.info("Superset unavailable, returning mock data for chart %s", chart_id)
+    mock = MOCK_CHART_DATA.get(chart_id)
+    if not mock:
+        raise HTTPException(
+            status_code=404, detail=f"Chart {chart_id} not found",
         )
-    except (SupersetError, NotImplementedError):
-        logger.info("Superset unavailable, returning mock data for chart %d", chart_id)
-        mock = MOCK_CHART_DATA.get(chart_id)
-        if not mock:
-            raise HTTPException(
-                status_code=404, detail=f"Chart {chart_id} not found",
-            ) from None
-        return ChartDataResponse(
-            data=mock["data"],
-            columns=mock["columns"],
-            row_count=len(mock["data"]),
-        )
+    response = ChartDataResponse(
+        data=mock["data"],
+        columns=mock["columns"],
+        row_count=len(mock["data"]),
+    )
+    return response.model_dump(by_alias=True)
 
 
-def _to_filter_dicts(filters: list[SupersetFilter]) -> list[dict]:
-    """Convert SupersetFilter list to plain dicts for the client."""
-    return [f.model_dump() for f in filters]
+def _normalize_filters(filters: object) -> list[dict]:
+    """Normalize filters from any format into Superset filter dicts."""
+    if isinstance(filters, list):
+        # Already in Superset format: [{col, op, val}, ...]
+        return filters
+    if isinstance(filters, dict):
+        try:
+            gf = GlobalFilters(**filters)
+            return [f.model_dump() for f in to_superset_filters(gf)]
+        except Exception:
+            return []
+    return []

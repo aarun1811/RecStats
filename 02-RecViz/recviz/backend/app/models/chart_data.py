@@ -2,14 +2,17 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from app.models.base import CamelModel
 from app.models.filters import GlobalFilters
 
 
 class ChartDataRequest(BaseModel):
-    filters: GlobalFilters = GlobalFilters()
+    filters: Any = {}
 
 
-class ChartDataResponse(BaseModel):
+class ChartDataResponse(CamelModel):
+    """Matches frontend ChartDataResponse type."""
+
     data: list[dict[str, Any]]
     columns: list[str]
     row_count: int

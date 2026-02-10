@@ -2,21 +2,30 @@
 
 from __future__ import annotations
 
+import logging
+
 from fastapi import Request
 
+from app.core.exceptions import SupersetError
 from app.services.aggregation_service import AggregationService
 from app.services.cache import CacheService
 from app.services.elasticsearch import ElasticsearchService
 from app.services.export_service import ExportService
 from app.services.superset_client import SupersetClient
 
+logger = logging.getLogger(__name__)
 
-async def get_superset_client(request: Request) -> SupersetClient:
-    """Provide an authenticated Superset client."""
+
+async def get_superset_client(request: Request) -> SupersetClient | None:
+    """Provide an authenticated Superset client, or None if Superset is unavailable."""
     http_client = request.app.state.superset_http
     client = SupersetClient(http_client)
-    await client.ensure_authenticated()
-    return client
+    try:
+        await client.ensure_authenticated()
+        return client
+    except (SupersetError, Exception):
+        logger.warning("Superset unavailable — routes will use mock data")
+        return None
 
 
 async def get_elasticsearch_service(request: Request) -> ElasticsearchService:

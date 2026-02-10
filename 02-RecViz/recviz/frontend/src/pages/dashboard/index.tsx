@@ -7,15 +7,20 @@ import { FilterBar } from '@/components/dashboard/filter-bar'
 import { KpiRow } from '@/components/dashboard/kpi-row'
 import { MOCK_DASHBOARD_CONFIG } from '@/lib/mock/dashboard-config'
 import { useFilterStore } from '@/stores/filter-store'
+import type { DashboardConfig } from '@/types/api'
 import type { ChartClickEvent } from '@/types/chart'
 
-export default function DashboardPage() {
+interface DashboardPageProps {
+  config?: DashboardConfig
+}
+
+export default function DashboardPage({ config: configProp }: DashboardPageProps) {
   const [kpiLoading, setKpiLoading] = useState(true)
   const [chartLoading, setChartLoading] = useState(true)
 
   const setCrossFilter = useFilterStore((s) => s.setCrossFilter)
 
-  const config = MOCK_DASHBOARD_CONFIG
+  const config = configProp ?? MOCK_DASHBOARD_CONFIG
 
   // Simulate progressive loading: KPIs first, then charts
   useEffect(() => {

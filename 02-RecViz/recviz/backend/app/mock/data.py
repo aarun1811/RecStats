@@ -1,7 +1,12 @@
 """Mock data for development/testing when Superset isn't available."""
 
 from app.models.chart_data import ChartDefinition
-from app.models.dashboard import ChartLayout, CrossFilterRule, DashboardConfig
+from app.models.dashboard import (
+    ChartConfig,
+    CrossFilterRule,
+    DashboardConfig,
+    DashboardLayoutItem,
+)
 from app.models.dataset import DatasetColumn, DatasetResponse
 from app.models.sql import DatabaseResponse
 
@@ -36,42 +41,63 @@ MOCK_CHARTS: list[ChartDefinition] = [
     ),
 ]
 
-MOCK_CHART_DATA: dict[int, dict] = {
-    1: {
-        "columns": ["entity", "break_amount", "break_count"],
+# String-keyed chart data matching frontend chart IDs
+MOCK_CHART_DATA: dict[str, dict] = {
+    "break-trend": {
+        "columns": ["date", "count", "status"],
         "data": [
-            {"entity": "Entity A", "break_amount": 1250000.50, "break_count": 42},
-            {"entity": "Entity B", "break_amount": 875000.25, "break_count": 31},
-            {"entity": "Entity C", "break_amount": 2100000.00, "break_count": 67},
-            {"entity": "Entity D", "break_amount": 430000.75, "break_count": 18},
+            {"date": "2026-02-03", "count": 45, "status": "Open"},
+            {"date": "2026-02-04", "count": 38, "status": "Open"},
+            {"date": "2026-02-05", "count": 52, "status": "Open"},
+            {"date": "2026-02-06", "count": 41, "status": "Open"},
+            {"date": "2026-02-07", "count": 35, "status": "Open"},
+            {"date": "2026-02-03", "count": 120, "status": "Resolved"},
+            {"date": "2026-02-04", "count": 135, "status": "Resolved"},
+            {"date": "2026-02-05", "count": 128, "status": "Resolved"},
+            {"date": "2026-02-06", "count": 142, "status": "Resolved"},
+            {"date": "2026-02-07", "count": 150, "status": "Resolved"},
+            {"date": "2026-02-03", "count": 15, "status": "Escalated"},
+            {"date": "2026-02-04", "count": 12, "status": "Escalated"},
+            {"date": "2026-02-05", "count": 18, "status": "Escalated"},
+            {"date": "2026-02-06", "count": 10, "status": "Escalated"},
+            {"date": "2026-02-07", "count": 8, "status": "Escalated"},
         ],
     },
-    2: {
-        "columns": ["date", "recon_rate", "matched", "total"],
+    "breaks-by-type": {
+        "columns": ["type", "count"],
         "data": [
-            {"date": "2026-02-03", "recon_rate": 0.945, "matched": 1890, "total": 2000},
-            {"date": "2026-02-04", "recon_rate": 0.952, "matched": 1904, "total": 2000},
-            {"date": "2026-02-05", "recon_rate": 0.938, "matched": 1876, "total": 2000},
-            {"date": "2026-02-06", "recon_rate": 0.961, "matched": 1922, "total": 2000},
-            {"date": "2026-02-07", "recon_rate": 0.957, "matched": 1914, "total": 2000},
+            {"type": "Amount Mismatch", "count": 342},
+            {"type": "Missing Trade", "count": 218},
+            {"type": "Settlement Date", "count": 156},
+            {"type": "Counterparty", "count": 89},
+            {"type": "Currency", "count": 67},
+            {"type": "Other", "count": 45},
         ],
     },
-    3: {
-        "columns": ["status", "count", "percentage"],
+    "breaks-by-desk": {
+        "columns": ["desk", "count"],
         "data": [
-            {"status": "Matched", "count": 9150, "percentage": 0.915},
-            {"status": "Unmatched", "count": 520, "percentage": 0.052},
-            {"status": "Pending", "count": 230, "percentage": 0.023},
-            {"status": "Escalated", "count": 100, "percentage": 0.010},
+            {"desk": "Operations", "count": 380},
+            {"desk": "Treasury", "count": 215},
+            {"desk": "Fixed Income", "count": 178},
+            {"desk": "Equities", "count": 145},
+            {"desk": "FX", "count": 98},
+            {"desk": "Derivatives", "count": 67},
         ],
     },
-    4: {
-        "columns": ["entity", "desk", "aging_days", "amount"],
+    "aging-distribution": {
+        "columns": ["bucket", "count", "desk"],
         "data": [
-            {"entity": "Entity A", "desk": "FX", "aging_days": 3, "amount": 250000},
-            {"entity": "Entity A", "desk": "Rates", "aging_days": 7, "amount": 180000},
-            {"entity": "Entity B", "desk": "FX", "aging_days": 1, "amount": 95000},
-            {"entity": "Entity B", "desk": "Credit", "aging_days": 14, "amount": 420000},
+            {"bucket": "0-1 days", "count": 120, "desk": "Operations"},
+            {"bucket": "0-1 days", "count": 85, "desk": "Treasury"},
+            {"bucket": "2-3 days", "count": 95, "desk": "Operations"},
+            {"bucket": "2-3 days", "count": 60, "desk": "Treasury"},
+            {"bucket": "4-7 days", "count": 45, "desk": "Operations"},
+            {"bucket": "4-7 days", "count": 30, "desk": "Treasury"},
+            {"bucket": "8-14 days", "count": 25, "desk": "Operations"},
+            {"bucket": "8-14 days", "count": 15, "desk": "Treasury"},
+            {"bucket": "15+ days", "count": 10, "desk": "Operations"},
+            {"bucket": "15+ days", "count": 8, "desk": "Treasury"},
         ],
     },
 }
@@ -183,32 +209,89 @@ MOCK_DATABASES: list[DatabaseResponse] = [
 MOCK_DASHBOARDS: dict[str, DashboardConfig] = {
     "recon-overview": DashboardConfig(
         id="recon-overview",
-        name="Reconciliation Overview",
-        description="High-level view of reconciliation status across all entities",
+        title="Recon Overview",
+        description="High-level reconciliation status across all desks and entities",
         charts=[
-            ChartLayout(chart_id=1, x=0, y=0, w=6, h=4),
-            ChartLayout(chart_id=2, x=6, y=0, w=6, h=4),
-            ChartLayout(chart_id=3, x=0, y=4, w=4, h=4),
-            ChartLayout(chart_id=4, x=4, y=4, w=8, h=4),
+            ChartConfig(
+                id="break-trend",
+                title="Break Trend",
+                type="area",
+                library="ag-charts",
+                dataset_id=1,
+                options={"xKey": "date", "yKey": "count", "seriesGrouping": "status"},
+            ),
+            ChartConfig(
+                id="breaks-by-type",
+                title="Breaks by Type",
+                type="bar",
+                library="ag-charts",
+                dataset_id=2,
+                options={"xKey": "type", "yKey": "count"},
+            ),
+            ChartConfig(
+                id="breaks-by-desk",
+                title="Breaks by Desk",
+                type="donut",
+                library="ag-charts",
+                dataset_id=3,
+                options={"angleKey": "count", "calloutLabelKey": "desk"},
+            ),
+            ChartConfig(
+                id="aging-distribution",
+                title="Aging Distribution",
+                type="bar",
+                library="ag-charts",
+                dataset_id=4,
+                options={"xKey": "bucket", "yKey": "count", "seriesGrouping": "desk", "stacked": True},
+            ),
         ],
         cross_filter_rules=[
             CrossFilterRule(
-                source_chart_id=1,
-                target_chart_ids=[2, 3, 4],
-                column_mapping={"entity": "entity"},
+                source_chart_id="breaks-by-desk",
+                source_field="desk",
+                target_chart_ids=["*"],
+                target_field="desk",
+            ),
+            CrossFilterRule(
+                source_chart_id="breaks-by-type",
+                source_field="type",
+                target_chart_ids=["break-trend", "aging-distribution"],
+                target_field="type",
             ),
         ],
-        default_filters={},
+        layout=[
+            DashboardLayoutItem(chart_id="break-trend", row=0, col=0, width=6, height=1),
+            DashboardLayoutItem(chart_id="breaks-by-type", row=0, col=6, width=6, height=1),
+            DashboardLayoutItem(chart_id="breaks-by-desk", row=1, col=0, width=6, height=1),
+            DashboardLayoutItem(chart_id="aging-distribution", row=1, col=6, width=6, height=1),
+        ],
     ),
     "break-analysis": DashboardConfig(
         id="break-analysis",
-        name="Break Analysis",
+        title="Break Analysis",
         description="Detailed break analysis with aging and velocity metrics",
         charts=[
-            ChartLayout(chart_id=1, x=0, y=0, w=12, h=4),
-            ChartLayout(chart_id=4, x=0, y=4, w=12, h=4),
+            ChartConfig(
+                id="break-trend",
+                title="Break Trend",
+                type="area",
+                library="ag-charts",
+                dataset_id=1,
+                options={"xKey": "date", "yKey": "count", "seriesGrouping": "status"},
+            ),
+            ChartConfig(
+                id="aging-distribution",
+                title="Aging Distribution",
+                type="bar",
+                library="ag-charts",
+                dataset_id=4,
+                options={"xKey": "bucket", "yKey": "count", "seriesGrouping": "desk", "stacked": True},
+            ),
         ],
         cross_filter_rules=[],
-        default_filters={},
+        layout=[
+            DashboardLayoutItem(chart_id="break-trend", row=0, col=0, width=12, height=1),
+            DashboardLayoutItem(chart_id="aging-distribution", row=1, col=0, width=12, height=1),
+        ],
     ),
 }

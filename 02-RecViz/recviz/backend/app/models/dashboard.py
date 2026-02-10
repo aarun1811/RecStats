@@ -2,46 +2,67 @@ from typing import Any
 
 from pydantic import BaseModel
 
-
-class CrossFilterRule(BaseModel):
-    source_chart_id: int
-    target_chart_ids: list[int]
-    column_mapping: dict[str, str]
+from app.models.base import CamelModel
 
 
-class ChartLayout(BaseModel):
-    chart_id: int
-    x: int
-    y: int
-    w: int
-    h: int
+class ChartConfig(CamelModel):
+    """Matches frontend ChartConfig type."""
 
-
-class DashboardConfig(BaseModel):
     id: str
-    name: str
+    title: str
+    type: str
+    library: str  # 'ag-charts' | 'echarts'
+    dataset_id: int | None = None
+    superset_chart_id: int | None = None
+    options: dict[str, Any] = {}
+
+
+class CrossFilterRule(CamelModel):
+    """Matches frontend CrossFilterRule type."""
+
+    source_chart_id: str
+    source_field: str
+    target_chart_ids: list[str]
+    target_field: str
+
+
+class DashboardLayoutItem(CamelModel):
+    """Matches frontend DashboardLayoutItem type."""
+
+    chart_id: str
+    row: int
+    col: int
+    width: int
+    height: int
+
+
+class DashboardConfig(CamelModel):
+    """Matches frontend DashboardConfig type."""
+
+    id: str
+    title: str
     description: str = ""
-    charts: list[ChartLayout]
+    charts: list[ChartConfig] = []
     cross_filter_rules: list[CrossFilterRule] = []
-    default_filters: dict[str, Any] = {}
+    layout: list[DashboardLayoutItem] = []
 
 
 class DashboardCreate(BaseModel):
-    name: str
+    title: str
     description: str = ""
-    charts: list[ChartLayout] = []
+    charts: list[ChartConfig] = []
     cross_filter_rules: list[CrossFilterRule] = []
-    default_filters: dict[str, Any] = {}
+    layout: list[DashboardLayoutItem] = []
 
 
 class DashboardUpdate(BaseModel):
-    name: str | None = None
+    title: str | None = None
     description: str | None = None
-    charts: list[ChartLayout] | None = None
+    charts: list[ChartConfig] | None = None
     cross_filter_rules: list[CrossFilterRule] | None = None
-    default_filters: dict[str, Any] | None = None
+    layout: list[DashboardLayoutItem] | None = None
 
 
-class DashboardListResponse(BaseModel):
+class DashboardListResponse(CamelModel):
     dashboards: list[DashboardConfig]
     count: int
