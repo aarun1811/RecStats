@@ -14,11 +14,20 @@ export function RootLayout({ children }: RootLayoutProps) {
   const { open, setOpen } = useCommandPalette()
 
   return (
-    <SidebarProvider>
+    <SidebarProvider
+      style={
+        {
+          '--sidebar-width': 'calc(var(--spacing) * 64)',
+          '--header-height': 'calc(var(--spacing) * 14)',
+        } as React.CSSProperties
+      }
+    >
       <AppSidebar />
       <SidebarInset>
         <Topbar onOpenCommandPalette={() => setOpen(true)} />
-        <div className="flex-1 overflow-y-auto p-6">{children}</div>
+        <div className="flex flex-1 flex-col">
+          {children}
+        </div>
       </SidebarInset>
       <CommandPalette open={open} onOpenChange={setOpen} />
     </SidebarProvider>

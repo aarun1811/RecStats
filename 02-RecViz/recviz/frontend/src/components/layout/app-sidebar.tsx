@@ -1,4 +1,5 @@
-import { Link, useMatchRoute } from '@tanstack/react-router'
+import { useEffect } from 'react'
+import { Link, useLocation, useMatchRoute } from '@tanstack/react-router'
 import {
   Database,
   FileText,
@@ -21,8 +22,9 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
-  SidebarSeparator,
+  useSidebar,
 } from '@/components/ui/sidebar'
+import { ScrollArea } from '@/components/ui/scroll-area'
 
 const navItems = [
   { label: 'Dashboards', href: '/dashboard', icon: LayoutDashboard },
@@ -31,13 +33,21 @@ const navItems = [
   { label: 'Settings', href: '/settings', icon: Settings },
 ] as const
 
-export function AppSidebar() {
+export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const matchRoute = useMatchRoute()
+  const location = useLocation()
+  const { setOpenMobile, isMobile } = useSidebar()
   const theme = useThemeStore((s) => s.theme)
   const setTheme = useThemeStore((s) => s.setTheme)
 
+  // Auto-close mobile sidebar on route change
+  useEffect(() => {
+    if (isMobile) setOpenMobile(false)
+  }, [location.pathname])
+
   const cycleTheme = () => {
-    const next = theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light'
+    const next =
+      theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light'
     setTheme(next)
   }
 
@@ -48,7 +58,7 @@ export function AppSidebar() {
       window.matchMedia('(prefers-color-scheme: dark)').matches)
 
   return (
-    <Sidebar collapsible="icon" variant="sidebar">
+    <Sidebar collapsible="icon" variant="inset" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
@@ -69,40 +79,47 @@ export function AppSidebar() {
         </SidebarMenu>
       </SidebarHeader>
 
-      <SidebarSeparator />
-
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {navItems.map((item) => {
-                const isActive = !!matchRoute({ to: item.href, fuzzy: true })
-                return (
-                  <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive}
-                      tooltip={item.label}
-                    >
-                      <Link to={item.href}>
-                        <item.icon />
-                        <span>{item.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        <ScrollArea className="h-full">
+          <SidebarGroup>
+            <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {navItems.map((item) => {
+                  const isActive = !!matchRoute({
+                    to: item.href,
+                    fuzzy: true,
+                  })
+                  return (
+                    <SidebarMenuItem key={item.href}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isActive}
+                        tooltip={item.label}
+                      >
+                        <Link to={item.href}>
+                          <item.icon />
+                          <span>{item.label}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </ScrollArea>
       </SidebarContent>
 
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton onClick={cycleTheme} tooltip="Toggle theme">
-              {resolvedDark ? <Moon className="size-4" /> : <Sun className="size-4" />}
+              {resolvedDark ? (
+                <Moon className="size-4" />
+              ) : (
+                <Sun className="size-4" />
+              )}
               <span className="capitalize">{theme} mode</span>
             </SidebarMenuButton>
           </SidebarMenuItem>

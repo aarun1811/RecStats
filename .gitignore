@@ -40,3 +40,6 @@ dist/
 *.db-journal
 pgdata/
 redis-data/
+
+# Reference
+_references/
