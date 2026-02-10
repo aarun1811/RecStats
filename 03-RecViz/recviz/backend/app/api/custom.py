@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from fastapi import APIRouter
@@ -8,17 +9,67 @@ from app.core.dependencies import SupersetDep
 from app.mock_data import MOCK_KPI
 from app.models.filters import GlobalFilters
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api/custom", tags=["custom"])
+
+
+def _build_superset_filters(
+    filters: GlobalFilters | None,
+    dataset: str = "breaks",
+) -> list[dict[str, Any]]:
+    """Convert GlobalFilters to Superset chart data API filter format.
+
+    Args:
+        filters: The global filters from the frontend.
+        dataset: Which dataset the query targets. Column availability differs:
+            - "breaks": status, desk, lob, region, country, currency, created_date
+            - "transactions": all of the above + counterparty
+    """
+    if not filters:
+        return []
+    result: list[dict[str, Any]] = []
+
+    # Columns available on both breaks and transactions
+    common_cols = [
+        ("status", "status"),
+        ("desk", "desk"),
+        ("lob", "lob"),
+        ("region", "region"),
+        ("country", "country"),
+        ("currency", "currency"),
+    ]
+    # counterparty only exists on the transactions table
+    if dataset == "transactions":
+        common_cols.append(("counterparty", "counterparty"))
+
+    for field, col in common_cols:
+        values = getattr(filters, field, None)
+        if values:
+            result.append({"col": col, "op": "IN", "val": values})
+    if filters.date_from:
+        date_col = "created_date" if dataset == "breaks" else "trade_date"
+        result.append({"col": date_col, "op": ">=", "val": filters.date_from})
+    if filters.date_to:
+        date_col = "created_date" if dataset == "breaks" else "trade_date"
+        result.append({"col": date_col, "op": "<=", "val": filters.date_to})
+    return result
 
 
 @router.post("/kpi")
 async def get_kpi(superset: SupersetDep, filters: GlobalFilters | None = None):
     if superset:
         try:
+            # KPI queries target breaks (dataset 5) and daily_metrics (dataset 6).
+            # Neither has a counterparty column — entity filter applies to chart queries only.
+            breaks_filters = _build_superset_filters(filters, dataset="breaks")
+            logger.info("KPI breaks filters: %s", breaks_filters)
+
             # Total breaks + status breakdown
             breaks_query: dict[str, Any] = {
                 "columns": ["status"],
                 "metrics": [{"expressionType": "SIMPLE", "column": {"column_name": "id"}, "aggregate": "COUNT"}],
+                "filters": breaks_filters,
                 "row_limit": 100,
             }
             breaks_result = await superset.get_chart_data(5, [breaks_query])
@@ -32,7 +83,7 @@ async def get_kpi(superset: SupersetDep, filters: GlobalFilters | None = None):
             aging_query: dict[str, Any] = {
                 "columns": [],
                 "metrics": [{"expressionType": "SIMPLE", "column": {"column_name": "aging_days"}, "aggregate": "AVG"}],
-                "filters": [{"col": "status", "op": "!=", "val": "Resolved"}],
+                "filters": [{"col": "status", "op": "!=", "val": "Resolved"}, *breaks_filters],
                 "row_limit": 1,
             }
             aging_result = await superset.get_chart_data(5, [aging_query])
@@ -43,7 +94,7 @@ async def get_kpi(superset: SupersetDep, filters: GlobalFilters | None = None):
             sla_query: dict[str, Any] = {
                 "columns": [],
                 "metrics": [{"expressionType": "SIMPLE", "column": {"column_name": "id"}, "aggregate": "COUNT"}],
-                "filters": [{"col": "sla_breach", "op": "==", "val": True}],
+                "filters": [{"col": "sla_breach", "op": "==", "val": True}, *breaks_filters],
                 "row_limit": 1,
             }
             sla_result = await superset.get_chart_data(5, [sla_query])
@@ -108,3 +159,35 @@ async def get_aggregations(
             pass
 
     return {"data": [], "row_count": 0}
+
+
+MOCK_COUNTERPARTIES = [
+    "JP Morgan", "Goldman Sachs", "Morgan Stanley", "Barclays", "HSBC",
+    "Deutsche Bank", "UBS", "Credit Suisse", "BNP Paribas", "Societe Generale",
+    "Nomura", "Mizuho", "MUFG", "Standard Chartered", "RBC",
+]
+
+
+@router.get("/counterparties")
+async def list_counterparties(superset: SupersetDep, q: str = ""):
+    if superset:
+        try:
+            query: dict[str, Any] = {
+                "columns": ["name"],
+                "metrics": [],
+                "row_limit": 100,
+                "order_desc": False,
+                "orderby": [["name", True]],
+            }
+            if q:
+                query["filters"] = [{"col": "name", "op": "ILIKE", "val": f"%{q}%"}]
+            result = await superset.get_chart_data(3, [query])  # dataset 3 = counterparties
+            data = result.get("result", [{}])[0].get("data", [])
+            return [r.get("name", "") for r in data if r.get("name")]
+        except Exception:
+            pass
+
+    # Fallback to mock
+    if q:
+        return [c for c in MOCK_COUNTERPARTIES if q.lower() in c.lower()]
+    return MOCK_COUNTERPARTIES
