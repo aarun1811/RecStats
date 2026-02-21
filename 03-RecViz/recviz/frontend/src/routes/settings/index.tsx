@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useTheme } from '@/components/layout/theme-provider'
 import { useSavedViews, useDeleteView } from '@/hooks/use-saved-views'
-import { useDatasets } from '@/hooks/use-datasets'
+import { DataSourcesTab } from '@/components/settings/data-sources-tab'
 import { toast } from 'sonner'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -15,7 +15,6 @@ import {
   Monitor,
   Trash2,
   ExternalLink,
-  Database,
   Palette,
   BookmarkCheck,
   Server,
@@ -30,8 +29,6 @@ function Settings() {
   const { theme, setTheme } = useTheme()
   const { data: savedViews = [], isLoading: viewsLoading } = useSavedViews()
   const deleteViewMutation = useDeleteView()
-  const { data: datasets = [] } = useDatasets()
-
   const handleDeleteView = (id: string, name: string) => {
     deleteViewMutation.mutate(id, {
       onSuccess: () => toast.success(`Deleted "${name}"`),
@@ -203,30 +200,7 @@ function Settings() {
 
         {/* Data Sources Tab */}
         <TabsContent value="data-sources" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Configured Data Sources</CardTitle>
-              <CardDescription>
-                Read-only list of databases connected via Superset
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex items-center gap-3 rounded-lg border p-3">
-                  <Database className="size-5 text-blue-500 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">recon_data</p>
-                    <p className="text-xs text-muted-foreground">
-                      PostgreSQL &middot; {datasets.length} tables
-                    </p>
-                  </div>
-                  <Badge variant="secondary" className="text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-                    Connected
-                  </Badge>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <DataSourcesTab />
         </TabsContent>
       </Tabs>
     </div>
