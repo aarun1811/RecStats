@@ -1,7 +1,7 @@
 import { ChevronRight, Database } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
-import type { DatabaseInfo, DatabaseBackend } from '@/types/database'
+import type { DatabaseInfo } from '@/types/database'
 import { BACKEND_LABELS, BACKEND_COLORS, STATUS_STYLES, STATUS_LABELS } from './data-source-card'
 
 interface DataSourceRowProps {
@@ -10,7 +10,7 @@ interface DataSourceRowProps {
 }
 
 export function DataSourceRow({ database, onClick }: DataSourceRowProps) {
-  const backendKey = database.backend as DatabaseBackend
+  const backendKey = database.backend
 
   return (
     <div

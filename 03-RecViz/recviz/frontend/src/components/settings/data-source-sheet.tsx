@@ -1,5 +1,18 @@
 import { useState, useEffect, useMemo } from 'react'
+
 import { toast } from 'sonner'
+import {
+  Database,
+  CheckCircle2,
+  XCircle,
+  Loader2,
+  RefreshCw,
+  Pencil,
+  Trash2,
+  ChevronRight,
+  ChevronDown,
+} from 'lucide-react'
+
 import {
   Sheet,
   SheetContent,
@@ -17,17 +30,6 @@ import { Textarea } from '@/components/ui/textarea'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import {
-  Database,
-  CheckCircle2,
-  XCircle,
-  Loader2,
-  RefreshCw,
-  Pencil,
-  Trash2,
-  ChevronRight,
-  ChevronDown,
-} from 'lucide-react'
-import {
   useDatabase,
   useDatabaseDatasets,
   useCreateDatabase,
@@ -36,12 +38,14 @@ import {
   useTestConnection,
   useSyncDatasets,
 } from '@/hooks/use-databases'
+
 import {
   BACKEND_LABELS,
   BACKEND_COLORS,
   STATUS_STYLES,
   STATUS_LABELS,
 } from './data-source-card'
+
 import type {
   DatabaseBackend,
   DatabaseInfo,
@@ -328,13 +332,13 @@ function DetailView({
     )
   }
 
-  const backendKey = database.backend as DatabaseBackend
+  const backendKey = database.backend
 
   return (
     <>
       <SheetHeader className="border-b px-6 py-4">
         <div className="flex items-center gap-3">
-          <Database className={cn('size-5', BACKEND_COLORS[backendKey])} />
+          <Database className={cn('size-5', BACKEND_COLORS[backendKey] ?? 'text-muted-foreground')} />
           <div className="flex-1 min-w-0">
             <SheetTitle className="text-base truncate">{database.databaseName}</SheetTitle>
             <SheetDescription>

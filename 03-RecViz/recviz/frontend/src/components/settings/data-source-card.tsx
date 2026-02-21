@@ -17,10 +17,10 @@ const BACKEND_LABELS: Record<DatabaseBackend, string> = {
 }
 
 const BACKEND_COLORS: Record<DatabaseBackend, string> = {
-  oracle: 'text-red-500',
-  postgresql: 'text-blue-500',
-  hive: 'text-yellow-500',
-  elasticsearch: 'text-green-500',
+  oracle: 'text-red-600 dark:text-red-400',
+  postgresql: 'text-blue-600 dark:text-blue-400',
+  hive: 'text-yellow-600 dark:text-yellow-400',
+  elasticsearch: 'text-green-600 dark:text-green-400',
 }
 
 const STATUS_STYLES: Record<ConnectionStatus, string> = {
@@ -38,7 +38,7 @@ const STATUS_LABELS: Record<ConnectionStatus, string> = {
 export { BACKEND_LABELS, BACKEND_COLORS, STATUS_STYLES, STATUS_LABELS }
 
 export function DataSourceCard({ database, onClick }: DataSourceCardProps) {
-  const backendKey = database.backend as DatabaseBackend
+  const backendKey = database.backend
 
   return (
     <Card
