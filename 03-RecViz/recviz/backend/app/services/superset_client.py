@@ -168,3 +168,19 @@ class SupersetClient:
     async def list_databases(self) -> list[dict[str, Any]]:
         data = await self._get("/api/v1/database/")
         return data.get("result", [])
+
+    async def get_database(self, db_id: int) -> dict[str, Any]:
+        data = await self._get(f"/api/v1/database/{db_id}")
+        return data.get("result", {})
+
+    async def create_database(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return await self._post("/api/v1/database/", json=payload)
+
+    async def update_database(self, db_id: int, payload: dict[str, Any]) -> dict[str, Any]:
+        return await self._request("PUT", f"/api/v1/database/{db_id}", json=payload)
+
+    async def delete_database(self, db_id: int) -> None:
+        await self._request("DELETE", f"/api/v1/database/{db_id}")
+
+    async def test_connection(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return await self._post("/api/v1/database/test_connection/", json=payload)
