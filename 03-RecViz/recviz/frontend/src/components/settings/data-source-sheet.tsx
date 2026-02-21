@@ -325,6 +325,8 @@ function DetailView({
   if (!database) {
     return (
       <div className="p-6 space-y-4">
+        <SheetTitle className="sr-only">Loading data source</SheetTitle>
+        <SheetDescription className="sr-only">Loading data source details</SheetDescription>
         <Skeleton className="h-6 w-48" />
         <Skeleton className="h-4 w-32" />
         <Skeleton className="h-32 w-full" />
