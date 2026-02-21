@@ -19,6 +19,7 @@ class DatabaseCreate(CamelModel):
 
 class DatabaseUpdate(CamelModel):
     database_name: str | None = None
+    backend: str | None = None
     sqlalchemy_uri: str | None = None
     host: str | None = None
     port: int | None = None
