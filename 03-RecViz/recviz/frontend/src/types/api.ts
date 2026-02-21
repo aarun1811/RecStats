@@ -55,9 +55,3 @@ export interface ExportJob {
   status: 'pending' | 'processing' | 'complete' | 'failed'
   downloadUrl?: string | null
 }
-
-export interface DatabaseInfo {
-  id: number
-  databaseName: string
-  backend: string
-}
