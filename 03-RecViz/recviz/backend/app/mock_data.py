@@ -114,7 +114,33 @@ MOCK_DASHBOARDS = [
 ]
 
 MOCK_DATABASES = [
-    {"id": 1, "database_name": "recon_data", "backend": "postgresql"},
+    {
+        "id": 1,
+        "database_name": "recon_data",
+        "backend": "postgresql",
+        "created_on": "2026-01-15T10:00:00Z",
+        "expose_in_sqllab": True,
+        "dataset_count": 4,
+        "status": "connected",
+    },
+    {
+        "id": 2,
+        "database_name": "oracle_prod",
+        "backend": "oracle",
+        "created_on": "2026-01-20T14:30:00Z",
+        "expose_in_sqllab": True,
+        "dataset_count": 47,
+        "status": "connected",
+    },
+    {
+        "id": 3,
+        "database_name": "hive_warehouse",
+        "backend": "hive",
+        "created_on": "2026-02-01T09:00:00Z",
+        "expose_in_sqllab": True,
+        "dataset_count": 12,
+        "status": "untested",
+    },
 ]
 
 import random as _random
@@ -165,6 +191,33 @@ for _i in range(1, 201):
         "resolved_date": f"2026-02-{_random.randint(1, 10):02d}" if _random.random() > 0.4 else None,
         "notes": f"Auto-generated break record #{_i}",
     })
+
+MOCK_DATABASE_DATASETS: dict[int, list[dict]] = {
+    1: [
+        {"id": 4, "table_name": "transactions", "column_count": 12},
+        {"id": 5, "table_name": "breaks", "column_count": 18},
+        {"id": 6, "table_name": "daily_metrics", "column_count": 10},
+        {"id": 3, "table_name": "counterparties", "column_count": 4},
+    ],
+    2: [
+        {"id": 10 + i, "table_name": f"RECON_TABLE_{i:02d}", "column_count": _random.randint(5, 30)}
+        for i in range(1, 48)
+    ],
+    3: [
+        {"id": 60, "table_name": "recon_history", "column_count": 15},
+        {"id": 61, "table_name": "batch_results", "column_count": 8},
+        {"id": 62, "table_name": "match_output", "column_count": 22},
+        {"id": 63, "table_name": "exception_log", "column_count": 11},
+        {"id": 64, "table_name": "audit_trail", "column_count": 9},
+        {"id": 65, "table_name": "source_feed_a", "column_count": 14},
+        {"id": 66, "table_name": "source_feed_b", "column_count": 14},
+        {"id": 67, "table_name": "reconciliation_rules", "column_count": 7},
+        {"id": 68, "table_name": "scheduler_config", "column_count": 6},
+        {"id": 69, "table_name": "run_metadata", "column_count": 12},
+        {"id": 70, "table_name": "tolerance_config", "column_count": 5},
+        {"id": 71, "table_name": "break_categories", "column_count": 4},
+    ],
+}
 
 
 MOCK_CHART_DATA = {
