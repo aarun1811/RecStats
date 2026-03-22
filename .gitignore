@@ -1,3 +1,17 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Claude Code
+.claude/
+
 # Environment
 .env
 .env.local
@@ -6,73 +20,26 @@
 # Python
 __pycache__/
 *.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
 *.egg-info/
-.installed.cfg
-*.egg
 .venv/
 venv/
-ENV/
-
-# IDEs
-.idea/
-.vscode/
-*.swp
-*.swo
-*~
-
-# Testing
 .pytest_cache/
+.ruff_cache/
 .coverage
 htmlcov/
-.tox/
-.nox/
 
-# SQLite database
+# Node
+node_modules/
+dist/
+*.tsbuildinfo
+*.log
+
+# Data
+*.sqlite
 *.db
 *.db-journal
+pgdata/
+redis-data/
 
-# Uploads
-uploads/
-
-# Node/Angular
-node_modules/
-frontend/dist/
-frontend/.angular/
-frontend/.sass-cache/
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-
-# Angular
-frontend/e2e/
-frontend/coverage/
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
-logs/
-*.log
-
-# Temporary files
-tmp/
-temp/
-*.tmp
+# Reference
+_references/
