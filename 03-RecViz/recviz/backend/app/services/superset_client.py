@@ -150,7 +150,6 @@ class SupersetClient:
                 "runAsync": False,
                 "select_as_cta": False,
                 "expand_data": True,
-                "row_limit": limit,
             },
         )
 

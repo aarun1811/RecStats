@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: create shared HTTP client + Superset client
-    http = httpx.AsyncClient(timeout=30.0)
+    http = httpx.AsyncClient(timeout=120.0)
     superset = SupersetClient(http)
 
     # 1. Authenticate to Superset (hard requirement)

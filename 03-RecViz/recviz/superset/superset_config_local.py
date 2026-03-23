@@ -31,6 +31,10 @@ RESULTS_BACKEND = FileSystemCache(
 
 FEATURE_FLAGS = {"ENABLE_TEMPLATE_PROCESSING": True}
 
+# Allow SQLite as a data source (blocked by default for security)
+# Safe for local dev only — never enable in production
+PREVENT_UNSAFE_DB_CONNECTIONS = False
+
 # CORS
 ENABLE_CORS = True
 CORS_OPTIONS = {
