@@ -81,6 +81,47 @@ async def test_resolve_unknown_raises():
         await registrar.resolve("nonexistent")
 
 
+@pytest.mark.asyncio
+async def test_resolve_triggers_refresh_on_cache_miss():
+    superset = _make_superset_mock(existing_dbs=[])
+    registrar = DatabaseRegistrar(superset_client=superset, config_path=None)
+    registrar._entries = _make_entries()
+    await registrar.sync()  # creates both, superset_id=99
+
+    # Simulate DB appearing in Superset after sync
+    superset.list_databases = AsyncMock(
+        return_value=[
+            {"id": 5, "database_name": "db_one"},
+            {"id": 10, "database_name": "db_two"},
+        ]
+    )
+    # Clear cache and force cooldown to allow refresh
+    registrar._cache.clear()
+    registrar._last_refresh = 0.0
+
+    result = await registrar.resolve("db_one")
+    assert result == 5
+
+
+@pytest.mark.asyncio
+async def test_negative_cache_prevents_repeated_refresh():
+    superset = _make_superset_mock(existing_dbs=[])
+    registrar = DatabaseRegistrar(superset_client=superset, config_path=None)
+    registrar._entries = []
+    await registrar.sync()
+
+    # First resolve should trigger refresh attempt then cache negative
+    with pytest.raises(ValueError, match="not registered"):
+        registrar._last_refresh = 0.0  # allow refresh
+        await registrar.resolve("bad_name")
+
+    # Second resolve should hit negative cache without calling list_databases again
+    call_count_before = superset.list_databases.call_count
+    with pytest.raises(ValueError, match="not registered"):
+        await registrar.resolve("bad_name")
+    assert superset.list_databases.call_count == call_count_before
+
+
 def test_get_dialect():
     superset = _make_superset_mock()
     registrar = DatabaseRegistrar(superset_client=superset, config_path=None)

@@ -5,9 +5,12 @@ import json
 import logging
 import time
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING
 
 from app.models.database_config import DatabaseEntry, DatabasesConfig
+
+if TYPE_CHECKING:
+    from app.services.superset_client import SupersetClient
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +20,7 @@ class DatabaseRegistrar:
 
     def __init__(
         self,
-        superset_client: Any,
+        superset_client: SupersetClient,
         config_path: str | None = None,
     ) -> None:
         self._superset = superset_client
@@ -75,8 +78,9 @@ class DatabaseRegistrar:
                     )
                 except Exception as e:
                     logger.warning(
-                        "Failed to register '%s' — have you run "
-                        "'python scripts/generate-seed-db.py'? Error: %s",
+                        "Failed to register database '%s' in Superset: %s "
+                        "(if using local dev, ensure seed.db exists: "
+                        "python scripts/generate-seed-db.py)",
                         entry.name,
                         e,
                     )
@@ -85,15 +89,18 @@ class DatabaseRegistrar:
         self._last_refresh = time.time()
 
     async def _refresh_cache(self) -> None:
-        """Refresh cache from Superset's database list."""
+        """Refresh cache from Superset's database list (full rebuild)."""
         existing = await self._superset.list_databases()
         existing_by_name = {
             db.get("database_name", ""): db for db in existing
         }
+        self._cache.clear()
         for entry in self._entries:
             if entry.name in existing_by_name:
                 entry.superset_id = existing_by_name[entry.name]["id"]
                 self._cache[entry.name] = entry
+            else:
+                entry.superset_id = None
         self._negative_cache.clear()
         self._last_refresh = time.time()
 
