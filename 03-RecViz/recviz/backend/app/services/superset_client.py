@@ -138,8 +138,8 @@ class SupersetClient:
         self,
         database_id: int,
         sql: str,
-        schema: str = "public",
-        limit: int = 1000,
+        schema: str = "",
+        limit: int = 10000,
     ) -> dict[str, Any]:
         return await self._post(
             "/api/v1/sqllab/execute/",
@@ -150,6 +150,7 @@ class SupersetClient:
                 "runAsync": False,
                 "select_as_cta": False,
                 "expand_data": True,
+                "row_limit": limit,
             },
         )
 
