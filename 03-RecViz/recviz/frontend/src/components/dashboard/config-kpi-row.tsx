@@ -29,7 +29,7 @@ export function ConfigKpiRow({ dashboardId, kpis }: ConfigKpiRowProps) {
   const appliedFilters = useFilterStore((s) => s.applied)
   const { data, isLoading } = useDashboardKpis(dashboardId, appliedFilters)
 
-  if (isLoading) {
+  if (isLoading || !data) {
     return (
       <div
         className="grid gap-4"
