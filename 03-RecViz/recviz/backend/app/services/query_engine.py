@@ -42,6 +42,10 @@ class QueryEngine:
             return routing.database
 
         # dynamic routing
+        if not routing.mapping:
+            raise ValueError(
+                f"Data source '{data_source_id}' has dynamic routing but no mapping configured"
+            )
         filter_key = routing.route_by_filter
         filter_value = filters.get(filter_key)
         if not filter_value:
