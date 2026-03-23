@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useEffect } from 'react'
 
 import { useDashboardConfig } from '@/hooks/use-dashboard-config'
+import { useTheme } from '@/components/layout/theme-provider'
 import { DashboardRenderer } from '@/components/dashboard/dashboard-renderer'
 import { EmbedTopbar } from '@/components/embed/embed-topbar'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -25,7 +26,7 @@ function EmbedDashboardPage() {
       const filterId = key.replace('filter.', '')
       // Comma-separated values become arrays
       initialFilters[filterId] = val.includes(',') ? val.split(',') : val
-      filterParams.push(`${key}=${val}`)
+      filterParams.push(`${encodeURIComponent(key)}=${encodeURIComponent(val)}`)
     }
   }
 
@@ -33,15 +34,14 @@ function EmbedDashboardPage() {
   const lockedFilters = lockParam ? lockParam.split(',') : []
   if (lockParam) filterParams.push(`lock=${lockParam}`)
 
-  // Apply theme from URL
-  const theme = typeof search.theme === 'string' ? search.theme : undefined
+  // Apply theme from URL via ThemeProvider
+  const { setTheme: applyTheme } = useTheme()
+  const themeParam = typeof search.theme === 'string' ? search.theme : undefined
   useEffect(() => {
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark')
-    } else if (theme === 'light') {
-      document.documentElement.classList.remove('dark')
+    if (themeParam === 'dark' || themeParam === 'light') {
+      applyTheme(themeParam)
     }
-  }, [theme])
+  }, [themeParam, applyTheme])
 
   if (isLoading) {
     return (
