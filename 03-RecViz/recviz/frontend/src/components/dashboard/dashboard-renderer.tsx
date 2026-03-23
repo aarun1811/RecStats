@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 
 import { ConfigFilterBar } from '@/components/dashboard/config-filter-bar'
 import { ConfigKpiRow } from '@/components/dashboard/config-kpi-row'
@@ -21,7 +21,10 @@ export function DashboardRenderer({
   lockedFilters,
 }: DashboardRendererProps) {
   const initializeFilters = useFilterStore((s) => s.initializeFilters)
+  const applyFilters = useFilterStore((s) => s.applyFilters)
+  const values = useFilterStore((s) => s.values)
   const appliedFilters = useFilterStore((s) => s.applied)
+  const hasAutoApplied = useRef(false)
 
   useEffect(() => {
     const defaults: Record<string, FilterValue> = {}
@@ -32,7 +35,18 @@ export function DashboardRenderer({
     }
     const merged = { ...defaults, ...initialFilters }
     initializeFilters(merged, lockedFilters)
+    hasAutoApplied.current = false
   }, [config.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-apply once when single-select filters auto-fill their first option
+  useEffect(() => {
+    if (hasAutoApplied.current) return
+    const nonNullValues = Object.values(values).filter((v) => v != null)
+    if (nonNullValues.length > 0) {
+      applyFilters()
+      hasAutoApplied.current = true
+    }
+  }, [values, applyFilters])
 
   const { data: kpisData } = useDashboardKpis(config.id, appliedFilters)
   const kpiResults = kpisData?.kpis

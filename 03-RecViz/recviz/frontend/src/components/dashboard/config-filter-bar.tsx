@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ChevronsUpDown, Lock, RotateCcw } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
@@ -159,6 +159,13 @@ function SingleSelectFilter({ config, value, allValues, disabled, onChange }: Si
   )
 
   const options = hasOptionsSource ? (data?.values ?? []) : (config.options?.map((o) => String(o.value)) ?? [])
+
+  // Auto-select first option when options load and no value is set
+  useEffect(() => {
+    if (!value && options.length > 0) {
+      onChange(options[0])
+    }
+  }, [options.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <Select
