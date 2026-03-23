@@ -126,33 +126,43 @@ A new service that syncs `databases.json` into Superset at FastAPI startup and p
 for each entry in databases.json:
     existing = find in Superset by database_name match
     if exists:
-        if URI changed → update via SupersetClient
-        cache[name] = existing.id
+        cache[name] = existing entry (with superset_id = existing.id)
     else:
         result = SupersetClient.create_database(...)
-        cache[name] = result.id
+        cache[name] = entry (with superset_id = result.id)
 ```
+
+**Important:** Sync only creates missing databases — it does **not** update existing ones by comparing URIs. Superset masks/redacts passwords in returned `sqlalchemy_uri` values (e.g., `oracle+oracledb://user:XXXXXXXXX@host...`), so a naive string comparison would always detect a "change" and trigger unnecessary updates on every startup for all 35+ databases. If a connection string needs updating, do it via Superset's admin UI or a dedicated management command — not on every FastAPI restart.
 
 ### Resolve Logic
 
 ```python
-def resolve(self, name: str) -> int:
+async def resolve(self, name: str) -> int:
     if name in self._cache:
         entry = self._cache[name]
         if entry.superset_id is not None:
             return entry.superset_id
     if name in self._negative_cache:
         raise ValueError(f"Database '{name}' not registered in Superset")
-    # Cache miss — refresh from Superset (rate-limited: max once per 30 seconds)
-    self._refresh_cache()
+    # Cache miss — refresh with async lock + cooldown to prevent concurrent storms
+    async with self._refresh_lock:
+        # Double-check after acquiring lock (another coroutine may have refreshed)
+        if name in self._cache and self._cache[name].superset_id is not None:
+            return self._cache[name].superset_id
+        # Rate limit: max one refresh per 30 seconds
+        if (time.time() - self._last_refresh) > 30:
+            await self._refresh_cache()
     if name in self._cache and self._cache[name].superset_id is not None:
         return self._cache[name].superset_id
-    # Cache negative result to prevent flooding Superset API
+    # Cache negative result to prevent repeated lookups
     self._negative_cache.add(name)
     raise ValueError(f"Database '{name}' not registered in Superset")
 ```
 
-The `_negative_cache` is a `set[str]` that is cleared on each successful `sync()` or `_refresh_cache()`. This prevents a bad database name from triggering a Superset API call on every request.
+Concurrency protection:
+- `_refresh_lock` is an `asyncio.Lock` — ensures only one coroutine refreshes at a time
+- `_last_refresh` timestamp + 30-second cooldown — prevents repeated API calls
+- `_negative_cache` is a `set[str]` — cleared on each successful `sync()` or `_refresh_cache()`
 
 ### Database Config Model
 
