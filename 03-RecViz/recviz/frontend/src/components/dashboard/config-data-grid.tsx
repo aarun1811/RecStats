@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { AgGridReact } from 'ag-grid-react'
 import type { ColDef, GridApi, GridReadyEvent } from 'ag-grid-community'
 
@@ -59,7 +59,7 @@ function buildColDefs(columns: GridColumn[]): ColDef[] {
 function SingleSourceGrid({ grid }: { grid: GridConfig }) {
   const appliedFilters = useFilterStore((s) => s.applied)
   const { resolvedTheme } = useTheme()
-  const gridRef = useRef<AgGridReact>(null)
+
   const [gridApi, setGridApi] = useState<GridApi | null>(null)
   const [quickFilter, setQuickFilter] = useState('')
 
@@ -104,7 +104,7 @@ function SingleSourceGrid({ grid }: { grid: GridConfig }) {
         />
         <div className={themeClass} style={{ height: 500, width: '100%' }}>
           <AgGridReact
-            ref={gridRef}
+
             rowData={rowData}
             columnDefs={columnDefs}
             defaultColDef={DEFAULT_COL_DEF}
@@ -127,7 +127,7 @@ function SingleSourceGrid({ grid }: { grid: GridConfig }) {
 function MergedSourceGrid({ grid }: { grid: GridConfig }) {
   const appliedFilters = useFilterStore((s) => s.applied)
   const { resolvedTheme } = useTheme()
-  const gridRef = useRef<AgGridReact>(null)
+
   const [gridApi, setGridApi] = useState<GridApi | null>(null)
   const [quickFilter, setQuickFilter] = useState('')
 
@@ -181,7 +181,7 @@ function MergedSourceGrid({ grid }: { grid: GridConfig }) {
         />
         <div className={themeClass} style={{ height: 500, width: '100%' }}>
           <AgGridReact
-            ref={gridRef}
+
             rowData={rowData}
             columnDefs={columnDefs}
             defaultColDef={DEFAULT_COL_DEF}
