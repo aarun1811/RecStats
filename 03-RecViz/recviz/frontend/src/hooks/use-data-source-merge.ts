@@ -1,10 +1,10 @@
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 
 import { api } from '@/lib/api-client'
 import type { FilterValue } from '@/types/filter'
 import type { DataSourceQueryResponse } from '@/types/dashboard-config'
 
-interface MergeConfig {
+export interface MergeConfig {
   sources: string[]
   mergeOn: string[]
   mergeType: string
@@ -16,7 +16,7 @@ export function useDataSourceMerge(
   enabled: boolean = true,
 ) {
   return useQuery({
-    queryKey: ['data-source-merge', mergeConfig.sources, filters],
+    queryKey: ['data-source-merge', mergeConfig.sources, mergeConfig.mergeOn, mergeConfig.mergeType, filters],
     queryFn: () =>
       api.post<DataSourceQueryResponse>('/api/data-sources/merge', {
         sources: mergeConfig.sources,
@@ -25,5 +25,6 @@ export function useDataSourceMerge(
         filters,
       }),
     enabled: enabled && mergeConfig.sources.length > 0,
+    placeholderData: keepPreviousData,
   })
 }

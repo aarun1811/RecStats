@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 
 import { api } from '@/lib/api-client'
 import type { FilterValue } from '@/types/filter'
@@ -15,5 +15,6 @@ export function useDashboardKpis(
         filters,
       }),
     enabled: !!dashboardId && Object.keys(filters).length > 0,
+    placeholderData: keepPreviousData,
   })
 }

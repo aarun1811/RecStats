@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 
 import { api } from '@/lib/api-client'
 import type { FilterValue } from '@/types/filter'
@@ -17,5 +17,6 @@ export function useDataSourceQuery(
         { filters },
       ),
     enabled: enabled && !!dataSourceId,
+    placeholderData: keepPreviousData,
   })
 }
