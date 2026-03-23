@@ -8,10 +8,12 @@ class MergeEngine:
         merge_on: list[str],
         merge_type: str = "outer_join",
     ) -> dict:
+        if merge_type not in ("outer_join", "inner_join"):
+            raise ValueError(f"Unsupported merge_type: {merge_type}")
         if not results:
             return {"columns": [], "rows": [], "row_count": 0}
         if len(results) == 1:
-            return results[0]
+            return {**results[0], "rows": list(results[0]["rows"])}
 
         merged = results[0]
         for i in range(1, len(results)):
