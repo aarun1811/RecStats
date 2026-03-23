@@ -90,18 +90,18 @@ function SingleSourceGrid({ grid }: { grid: GridConfig }) {
   }
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle>{grid.title}</CardTitle>
+    <Card className="py-4 gap-2">
+      <CardHeader className="px-4 py-0">
+        <CardTitle className="text-sm font-medium">{grid.title}</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-2 px-4">
         <Input
           placeholder="Quick filter..."
           value={quickFilter}
           onChange={(e) => handleQuickFilter(e.target.value)}
           className="max-w-sm"
         />
-        <div style={{ height: 500, width: '100%' }}>
+        <div style={{ height: 400, width: '100%' }}>
           <AgGridReact
             theme={gridTheme}
             rowData={rowData}
@@ -166,18 +166,18 @@ function MergedSourceGrid({ grid }: { grid: GridConfig }) {
   }
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle>{grid.title}</CardTitle>
+    <Card className="py-4 gap-2">
+      <CardHeader className="px-4 py-0">
+        <CardTitle className="text-sm font-medium">{grid.title}</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-2 px-4">
         <Input
           placeholder="Quick filter..."
           value={quickFilter}
           onChange={(e) => handleQuickFilter(e.target.value)}
           className="max-w-sm"
         />
-        <div style={{ height: 500, width: '100%' }}>
+        <div style={{ height: 400, width: '100%' }}>
           <AgGridReact
             theme={gridTheme}
             rowData={rowData}
@@ -197,17 +197,17 @@ function MergedSourceGrid({ grid }: { grid: GridConfig }) {
 
 function GridSkeleton({ title }: { title?: string }) {
   return (
-    <Card>
-      <CardHeader className="pb-3">
+    <Card className="py-4 gap-2">
+      <CardHeader className="px-4 py-0">
         {title ? (
-          <CardTitle>{title}</CardTitle>
+          <CardTitle className="text-sm font-medium">{title}</CardTitle>
         ) : (
-          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-4 w-40" />
         )}
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-2 px-4">
         <Skeleton className="h-9 w-64 rounded-md" />
-        <Skeleton className="h-[500px] w-full rounded-lg" />
+        <Skeleton className="h-[400px] w-full rounded-lg" />
       </CardContent>
     </Card>
   )
@@ -223,7 +223,7 @@ function GridSkeleton({ title }: { title?: string }) {
  */
 export function ConfigDataGrid({ grids, kpiResults }: ConfigDataGridProps) {
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       {grids.map((grid) => {
         if (!isVisible(grid.visibleWhen, kpiResults)) {
           return null

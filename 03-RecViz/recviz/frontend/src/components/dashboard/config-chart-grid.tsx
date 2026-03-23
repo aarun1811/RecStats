@@ -72,11 +72,11 @@ function QueryChartItem({ chart }: { chart: DashboardChartConfig }) {
   }
 
   return (
-    <Card className="flex flex-col">
-      <CardHeader className="pb-2">
+    <Card className="flex flex-col py-4 gap-2">
+      <CardHeader className="px-4 py-0">
         <CardTitle className="text-sm font-medium">{chart.title}</CardTitle>
       </CardHeader>
-      <CardContent className="flex-1 px-3 pb-3">
+      <CardContent className="flex-1 px-3 pb-2">
         <ChartFactory
           chartId={chart.id}
           config={config}
@@ -107,11 +107,11 @@ function KpiValuesChartItem({
   const config = useMemo(() => toChartConfig(chart), [chart])
 
   return (
-    <Card className="flex flex-col">
-      <CardHeader className="pb-2">
+    <Card className="flex flex-col py-4 gap-2">
+      <CardHeader className="px-4 py-0">
         <CardTitle className="text-sm font-medium">{chart.title}</CardTitle>
       </CardHeader>
-      <CardContent className="flex-1 px-3 pb-3">
+      <CardContent className="flex-1 px-3 pb-2">
         <ChartFactory
           chartId={chart.id}
           config={config}
@@ -125,15 +125,15 @@ function KpiValuesChartItem({
 
 function ChartItemSkeleton({ title }: { title?: string }) {
   return (
-    <Card>
-      <CardHeader className="pb-2">
+    <Card className="py-4 gap-2">
+      <CardHeader className="px-4 py-0">
         {title ? (
           <CardTitle className="text-sm font-medium">{title}</CardTitle>
         ) : (
           <Skeleton className="h-4 w-32" />
         )}
       </CardHeader>
-      <CardContent className="px-3 pb-3">
+      <CardContent className="px-3 pb-2">
         <Skeleton className="h-[300px] w-full rounded-lg" />
       </CardContent>
     </Card>

@@ -58,8 +58,8 @@ export function ConfigFilterBar({ filters }: ConfigFilterBarProps) {
   }
 
   return (
-    <Card className="bg-muted/50 p-4">
-      <div className="flex flex-wrap items-end gap-4">
+    <Card className="bg-muted/50 py-3 px-4 gap-0">
+      <div className="flex flex-wrap items-end gap-3">
         {filters.map((filter) => (
           <FilterControl
             key={filter.id}

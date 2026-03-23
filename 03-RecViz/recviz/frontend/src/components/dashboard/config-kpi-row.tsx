@@ -1,6 +1,5 @@
 import { TrendingDown, TrendingUp } from 'lucide-react'
 
-import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { CountAnimation } from '@/components/shared/count-animation'
 import { useDashboardKpis } from '@/hooks/use-dashboard-kpis'
@@ -15,13 +14,10 @@ interface ConfigKpiRowProps {
 
 function KpiSkeleton() {
   return (
-    <Card>
-      <CardContent className="pt-6">
-        <Skeleton className="h-3 w-20" />
-        <Skeleton className="mt-2 h-8 w-32" />
-        <Skeleton className="mt-2 h-3 w-24" />
-      </CardContent>
-    </Card>
+    <div className="rounded-lg border bg-card px-4 py-3">
+      <Skeleton className="h-3 w-16" />
+      <Skeleton className="mt-2 h-6 w-20" />
+    </div>
   )
 }
 
@@ -31,10 +27,7 @@ export function ConfigKpiRow({ dashboardId, kpis }: ConfigKpiRowProps) {
 
   if (isLoading || !data) {
     return (
-      <div
-        className="grid gap-4"
-        style={{ gridTemplateColumns: `repeat(${kpis.length || 4}, minmax(0, 1fr))` }}
-      >
+      <div className="grid grid-cols-4 gap-3">
         {Array.from({ length: kpis.length || 4 }).map((_, i) => (
           <KpiSkeleton key={i} />
         ))}
@@ -47,10 +40,7 @@ export function ConfigKpiRow({ dashboardId, kpis }: ConfigKpiRowProps) {
   )
 
   return (
-    <div
-      className="grid gap-4"
-      style={{ gridTemplateColumns: `repeat(${kpis.length}, minmax(0, 1fr))` }}
-    >
+    <div className="grid grid-cols-4 gap-3">
       {kpis.map((kpi) => {
         const result = kpiResultsMap.get(kpi.id)
         const value = result?.value ?? 0
@@ -58,12 +48,15 @@ export function ConfigKpiRow({ dashboardId, kpis }: ConfigKpiRowProps) {
         const hasTrend = kpi.trend !== undefined && percentage != null
 
         return (
-          <Card key={kpi.id}>
-            <CardContent className="pt-6">
-              <p className="text-xs font-medium uppercase text-muted-foreground">
+          <div
+            key={kpi.id}
+            className="rounded-lg border bg-card px-4 py-3 flex items-center justify-between gap-3"
+          >
+            <div className="min-w-0">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground truncate">
                 {kpi.label}
               </p>
-              <div className="mt-2 text-2xl font-bold">
+              <div className="mt-0.5 text-2xl font-semibold tabular-nums tracking-tight">
                 <CountAnimation
                   number={value}
                   format={kpi.format}
@@ -71,29 +64,26 @@ export function ConfigKpiRow({ dashboardId, kpis }: ConfigKpiRowProps) {
                   decimals={kpi.format === 'percent' ? 1 : undefined}
                 />
               </div>
-              {hasTrend && (
-                <div className="mt-1 flex items-center gap-1 text-xs">
-                  {percentage >= 0 ? (
-                    <TrendingUp className="size-3 text-green-600 dark:text-green-400" />
-                  ) : (
-                    <TrendingDown className="size-3 text-red-600 dark:text-red-400" />
-                  )}
-                  <span
-                    className={cn(
-                      'font-medium',
-                      percentage >= 0
-                        ? 'text-green-600 dark:text-green-400'
-                        : 'text-red-600 dark:text-red-400',
-                    )}
-                  >
-                    {percentage >= 0 ? '+' : ''}
-                    {percentage.toFixed(1)}%
-                  </span>
-                  <span className="text-muted-foreground">vs last period</span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+            </div>
+            {hasTrend && (
+              <div
+                className={cn(
+                  'flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium shrink-0',
+                  percentage >= 0
+                    ? 'bg-green-500/10 text-green-600 dark:text-green-400'
+                    : 'bg-red-500/10 text-red-600 dark:text-red-400',
+                )}
+              >
+                {percentage >= 0 ? (
+                  <TrendingUp className="size-3" />
+                ) : (
+                  <TrendingDown className="size-3" />
+                )}
+                {percentage >= 0 ? '+' : ''}
+                {percentage.toFixed(1)}%
+              </div>
+            )}
+          </div>
         )
       })}
     </div>

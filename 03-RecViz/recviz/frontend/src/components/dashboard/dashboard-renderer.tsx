@@ -38,7 +38,7 @@ export function DashboardRenderer({
   const kpiResults = kpisData?.kpis
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <ConfigFilterBar filters={config.filters} />
       <ConfigKpiRow dashboardId={config.id} kpis={config.kpis} />
       <ConfigChartGrid charts={config.charts} kpiResults={kpiResults} />
