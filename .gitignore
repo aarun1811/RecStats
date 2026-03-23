@@ -47,3 +47,6 @@ _references/
 
 # Playwright
 .playwright-mcp/
+
+# RecViz seed database (generated, large)
+**/seed.db
