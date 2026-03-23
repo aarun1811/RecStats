@@ -582,7 +582,6 @@ async def lifespan(app: FastAPI):
 
 - `backend/app/config/dashboards/tlm-stats.json`
 - `backend/app/config/data_sources/*.json`
-- `backend/app/services/superset_client.py`
 - All frontend code
 
 ---
