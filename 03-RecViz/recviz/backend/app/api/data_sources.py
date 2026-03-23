@@ -29,7 +29,7 @@ async def query_data_source(
     try:
         result = await query_engine.execute(data_source_id, body.filters)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     return result
 
 
@@ -43,10 +43,13 @@ async def merge_data_sources(
         try:
             result = await query_engine.execute(source_id, body.filters)
         except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e))
+            raise HTTPException(status_code=400, detail=str(e)) from e
         results.append(result)
 
-    merged = MergeEngine.merge(results, body.merge_on, body.merge_type)
+    try:
+        merged = MergeEngine.merge(results, body.merge_on, body.merge_type)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
     return merged
 
 
@@ -67,5 +70,5 @@ async def get_distinct_values(
     try:
         values = await query_engine.execute_distinct(data_source_id, column, filters)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     return {"values": values}

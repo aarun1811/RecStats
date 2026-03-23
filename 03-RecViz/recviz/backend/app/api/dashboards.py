@@ -62,7 +62,7 @@ async def get_dashboard_kpis(
                     if val is not None:
                         total += float(val)
             except ValueError as e:
-                raise HTTPException(status_code=400, detail=str(e))
+                raise HTTPException(status_code=400, detail=str(e)) from e
         kpi_values[kpi.id] = total
 
     # Compute trends (percentage_of)

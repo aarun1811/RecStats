@@ -8,6 +8,9 @@ from contextlib import asynccontextmanager
 import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import Response
 
 from app.api.router import api_router
 from app.config import settings
@@ -59,6 +62,17 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+class XFrameOptionsMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):  # type: ignore[override]
+        response: Response = await call_next(request)
+        # Allow framing from any origin (internal tool, no auth)
+        response.headers["X-Frame-Options"] = "ALLOWALL"
+        return response
+
+
+app.add_middleware(XFrameOptionsMiddleware)
 
 app.include_router(api_router)
 
