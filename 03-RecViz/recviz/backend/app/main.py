@@ -16,6 +16,7 @@ from app.api.router import api_router
 from app.config import settings
 from app.services.config_store import ConfigStore
 from app.services.query_engine import QueryEngine
+from app.services.database_registrar import DatabaseRegistrar
 from app.services.superset_client import SupersetClient
 
 logging.basicConfig(level=logging.INFO)
@@ -28,24 +29,33 @@ async def lifespan(app: FastAPI):
     http = httpx.AsyncClient(timeout=30.0)
     superset = SupersetClient(http)
 
-    try:
-        await superset.authenticate()
-        app.state.superset = superset
-        logger.info("Superset client ready")
-    except Exception as e:
-        logger.warning("Superset unavailable at startup: %s — running in mock mode", e)
-        app.state.superset = None
+    # 1. Authenticate to Superset (hard requirement)
+    await superset.authenticate()
+    app.state.superset = superset
+    logger.info("Superset client ready")
 
     app.state.http = http
 
-    # Initialize config store and query engine
+    # 2. Load configs
     config_store = ConfigStore()
     app.state.config_store = config_store
+
+    # 3. Sync databases into Superset
+    registrar = DatabaseRegistrar(
+        superset_client=superset,
+        config_path=settings.databases_config_path,
+    )
+    await registrar.sync()
+    app.state.database_registrar = registrar
+    logger.info("DatabaseRegistrar synced")
+
+    # 4. Create QueryEngine
     app.state.query_engine = QueryEngine(
         config_store=config_store,
-        superset_client=app.state.superset,
+        superset_client=superset,
+        database_registrar=registrar,
     )
-    logger.info("ConfigStore and QueryEngine initialized")
+    logger.info("QueryEngine initialized — ready to serve")
 
     yield
 
@@ -79,8 +89,7 @@ app.include_router(api_router)
 
 @app.get("/health")
 async def health():
-    superset_ok = app.state.superset is not None
-    return {"status": "ok", "superset": superset_ok}
+    return {"status": "ok", "superset": True}
 
 
 @app.get("/api/test-superset")
