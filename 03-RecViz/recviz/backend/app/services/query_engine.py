@@ -33,6 +33,10 @@ class QueryEngine:
         routing = ds.database_routing
 
         if routing.type == "static":
+            if routing.database is None:
+                raise ValueError(
+                    f"Data source '{data_source_id}' has static routing but no database configured"
+                )
             return routing.database
 
         # dynamic routing
@@ -100,13 +104,13 @@ class QueryEngine:
                 expr = expr.replace("{{date_range_clause}}", clause)
             elif "{{values}}" in expr:
                 if isinstance(fval, list):
-                    quoted = ", ".join(f"'{v}'" for v in fval)
+                    quoted = ", ".join(f"'{v.replace(chr(39), chr(39)*2)}'" for v in fval)
                 else:
-                    quoted = f"'{fval}'"
+                    quoted = f"'{str(fval).replace(chr(39), chr(39)*2)}'"
                 expr = expr.replace("{{values}}", quoted)
             elif "{{value}}" in expr:
                 val = fval[0] if isinstance(fval, list) else fval
-                expr = expr.replace("{{value}}", str(val))
+                expr = expr.replace("{{value}}", str(val).replace("'", "''"))
 
             filter_clauses.append(f"AND {expr}")
 

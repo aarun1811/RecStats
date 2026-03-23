@@ -94,3 +94,21 @@ async def test_execute_mock_no_truncation(engine):
     )
     assert result["truncated"] is False
     assert result["row_count"] <= 10_000
+
+
+def test_build_sql_invalid_column_raises(engine):
+    with pytest.raises(ValueError, match="not in data source"):
+        engine._build_sql(
+            data_source_id="reconmgmt_recon_bank",
+            filters={},
+            column="malicious_column",
+        )
+
+
+def test_build_sql_escapes_single_quotes(engine):
+    sql = engine._build_sql(
+        data_source_id="tlm_breaks",
+        filters={"recon": ["O'Brien"]},
+    )
+    assert "O''Brien" in sql
+    assert "O'Brien" not in sql
