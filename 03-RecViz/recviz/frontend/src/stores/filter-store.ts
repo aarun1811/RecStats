@@ -1,72 +1,99 @@
 import { create } from 'zustand'
-import type { CrossFilter, GlobalFilters } from '@/types/filter'
 
-interface FilterState {
-  globalFilters: GlobalFilters
-  crossFilters: CrossFilter[]
+import type { FilterValue } from '@/types/filter'
 
-  // Global filters
-  setGlobalFilters: (filters: GlobalFilters) => void
-  updateGlobalFilter: <K extends keyof GlobalFilters>(key: K, value: GlobalFilters[K]) => void
+interface FilterStore {
+  // Generic filter values keyed by filter ID
+  values: Record<string, FilterValue>
+  // Which filter IDs are locked (from URL params)
+  locked: Set<string>
+  // Snapshot of values at last "Apply" click
+  applied: Record<string, FilterValue>
+
+  // Actions
+  setFilterValue: (filterId: string, value: FilterValue) => void
+  setLocked: (filterIds: string[]) => void
+  initializeFilters: (defaults: Record<string, FilterValue>, locked?: string[]) => void
   applyFilters: () => void
-  resetGlobalFilters: () => void
+  resetFilters: (defaults: Record<string, FilterValue>) => void
 
-  // Cross filters
+  // Cross-filters (kept for dashboards that enable them)
+  crossFilters: CrossFilter[]
   addCrossFilter: (filter: CrossFilter) => void
-  removeCrossFilter: (sourceChartId: string) => void
+  removeCrossFilter: (chartId: string, column: string) => void
   clearCrossFilters: () => void
 }
 
-const DEFAULT_FILTERS: GlobalFilters = {
-  dateFrom: undefined,
-  dateTo: undefined,
-  status: [],
-  desk: [],
-  lob: [],
-  region: [],
-  country: [],
-  currency: [],
-  counterparty: [],
+interface CrossFilter {
+  sourceChartId: string
+  column: string
+  value: string | number
 }
 
-export const useFilterStore = create<FilterState>((set) => ({
-  globalFilters: { ...DEFAULT_FILTERS },
+export const useFilterStore = create<FilterStore>((set, get) => ({
+  values: {},
+  locked: new Set<string>(),
+  applied: {},
+
+  setFilterValue: (filterId, value) =>
+    set((s) => ({
+      values: { ...s.values, [filterId]: value },
+    })),
+
+  setLocked: (filterIds) =>
+    set({ locked: new Set(filterIds) }),
+
+  initializeFilters: (defaults, locked) =>
+    set({
+      values: { ...defaults },
+      applied: { ...defaults },
+      locked: new Set(locked ?? []),
+    }),
+
+  applyFilters: () =>
+    set((s) => ({
+      applied: { ...s.values },
+    })),
+
+  resetFilters: (defaults) =>
+    set((s) => ({
+      values: {
+        ...defaults,
+        // Keep locked filter values unchanged
+        ...Object.fromEntries(
+          Array.from(s.locked).map((k) => [k, s.values[k]])
+        ),
+      },
+    })),
+
   crossFilters: [],
-
-  setGlobalFilters: (filters) => set({ globalFilters: filters }),
-
-  updateGlobalFilter: (key, value) =>
-    set((s) => ({ globalFilters: { ...s.globalFilters, [key]: value } })),
-
-  applyFilters: () => {
-    // Trigger re-fetches by creating a new reference.
-    // TanStack Query hooks read globalFilters from the store, so they auto-refetch
-    // when query keys change. This method exists as an explicit "apply" action.
-    set((s) => ({ globalFilters: { ...s.globalFilters } }))
-  },
-
-  resetGlobalFilters: () => set({ globalFilters: { ...DEFAULT_FILTERS } }),
-
   addCrossFilter: (filter) =>
     set((s) => {
-      // Toggle: clicking the same chart+value removes the filter
       const existing = s.crossFilters.find(
-        (f) => f.sourceChartId === filter.sourceChartId && f.column === filter.column && f.value === filter.value,
+        (f) => f.sourceChartId === filter.sourceChartId && f.column === filter.column
       )
-      if (existing) {
-        return { crossFilters: s.crossFilters.filter((f) => f !== existing) }
+      if (existing && existing.value === filter.value) {
+        return {
+          crossFilters: s.crossFilters.filter(
+            (f) => !(f.sourceChartId === filter.sourceChartId && f.column === filter.column)
+          ),
+        }
       }
       return {
         crossFilters: [
-          ...s.crossFilters.filter((f) => f.sourceChartId !== filter.sourceChartId),
+          ...s.crossFilters.filter(
+            (f) => !(f.sourceChartId === filter.sourceChartId && f.column === filter.column)
+          ),
           filter,
         ],
       }
     }),
 
-  removeCrossFilter: (sourceChartId) =>
+  removeCrossFilter: (chartId, column) =>
     set((s) => ({
-      crossFilters: s.crossFilters.filter((f) => f.sourceChartId !== sourceChartId),
+      crossFilters: s.crossFilters.filter(
+        (f) => !(f.sourceChartId === chartId && f.column === column)
+      ),
     })),
 
   clearCrossFilters: () => set({ crossFilters: [] }),
