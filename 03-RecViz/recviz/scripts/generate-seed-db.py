@@ -89,7 +89,7 @@ def create_indexes(conn: sqlite3.Connection) -> None:
     """)
 
 
-def generate_bank(conn: sqlite3.Connection, target: int = 5_000) -> list[tuple[str, str, str]]:
+def generate_bank(conn: sqlite3.Connection, target: int = 1_000) -> list[tuple[str, str, str]]:
     """Generate ~5K bank rows."""
     rows = []
     for agent in AGENTS:
@@ -108,7 +108,7 @@ def generate_bank(conn: sqlite3.Connection, target: int = 5_000) -> list[tuple[s
     return rows
 
 
-def generate_message_feed(conn: sqlite3.Connection, bank_rows: list, target: int = 10_000) -> list[tuple[str, str]]:
+def generate_message_feed(conn: sqlite3.Connection, bank_rows: list, target: int = 2_000) -> list[tuple[str, str]]:
     """Generate ~10K message_feed rows."""
     rows = []
     corr_accounts = list({corr for _, corr, _ in bank_rows})
@@ -125,7 +125,7 @@ def generate_message_feed(conn: sqlite3.Connection, bank_rows: list, target: int
     return rows
 
 
-def generate_items(conn: sqlite3.Connection, corr_accounts: list[str], target: int = 1_000_000) -> None:
+def generate_items(conn: sqlite3.Connection, corr_accounts: list[str], target: int = 50_000) -> None:
     """Generate ~1M item rows."""
     batch = []
     count = 0
@@ -148,7 +148,7 @@ def generate_items(conn: sqlite3.Connection, corr_accounts: list[str], target: i
     print(f"  item: {count} rows")
 
 
-def generate_tlm_headers(conn: sqlite3.Connection, corr_accounts: list[str], target: int = 800_000) -> None:
+def generate_tlm_headers(conn: sqlite3.Connection, corr_accounts: list[str], target: int = 40_000) -> None:
     """Generate ~800K tlm_bdr_relationship_header rows."""
     batch = []
     count = 0
@@ -182,7 +182,7 @@ def generate_recon_bank(conn: sqlite3.Connection) -> None:
     print(f"  recon_bank: {len(rows)} rows")
 
 
-def generate_manual_match_stats(conn: sqlite3.Connection, target: int = 50_000) -> None:
+def generate_manual_match_stats(conn: sqlite3.Connection, target: int = 10_000) -> None:
     """Generate mr_csum_man_match_stats_hist rows."""
     batch = []
     count = 0
