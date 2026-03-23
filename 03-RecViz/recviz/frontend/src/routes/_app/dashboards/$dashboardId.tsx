@@ -1,68 +1,42 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useDashboards } from '@/hooks/use-dashboards'
-import { usePrefetch } from '@/hooks/use-prefetch'
-import { useFilterStore } from '@/stores/filter-store'
-import { useDrillStore } from '@/stores/drill-store'
-import { FilterBar } from '@/components/dashboard/filter-bar'
-import { KpiRow } from '@/components/dashboard/kpi-row'
-import { ChartGrid } from '@/components/dashboard/chart-grid'
-import { CrossFilterBar } from '@/components/dashboard/cross-filter-bar'
-import { DrillBreadcrumb } from '@/components/dashboard/drill-breadcrumb'
-import { DataGrid } from '@/components/grid/data-grid'
-import type { ChartClickEvent } from '@/types/chart'
+
+import { DashboardRenderer } from '@/components/dashboard/dashboard-renderer'
+import { useDashboardConfig } from '@/hooks/use-dashboard-config'
+import { Skeleton } from '@/components/ui/skeleton'
 
 export const Route = createFileRoute('/_app/dashboards/$dashboardId')({
-  component: DashboardDetail,
+  component: DashboardPage,
 })
 
-function DashboardDetail() {
+function DashboardPage() {
   const { dashboardId } = Route.useParams()
-  const { data: dashboards } = useDashboards()
-  const addCrossFilter = useFilterStore((s) => s.addCrossFilter)
-  const drillLevels = useDrillStore((s) => s.levels)
-  const drillUp = useDrillStore((s) => s.drillUp)
-  const drillToLevel = useDrillStore((s) => s.drillToLevel)
-  const resetDrill = useDrillStore((s) => s.resetDrill)
+  const { data: config, isLoading } = useDashboardConfig(dashboardId)
 
-  usePrefetch()
-
-  const dashboard = dashboards?.find(
-    (d) => d.id === dashboardId || d.slug === dashboardId,
-  )
-
-  const handleChartClick = (event: ChartClickEvent) => {
-    addCrossFilter({
-      sourceChartId: event.chartId,
-      column: event.column,
-      value: event.value,
-    })
+  if (isLoading || !config) {
+    return (
+      <div className="p-6 space-y-6">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-12 w-full" />
+        <div className="grid grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-24" />
+          ))}
+        </div>
+      </div>
+    )
   }
 
-  const isDetailMode = drillLevels.length >= 3
-
   return (
-    <div className="flex flex-col gap-6 p-6">
-      <h1 className="text-2xl font-semibold tracking-tight">
-        {dashboard?.title ?? `Dashboard: ${dashboardId}`}
-      </h1>
-
-      <FilterBar />
-      <KpiRow />
-      <CrossFilterBar />
-
-      {/* At level 3+, charts hide and grid shows detail records.
-          The breadcrumb stays visible so the user can navigate back. */}
-      {isDetailMode && (
-        <DrillBreadcrumb
-          levels={drillLevels}
-          onNavigate={drillToLevel}
-          onBack={drillUp}
-          onReset={resetDrill}
-        />
-      )}
-
-      <ChartGrid onChartClick={handleChartClick} />
-      <DataGrid />
+    <div className="p-6 space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">{config.name}</h1>
+        {config.description && (
+          <p className="text-sm text-muted-foreground mt-1">
+            {config.description}
+          </p>
+        )}
+      </div>
+      <DashboardRenderer config={config} />
     </div>
   )
 }
