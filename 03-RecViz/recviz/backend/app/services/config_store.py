@@ -6,24 +6,24 @@ from pathlib import Path
 from app.models.dashboard_config import DashboardConfig
 from app.models.data_source_config import DataSourceConfig
 
-MOCK_DIR = Path(__file__).parent.parent / "mock"
+CONFIG_DIR = Path(__file__).parent.parent / "config"
 
 
 class ConfigStore:
     def __init__(self) -> None:
         self._dashboards: dict[str, DashboardConfig] = {}
         self._data_sources: dict[str, DataSourceConfig] = {}
-        self._load_mock_configs()
+        self._load_configs()
 
-    def _load_mock_configs(self) -> None:
-        dashboards_dir = MOCK_DIR / "dashboards"
+    def _load_configs(self) -> None:
+        dashboards_dir = CONFIG_DIR / "dashboards"
         if dashboards_dir.exists():
             for f in dashboards_dir.glob("*.json"):
                 raw = json.loads(f.read_text())
                 config = DashboardConfig.model_validate(raw)
                 self._dashboards[config.id] = config
 
-        data_sources_dir = MOCK_DIR / "data_sources"
+        data_sources_dir = CONFIG_DIR / "data_sources"
         if data_sources_dir.exists():
             for f in data_sources_dir.glob("*.json"):
                 raw = json.loads(f.read_text())
