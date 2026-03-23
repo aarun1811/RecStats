@@ -11,6 +11,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
 from app.config import settings
+from app.services.config_store import ConfigStore
+from app.services.query_engine import QueryEngine
 from app.services.superset_client import SupersetClient
 
 logging.basicConfig(level=logging.INFO)
@@ -33,6 +35,15 @@ async def lifespan(app: FastAPI):
 
     app.state.http = http
 
+    # Initialize config store and query engine
+    config_store = ConfigStore()
+    app.state.config_store = config_store
+    app.state.query_engine = QueryEngine(
+        config_store=config_store,
+        superset_client=app.state.superset,
+    )
+    logger.info("ConfigStore and QueryEngine initialized")
+
     yield
 
     # Shutdown
@@ -43,7 +54,7 @@ app = FastAPI(title="RecViz API", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:4200"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
