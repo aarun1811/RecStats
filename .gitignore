@@ -43,4 +43,7 @@ pgdata/
 redis-data/
 
 # Reference
-_references/.playwright-mcp/
+_references/
+
+# Playwright
+.playwright-mcp/
