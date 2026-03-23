@@ -7,7 +7,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
@@ -30,10 +29,6 @@ function DashboardSkeleton() {
           <CardHeader>
             <Skeleton className="h-5 w-3/4" />
             <Skeleton className="mt-2 h-4 w-full" />
-            <div className="mt-3 flex items-center gap-2">
-              <Skeleton className="h-5 w-16 rounded-full" />
-              <Skeleton className="h-4 w-24" />
-            </div>
           </CardHeader>
         </Card>
       ))}
@@ -72,7 +67,7 @@ function DashboardList() {
             >
               <CardHeader>
                 <div className="flex items-start justify-between">
-                  <CardTitle className="text-base">{d.title}</CardTitle>
+                  <CardTitle className="text-base">{d.name}</CardTitle>
                   <span
                     className={`mt-0.5 size-2.5 rounded-full ${
                       d.status === 'active' ? 'bg-green-500' : 'bg-yellow-500'
@@ -83,18 +78,6 @@ function DashboardList() {
                 <CardDescription className="line-clamp-2">
                   {d.description ?? 'No description'}
                 </CardDescription>
-                <div className="mt-3 flex items-center gap-2">
-                  {d.chartCount != null && (
-                    <Badge variant="secondary">
-                      {d.chartCount} chart{d.chartCount !== 1 ? 's' : ''}
-                    </Badge>
-                  )}
-                  {d.changedOn && (
-                    <span className="text-xs text-muted-foreground">
-                      Updated {d.changedOn}
-                    </span>
-                  )}
-                </div>
               </CardHeader>
             </Card>
           ))
