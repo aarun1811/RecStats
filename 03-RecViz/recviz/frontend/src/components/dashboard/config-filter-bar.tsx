@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Check, ChevronsUpDown, Lock, RotateCcw } from 'lucide-react'
+import { ChevronsUpDown, Lock, RotateCcw } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
