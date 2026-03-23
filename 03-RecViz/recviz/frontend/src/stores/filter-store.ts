@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-import type { FilterValue } from '@/types/filter'
+import type { CrossFilter, FilterValue } from '@/types/filter'
 
 interface FilterStore {
   // Generic filter values keyed by filter ID
@@ -24,13 +24,7 @@ interface FilterStore {
   clearCrossFilters: () => void
 }
 
-interface CrossFilter {
-  sourceChartId: string
-  column: string
-  value: string | number
-}
-
-export const useFilterStore = create<FilterStore>((set, get) => ({
+export const useFilterStore = create<FilterStore>((set) => ({
   values: {},
   locked: new Set<string>(),
   applied: {},
