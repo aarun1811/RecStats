@@ -1,12 +1,26 @@
 import pytest
+from unittest.mock import MagicMock
+
 from app.services.query_engine import QueryEngine
 from app.services.config_store import ConfigStore
 
 
 @pytest.fixture
-def engine():
-    store = ConfigStore()
-    return QueryEngine(config_store=store, superset_client=None)
+def mock_registrar():
+    registrar = MagicMock()
+    registrar.get_dialect.return_value = "oracle"
+    registrar.get_schema.return_value = ""
+    registrar.get_all_schemas.return_value = {"reconmgmt"}
+    return registrar
+
+
+@pytest.fixture
+def engine(mock_registrar):
+    return QueryEngine(
+        config_store=ConfigStore(),
+        superset_client=MagicMock(),
+        database_registrar=mock_registrar,
+    )
 
 
 def test_build_sql_with_filters(engine):
@@ -48,61 +62,53 @@ def test_resolve_database_dynamic_missing_filter(engine):
         )
 
 
-@pytest.mark.asyncio
-async def test_execute_mock(engine):
-    result = await engine.execute(
+def test_build_sql_sqlite_dialect(engine):
+    sql = engine._build_sql(
         data_source_id="tlm_breaks",
-        filters={"tlm_instance": "TLMP_CONSUMER", "recon": ["AGENT_01"], "date_range": 1},
+        filters={"date_range": 7},
+        dialect="sqlite",
     )
-    assert "columns" in result
-    assert "rows" in result
-    assert "row_count" in result
-    assert result["row_count"] >= 0
+    assert "date('now', '-7 days')" in sql
+    assert "SYSDATE" not in sql
 
 
-@pytest.mark.asyncio
-async def test_execute_distinct_mock(engine):
-    values = await engine.execute_distinct(
-        data_source_id="reconmgmt_recon_bank",
-        column="recon_engine_env",
+def test_build_sql_oracle_dialect(engine):
+    sql = engine._build_sql(
+        data_source_id="tlm_breaks",
+        filters={"date_range": 1},
+        dialect="oracle",
+    )
+    assert "TRUNC(SYSDATE)" in sql
+    assert "DECODE" in sql
+
+
+def test_schema_stripping_for_sqlite(engine, mock_registrar):
+    """When target DB has no schema, schema prefixes are stripped."""
+    mock_registrar.get_schema.return_value = ""
+    mock_registrar.get_all_schemas.return_value = {"reconmgmt"}
+    sql = engine._build_sql(
+        data_source_id="reconmgmt_manual",
         filters={},
+        dialect="sqlite",
+        db_name="superset_db_reconmgmt",
     )
-    assert isinstance(values, list)
-    assert len(values) > 0
+    # The query in reconmgmt_manual has "reconmgmt.mr_csum_man_match_stats_hist"
+    # Schema prefix should be stripped when target DB has no schema
+    assert "reconmgmt." not in sql
+    assert "mr_csum_man_match_stats_hist" in sql
 
 
-@pytest.mark.asyncio
-async def test_execute_mock_max_rows_truncation(engine):
-    """Verify max_rows safety parameter truncates and flags results."""
-    result = await engine.execute(
-        data_source_id="tlm_breaks",
-        filters={"tlm_instance": "TLMP_CONSUMER", "recon": ["AGENT_01"], "date_range": 1},
-        max_rows=5,
+def test_schema_kept_for_oracle(engine, mock_registrar):
+    """When target DB has a schema, schema prefixes are preserved."""
+    mock_registrar.get_schema.return_value = "reconmgmt"
+    mock_registrar.get_all_schemas.return_value = {"reconmgmt"}
+    sql = engine._build_sql(
+        data_source_id="reconmgmt_manual",
+        filters={},
+        dialect="oracle",
+        db_name="superset_db_reconmgmt",
     )
-    assert result["row_count"] == 5
-    assert result["truncated"] is True
-    assert len(result["rows"]) == 5
-
-
-@pytest.mark.asyncio
-async def test_execute_mock_no_truncation(engine):
-    """Verify truncated is False when rows are within max_rows."""
-    result = await engine.execute(
-        data_source_id="tlm_breaks",
-        filters={"tlm_instance": "TLMP_CONSUMER", "recon": ["AGENT_01"], "date_range": 1},
-        max_rows=10_000,
-    )
-    assert result["truncated"] is False
-    assert result["row_count"] <= 10_000
-
-
-def test_build_sql_invalid_column_raises(engine):
-    with pytest.raises(ValueError, match="not in data source"):
-        engine._build_sql(
-            data_source_id="reconmgmt_recon_bank",
-            filters={},
-            column="malicious_column",
-        )
+    assert "reconmgmt.mr_csum_man_match_stats_hist" in sql
 
 
 def test_build_sql_escapes_single_quotes(engine):
@@ -112,3 +118,12 @@ def test_build_sql_escapes_single_quotes(engine):
     )
     assert "O''Brien" in sql
     assert "O'Brien" not in sql
+
+
+def test_build_sql_invalid_column_raises(engine):
+    with pytest.raises(ValueError, match="not in data source"):
+        engine._build_sql(
+            data_source_id="reconmgmt_recon_bank",
+            filters={},
+            column="malicious_column",
+        )

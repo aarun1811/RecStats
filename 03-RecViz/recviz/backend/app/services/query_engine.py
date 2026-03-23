@@ -5,22 +5,24 @@ from typing import Any
 
 from app.models.data_source_config import DataSourceConfig
 from app.services.config_store import ConfigStore
-from app.mock.query_results import MOCK_QUERY_RESULTS, MOCK_DISTINCT_VALUES
+from app.services.database_registrar import DatabaseRegistrar
 
 DEFAULT_MAX_ROWS = 10_000
 
 
 class QueryEngine:
     """Builds SQL from config templates, resolves dynamic DB routing,
-    and executes queries via Superset or returns mock data."""
+    and executes queries via Superset."""
 
     def __init__(
         self,
         config_store: ConfigStore,
-        superset_client: Any | None = None,
+        superset_client: Any,
+        database_registrar: DatabaseRegistrar,
     ) -> None:
         self._config_store = config_store
         self._superset = superset_client
+        self._registrar = database_registrar
 
     def _get_data_source(self, data_source_id: str) -> DataSourceConfig:
         ds = self._config_store.get_data_source(data_source_id)
@@ -58,7 +60,7 @@ class QueryEngine:
             )
         return db_id
 
-    def _build_date_range_clause(self, value: int, dialect: str = "postgresql") -> str:
+    def _build_date_range_clause(self, value: int, dialect: str = "oracle") -> str:
         if dialect == "oracle":
             if value == 1:
                 return (
@@ -67,6 +69,8 @@ class QueryEngine:
                     "AND SYSDATE"
                 )
             return f"BETWEEN SYSDATE - {value} AND SYSDATE"
+        elif dialect == "sqlite":
+            return f"BETWEEN date('now', '-{value} days') AND date('now')"
         else:
             return f"BETWEEN CURRENT_DATE - INTERVAL '{value} days' AND CURRENT_DATE"
 
@@ -75,7 +79,8 @@ class QueryEngine:
         data_source_id: str,
         filters: dict,
         column: str | None = None,
-        dialect: str = "postgresql",
+        dialect: str = "oracle",
+        db_name: str | None = None,
     ) -> str:
         ds = self._get_data_source(data_source_id)
         sql = ds.query
@@ -120,6 +125,14 @@ class QueryEngine:
         # Clean up any remaining template vars (no matching filter provided)
         sql = re.sub(r"\{\{[^}]+\}\}", "", sql)
 
+        # Strip schema prefixes when the target database has no schema
+        if db_name:
+            schema = self._registrar.get_schema(db_name)
+            if not schema:
+                for known_schema in self._registrar.get_all_schemas():
+                    if known_schema:
+                        sql = re.sub(rf'\b{re.escape(known_schema)}\.', '', sql)
+
         return sql
 
     async def execute(
@@ -128,23 +141,15 @@ class QueryEngine:
         filters: dict,
         max_rows: int = DEFAULT_MAX_ROWS,
     ) -> dict:
-        if self._superset:
-            return await self._execute_via_superset(
-                data_source_id, filters, max_rows
-            )
-        return self._execute_mock(data_source_id, filters, max_rows)
-
-    async def _execute_via_superset(
-        self,
-        data_source_id: str,
-        filters: dict,
-        max_rows: int = DEFAULT_MAX_ROWS,
-    ) -> dict:
-        db_id = self._resolve_database(data_source_id, filters)
-        sql = self._build_sql(data_source_id, filters, dialect="oracle")
+        db_name = self._resolve_database(data_source_id, filters)
+        db_id = await self._registrar.resolve(db_name)
+        dialect = self._registrar.get_dialect(db_name)
+        schema = self._registrar.get_schema(db_name)
+        sql = self._build_sql(
+            data_source_id, filters, dialect=dialect, db_name=db_name
+        )
         result = await self._superset.execute_sql(
-            database_id=db_id,
-            sql=sql,
+            database_id=db_id, sql=sql, schema=schema or "", limit=max_rows
         )
         if result and result.get("status") == "success":
             rows = result.get("data", [])
@@ -159,60 +164,22 @@ class QueryEngine:
             }
         return {"columns": [], "rows": [], "row_count": 0, "truncated": False}
 
-    def _execute_mock(
-        self,
-        data_source_id: str,
-        filters: dict,
-        max_rows: int = DEFAULT_MAX_ROWS,
-    ) -> dict:
-        mock = MOCK_QUERY_RESULTS.get(data_source_id)
-        if not mock:
-            return {
-                "columns": [],
-                "rows": [],
-                "row_count": 0,
-                "truncated": False,
-            }
-        rows = mock["rows"]
-        truncated = len(rows) > max_rows
-        if truncated:
-            rows = rows[:max_rows]
-        return {
-            "columns": mock["columns"],
-            "rows": rows,
-            "row_count": len(rows),
-            "truncated": truncated,
-        }
-
     async def execute_distinct(
         self,
         data_source_id: str,
         column: str,
         filters: dict,
     ) -> list[str]:
-        if self._superset:
-            return await self._execute_distinct_via_superset(
-                data_source_id, column, filters
-            )
-        return self._execute_distinct_mock(data_source_id, column)
-
-    async def _execute_distinct_via_superset(
-        self,
-        data_source_id: str,
-        column: str,
-        filters: dict,
-    ) -> list[str]:
-        db_id = self._resolve_database(data_source_id, filters)
+        db_name = self._resolve_database(data_source_id, filters)
+        db_id = await self._registrar.resolve(db_name)
+        dialect = self._registrar.get_dialect(db_name)
+        schema = self._registrar.get_schema(db_name)
         sql = self._build_sql(
-            data_source_id, filters, column=column, dialect="oracle"
+            data_source_id, filters, column=column, dialect=dialect, db_name=db_name
         )
-        result = await self._superset.execute_sql(database_id=db_id, sql=sql)
+        result = await self._superset.execute_sql(
+            database_id=db_id, sql=sql, schema=schema or ""
+        )
         if result and result.get("data"):
             return [row.get(column, "") for row in result["data"]]
         return []
-
-    def _execute_distinct_mock(
-        self, data_source_id: str, column: str
-    ) -> list[str]:
-        ds_values = MOCK_DISTINCT_VALUES.get(data_source_id, {})
-        return ds_values.get(column, [])
