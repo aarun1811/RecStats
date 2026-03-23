@@ -9,7 +9,7 @@ import { QueryHistory } from '@/components/explorer/query-history'
 import { ChartBuilderDialog } from '@/components/explorer/chart-builder-dialog'
 import type { SqlResult } from '@/types/api'
 
-export const Route = createFileRoute('/explorer/')({
+export const Route = createFileRoute('/_app/explorer/')({
   component: Explorer,
 })
 

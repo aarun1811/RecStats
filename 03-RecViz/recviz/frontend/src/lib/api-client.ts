@@ -16,18 +16,22 @@ function snakeToCamel(str: string): string {
   return str.replace(/_([a-z])/g, (_, c) => c.toUpperCase())
 }
 
-function transformKeys(obj: unknown): unknown {
-  if (Array.isArray(obj)) return obj.map(transformKeys)
+function transformKeys(obj: unknown, skipKeys = new Set<string>()): unknown {
+  if (Array.isArray(obj)) return obj.map((item) => transformKeys(item, skipKeys))
   if (obj !== null && typeof obj === 'object') {
     return Object.fromEntries(
-      Object.entries(obj as Record<string, unknown>).map(([k, v]) => [
-        snakeToCamel(k),
-        transformKeys(v),
-      ]),
+      Object.entries(obj as Record<string, unknown>).map(([k, v]) => {
+        const camelKey = snakeToCamel(k)
+        // Don't transform values inside these keys — they contain DB column names
+        if (skipKeys.has(k)) return [camelKey, v]
+        return [camelKey, transformKeys(v, skipKeys)]
+      }),
     )
   }
   return obj
 }
+
+const DATA_KEYS = new Set(['rows', 'columns'])
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
@@ -42,7 +46,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   }
 
   const json = await res.json()
-  return transformKeys(json) as T
+  return transformKeys(json, DATA_KEYS) as T
 }
 
 export const api = {

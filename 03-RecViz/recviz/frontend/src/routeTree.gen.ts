@@ -9,74 +9,92 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as SettingsIndexRouteImport } from './routes/settings/index'
-import { Route as ReportsIndexRouteImport } from './routes/reports/index'
-import { Route as ExplorerIndexRouteImport } from './routes/explorer/index'
-import { Route as DashboardsIndexRouteImport } from './routes/dashboards/index'
-import { Route as DashboardsDashboardIdRouteImport } from './routes/dashboards/$dashboardId'
+import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings/index'
+import { Route as AppReportsIndexRouteImport } from './routes/_app/reports/index'
+import { Route as AppExplorerIndexRouteImport } from './routes/_app/explorer/index'
+import { Route as AppDashboardsIndexRouteImport } from './routes/_app/dashboards/index'
+import { Route as EmbedDashboardsDashboardIdRouteImport } from './routes/embed/dashboards/$dashboardId'
+import { Route as AppDashboardsDashboardIdRouteImport } from './routes/_app/dashboards/$dashboardId'
 
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SettingsIndexRoute = SettingsIndexRouteImport.update({
+const AppSettingsIndexRoute = AppSettingsIndexRouteImport.update({
   id: '/settings/',
   path: '/settings/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AppRoute,
 } as any)
-const ReportsIndexRoute = ReportsIndexRouteImport.update({
+const AppReportsIndexRoute = AppReportsIndexRouteImport.update({
   id: '/reports/',
   path: '/reports/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AppRoute,
 } as any)
-const ExplorerIndexRoute = ExplorerIndexRouteImport.update({
+const AppExplorerIndexRoute = AppExplorerIndexRouteImport.update({
   id: '/explorer/',
   path: '/explorer/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AppRoute,
 } as any)
-const DashboardsIndexRoute = DashboardsIndexRouteImport.update({
+const AppDashboardsIndexRoute = AppDashboardsIndexRouteImport.update({
   id: '/dashboards/',
   path: '/dashboards/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AppRoute,
 } as any)
-const DashboardsDashboardIdRoute = DashboardsDashboardIdRouteImport.update({
-  id: '/dashboards/$dashboardId',
-  path: '/dashboards/$dashboardId',
-  getParentRoute: () => rootRouteImport,
-} as any)
+const EmbedDashboardsDashboardIdRoute =
+  EmbedDashboardsDashboardIdRouteImport.update({
+    id: '/embed/dashboards/$dashboardId',
+    path: '/embed/dashboards/$dashboardId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AppDashboardsDashboardIdRoute =
+  AppDashboardsDashboardIdRouteImport.update({
+    id: '/dashboards/$dashboardId',
+    path: '/dashboards/$dashboardId',
+    getParentRoute: () => AppRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/dashboards/$dashboardId': typeof DashboardsDashboardIdRoute
-  '/dashboards/': typeof DashboardsIndexRoute
-  '/explorer/': typeof ExplorerIndexRoute
-  '/reports/': typeof ReportsIndexRoute
-  '/settings/': typeof SettingsIndexRoute
+  '/dashboards/$dashboardId': typeof AppDashboardsDashboardIdRoute
+  '/embed/dashboards/$dashboardId': typeof EmbedDashboardsDashboardIdRoute
+  '/dashboards/': typeof AppDashboardsIndexRoute
+  '/explorer/': typeof AppExplorerIndexRoute
+  '/reports/': typeof AppReportsIndexRoute
+  '/settings/': typeof AppSettingsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/dashboards/$dashboardId': typeof DashboardsDashboardIdRoute
-  '/dashboards': typeof DashboardsIndexRoute
-  '/explorer': typeof ExplorerIndexRoute
-  '/reports': typeof ReportsIndexRoute
-  '/settings': typeof SettingsIndexRoute
+  '/dashboards/$dashboardId': typeof AppDashboardsDashboardIdRoute
+  '/embed/dashboards/$dashboardId': typeof EmbedDashboardsDashboardIdRoute
+  '/dashboards': typeof AppDashboardsIndexRoute
+  '/explorer': typeof AppExplorerIndexRoute
+  '/reports': typeof AppReportsIndexRoute
+  '/settings': typeof AppSettingsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/dashboards/$dashboardId': typeof DashboardsDashboardIdRoute
-  '/dashboards/': typeof DashboardsIndexRoute
-  '/explorer/': typeof ExplorerIndexRoute
-  '/reports/': typeof ReportsIndexRoute
-  '/settings/': typeof SettingsIndexRoute
+  '/_app': typeof AppRouteWithChildren
+  '/_app/dashboards/$dashboardId': typeof AppDashboardsDashboardIdRoute
+  '/embed/dashboards/$dashboardId': typeof EmbedDashboardsDashboardIdRoute
+  '/_app/dashboards/': typeof AppDashboardsIndexRoute
+  '/_app/explorer/': typeof AppExplorerIndexRoute
+  '/_app/reports/': typeof AppReportsIndexRoute
+  '/_app/settings/': typeof AppSettingsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/dashboards/$dashboardId'
+    | '/embed/dashboards/$dashboardId'
     | '/dashboards/'
     | '/explorer/'
     | '/reports/'
@@ -85,6 +103,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/dashboards/$dashboardId'
+    | '/embed/dashboards/$dashboardId'
     | '/dashboards'
     | '/explorer'
     | '/reports'
@@ -92,24 +111,30 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
-    | '/dashboards/$dashboardId'
-    | '/dashboards/'
-    | '/explorer/'
-    | '/reports/'
-    | '/settings/'
+    | '/_app'
+    | '/_app/dashboards/$dashboardId'
+    | '/embed/dashboards/$dashboardId'
+    | '/_app/dashboards/'
+    | '/_app/explorer/'
+    | '/_app/reports/'
+    | '/_app/settings/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  DashboardsDashboardIdRoute: typeof DashboardsDashboardIdRoute
-  DashboardsIndexRoute: typeof DashboardsIndexRoute
-  ExplorerIndexRoute: typeof ExplorerIndexRoute
-  ReportsIndexRoute: typeof ReportsIndexRoute
-  SettingsIndexRoute: typeof SettingsIndexRoute
+  AppRoute: typeof AppRouteWithChildren
+  EmbedDashboardsDashboardIdRoute: typeof EmbedDashboardsDashboardIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/_app': {
+      id: '/_app'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -117,51 +142,73 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/settings/': {
-      id: '/settings/'
+    '/_app/settings/': {
+      id: '/_app/settings/'
       path: '/settings'
       fullPath: '/settings/'
-      preLoaderRoute: typeof SettingsIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AppSettingsIndexRouteImport
+      parentRoute: typeof AppRoute
     }
-    '/reports/': {
-      id: '/reports/'
+    '/_app/reports/': {
+      id: '/_app/reports/'
       path: '/reports'
       fullPath: '/reports/'
-      preLoaderRoute: typeof ReportsIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AppReportsIndexRouteImport
+      parentRoute: typeof AppRoute
     }
-    '/explorer/': {
-      id: '/explorer/'
+    '/_app/explorer/': {
+      id: '/_app/explorer/'
       path: '/explorer'
       fullPath: '/explorer/'
-      preLoaderRoute: typeof ExplorerIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AppExplorerIndexRouteImport
+      parentRoute: typeof AppRoute
     }
-    '/dashboards/': {
-      id: '/dashboards/'
+    '/_app/dashboards/': {
+      id: '/_app/dashboards/'
       path: '/dashboards'
       fullPath: '/dashboards/'
-      preLoaderRoute: typeof DashboardsIndexRouteImport
+      preLoaderRoute: typeof AppDashboardsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/embed/dashboards/$dashboardId': {
+      id: '/embed/dashboards/$dashboardId'
+      path: '/embed/dashboards/$dashboardId'
+      fullPath: '/embed/dashboards/$dashboardId'
+      preLoaderRoute: typeof EmbedDashboardsDashboardIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/dashboards/$dashboardId': {
-      id: '/dashboards/$dashboardId'
+    '/_app/dashboards/$dashboardId': {
+      id: '/_app/dashboards/$dashboardId'
       path: '/dashboards/$dashboardId'
       fullPath: '/dashboards/$dashboardId'
-      preLoaderRoute: typeof DashboardsDashboardIdRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AppDashboardsDashboardIdRouteImport
+      parentRoute: typeof AppRoute
     }
   }
 }
 
+interface AppRouteChildren {
+  AppDashboardsDashboardIdRoute: typeof AppDashboardsDashboardIdRoute
+  AppDashboardsIndexRoute: typeof AppDashboardsIndexRoute
+  AppExplorerIndexRoute: typeof AppExplorerIndexRoute
+  AppReportsIndexRoute: typeof AppReportsIndexRoute
+  AppSettingsIndexRoute: typeof AppSettingsIndexRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppDashboardsDashboardIdRoute: AppDashboardsDashboardIdRoute,
+  AppDashboardsIndexRoute: AppDashboardsIndexRoute,
+  AppExplorerIndexRoute: AppExplorerIndexRoute,
+  AppReportsIndexRoute: AppReportsIndexRoute,
+  AppSettingsIndexRoute: AppSettingsIndexRoute,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  DashboardsDashboardIdRoute: DashboardsDashboardIdRoute,
-  DashboardsIndexRoute: DashboardsIndexRoute,
-  ExplorerIndexRoute: ExplorerIndexRoute,
-  ReportsIndexRoute: ReportsIndexRoute,
-  SettingsIndexRoute: SettingsIndexRoute,
+  AppRoute: AppRouteWithChildren,
+  EmbedDashboardsDashboardIdRoute: EmbedDashboardsDashboardIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

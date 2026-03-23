@@ -32,3 +32,11 @@ export interface DrillState {
   chartId: string
   levels: DrillLevel[]
 }
+
+export type FilterValue = string | string[] | number
+
+export interface FilterState {
+  values: Record<string, FilterValue>
+  locked: Set<string>
+  applied: Record<string, FilterValue>
+}

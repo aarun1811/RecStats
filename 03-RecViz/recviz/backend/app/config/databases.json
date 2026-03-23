@@ -1,0 +1,33 @@
+{
+  "databases": [
+    {
+      "name": "superset_db_TCOSPRD",
+      "display_name": "TLM Consumer (TCOSPRD) — Local Dev",
+      "sqlalchemy_uri": "sqlite:////Users/aarun/Workspace/Projects/RecStats/03-RecViz/recviz/backend/app/config/seed/seed.db",
+      "dialect": "sqlite",
+      "type": "tlm"
+    },
+    {
+      "name": "superset_db_TFINPRD",
+      "display_name": "TLM Finance (TFINPRD) — Local Dev",
+      "sqlalchemy_uri": "sqlite:////Users/aarun/Workspace/Projects/RecStats/03-RecViz/recviz/backend/app/config/seed/seed.db",
+      "dialect": "sqlite",
+      "type": "tlm"
+    },
+    {
+      "name": "superset_db_TWMPRD",
+      "display_name": "TLM Wealth (TWMPRD) — Local Dev",
+      "sqlalchemy_uri": "sqlite:////Users/aarun/Workspace/Projects/RecStats/03-RecViz/recviz/backend/app/config/seed/seed.db",
+      "dialect": "sqlite",
+      "type": "tlm"
+    },
+    {
+      "name": "superset_db_reconmgmt",
+      "display_name": "ReconMgmt — Local Dev",
+      "sqlalchemy_uri": "sqlite:////Users/aarun/Workspace/Projects/RecStats/03-RecViz/recviz/backend/app/config/seed/seed.db",
+      "dialect": "sqlite",
+      "schema": "",
+      "type": "reconmgmt"
+    }
+  ]
+}

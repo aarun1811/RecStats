@@ -11,6 +11,7 @@ Thumbs.db
 
 # Claude Code
 .claude/
+.superpowers/
 
 # Environment
 .env
@@ -38,8 +39,16 @@ dist/
 *.sqlite
 *.db
 *.db-journal
+*.db-wal
+*.db-shm
 pgdata/
 redis-data/
 
 # Reference
 _references/
+
+# Playwright
+.playwright-mcp/
+
+# RecViz seed database (generated, large)
+**/seed.db

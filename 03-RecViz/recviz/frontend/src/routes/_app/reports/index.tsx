@@ -17,7 +17,7 @@ import {
   FileBarChart,
 } from 'lucide-react'
 
-export const Route = createFileRoute('/reports/')({
+export const Route = createFileRoute('/_app/reports/')({
   component: Reports,
 })
 

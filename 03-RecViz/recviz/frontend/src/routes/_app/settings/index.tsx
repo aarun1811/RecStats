@@ -21,7 +21,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-export const Route = createFileRoute('/settings/')({
+export const Route = createFileRoute('/_app/settings/')({
   component: Settings,
 })
 
