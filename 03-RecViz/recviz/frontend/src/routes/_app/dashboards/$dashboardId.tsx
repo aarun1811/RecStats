@@ -12,7 +12,7 @@ function DashboardPage() {
   const { dashboardId } = Route.useParams()
   const { data: config, isLoading } = useDashboardConfig(dashboardId)
 
-  if (isLoading || !config) {
+  if (isLoading) {
     return (
       <div className="p-6 space-y-6">
         <Skeleton className="h-8 w-48" />
@@ -24,6 +24,10 @@ function DashboardPage() {
         </div>
       </div>
     )
+  }
+
+  if (!config) {
+    return <div className="p-6 text-muted-foreground">Dashboard not found</div>
   }
 
   return (
