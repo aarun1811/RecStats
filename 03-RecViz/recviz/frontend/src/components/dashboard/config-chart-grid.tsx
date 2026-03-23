@@ -81,7 +81,7 @@ function QueryChartItem({ chart }: { chart: DashboardChartConfig }) {
           chartId={chart.id}
           config={config}
           data={chartData}
-          isLoading={isLoading}
+          isLoading={false}
         />
       </CardContent>
     </Card>
