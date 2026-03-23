@@ -9,7 +9,7 @@ router = APIRouter(prefix="/api/dashboards", tags=["dashboards"])
 
 
 class KpiRequest(BaseModel):
-    filters: dict[str, str | int | list[str]] = {}
+    filters: dict[str, str | int | list[str] | None] = {}
 
 
 class KpiResult(BaseModel):

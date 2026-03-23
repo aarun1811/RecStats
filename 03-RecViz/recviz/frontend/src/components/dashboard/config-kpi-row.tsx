@@ -55,7 +55,7 @@ export function ConfigKpiRow({ dashboardId, kpis }: ConfigKpiRowProps) {
         const result = kpiResultsMap.get(kpi.id)
         const value = result?.value ?? 0
         const percentage = result?.percentage
-        const hasTrend = kpi.trend !== undefined && percentage !== undefined
+        const hasTrend = kpi.trend !== undefined && percentage != null
 
         return (
           <Card key={kpi.id}>

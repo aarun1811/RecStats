@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { AgGridReact } from 'ag-grid-react'
-import type { ColDef, GridApi, GridReadyEvent } from 'ag-grid-community'
+import { type ColDef, type GridApi, type GridReadyEvent, themeQuartz, colorSchemeDark } from 'ag-grid-community'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -71,8 +71,7 @@ function SingleSourceGrid({ grid }: { grid: GridConfig }) {
 
   const columnDefs = useMemo(() => buildColDefs(grid.columns), [grid.columns])
   const rowData = useMemo(() => queryResponse?.rows ?? [], [queryResponse])
-  const themeClass =
-    resolvedTheme === 'dark' ? 'ag-theme-quartz-dark' : 'ag-theme-quartz'
+  const gridTheme = resolvedTheme === 'dark' ? themeQuartz.withPart(colorSchemeDark) : themeQuartz
 
   const onGridReady = useCallback((event: GridReadyEvent) => {
     setGridApi(event.api)
@@ -102,9 +101,9 @@ function SingleSourceGrid({ grid }: { grid: GridConfig }) {
           onChange={(e) => handleQuickFilter(e.target.value)}
           className="max-w-sm"
         />
-        <div className={themeClass} style={{ height: 500, width: '100%' }}>
+        <div style={{ height: 500, width: '100%' }}>
           <AgGridReact
-
+            theme={gridTheme}
             rowData={rowData}
             columnDefs={columnDefs}
             defaultColDef={DEFAULT_COL_DEF}
@@ -148,8 +147,7 @@ function MergedSourceGrid({ grid }: { grid: GridConfig }) {
 
   const columnDefs = useMemo(() => buildColDefs(grid.columns), [grid.columns])
   const rowData = useMemo(() => queryResponse?.rows ?? [], [queryResponse])
-  const themeClass =
-    resolvedTheme === 'dark' ? 'ag-theme-quartz-dark' : 'ag-theme-quartz'
+  const gridTheme = resolvedTheme === 'dark' ? themeQuartz.withPart(colorSchemeDark) : themeQuartz
 
   const onGridReady = useCallback((event: GridReadyEvent) => {
     setGridApi(event.api)
@@ -179,9 +177,9 @@ function MergedSourceGrid({ grid }: { grid: GridConfig }) {
           onChange={(e) => handleQuickFilter(e.target.value)}
           className="max-w-sm"
         />
-        <div className={themeClass} style={{ height: 500, width: '100%' }}>
+        <div style={{ height: 500, width: '100%' }}>
           <AgGridReact
-
+            theme={gridTheme}
             rowData={rowData}
             columnDefs={columnDefs}
             defaultColDef={DEFAULT_COL_DEF}

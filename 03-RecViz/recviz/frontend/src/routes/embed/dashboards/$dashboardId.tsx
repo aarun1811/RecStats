@@ -30,9 +30,10 @@ function EmbedDashboardPage() {
     }
   }
 
-  const lockParam = typeof search.lock === 'string' ? search.lock : ''
+  const rawLock = search['filter.lock']
+  const lockParam = typeof rawLock === 'string' ? rawLock : ''
   const lockedFilters = lockParam ? lockParam.split(',') : []
-  if (lockParam) filterParams.push(`lock=${lockParam}`)
+  if (lockParam) filterParams.push(`filter.lock=${lockParam}`)
 
   // Apply theme from URL via ThemeProvider
   const { setTheme: applyTheme } = useTheme()

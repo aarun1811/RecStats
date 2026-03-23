@@ -3,8 +3,6 @@ import { createRoot } from 'react-dom/client'
 import { ModuleRegistry as ChartModuleRegistry, AllCommunityModule } from 'ag-charts-enterprise'
 import { ModuleRegistry as GridModuleRegistry } from 'ag-grid-community'
 import { AllEnterpriseModule } from 'ag-grid-enterprise'
-import 'ag-grid-community/styles/ag-grid.css'
-import 'ag-grid-community/styles/ag-theme-quartz.css'
 import './index.css'
 import App from './App'
 

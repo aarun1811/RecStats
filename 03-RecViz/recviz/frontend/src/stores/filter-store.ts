@@ -40,13 +40,17 @@ export const useFilterStore = create<FilterStore>((set) => ({
   initializeFilters: (defaults, locked) =>
     set({
       values: { ...defaults },
-      applied: { ...defaults },
+      applied: Object.fromEntries(
+        Object.entries(defaults).filter(([, v]) => v != null),
+      ),
       locked: new Set(locked ?? []),
     }),
 
   applyFilters: () =>
     set((s) => ({
-      applied: { ...s.values },
+      applied: Object.fromEntries(
+        Object.entries(s.values).filter(([, v]) => v != null),
+      ),
     })),
 
   resetFilters: (defaults) =>

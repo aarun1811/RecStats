@@ -10,14 +10,14 @@ router = APIRouter(prefix="/api/data-sources", tags=["data-sources"])
 
 
 class QueryRequest(BaseModel):
-    filters: dict[str, str | int | list[str]] = {}
+    filters: dict[str, str | int | list[str] | None] = {}
 
 
 class MergeRequest(BaseModel):
     sources: list[str]
     merge_on: list[str]
     merge_type: str = "outer_join"
-    filters: dict[str, str | int | list[str]] = {}
+    filters: dict[str, str | int | list[str] | None] = {}
 
 
 @router.post("/{data_source_id}/query")
