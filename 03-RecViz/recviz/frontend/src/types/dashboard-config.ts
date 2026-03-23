@@ -51,11 +51,18 @@ export interface ChartLayout {
   height: number
 }
 
+export interface ChartSource {
+  dataSourceId: string
+  metric?: string
+  label?: string
+}
+
 export interface DashboardChartConfig {
   id: string
   title: string
   type: string
   sourceType: 'query' | 'kpi_values'
+  sources?: ChartSource[]
   kpiSegments?: KpiSegment[]
   layout: ChartLayout
 }
@@ -124,6 +131,7 @@ export interface DataSourceQueryResponse {
   columns: string[]
   rows: Record<string, unknown>[]
   rowCount: number
+  truncated: boolean
 }
 
 export interface DistinctValuesResponse {
