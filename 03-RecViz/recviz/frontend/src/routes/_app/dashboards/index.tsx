@@ -18,7 +18,7 @@ import {
   EmptyDescription,
 } from '@/components/ui/empty'
 
-export const Route = createFileRoute('/dashboards/')({
+export const Route = createFileRoute('/_app/dashboards/')({
   component: DashboardList,
 })
 

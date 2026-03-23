@@ -11,7 +11,7 @@ import { DrillBreadcrumb } from '@/components/dashboard/drill-breadcrumb'
 import { DataGrid } from '@/components/grid/data-grid'
 import type { ChartClickEvent } from '@/types/chart'
 
-export const Route = createFileRoute('/dashboards/$dashboardId')({
+export const Route = createFileRoute('/_app/dashboards/$dashboardId')({
   component: DashboardDetail,
 })
 
