@@ -24,7 +24,7 @@ class KpiResponse(BaseModel):
 
 @router.get("")
 async def list_dashboards(config_store: ConfigStoreDep):
-    dashboards = config_store.list_dashboards()
+    dashboards = await config_store.list_dashboards()
     return [
         {"id": d.id, "name": d.name, "description": d.description, "status": "active"}
         for d in dashboards
@@ -33,7 +33,7 @@ async def list_dashboards(config_store: ConfigStoreDep):
 
 @router.get("/{dashboard_id}")
 async def get_dashboard(dashboard_id: str, config_store: ConfigStoreDep):
-    config = config_store.get_dashboard(dashboard_id)
+    config = await config_store.get_dashboard(dashboard_id)
     if not config:
         raise HTTPException(status_code=404, detail=f"Dashboard '{dashboard_id}' not found")
     return config.model_dump()
@@ -46,7 +46,7 @@ async def get_dashboard_kpis(
     config_store: ConfigStoreDep,
     query_engine: QueryEngineDep,
 ):
-    config = config_store.get_dashboard(dashboard_id)
+    config = await config_store.get_dashboard(dashboard_id)
     if not config:
         raise HTTPException(status_code=404, detail=f"Dashboard '{dashboard_id}' not found")
 
@@ -56,7 +56,10 @@ async def get_dashboard_kpis(
         total = 0.0
         for source in kpi.sources:
             try:
-                result = await query_engine.execute(source.data_source_id, body.filters)
+                ds_config = await config_store.get_data_source(source.data_source_id)
+                if ds_config is None:
+                    raise ValueError(f"Data source not found: {source.data_source_id}")
+                result = await query_engine.execute(ds_config, body.filters)
                 for row in result.get("rows", []):
                     val = row.get(source.metric)
                     if val is not None:

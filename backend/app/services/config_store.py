@@ -1,43 +1,49 @@
 from __future__ import annotations
 
-import json
-from pathlib import Path
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.models.dashboard import RecvizDashboard
+from app.db.models.data_source import RecvizDataSource
 from app.models.dashboard_config import DashboardConfig
 from app.models.data_source_config import DataSourceConfig
-
-CONFIG_DIR = Path(__file__).parent.parent / "config"
+from app.services.config_migrator import migrate_config
 
 
 class ConfigStore:
-    def __init__(self) -> None:
-        self._dashboards: dict[str, DashboardConfig] = {}
-        self._data_sources: dict[str, DataSourceConfig] = {}
-        self._load_configs()
+    """DB-backed config store. One instance per request (session-scoped)."""
 
-    def _load_configs(self) -> None:
-        dashboards_dir = CONFIG_DIR / "dashboards"
-        if dashboards_dir.exists():
-            for f in dashboards_dir.glob("*.json"):
-                raw = json.loads(f.read_text())
-                config = DashboardConfig.model_validate(raw)
-                self._dashboards[config.id] = config
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
 
-        data_sources_dir = CONFIG_DIR / "data_sources"
-        if data_sources_dir.exists():
-            for f in data_sources_dir.glob("*.json"):
-                raw = json.loads(f.read_text())
-                config = DataSourceConfig.model_validate(raw)
-                self._data_sources[config.id] = config
+    async def list_dashboards(self) -> list[DashboardConfig]:
+        result = await self._session.execute(
+            select(RecvizDashboard).order_by(RecvizDashboard.name)
+        )
+        rows = result.scalars().all()
+        return [
+            DashboardConfig.model_validate(migrate_config(row.config))
+            for row in rows
+        ]
 
-    def list_dashboards(self) -> list[DashboardConfig]:
-        return list(self._dashboards.values())
+    async def get_dashboard(self, dashboard_id: str) -> DashboardConfig | None:
+        row = await self._session.get(RecvizDashboard, dashboard_id)
+        if not row:
+            return None
+        return DashboardConfig.model_validate(migrate_config(row.config))
 
-    def get_dashboard(self, dashboard_id: str) -> DashboardConfig | None:
-        return self._dashboards.get(dashboard_id)
+    async def get_data_source(self, data_source_id: str) -> DataSourceConfig | None:
+        row = await self._session.get(RecvizDataSource, data_source_id)
+        if not row:
+            return None
+        return DataSourceConfig.model_validate(migrate_config(row.config))
 
-    def get_data_source(self, data_source_id: str) -> DataSourceConfig | None:
-        return self._data_sources.get(data_source_id)
-
-    def list_data_sources(self) -> list[DataSourceConfig]:
-        return list(self._data_sources.values())
+    async def list_data_sources(self) -> list[DataSourceConfig]:
+        result = await self._session.execute(
+            select(RecvizDataSource).order_by(RecvizDataSource.name)
+        )
+        rows = result.scalars().all()
+        return [
+            DataSourceConfig.model_validate(migrate_config(row.config))
+            for row in rows
+        ]

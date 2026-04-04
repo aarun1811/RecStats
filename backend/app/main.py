@@ -14,9 +14,9 @@ from starlette.responses import Response
 
 from app.api.router import api_router
 from app.config import settings
-from app.services.config_store import ConfigStore
-from app.services.query_engine import QueryEngine
+from app.db.engine import engine
 from app.services.database_registrar import DatabaseRegistrar
+from app.services.query_engine import QueryEngine
 from app.services.superset_client import SupersetClient
 
 logging.basicConfig(level=logging.INFO)
@@ -36,11 +36,7 @@ async def lifespan(app: FastAPI):
 
     app.state.http = http
 
-    # 2. Load configs
-    config_store = ConfigStore()
-    app.state.config_store = config_store
-
-    # 3. Sync databases into Superset
+    # 2. Sync databases into Superset
     registrar = DatabaseRegistrar(
         superset_client=superset,
         config_path=settings.databases_config_path,
@@ -49,9 +45,9 @@ async def lifespan(app: FastAPI):
     app.state.database_registrar = registrar
     logger.info("DatabaseRegistrar synced")
 
-    # 4. Create QueryEngine
+    # 3. Create QueryEngine (no longer needs ConfigStore — data sources
+    #    are resolved per-request via ResolvedDataSourceDep)
     app.state.query_engine = QueryEngine(
-        config_store=config_store,
         superset_client=superset,
         database_registrar=registrar,
     )
@@ -59,7 +55,8 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    # Shutdown
+    # Shutdown: dispose async engine and close HTTP client
+    await engine.dispose()
     await http.aclose()
 
 
