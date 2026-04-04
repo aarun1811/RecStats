@@ -72,11 +72,7 @@ docker/**/pgdata/
 .codex/
 .cursor/
 .gemini/
-.github/skills/
-.github/get-shit-done/
-.github/agents/
-.github/copilot-instructions.md
-.github/gsd-file-manifest.json
+.github/
 .opencode/
 .windsurf/
 
