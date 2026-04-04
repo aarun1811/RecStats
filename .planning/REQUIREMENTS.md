@@ -128,13 +128,58 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (populated during roadmap creation) | | |
+| INFR-01 | Phase 1: Foundation Hardening | Pending |
+| INFR-02 | Phase 1: Foundation Hardening | Pending |
+| INFR-03 | Phase 1: Foundation Hardening | Pending |
+| INFR-04 | Phase 1: Foundation Hardening | Pending |
+| INFR-05 | Phase 1: Foundation Hardening | Pending |
+| INFR-06 | Phase 1: Foundation Hardening | Pending |
+| INTR-01 | Phase 2: Cross-Filtering and Drill-Down | Pending |
+| INTR-02 | Phase 2: Cross-Filtering and Drill-Down | Pending |
+| INTR-03 | Phase 2: Cross-Filtering and Drill-Down | Pending |
+| INTR-04 | Phase 2: Cross-Filtering and Drill-Down | Pending |
+| INTR-05 | Phase 3: Chart and Grid Interactions | Pending |
+| INTR-06 | Phase 3: Chart and Grid Interactions | Pending |
+| INTR-07 | Phase 3: Chart and Grid Interactions | Pending |
+| INTR-08 | Phase 3: Chart and Grid Interactions | Pending |
+| INTR-09 | Phase 3: Chart and Grid Interactions | Pending |
+| DATA-01 | Phase 4: Data Source Connectivity | Pending |
+| DATA-02 | Phase 4: Data Source Connectivity | Pending |
+| DATA-03 | Phase 4: Data Source Connectivity | Pending |
+| DATA-04 | Phase 4: Data Source Connectivity | Pending |
+| DSET-01 | Phase 5: Dataset Management | Pending |
+| DSET-02 | Phase 5: Dataset Management | Pending |
+| DSET-03 | Phase 5: Dataset Management | Pending |
+| DSET-04 | Phase 5: Dataset Management | Pending |
+| DSET-05 | Phase 5: Dataset Management | Pending |
+| CHRT-01 | Phase 6: Chart Library | Pending |
+| CHRT-02 | Phase 6: Chart Library | Pending |
+| CHRT-03 | Phase 6: Chart Library | Pending |
+| CHRT-04 | Phase 6: Chart Library | Pending |
+| CHRT-05 | Phase 6: Chart Library | Pending |
+| CHRT-06 | Phase 6: Chart Library | Pending |
+| CHRT-07 | Phase 6: Chart Library | Pending |
+| KPI-01 | Phase 7: KPI Library | Pending |
+| KPI-02 | Phase 7: KPI Library | Pending |
+| KPI-03 | Phase 7: KPI Library | Pending |
+| BLDR-01 | Phase 8: Dashboard Builder | Pending |
+| BLDR-02 | Phase 8: Dashboard Builder | Pending |
+| BLDR-03 | Phase 8: Dashboard Builder | Pending |
+| BLDR-04 | Phase 8: Dashboard Builder | Pending |
+| BLDR-05 | Phase 8: Dashboard Builder | Pending |
+| BLDR-06 | Phase 8: Dashboard Builder | Pending |
+| BLDR-07 | Phase 8: Dashboard Builder | Pending |
+| BLDR-08 | Phase 8: Dashboard Builder | Pending |
+| SHAR-01 | Phase 9: Sharing and Views | Pending |
+| SHAR-02 | Phase 9: Sharing and Views | Pending |
+| SHAR-03 | Phase 9: Sharing and Views | Pending |
+| SHAR-04 | Phase 9: Sharing and Views | Pending |
 
 **Coverage:**
-- v1 requirements: 38 total
-- Mapped to phases: 0
-- Unmapped: 38 ⚠️
+- v1 requirements: 46 total
+- Mapped to phases: 46
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-04-04*
-*Last updated: 2026-04-04 after initial definition*
+*Last updated: 2026-04-04 after roadmap creation*

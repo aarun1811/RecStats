@@ -85,6 +85,8 @@ Business users can view, interact with, and customize dashboards over reconcilia
 | Desktop only | Corporate environment, large screens. No responsive design complexity. | ✓ Good |
 | Auth deferred | Not needed until production deployment. Focus on core builder first. | — Pending |
 | Builder UX approach (template vs drag-drop) | Needs research into Tableau/Qlik patterns for recon/finance domain. | — Pending |
+| PostgreSQL for local dev, Oracle in production | No Oracle access on dev machine (corporate policy). PostgreSQL via Docker for development; swap SQLAlchemy URI for Oracle on servers. Standard SQL to ensure compatibility. | ✓ Good |
+| Reusable chart library | Charts saved independently and reusable across dashboards. Config change in library updates everywhere. Superset has this; Tableau doesn't. | — Pending |
 
 ## Evolution
 
