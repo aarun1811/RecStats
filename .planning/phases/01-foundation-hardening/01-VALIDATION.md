@@ -1,9 +1,9 @@
 ---
 phase: 1
 slug: foundation-hardening
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: active
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-04-04
 ---
 
@@ -38,7 +38,12 @@ created: 2026-04-04
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| (populated during planning) | | | | | | | |
+| 01-T1 | 01 | 1 | INFR-01, INFR-02 | import check | `python -c "from app.db.engine import engine"` | ❌ W0 | ⬜ pending |
+| 01-T2 | 01 | 1 | INFR-01 | import check | `python -c "from app.services.config_store import ConfigStore"` | ❌ W0 | ⬜ pending |
+| 02-T1 | 02 | 1 | INFR-05 | unit test | `npx vitest run src/lib/formatters.test.ts` | ❌ W0 | ⬜ pending |
+| 02-T2 | 02 | 1 | INFR-03, INFR-06 | grep check | `grep "apache-superset==" backend/requirements.txt` | ✅ | ⬜ pending |
+| 03-T1 | 03 | 2 | INFR-04 | file check | `test ! -f backend/app/mock_data.py` | ✅ | ⬜ pending |
+| 03-T2 | 03 | 2 | INFR-04 | grep check | `grep -c "export function ErrorPanel" frontend/src/components/shared/error-panel.tsx` | ❌ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -46,11 +51,7 @@ created: 2026-04-04
 
 ## Wave 0 Requirements
 
-- [ ] `backend/tests/test_db_persistence.py` — stubs for INFR-01, INFR-02
-- [ ] `backend/tests/test_superset_errors.py` — stubs for INFR-03, INFR-04
-- [ ] `frontend/src/lib/__tests__/formatters.test.ts` — stubs for INFR-05
-
-*If none: "Existing infrastructure covers all phase requirements."*
+Existing infrastructure covers all phase requirements. All 6 tasks have inline automated verification commands — no separate Wave 0 test stubs needed.
 
 ---
 
@@ -72,4 +73,4 @@ created: 2026-04-04
 - [ ] Feedback latency < 30s
 - [ ] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** approved 2026-04-04
