@@ -52,3 +52,17 @@ _references/
 
 # RecViz seed database (generated, large)
 **/seed.db
+
+# Generic build and cache
+build/
+.next/
+.vercel/
+.eslintcache
+.turbo/
+
+# Generated logs
+*.log
+
+# Docker auto-generated data
+docker/**/data/
+docker/**/pgdata/
