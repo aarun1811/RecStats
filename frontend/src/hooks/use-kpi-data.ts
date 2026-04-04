@@ -1,3 +1,4 @@
+// TODO: Phase 2 — port KPI data fetching logic to config-driven system
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api-client'
 import type { KpiData } from '@/types/api'
