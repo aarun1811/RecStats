@@ -1,0 +1,140 @@
+# Requirements: RecViz
+
+**Defined:** 2026-04-04
+**Core Value:** Business users can view, interact with, and customize dashboards over reconciliation data without depending on another team.
+
+## v1 Requirements
+
+Requirements for initial release. Each maps to roadmap phases.
+
+### Data Source Connectivity
+
+- [ ] **DATA-01**: Oracle database fully integrated via Superset — connection pooling, query execution, result caching all working reliably at production scale
+- [ ] **DATA-02**: Hive database integrated via Superset for historical/batch data queries with appropriate caching for slow queries
+- [ ] **DATA-03**: Elasticsearch integrated via Superset (elasticsearch-dbapi for SQL queries) and via sidecar (elasticsearch-py for complex aggregations, nested queries, full-text search)
+- [ ] **DATA-04**: Database connection management UI for dev team — add, edit, test connections to Oracle/Hive/ES
+
+### Dataset Management (Dev-Facing)
+
+- [ ] **DSET-01**: Dev team can create a dataset by writing SQL, naming it, and saving it with column metadata
+- [ ] **DSET-02**: Each dataset column has configurable metadata: friendly display name, data type (string/number/date/currency), role (dimension/measure/time), default aggregation function, format string
+- [ ] **DSET-03**: Dev team can test-execute a dataset query from the editor and preview results before publishing
+- [ ] **DSET-04**: Dev team can edit and delete existing datasets
+- [ ] **DSET-05**: Datasets are persisted to database (not JSON files on disk)
+
+### Chart Library (Reusable Charts)
+
+- [ ] **CHRT-01**: User can create a chart by selecting a dataset, mapping columns to axes/metrics, choosing a chart type, and configuring appearance
+- [ ] **CHRT-02**: Chart type selector with visual thumbnails showing available types — highlight which types are compatible with selected data shape
+- [ ] **CHRT-03**: Charts can be saved independently to a chart library with a name and description
+- [ ] **CHRT-04**: Saved charts are reusable — can be added to multiple dashboards; config change updates everywhere
+- [ ] **CHRT-05**: AG Charts covers standard types (line, bar, area, pie, donut, scatter, heatmap, treemap, waterfall, bullet, box plot, combo)
+- [ ] **CHRT-06**: ECharts covers exotic types only (Sankey, sunburst, radar, graph/network, gauge, parallel coordinates, funnel)
+- [ ] **CHRT-07**: User can browse the chart library, search by name, and preview saved charts
+
+### KPI Library
+
+- [ ] **KPI-01**: Dev team can define reusable KPI templates with SQL fragments, format rules, and trend indicator logic
+- [ ] **KPI-02**: Business users can pick KPIs from the library when building dashboards — select metric, configure threshold colors, trend direction
+- [ ] **KPI-03**: KPI cards display animated counters, trend arrows (up/down with percentage change), and configurable status colors
+
+### Dashboard Builder
+
+- [ ] **BLDR-01**: User can create a new dashboard with title and description
+- [ ] **BLDR-02**: Grid-based layout editor — drag, drop, and resize chart panels, KPI cards, and filter bars on a 12-column grid
+- [ ] **BLDR-03**: User can add charts to a dashboard by either building a new chart or picking from the chart library
+- [ ] **BLDR-04**: User can add/remove/configure filters on the dashboard from available dataset columns
+- [ ] **BLDR-05**: User can add KPI cards from the KPI library to the dashboard
+- [ ] **BLDR-06**: View mode vs edit mode toggle — view mode is the consumer experience, edit mode enables drag/resize/configure
+- [ ] **BLDR-07**: Dashboards persist to database with save, "Save As" (clone), and delete
+- [ ] **BLDR-08**: Dashboard list page with search, showing title, description, last modified, creator
+
+### Dashboard Interactions
+
+- [ ] **INTR-01**: Cross-filtering — click a chart segment to filter all other charts on the dashboard; client-side only, zero network calls, instant response
+- [ ] **INTR-02**: Cross-filter visual state — selected items full color, excluded items dimmed (not hidden); selection bar showing active cross-filters with one-click removal
+- [ ] **INTR-03**: Drill-down — click aggregated data to see breakdown, then detail rows; breadcrumb navigation showing drill path
+- [ ] **INTR-04**: Drill-down detail level fetches raw rows from backend via AG Grid with full sort/filter/pagination
+- [ ] **INTR-05**: Fullscreen chart view — expand any chart to a modal/overlay for detailed inspection
+- [ ] **INTR-06**: Chart export — PNG, CSV, clipboard from chart toolbar
+- [ ] **INTR-07**: Grid export — CSV and Excel via AG Grid Enterprise built-in export
+- [ ] **INTR-08**: Manual refresh button per dashboard — invalidates cache, re-fetches all data
+- [ ] **INTR-09**: Configurable auto-refresh — default ~10 min interval, user-configurable per dashboard
+
+### Sharing & Views
+
+- [ ] **SHAR-01**: Saved views — save current filter state + layout tweaks as a named bookmark
+- [ ] **SHAR-02**: Shareable URLs — filter state encoded in URL params, recipient opens exact same view
+- [ ] **SHAR-03**: Embeddable dashboards — iframe embedding with URL param filters, locked filters, theme override, chromeless mode
+- [ ] **SHAR-04**: Command palette (Cmd+K) — search across dashboards, datasets, charts, saved views
+
+### Foundation & Infrastructure
+
+- [ ] **INFR-01**: Dashboard configs persisted in database (Oracle sidecar or PostgreSQL) — not static JSON files
+- [ ] **INFR-02**: Config schema versioning with migration support — backward-compatible evolution
+- [ ] **INFR-03**: Superset pinned to specific version with CSRF and auth handling hardened
+- [ ] **INFR-04**: Remove mock data fallbacks — surface real errors instead of silently serving fake data
+- [ ] **INFR-05**: Number formatting utilities for financial data — currency, percentages, large numbers, consistent precision
+- [ ] **INFR-06**: Legacy dead code cleaned up — remove non-functional components that would crash at runtime
+
+## v2 Requirements
+
+Deferred to future release. Tracked but not in current roadmap.
+
+### Templates & Advanced Builder
+
+- **TMPL-01**: Dashboard templates — pre-built recon layouts (breaks summary, SLA dashboard, aging analysis, match rate tracker, volume dashboard)
+- **TMPL-02**: Conditional formatting with threshold rules — color-code grid cells and KPI status based on configurable business rules
+- **TMPL-03**: Inline chart type switching — swap chart type without entering edit mode
+- **TMPL-04**: Recon-specific KPI formulas — pre-built calculations for break count, match rate %, aging distribution, SLA adherence
+
+### Reports & Export
+
+- **REPT-01**: PDF export of dashboard view (screenshot-to-PDF or WeasyPrint)
+- **REPT-02**: Excel export of dashboard data (multi-sheet workbook)
+- **REPT-03**: Scheduled report delivery via email
+- **REPT-04**: Email with dashboard image or data attachment
+
+### Security & Multi-User
+
+- **SECU-01**: Authentication via SSO/SAML/OIDC (corporate credentials)
+- **SECU-02**: Row-level security — restrict data by user role/team
+- **SECU-03**: Dashboard permissions — owner, editor, viewer roles
+- **SECU-04**: Audit logging — who viewed what, when
+
+### Advanced Features
+
+- **ADVN-01**: Multi-dashboard overview — portfolio page showing KPIs from all dashboards at a glance
+- **ADVN-02**: Alerting — threshold-based notifications when metrics cross limits
+- **ADVN-03**: Dashboard versioning — rollback to previous saved states
+
+## Out of Scope
+
+Explicitly excluded. Documented to prevent scope creep.
+
+| Feature | Reason |
+|---------|--------|
+| Free-form SQL for business users | Two-tier model: devs write SQL, users consume datasets. Business SQL on production DBs creates support/security risk. |
+| Natural language / AI querying | Hallucination risk on financial data. No on-prem LLM infrastructure. Revisit in 12+ months. |
+| Real-time WebSocket live updates | Recon data arrives in batches. Auto-refresh at intervals covers the use case. |
+| Mobile/tablet responsive design | Desktop-only corporate environment. Data density is priority. |
+| Freeform canvas layout (Figma-style) | Grid-based is cleaner. Freeform creates alignment nightmares and maintenance burden. |
+| Custom calculated fields / DAX formulas | Business users creating formulas on financial data without validation is dangerous. Dev team manages metrics. |
+| Pixel-perfect report designer | Different product category. Use screenshot-to-PDF for v1, WeasyPrint for v2. |
+
+## Traceability
+
+Which phases cover which requirements. Updated during roadmap creation.
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| (populated during roadmap creation) | | |
+
+**Coverage:**
+- v1 requirements: 38 total
+- Mapped to phases: 0
+- Unmapped: 38 ⚠️
+
+---
+*Requirements defined: 2026-04-04*
+*Last updated: 2026-04-04 after initial definition*
