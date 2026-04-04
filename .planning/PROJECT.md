@@ -19,8 +19,12 @@ Business users can view, interact with, and customize dashboards over reconcilia
 - ✓ SQL Explorer with Monaco editor, schema browser, query history — existing (dev-team only)
 - ✓ Global filter bar with date range, single-select, multi-select, cascading — existing
 - ✓ Dark/light theme toggle with CSS variable theming — existing
-- ✓ Mock data fallback when Superset unavailable — existing
 - ✓ Embed mode (chromeless dashboards via URL params) — existing
+- ✓ Dashboard configs persisted in PostgreSQL with schema versioning — Phase 1
+- ✓ Superset pinned to 6.0.0 with hardened auth/CSRF — Phase 1
+- ✓ Centralized financial number formatting (Intl.NumberFormat, locale-pinned) — Phase 1
+- ✓ Structured error handling with per-component isolation — Phase 1
+- ✓ Legacy dead code removed, cross-filter/drill-down preserved — Phase 1
 
 ### Active
 
@@ -106,4 +110,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-04 after initialization*
+*Last updated: 2026-04-04 after Phase 1 completion*
