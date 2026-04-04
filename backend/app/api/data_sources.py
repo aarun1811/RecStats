@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
-from app.core.dependencies import QueryEngineDep
+from app.core.dependencies import ConfigStoreDep, QueryEngineDep, ResolvedDataSourceDep
 from app.services.merge_engine import MergeEngine
 
 router = APIRouter(prefix="/api/data-sources", tags=["data-sources"])
@@ -22,12 +22,12 @@ class MergeRequest(BaseModel):
 
 @router.post("/{data_source_id}/query")
 async def query_data_source(
-    data_source_id: str,
+    ds_config: ResolvedDataSourceDep,
     body: QueryRequest,
     query_engine: QueryEngineDep,
 ):
     try:
-        result = await query_engine.execute(data_source_id, body.filters)
+        result = await query_engine.execute(ds_config, body.filters)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     return result
@@ -36,12 +36,18 @@ async def query_data_source(
 @router.post("/merge")
 async def merge_data_sources(
     body: MergeRequest,
+    config_store: ConfigStoreDep,
     query_engine: QueryEngineDep,
 ):
     results = []
     for source_id in body.sources:
+        ds_config = await config_store.get_data_source(source_id)
+        if ds_config is None:
+            raise HTTPException(
+                status_code=404, detail=f"Data source '{source_id}' not found"
+            )
         try:
-            result = await query_engine.execute(source_id, body.filters)
+            result = await query_engine.execute(ds_config, body.filters)
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
         results.append(result)
@@ -55,7 +61,7 @@ async def merge_data_sources(
 
 @router.get("/{data_source_id}/distinct/{column}")
 async def get_distinct_values(
-    data_source_id: str,
+    ds_config: ResolvedDataSourceDep,
     column: str,
     request: Request,
     query_engine: QueryEngineDep,
@@ -68,7 +74,7 @@ async def get_distinct_values(
             filters[filter_id] = val
 
     try:
-        values = await query_engine.execute_distinct(data_source_id, column, filters)
+        values = await query_engine.execute_distinct(ds_config, column, filters)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     return {"values": values}
