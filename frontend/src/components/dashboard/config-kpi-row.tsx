@@ -2,9 +2,11 @@ import { TrendingDown, TrendingUp } from 'lucide-react'
 
 import { Skeleton } from '@/components/ui/skeleton'
 import { CountAnimation } from '@/components/shared/count-animation'
+import { ErrorPanel } from '@/components/shared/error-panel'
 import { useDashboardKpis } from '@/hooks/use-dashboard-kpis'
 import { useFilterStore } from '@/stores/filter-store'
 import { cn } from '@/lib/utils'
+import { ApiError } from '@/lib/api-client'
 import type { KpiConfig } from '@/types/dashboard-config'
 
 interface ConfigKpiRowProps {
@@ -23,7 +25,7 @@ function KpiSkeleton() {
 
 export function ConfigKpiRow({ dashboardId, kpis }: ConfigKpiRowProps) {
   const appliedFilters = useFilterStore((s) => s.applied)
-  const { data, isLoading } = useDashboardKpis(dashboardId, appliedFilters)
+  const { data, isLoading, isError, error, refetch } = useDashboardKpis(dashboardId, appliedFilters)
 
   if (isLoading || !data) {
     return (
@@ -32,6 +34,18 @@ export function ConfigKpiRow({ dashboardId, kpis }: ConfigKpiRowProps) {
           <KpiSkeleton key={i} />
         ))}
       </div>
+    )
+  }
+
+  if (isError) {
+    const apiError = error instanceof ApiError ? error : null
+    return (
+      <ErrorPanel
+        message={apiError?.userMessage ?? 'Failed to load KPI data'}
+        detail={apiError?.detail}
+        onRetry={() => refetch()}
+        compact
+      />
     )
   }
 
