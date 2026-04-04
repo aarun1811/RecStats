@@ -4,12 +4,32 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { CountAnimation } from '@/components/shared/count-animation'
 import { useDashboardKpis } from '@/hooks/use-dashboard-kpis'
 import { useFilterStore } from '@/stores/filter-store'
+import { formatValueFull } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import type { KpiConfig } from '@/types/dashboard-config'
+import type { FormatType, FormatNumberOptions } from '@/types/formatting'
 
 interface ConfigKpiRowProps {
   dashboardId: string
   kpis: KpiConfig[]
+}
+
+/**
+ * Maps KpiConfig format strings to FormatType.
+ * KpiConfig uses 'percent' while FormatType uses 'percentage'.
+ */
+function toFormatType(format: KpiConfig['format']): FormatType {
+  if (format === 'percent') return 'percentage'
+  return format
+}
+
+function buildFormatOptions(kpi: KpiConfig): FormatNumberOptions {
+  const type = toFormatType(kpi.format)
+  return {
+    type,
+    abbreviate: true,
+    decimals: type === 'percentage' ? 1 : undefined,
+  }
 }
 
 function KpiSkeleton() {
@@ -46,6 +66,8 @@ export function ConfigKpiRow({ dashboardId, kpis }: ConfigKpiRowProps) {
         const value = result?.value ?? 0
         const percentage = result?.percentage
         const hasTrend = kpi.trend !== undefined && percentage != null
+        const formatOptions = buildFormatOptions(kpi)
+        const fullValueTooltip = formatValueFull(value, formatOptions)
 
         return (
           <div
@@ -56,12 +78,13 @@ export function ConfigKpiRow({ dashboardId, kpis }: ConfigKpiRowProps) {
               <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground truncate">
                 {kpi.label}
               </p>
-              <div className="mt-0.5 text-2xl font-semibold tabular-nums tracking-tight">
+              <div
+                className="mt-0.5 text-2xl font-semibold tabular-nums tracking-tight"
+                title={fullValueTooltip}
+              >
                 <CountAnimation
                   number={value}
-                  format={kpi.format}
-                  suffix={kpi.format === 'percent' ? '%' : undefined}
-                  decimals={kpi.format === 'percent' ? 1 : undefined}
+                  formatOptions={formatOptions}
                 />
               </div>
             </div>
