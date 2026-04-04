@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 from app.models.views import SavedView, SavedViewCreate
 
@@ -37,4 +37,7 @@ async def delete_view(view_id: str):
     if view_id in _views:
         del _views[view_id]
         return {"deleted": True}
-    return {"error": "View not found"}
+    raise HTTPException(
+        status_code=404,
+        detail={"error": "view_not_found", "message": f"Saved view '{view_id}' not found", "detail": None},
+    )

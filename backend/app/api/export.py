@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 from app.models.export import ExportRequest, ExportStatus
 
@@ -30,5 +30,8 @@ async def export_excel(body: ExportRequest):
 async def export_status(job_id: str):
     job = _jobs.get(job_id)
     if not job:
-        return {"error": "Job not found"}
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "job_not_found", "message": f"Export job '{job_id}' not found", "detail": None},
+        )
     return job

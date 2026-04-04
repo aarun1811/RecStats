@@ -5,10 +5,12 @@ import { type ColDef, type GridApi, type GridReadyEvent, themeQuartz, colorSchem
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
+import { ErrorPanel } from '@/components/shared/error-panel'
 import { useTheme } from '@/components/layout/theme-provider'
 import { useDataSourceQuery } from '@/hooks/use-data-source-query'
 import { useDataSourceMerge } from '@/hooks/use-data-source-merge'
 import { useFilterStore } from '@/stores/filter-store'
+import { ApiError } from '@/lib/api-client'
 import type { GridColumn, GridConfig, KpiResult, VisibleWhen } from '@/types/dashboard-config'
 
 interface ConfigDataGridProps {
@@ -63,7 +65,7 @@ function SingleSourceGrid({ grid }: { grid: GridConfig }) {
   const [gridApi, setGridApi] = useState<GridApi | null>(null)
   const [quickFilter, setQuickFilter] = useState('')
 
-  const { data: queryResponse, isLoading } = useDataSourceQuery(
+  const { data: queryResponse, isLoading, isError, error, refetch } = useDataSourceQuery(
     grid.dataSourceId ?? '',
     appliedFilters,
     !!grid.dataSourceId,
@@ -87,6 +89,24 @@ function SingleSourceGrid({ grid }: { grid: GridConfig }) {
 
   if (isLoading) {
     return <GridSkeleton title={grid.title} />
+  }
+
+  if (isError) {
+    const apiError = error instanceof ApiError ? error : null
+    return (
+      <Card className="py-4 gap-2">
+        <CardHeader className="px-4 py-0">
+          <CardTitle className="text-sm font-medium">{grid.title}</CardTitle>
+        </CardHeader>
+        <CardContent className="px-4">
+          <ErrorPanel
+            message={apiError?.userMessage ?? 'Failed to load grid data'}
+            detail={apiError?.detail}
+            onRetry={() => refetch()}
+          />
+        </CardContent>
+      </Card>
+    )
   }
 
   return (
@@ -139,7 +159,7 @@ function MergedSourceGrid({ grid }: { grid: GridConfig }) {
     [grid.sources, grid.mergeOn, grid.mergeType],
   )
 
-  const { data: queryResponse, isLoading } = useDataSourceMerge(
+  const { data: queryResponse, isLoading, isError, error, refetch } = useDataSourceMerge(
     mergeConfig,
     appliedFilters,
     mergeConfig.sources.length > 0,
@@ -163,6 +183,24 @@ function MergedSourceGrid({ grid }: { grid: GridConfig }) {
 
   if (isLoading) {
     return <GridSkeleton title={grid.title} />
+  }
+
+  if (isError) {
+    const apiError = error instanceof ApiError ? error : null
+    return (
+      <Card className="py-4 gap-2">
+        <CardHeader className="px-4 py-0">
+          <CardTitle className="text-sm font-medium">{grid.title}</CardTitle>
+        </CardHeader>
+        <CardContent className="px-4">
+          <ErrorPanel
+            message={apiError?.userMessage ?? 'Failed to load grid data'}
+            detail={apiError?.detail}
+            onRetry={() => refetch()}
+          />
+        </CardContent>
+      </Card>
+    )
   }
 
   return (

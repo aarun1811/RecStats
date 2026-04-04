@@ -1,14 +1,35 @@
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
 
-class ApiError extends Error {
+function tryParseJson(text: string): unknown {
+  try {
+    return JSON.parse(text)
+  } catch {
+    return text
+  }
+}
+
+export class ApiError extends Error {
   status: number
-  body: unknown
+  code: string
+  userMessage: string
+  detail?: string
+  retryAfter?: number
 
   constructor(status: number, body: unknown) {
-    super(`API error ${status}`)
+    const parsed = typeof body === 'string' ? tryParseJson(body) : body
+    const record = parsed !== null && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : {}
+    const errorCode = (record.error as string) ?? 'unknown'
+    const message = (record.message as string) ?? `API error ${status}`
+    const detail = (record.detail as string) ?? undefined
+    const retryAfter = typeof record.retry_after === 'number' ? record.retry_after : undefined
+
+    super(message)
     this.name = 'ApiError'
     this.status = status
-    this.body = body
+    this.code = errorCode
+    this.userMessage = message
+    this.detail = detail
+    this.retryAfter = retryAfter
   }
 }
 

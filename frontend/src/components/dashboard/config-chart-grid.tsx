@@ -3,8 +3,10 @@ import { useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ChartFactory } from '@/components/charts/chart-factory'
+import { ErrorPanel } from '@/components/shared/error-panel'
 import { useDataSourceQuery } from '@/hooks/use-data-source-query'
 import { useFilterStore } from '@/stores/filter-store'
+import { ApiError } from '@/lib/api-client'
 import type { DashboardChartConfig, KpiResult } from '@/types/dashboard-config'
 import type { ChartConfig, ChartDataResponse } from '@/types/chart'
 
@@ -49,7 +51,7 @@ function QueryChartItem({ chart }: { chart: DashboardChartConfig }) {
 
   // For query-sourced charts, the first source's dataSourceId drives the query.
   const dataSourceId = chart.sources?.[0]?.dataSourceId ?? ''
-  const { data: queryResponse, isLoading } = useDataSourceQuery(
+  const { data: queryResponse, isLoading, isError, error, refetch } = useDataSourceQuery(
     dataSourceId,
     appliedFilters,
     !!dataSourceId,
@@ -69,6 +71,24 @@ function QueryChartItem({ chart }: { chart: DashboardChartConfig }) {
 
   if (isLoading) {
     return <ChartItemSkeleton title={chart.title} />
+  }
+
+  if (isError) {
+    const apiError = error instanceof ApiError ? error : null
+    return (
+      <Card className="flex flex-col py-4 gap-2">
+        <CardHeader className="px-4 py-0">
+          <CardTitle className="text-sm font-medium">{chart.title}</CardTitle>
+        </CardHeader>
+        <CardContent className="flex-1 px-3 pb-2">
+          <ErrorPanel
+            message={apiError?.userMessage ?? 'Failed to load chart data'}
+            detail={apiError?.detail}
+            onRetry={() => refetch()}
+          />
+        </CardContent>
+      </Card>
+    )
   }
 
   return (
