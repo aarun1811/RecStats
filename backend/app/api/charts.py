@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+import logging
 from typing import Any
 
-from fastapi import APIRouter
+import httpx
+from fastapi import APIRouter, HTTPException
 
 from app.core.dependencies import SupersetDep
-from app.mock_data import MOCK_CHART_DATA, MOCK_CHARTS
+from app.core.errors import sanitize_detail
 from app.models.filters import ChartDataRequest
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/charts", tags=["charts"])
 
@@ -136,35 +140,87 @@ def _build_superset_filters(filters: ChartDataRequest | None) -> list[dict]:
 
 @router.get("")
 async def list_charts(superset: SupersetDep):
-    if superset:
-        try:
-            raw = await superset.list_charts()
-            return [
-                {
-                    "id": str(c.get("id")),
-                    "name": c.get("slice_name", ""),
-                    "viz_type": c.get("viz_type", ""),
-                    "datasource_id": c.get("datasource_id"),
-                }
-                for c in raw
-            ]
-        except Exception:
-            pass
-    return MOCK_CHARTS
+    if not superset:
+        raise HTTPException(
+            status_code=503,
+            detail={"error": "superset_unavailable", "message": "Query engine is not connected", "detail": None, "retry_after": 30},
+        )
+    try:
+        raw = await superset.list_charts()
+        return [
+            {
+                "id": str(c.get("id")),
+                "name": c.get("slice_name", ""),
+                "viz_type": c.get("viz_type", ""),
+                "datasource_id": c.get("datasource_id"),
+            }
+            for c in raw
+        ]
+    except httpx.ConnectError as e:
+        logger.warning("Superset connection failed: %s", e)
+        raise HTTPException(
+            status_code=503,
+            detail={"error": "superset_unavailable", "message": "Query engine is temporarily unavailable", "detail": sanitize_detail(e), "retry_after": 15},
+        )
+    except httpx.TimeoutException as e:
+        logger.warning("Superset query timed out: %s", e)
+        raise HTTPException(
+            status_code=504,
+            detail={"error": "query_timeout", "message": "Query timed out", "detail": sanitize_detail(e)},
+        )
+    except httpx.HTTPStatusError as e:
+        logger.error("Superset returned error %s: %s", e.response.status_code, e)
+        raise HTTPException(
+            status_code=502,
+            detail={"error": "superset_error", "message": f"Query engine returned error: {e.response.status_code}", "detail": sanitize_detail(e)},
+        )
+    except Exception as e:
+        logger.exception("Unexpected error listing charts")
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "internal_error", "message": "An unexpected error occurred", "detail": sanitize_detail(e)},
+        )
 
 
 @router.get("/{chart_id}")
 async def get_chart(chart_id: str, superset: SupersetDep):
-    if superset:
-        try:
-            raw = await superset.get_chart(int(chart_id))
-            return raw
-        except Exception:
-            pass
-    for c in MOCK_CHARTS:
-        if c["id"] == chart_id:
-            return c
-    return {"error": "chart not found"}
+    if not superset:
+        raise HTTPException(
+            status_code=503,
+            detail={"error": "superset_unavailable", "message": "Query engine is not connected", "detail": None, "retry_after": 30},
+        )
+    try:
+        raw = await superset.get_chart(int(chart_id))
+        return raw
+    except httpx.ConnectError as e:
+        logger.warning("Superset connection failed: %s", e)
+        raise HTTPException(
+            status_code=503,
+            detail={"error": "superset_unavailable", "message": "Query engine is temporarily unavailable", "detail": sanitize_detail(e), "retry_after": 15},
+        )
+    except httpx.TimeoutException as e:
+        logger.warning("Superset query timed out: %s", e)
+        raise HTTPException(
+            status_code=504,
+            detail={"error": "query_timeout", "message": "Query timed out", "detail": sanitize_detail(e)},
+        )
+    except httpx.HTTPStatusError as e:
+        logger.error("Superset returned error %s: %s", e.response.status_code, e)
+        raise HTTPException(
+            status_code=502,
+            detail={"error": "superset_error", "message": f"Query engine returned error: {e.response.status_code}", "detail": sanitize_detail(e)},
+        )
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "invalid_chart_id", "message": f"Invalid chart ID: {chart_id}", "detail": None},
+        )
+    except Exception as e:
+        logger.exception("Unexpected error fetching chart %s", chart_id)
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "internal_error", "message": "An unexpected error occurred", "detail": sanitize_detail(e)},
+        )
 
 
 AGING_BUCKET_ORDER = {"0-1d": 0, "2-3d": 1, "4-7d": 2, "8-14d": 3, "15-30d": 4, "30d+": 5}
@@ -182,31 +238,53 @@ async def get_chart_data(chart_id: str, superset: SupersetDep, body: ChartDataRe
     ds_id = CHART_DATASOURCE_MAP.get(chart_id)
     query_def = CHART_QUERIES.get(chart_id)
 
-    if superset and ds_id and query_def:
-        try:
-            query = {**query_def}
-            adhoc = _build_superset_filters(body)
-            if adhoc:
-                query["filters"] = adhoc
+    if not superset:
+        raise HTTPException(
+            status_code=503,
+            detail={"error": "superset_unavailable", "message": "Query engine is not connected", "detail": None, "retry_after": 30},
+        )
+    if not ds_id or not query_def:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "chart_not_found", "message": f"No query definition for chart: {chart_id}", "detail": None},
+        )
 
-            result = await superset.get_chart_data(ds_id, [query])
-            chart_result = result.get("result", [{}])[0]
-            rows = _post_process(chart_id, chart_result.get("data", []))
-            return {
-                "chart_id": chart_id,
-                "columns": list(rows[0].keys()) if rows else [],
-                "data": rows,
-                "row_count": chart_result.get("rowcount", 0),
-            }
-        except Exception:
-            pass
+    try:
+        query = {**query_def}
+        adhoc = _build_superset_filters(body)
+        if adhoc:
+            query["filters"] = adhoc
 
-    # Mock fallback
-    mock = MOCK_CHART_DATA.get(chart_id, {"columns": [], "data": []})
-    rows = _post_process(chart_id, mock.get("data", []))
-    return {
-        "chart_id": chart_id,
-        "columns": mock.get("columns", []),
-        "data": rows,
-        "row_count": len(rows),
-    }
+        result = await superset.get_chart_data(ds_id, [query])
+        chart_result = result.get("result", [{}])[0]
+        rows = _post_process(chart_id, chart_result.get("data", []))
+        return {
+            "chart_id": chart_id,
+            "columns": list(rows[0].keys()) if rows else [],
+            "data": rows,
+            "row_count": chart_result.get("rowcount", 0),
+        }
+    except httpx.ConnectError as e:
+        logger.warning("Superset connection failed: %s", e)
+        raise HTTPException(
+            status_code=503,
+            detail={"error": "superset_unavailable", "message": "Query engine is temporarily unavailable", "detail": sanitize_detail(e), "retry_after": 15},
+        )
+    except httpx.TimeoutException as e:
+        logger.warning("Superset query timed out: %s", e)
+        raise HTTPException(
+            status_code=504,
+            detail={"error": "query_timeout", "message": "Query timed out", "detail": sanitize_detail(e)},
+        )
+    except httpx.HTTPStatusError as e:
+        logger.error("Superset returned error %s: %s", e.response.status_code, e)
+        raise HTTPException(
+            status_code=502,
+            detail={"error": "superset_error", "message": f"Query engine returned error: {e.response.status_code}", "detail": sanitize_detail(e)},
+        )
+    except Exception as e:
+        logger.exception("Unexpected error fetching chart data for %s", chart_id)
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "internal_error", "message": "An unexpected error occurred", "detail": sanitize_detail(e)},
+        )
