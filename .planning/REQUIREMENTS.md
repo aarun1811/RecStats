@@ -72,10 +72,10 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [ ] **INFR-01**: Dashboard configs persisted in database (Oracle sidecar or PostgreSQL) — not static JSON files
 - [ ] **INFR-02**: Config schema versioning with migration support — backward-compatible evolution
-- [ ] **INFR-03**: Superset pinned to specific version with CSRF and auth handling hardened
+- [x] **INFR-03**: Superset pinned to specific version with CSRF and auth handling hardened
 - [ ] **INFR-04**: Remove mock data fallbacks — surface real errors instead of silently serving fake data
-- [ ] **INFR-05**: Number formatting utilities for financial data — currency, percentages, large numbers, consistent precision
-- [ ] **INFR-06**: Legacy dead code cleaned up — remove non-functional components that would crash at runtime
+- [x] **INFR-05**: Number formatting utilities for financial data — currency, percentages, large numbers, consistent precision
+- [x] **INFR-06**: Legacy dead code cleaned up — remove non-functional components that would crash at runtime
 
 ## v2 Requirements
 
@@ -130,10 +130,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | INFR-01 | Phase 1: Foundation Hardening | Pending |
 | INFR-02 | Phase 1: Foundation Hardening | Pending |
-| INFR-03 | Phase 1: Foundation Hardening | Pending |
+| INFR-03 | Phase 1: Foundation Hardening | Complete |
 | INFR-04 | Phase 1: Foundation Hardening | Pending |
-| INFR-05 | Phase 1: Foundation Hardening | Pending |
-| INFR-06 | Phase 1: Foundation Hardening | Pending |
+| INFR-05 | Phase 1: Foundation Hardening | Complete |
+| INFR-06 | Phase 1: Foundation Hardening | Complete |
 | INTR-01 | Phase 2: Cross-Filtering and Drill-Down | Pending |
 | INTR-02 | Phase 2: Cross-Filtering and Drill-Down | Pending |
 | INTR-03 | Phase 2: Cross-Filtering and Drill-Down | Pending |

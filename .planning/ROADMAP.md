@@ -38,7 +38,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 Plans:
 - [ ] 01-01-PLAN.md -- Database persistence layer (SQLAlchemy async + Alembic + DB-backed ConfigStore)
-- [ ] 01-02-PLAN.md -- Number formatting utilities, Superset pinning, legacy dead code cleanup
+- [x] 01-02-PLAN.md -- Number formatting utilities, Superset pinning, legacy dead code cleanup
 - [ ] 01-03-PLAN.md -- Mock data removal and structured error handling (backend + frontend)
 
 ### Phase 2: Cross-Filtering and Drill-Down
