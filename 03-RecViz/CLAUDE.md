@@ -313,8 +313,28 @@ These rules ensure visual uniformity across all phases and all components.
 
 ---
 
+## Current State (As of 2026-03-28)
+
+> **IMPORTANT FOR AGENTS:** Read `recviz/CODEBASE_GUIDE.md` for the complete, file-level codebase reference. It documents every component, every API endpoint, every data flow, and every known gap. This section is a summary.
+
+### Two Parallel Dashboard Systems
+
+There are TWO dashboard systems in the codebase:
+
+1. **Config-driven (ACTIVE):** JSON config files define dashboards. Components prefixed `config-*`. Routes: `/api/dashboards/*`, `/api/data-sources/*`.
+2. **Legacy (DEAD CODE):** Hardcoded charts, defunct store shape. Components: `filter-bar.tsx`, `kpi-row.tsx`, `chart-grid.tsx`. **Would crash at runtime.** But contains cross-filter + drill-down logic missing from config-driven system.
+
+### Critical Gaps
+
+- Cross-filtering and drill-down not in config-driven dashboards
+- Chart export/fullscreen not in config-driven charts
+- Export (PDF/Excel) entirely stubbed
+- Reports page is all mock data
+- No authentication on any endpoint
+
 ## References
 
+- **Codebase guide (READ THIS FIRST):** `recviz/CODEBASE_GUIDE.md`
 - Full design document: `RECVIZ_PLAN.md`
 - Build plan: `RECVIZ_V2_BUILD_PLAN.md`
 - Reference UI kit: `_references/shadcn-ui-kit-dashboard/`

@@ -313,8 +313,45 @@ These rules ensure visual uniformity across all phases and all components.
 
 ---
 
+## Current State (As of 2026-03-28)
+
+> **IMPORTANT FOR AGENTS:** Read `03-RecViz/recviz/CODEBASE_GUIDE.md` for the complete, file-level codebase reference. It documents every component, every API endpoint, every data flow, and every known gap. This section is a summary.
+
+### Two Parallel Dashboard Systems
+
+There are TWO dashboard systems in the codebase. This is the most important thing to understand:
+
+1. **Config-driven (ACTIVE):** Dashboard structure defined by JSON config files in `backend/app/config/`. Frontend reads config and dynamically renders filters, KPIs, charts, grids. Routes: `/api/dashboards/*`, `/api/data-sources/*`. Components: `dashboard-renderer.tsx`, `config-filter-bar.tsx`, `config-kpi-row.tsx`, `config-chart-grid.tsx`, `config-data-grid.tsx`.
+
+2. **Legacy (DEAD CODE):** Hardcoded chart IDs, Superset datasource IDs, fixed `GlobalFilters` type. Components: `filter-bar.tsx`, `kpi-row.tsx`, `chart-grid.tsx`, `data-grid.tsx`. **These reference a defunct store shape and would crash at runtime.** However, they contain cross-filter and drill-down logic that the config-driven system lacks.
+
+### What Works
+
+- Config-driven dashboard rendering (filters, KPIs, charts, grids)
+- Dynamic database routing (TLM instances → different Oracle DBs)
+- Multi-source data merge (outer/inner join)
+- Cascading filter dropdowns
+- SQL Explorer (Monaco editor, schema browser, results grid, query history)
+- Embeddable dashboards (URL params for filters, theme, locked filters)
+- Database connection CRUD (create, test, sync, delete)
+- Dark/light theme with CSS variable system
+- Command palette search (Cmd+K)
+
+### What Doesn't Work / Is Missing
+
+- **Cross-filtering** — Only in legacy components, not in config-driven dashboards
+- **Drill-down** — Only in legacy components, not in config-driven dashboards
+- **Chart export/fullscreen** — Only in legacy `ChartPanel`, not in config-driven charts
+- **Export (PDF/Excel)** — Entirely stubbed, no Celery worker
+- **Reports page** — All mock data, no functional buttons
+- **Settings density/font size** — UI controls exist but do nothing
+- **Saved views "Load"** — Button does nothing
+- **Authentication** — No auth on any endpoint
+- **Elasticsearch** — Mentioned in architecture but not implemented
+
 ## References
 
+- **Codebase guide (READ THIS FIRST):** `03-RecViz/recviz/CODEBASE_GUIDE.md`
 - Full design document: `RECVIZ_PLAN.md`
 - Build plan: `RECVIZ_V2_BUILD_PLAN.md`
 - Reference UI kit: `_references/shadcn-ui-kit-dashboard/`
