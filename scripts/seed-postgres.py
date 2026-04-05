@@ -51,8 +51,8 @@ def extract_sql_columns(sql_template: str) -> set[str]:
     """
     columns: set[str] = set()
 
-    # Remove template placeholders
-    cleaned = re.sub(r"\{\{[^}]+\}\}", "", sql_template)
+    # Remove template placeholders (replace with a dummy column name to avoid empty SELECT)
+    cleaned = re.sub(r"\{\{[^}]+\}\}", "_placeholder_", sql_template)
 
     # Extract SELECT clause
     select_match = re.search(r"SELECT\s+(.*?)\s+FROM", cleaned, re.IGNORECASE | re.DOTALL)
@@ -102,6 +102,11 @@ def extract_sql_columns(sql_template: str) -> set[str]:
             if col_match:
                 columns.add(col_match.group(1).lower())
 
+    # Filter out placeholders and SQL keywords
+    sql_keywords = {"distinct", "case", "when", "then", "else", "end", "as", "and", "or",
+                    "not", "in", "is", "null", "count", "sum", "avg", "min", "max",
+                    "_placeholder_", "1"}
+    columns = {c for c in columns if c not in sql_keywords}
     return columns
 
 
@@ -242,8 +247,8 @@ def seed_recon_data(conn) -> None:
     validate_columns(
         "tlm_automatch",
         tlm_automatch_ds["query"],
-        # The output columns from the SELECT (what the query produces)
-        {"agent_code", "set_id", "bran_code", "stmt_date", "corr_acc_no",
+        # All columns referenced in the query (source + output aliases)
+        {"agent_code", "local_acc_no", "set_id", "bran_code", "stmt_date", "corr_acc_no",
          "total_items", "automatch_items"},
     )
 

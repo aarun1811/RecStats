@@ -6,8 +6,9 @@ pydantic==2.12.5
 pydantic-settings==2.12.0
 python-dotenv==1.2.1
 
-# Superset (pip install) — pinned per INFR-03
-apache-superset==6.0.0
+# Superset runs in Docker (its own container, its own Python).
+# RecViz backend talks to Superset via HTTP (httpx), NOT as a Python dependency.
+# Pinned version reference: apache-superset==6.0.0 (see superset/Dockerfile)
 
 # Database / Cache
 psycopg2-binary==2.9.11
