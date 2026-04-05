@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02.1-02-PLAN.md
-last_updated: "2026-04-05T13:02:35.945Z"
+stopped_at: "02.1-03 Task 1 complete, awaiting checkpoint:human-verify for Task 2"
+last_updated: "2026-04-05T13:09:01.903Z"
 last_activity: 2026-04-05
 progress:
   total_phases: 10
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 9
-  completed_plans: 8
-  percent: 89
+  completed_plans: 9
+  percent: 100
 ---
 
 # Project State
@@ -94,6 +94,7 @@ Recent decisions affecting current work:
 - [Phase 02.1]: Sankey/graph/parallel retain position-based column mapping (data shaped specifically for type)
 - [Phase 02.1]: buildSeries exported as named export for direct unit testing without React rendering
 - [Phase 02.1]: Chart showcase uses dedicated data sources per chart type for comprehensive validation
+- [Phase 02.1]: tsconfig.e2e.json as separate project reference for E2E test files (keeps e2e/ isolated from app and node configs)
 
 ### Roadmap Evolution
 
@@ -111,6 +112,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-05T13:02:35.943Z
-Stopped at: Completed 02.1-02-PLAN.md
+Last session: 2026-04-05T13:08:57.916Z
+Stopped at: 02.1-03 Task 1 complete, awaiting checkpoint:human-verify for Task 2
 Resume file: None
