@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
 import type { ChartWrapperProps } from '@/types/chart'
 import { cn } from '@/lib/utils'
+import { ColumnMissingError } from './column-missing-error'
 
 // Register required ECharts components
 echarts.use([
@@ -37,17 +38,30 @@ function ensureTheme(resolvedTheme: string) {
   }
 }
 
+/**
+ * Config-driven ECharts option builder (D-13).
+ * Uses metricColumns and categoryColumn from ChartConfig instead of column order
+ * for funnel, gauge, and radar. Sankey, graph, and parallel retain position-based
+ * columns (by design — their data sources are shaped specifically for the type).
+ */
 function buildEChartsOption(
   vizType: string,
   columns: string[],
   data: Record<string, unknown>[],
+  metricColumns: string[],
+  categoryColumn: string | undefined,
 ): echarts.EChartsCoreOption {
   const palette = getChartPalette()
-  const categoryKey = columns[0] ?? 'category'
-  const metricKey = columns[1] ?? 'value'
+  // Config-driven resolution (same pattern as AG Charts)
+  const categoryKey = categoryColumn
+    ?? columns.find((c) => !metricColumns.includes(c))
+    ?? columns[0]
+    ?? 'category'
+  const metricKey = metricColumns[0] ?? columns.find((c) => c !== categoryKey) ?? columns[1] ?? 'value'
 
   switch (vizType) {
     case 'sankey': {
+      // Sankey: positional columns (source, target, value) by design
       const links = data.map((d) => ({
         source: String(d[columns[0] ?? 'source'] ?? ''),
         target: String(d[columns[1] ?? 'target'] ?? ''),
@@ -73,11 +87,15 @@ function buildEChartsOption(
     }
 
     case 'radar': {
+      // Config-driven: use resolved metric columns instead of columns.slice(1)
+      const radarMetrics = metricColumns.length > 0
+        ? metricColumns.filter((c) => columns.includes(c))
+        : columns.filter((c) => c !== categoryKey)
       const indicators = data.map((d) => ({
         name: String(d[categoryKey] ?? ''),
-        max: Math.max(...columns.slice(1).map((c) => Number(d[c] ?? 0))) * 1.2,
+        max: Math.max(...radarMetrics.map((c) => Number(d[c] ?? 0))) * 1.2,
       }))
-      const series = columns.slice(1).map((col, i) => ({
+      const series = radarMetrics.map((col, i) => ({
         value: data.map((d) => Number(d[col] ?? 0)),
         name: col,
         areaStyle: { opacity: 0.1 },
@@ -86,7 +104,7 @@ function buildEChartsOption(
       }))
       return {
         tooltip: {},
-        legend: { data: columns.slice(1) },
+        legend: { data: radarMetrics },
         radar: { indicator: indicators },
         series: [{ type: 'radar', data: series }],
       }
@@ -107,6 +125,7 @@ function buildEChartsOption(
     }
 
     case 'gauge': {
+      // Config-driven: use resolved metricKey instead of columns[1]
       const value = Number(data[0]?.[metricKey] ?? 0)
       return {
         tooltip: { formatter: '{b}: {c}%' },
@@ -132,6 +151,7 @@ function buildEChartsOption(
     }
 
     case 'funnel': {
+      // Config-driven: use resolved categoryKey and metricKey
       const funnelData = data.map((d) => ({
         name: String(d[categoryKey] ?? ''),
         value: Number(d[metricKey] ?? 0),
@@ -156,6 +176,7 @@ function buildEChartsOption(
     }
 
     case 'graph': {
+      // Graph: positional columns (source, target, value) by design
       const nodeSet = new Set<string>()
       const links = data.map((d) => {
         const src = String(d[columns[0] ?? 'source'] ?? '')
@@ -182,6 +203,7 @@ function buildEChartsOption(
     }
 
     case 'parallel': {
+      // Parallel: all columns as dimensions — no change needed
       const dims = columns.map((col, i) => ({ dim: i, name: col }))
       return {
         parallelAxis: dims,
@@ -225,6 +247,19 @@ export function EChartWrapper({
 
   const chartRef = useRef<ReactEChartsCore>(null)
 
+  // Column validation (D-09, D-10)
+  const missingColumns = useMemo(() => {
+    if (!data?.columns) return []
+    const missing: string[] = []
+    for (const mc of config.metricColumns ?? []) {
+      if (!data.columns.includes(mc)) missing.push(mc)
+    }
+    if (config.categoryColumn && !data.columns.includes(config.categoryColumn)) {
+      missing.push(config.categoryColumn)
+    }
+    return missing
+  }, [data?.columns, config.metricColumns, config.categoryColumn])
+
   // Apply highlight/downplay for cross-filter dimming
   useEffect(() => {
     const instance = chartRef.current?.getEchartsInstance()
@@ -244,9 +279,23 @@ export function EChartWrapper({
 
   const option = useMemo(() => {
     if (!data?.data?.length) return {}
-    return buildEChartsOption(config.vizType, data.columns, data.data)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, config.vizType, themeReady])
+    return buildEChartsOption(
+      config.vizType,
+      data.columns,
+      data.data,
+      config.metricColumns ?? [],
+      config.categoryColumn,
+    )
+  }, [data, config.vizType, config.metricColumns, config.categoryColumn, themeReady])
+
+  // Config-driven category resolution for click handlers
+  const resolvedCategoryKey = useMemo(() => {
+    if (!data?.columns) return ''
+    return config.categoryColumn
+      ?? data.columns.find((c) => !(config.metricColumns ?? []).includes(c))
+      ?? data.columns[0]
+      ?? ''
+  }, [data?.columns, config.categoryColumn, config.metricColumns])
 
   type EChartEventHandler = (...args: unknown[]) => void
   const onEvents = useMemo((): Record<string, EChartEventHandler> | undefined => {
@@ -255,7 +304,7 @@ export function EChartWrapper({
       events.click = (params: { name?: string; value?: unknown; data?: Record<string, unknown> }) => {
         onChartClick({
           chartId,
-          column: data?.columns[0] ?? '',
+          column: resolvedCategoryKey,
           value: (params.name ?? params.value ?? '') as string | number,
           row: (params.data ?? {}) as Record<string, unknown>,
         })
@@ -265,14 +314,18 @@ export function EChartWrapper({
       events.dblclick = (params: { name?: string; value?: unknown; data?: Record<string, unknown> }) => {
         onChartDoubleClick({
           chartId,
-          column: data?.columns[0] ?? '',
+          column: resolvedCategoryKey,
           value: (params.name ?? params.value ?? '') as string | number,
           row: (params.data ?? {}) as Record<string, unknown>,
         })
       }
     }
     return Object.keys(events).length > 0 ? events : undefined
-  }, [onChartClick, onChartDoubleClick, chartId, data?.columns])
+  }, [onChartClick, onChartDoubleClick, chartId, resolvedCategoryKey])
+
+  if (missingColumns.length > 0 && data?.columns) {
+    return <ColumnMissingError missing={missingColumns} available={data.columns} />
+  }
 
   if (isLoading) {
     return <Skeleton className={cn('h-[300px] w-full rounded-lg', className)} />
