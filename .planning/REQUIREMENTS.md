@@ -9,10 +9,10 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Data Source Connectivity
 
-- [ ] **DATA-01**: Oracle database fully integrated via Superset — connection pooling, query execution, result caching all working reliably at production scale
-- [ ] **DATA-02**: Hive database integrated via Superset for historical/batch data queries with appropriate caching for slow queries
+- [x] **DATA-01**: Oracle database fully integrated via Superset — connection pooling, query execution, result caching all working reliably at production scale
+- [x] **DATA-02**: Hive database integrated via Superset for historical/batch data queries with appropriate caching for slow queries
 - [ ] **DATA-03**: Elasticsearch integrated via Superset (elasticsearch-dbapi for SQL queries) and via sidecar (elasticsearch-py for complex aggregations, nested queries, full-text search)
-- [ ] **DATA-04**: Database connection management UI for dev team — add, edit, test connections to Oracle/Hive/ES
+- [x] **DATA-04**: Database connection management UI for dev team — add, edit, test connections to Oracle/Hive/ES
 
 ### Dataset Management (Dev-Facing)
 
@@ -143,10 +143,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INTR-07 | Phase 3: Chart and Grid Interactions | Complete |
 | INTR-08 | Phase 3: Chart and Grid Interactions | Complete |
 | INTR-09 | Phase 3: Chart and Grid Interactions | Complete |
-| DATA-01 | Phase 4: Data Source Connectivity | Pending |
-| DATA-02 | Phase 4: Data Source Connectivity | Pending |
+| DATA-01 | Phase 4: Data Source Connectivity | Complete |
+| DATA-02 | Phase 4: Data Source Connectivity | Complete |
 | DATA-03 | Phase 4: Data Source Connectivity | Pending |
-| DATA-04 | Phase 4: Data Source Connectivity | Pending |
+| DATA-04 | Phase 4: Data Source Connectivity | Complete |
 | DSET-01 | Phase 5: Dataset Management | Pending |
 | DSET-02 | Phase 5: Dataset Management | Pending |
 | DSET-03 | Phase 5: Dataset Management | Pending |
