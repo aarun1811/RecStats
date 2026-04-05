@@ -88,6 +88,10 @@ Recent decisions affecting current work:
 - [Phase 02]: Normalize column objects to strings in ChartDataResponse (Superset returns {column_name, name, type} objects)
 - [Phase 02]: Phase 2 checkpoint approved: visual testing deferred to Phase 2.1 for chart wrapper fixes; 53 unit tests confirm infrastructure correctness
 
+### Roadmap Evolution
+
+- Phase 02.1 inserted after Phase 2: Chart Rendering Foundation (URGENT) — fix pre-existing chart wrapper issues preventing proper rendering of bar, line, area, pie, donut, scatter chart types from query data. Includes Phase 2 cross-filter/drill-down visual validation as final step.
+
 ### Pending Todos
 
 None yet.

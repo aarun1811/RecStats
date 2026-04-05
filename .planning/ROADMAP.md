@@ -14,6 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [ ] **Phase 1: Foundation Hardening** - Remove mock fallbacks, clean legacy code, add financial formatting, pin Superset, persist configs to database
 - [ ] **Phase 2: Cross-Filtering and Drill-Down** - Add client-side cross-filtering and drill-down navigation to the existing dashboard renderer
+- [ ] **Phase 2.1: Chart Rendering Foundation** - (INSERTED) Fix all major chart types to render correctly from query data, validate Phase 2 cross-filter/drill-down end-to-end
 - [ ] **Phase 3: Chart and Grid Interactions** - Add fullscreen view, chart/grid export, manual refresh, and configurable auto-refresh to dashboard panels
 - [ ] **Phase 4: Data Source Connectivity** - Integrate Oracle, Hive, and Elasticsearch via Superset with a connection management UI for the dev team
 - [ ] **Phase 5: Dataset Management** - Dev team can create, edit, and manage datasets with SQL queries, column metadata, and roles
@@ -57,6 +58,23 @@ Plans:
 - [x] 02-01-PLAN.md -- Foundation data layer: types, stores, utilities, hooks, and tests for cross-filtering and drill-down
 - [x] 02-02-PLAN.md -- Cross-filtering UI integration into dashboard renderer, chart grid, KPI row, data grid, and chart wrappers
 - [x] 02-03-PLAN.md -- Drill-down UI: breadcrumb navigation, detail grid, chart grid drill insertion, and end-to-end verification
+
+### Phase 02.1: Chart Rendering Foundation (INSERTED)
+
+**Goal:** All major chart types (bar, line, area, pie, donut, scatter, heatmap, treemap) render correctly from query data using configured metric and category columns. Charts properly map data source response columns to AG Charts series options based on chart config. Pie/donut charts use correct angleKey and calloutLabelKey. Chart wrapper is production-grade, not demo-quality. Final step validates Phase 2 cross-filtering and drill-down work end-to-end with properly rendering charts.
+**Requirements**: INTR-01, INTR-02
+**Depends on:** Phase 2
+**Success Criteria** (what must be TRUE):
+  1. Bar/line/area charts correctly use sources[].metric as yKey and first non-metric string column as xKey
+  2. Pie/donut charts correctly use metric column as angleKey and category column as calloutLabelKey
+  3. All chart types render real data from query data sources -- no "No data to display" on valid data
+  4. Cross-filtering works visually: clicking a chart segment dims other charts and shows the filter badge bar
+  5. Drill-down works visually: double-clicking navigates through hierarchy with breadcrumb, detail grid slides in
+**Plans:** 0 plans
+**UI hint**: yes
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 02.1 to break down)
 
 ### Phase 3: Chart and Grid Interactions
 **Goal**: Users can export, enlarge, and refresh individual charts and grids from toolbar controls on each panel
