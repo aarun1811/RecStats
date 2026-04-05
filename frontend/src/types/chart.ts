@@ -64,3 +64,33 @@ export interface ChartWrapperProps {
   activeSelection?: ChartSelection
   className?: string
 }
+
+/** Imperative handle exposed by AgChartWrapper via forwardRef. */
+export interface AgChartRef {
+  /** Download chart as PNG image. Uses AG Charts native download(). */
+  download: (fileName: string) => void
+  /** Get chart as data URL for custom processing. */
+  getImageDataURL: () => Promise<string>
+  /** Get underlying chart data for CSV/clipboard export. */
+  getData: () => { columns: string[]; rows: Record<string, unknown>[] } | null
+}
+
+/** Imperative handle exposed by EChartWrapper via forwardRef. */
+export interface EChartRef {
+  /** Get chart as data URL. type: 'png' | 'svg'. pixelRatio defaults to 2 for consistent retina output. */
+  getDataURL: (opts: { type: 'png' | 'svg'; pixelRatio?: number }) => string | null
+  /** Get underlying chart data for CSV/clipboard export. */
+  getData: () => { columns: string[]; rows: Record<string, unknown>[] } | null
+}
+
+/** Unified chart ref consumed by ChartToolbar. Abstracts AG Charts vs ECharts. */
+export interface ChartRef {
+  /** Download chart as image. format: 'png' or 'svg'. SVG only available for ECharts. */
+  downloadImage: (format: 'png' | 'svg', fileName: string) => void
+  /** Export underlying data as CSV file download. */
+  exportCSV: (fileName: string) => void
+  /** Copy underlying data to clipboard as tab-separated text. */
+  copyToClipboard: () => Promise<void>
+  /** Whether SVG export is supported (true for ECharts, false for AG Charts). */
+  supportsSVG: boolean
+}

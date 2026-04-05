@@ -1,12 +1,12 @@
-import { useMemo, useRef, useEffect, useState } from 'react'
+import { useMemo, useRef, useEffect, useState, forwardRef, useImperativeHandle } from 'react'
 import { AgCharts } from 'ag-charts-react'
-import type { AgChartOptions } from 'ag-charts-enterprise'
+import type { AgChartOptions, AgChartInstance } from 'ag-charts-enterprise'
 import { getAgChartsTheme } from '@/lib/chart-themes'
 import { useTheme } from '@/components/layout/theme-provider'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
-import type { ChartWrapperProps, ChartSelection } from '@/types/chart'
+import type { ChartWrapperProps, ChartSelection, AgChartRef } from '@/types/chart'
 import { cn } from '@/lib/utils'
 import { ColumnMissingError } from './column-missing-error'
 
@@ -192,18 +192,35 @@ export function buildSeries(
   }
 }
 
-export function AgChartWrapper({
-  chartId,
-  config,
-  data,
-  isLoading,
-  error,
-  onChartClick,
-  onChartDoubleClick,
-  activeSelection,
-  className,
-}: ChartWrapperProps) {
+export const AgChartWrapper = forwardRef<AgChartRef, ChartWrapperProps>(function AgChartWrapper(
+  {
+    chartId,
+    config,
+    data,
+    isLoading,
+    error,
+    onChartClick,
+    onChartDoubleClick,
+    activeSelection,
+    className,
+  },
+  ref,
+) {
   const { resolvedTheme } = useTheme()
+  const internalChartRef = useRef<AgChartInstance>(null)
+
+  useImperativeHandle(ref, () => ({
+    download(fileName: string) {
+      internalChartRef.current?.download({ fileName, fileFormat: 'image/png' })
+    },
+    async getImageDataURL() {
+      return (await internalChartRef.current?.getImageDataURL({ fileFormat: 'image/png' })) ?? ''
+    },
+    getData() {
+      if (!data?.columns || !data?.data) return null
+      return { columns: data.columns, rows: data.data as Record<string, unknown>[] }
+    },
+  }), [data])
 
   // Defer theme read until after the dark/light CSS class is applied to the DOM
   const [theme, setTheme] = useState(() => getAgChartsTheme())
@@ -329,7 +346,7 @@ export function AgChartWrapper({
 
   return (
     <div className={cn('h-[300px] w-full', className)}>
-      <AgCharts options={options} />
+      <AgCharts ref={internalChartRef} options={options} />
     </div>
   )
-}
+})

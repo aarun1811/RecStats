@@ -1,19 +1,21 @@
-import { useMemo, useEffect, useRef, useState } from 'react'
+import { useMemo, useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react'
 import ReactEChartsCore from 'echarts-for-react/lib/core'
 import * as echarts from 'echarts/core'
 import { SankeyChart, RadarChart, SunburstChart, GaugeChart, FunnelChart, GraphChart, ParallelChart } from 'echarts/charts'
 import { TitleComponent, TooltipComponent, LegendComponent, GridComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
+import { SVGRenderer } from 'echarts/renderers'
 import { getEChartsTheme, getChartPalette } from '@/lib/chart-themes'
 import { useTheme } from '@/components/layout/theme-provider'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
-import type { ChartWrapperProps } from '@/types/chart'
+import type { ChartWrapperProps, EChartRef } from '@/types/chart'
+import { EXPORT_PIXEL_RATIO } from '@/lib/chart-export'
 import { cn } from '@/lib/utils'
 import { ColumnMissingError } from './column-missing-error'
 
-// Register required ECharts components
+// Register required ECharts components (CanvasRenderer + SVGRenderer for export support)
 echarts.use([
   SankeyChart,
   RadarChart,
@@ -27,6 +29,7 @@ echarts.use([
   LegendComponent,
   GridComponent,
   CanvasRenderer,
+  SVGRenderer,
 ])
 
 // Re-register theme whenever resolvedTheme changes (light ↔ dark)
@@ -222,17 +225,20 @@ function buildEChartsOption(
   }
 }
 
-export function EChartWrapper({
-  chartId,
-  config,
-  data,
-  isLoading,
-  error,
-  onChartClick,
-  onChartDoubleClick,
-  activeSelection,
-  className,
-}: ChartWrapperProps) {
+export const EChartWrapper = forwardRef<EChartRef, ChartWrapperProps>(function EChartWrapper(
+  {
+    chartId,
+    config,
+    data,
+    isLoading,
+    error,
+    onChartClick,
+    onChartDoubleClick,
+    activeSelection,
+    className,
+  },
+  ref,
+) {
   const { resolvedTheme } = useTheme()
 
   // Defer theme registration until after the dark/light CSS class is applied
@@ -246,6 +252,21 @@ export function EChartWrapper({
   }, [resolvedTheme])
 
   const chartRef = useRef<ReactEChartsCore>(null)
+
+  useImperativeHandle(ref, () => ({
+    getDataURL(opts: { type: 'png' | 'svg'; pixelRatio?: number }) {
+      const instance = chartRef.current?.getEchartsInstance()
+      if (!instance) return null
+      return instance.getDataURL({
+        type: opts.type,
+        pixelRatio: opts.pixelRatio ?? EXPORT_PIXEL_RATIO,
+      })
+    },
+    getData() {
+      if (!data?.columns || !data?.data) return null
+      return { columns: data.columns, rows: data.data as Record<string, unknown>[] }
+    },
+  }), [data])
 
   // Column validation (D-09, D-10)
   const missingColumns = useMemo(() => {
@@ -365,4 +386,4 @@ export function EChartWrapper({
       />
     </div>
   )
-}
+})
