@@ -1,139 +1,121 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback } from 'react'
+
 import { useDrillStore } from '@/stores/drill-store'
-import { useChartData } from './use-chart-data'
 import type { ChartDataResponse } from '@/types/chart'
 import type { DrillLevel } from '@/types/filter'
 
 /**
- * Dashboard-level drill-down. All charts read the same drill state.
- *
- *   Level 0: Overview (default aggregated view)
- *   Level 1: Click month/value → re-aggregate by next dimension (client-side)
- *   Level 2: Click day/sub-value → breakdown by category/desk (client-side)
- *   Level 3: Click category → detail mode — charts hide, grid shows records
+ * Per-chart drill-down with config-defined hierarchy.
+ * Each chart drills independently (D-09).
  */
-
-/** Apply drill filters to chart data client-side.
- *  Only applies filters for columns that actually exist in the chart's data.
- *  Charts that don't have the drilled column are left unfiltered (they show
- *  their normal view, which is the correct behavior for aggregated charts).
- */
-export function applyDrillFilters(
-  data: ChartDataResponse | undefined,
-  drillLevels: DrillLevel[],
-): ChartDataResponse | undefined {
-  if (!data?.data?.length || drillLevels.length === 0) return data
-
-  // Only apply drill levels whose column exists in this chart's data
-  const applicableLevels = drillLevels.filter((level) =>
-    data.columns.includes(level.column) ||
-    (data.data.length > 0 && level.column in (data.data[0] as Record<string, unknown>)),
-  )
-
-  if (applicableLevels.length === 0) return data
-
-  let filtered = data.data as Record<string, unknown>[]
-
-  for (const level of applicableLevels) {
-    filtered = filtered.filter((r) => {
-      const val = r[level.column]
-      return String(val) === level.value
-    })
-  }
-
-  if (filtered.length === 0) return { ...data, data: [], rowCount: 0 }
-
-  // Re-aggregate: find dimensions that weren't drilled on
-  const drilledCols = new Set(applicableLevels.map((l) => l.column))
-  const remainingDims = data.columns.filter(
-    (c) => !drilledCols.has(c) && !isMetricColumn(c),
-  )
-  const metricCols = data.columns.filter((c) => isMetricColumn(c))
-
-  if (remainingDims.length > 0 && metricCols.length > 0) {
-    // Re-aggregate by the first remaining dimension
-    const groupBy = remainingDims[0]
-    return reaggregateByField(filtered, groupBy, metricCols)
-  }
-
-  return { ...data, data: filtered, rowCount: filtered.length }
-}
-
-/** Check if current drill depth means we should show detail grid instead of charts. */
-export function isDrillDetailMode(depth: number): boolean {
-  return depth >= 3
-}
-
-/** Build row filter function for the drill context (used by DataGrid). */
-export function drillRowFilter(
-  drillLevels: DrillLevel[],
-): (row: Record<string, unknown>) => boolean {
-  if (drillLevels.length === 0) return () => true
-  return (row) => {
-    for (const level of drillLevels) {
-      const val = row[level.column]
-      if (String(val) !== level.value) return false
-    }
-    return true
-  }
-}
-
-export function useDrillDown(chartId: string) {
-  const sourceChartId = useDrillStore((s) => s.sourceChartId)
-  const levels = useDrillStore((s) => s.levels)
+export function useDrillDown(
+  chartId: string,
+  drillHierarchy: string[] | undefined,
+) {
+  const drills = useDrillStore((s) => s.drills)
   const drillDownAction = useDrillStore((s) => s.drillDown)
   const drillUpAction = useDrillStore((s) => s.drillUp)
   const drillToLevelAction = useDrillStore((s) => s.drillToLevel)
   const resetDrillAction = useDrillStore((s) => s.resetDrill)
 
+  const chartDrill = drills.get(chartId)
+  const levels = chartDrill?.levels ?? []
   const depth = levels.length
+  const hierarchy = drillHierarchy ?? []
 
-  // Fetch base chart data
-  const { data: baseData, isLoading } = useChartData(chartId)
-
-  // Apply drill filters to this chart's data
-  const drilledData = useMemo(
-    () => applyDrillFilters(baseData, levels),
-    [baseData, levels],
-  )
+  const isAtDetailLevel = depth > 0 && depth >= hierarchy.length
+  const canDrill = hierarchy.length > 0
+  const canGoBack = depth > 0
 
   const drill = useCallback(
     (column: string, value: string) => {
-      drillDownAction(chartId, { level: depth + 1, column, value })
+      if (!canDrill || isAtDetailLevel) return
+      drillDownAction(chartId, { column, value, label: value })
     },
-    [chartId, depth, drillDownAction],
+    [chartId, canDrill, isAtDetailLevel, drillDownAction],
   )
 
-  const back = useCallback(() => drillUpAction(), [drillUpAction])
-  const reset = useCallback(() => resetDrillAction(), [resetDrillAction])
+  const back = useCallback(() => drillUpAction(chartId), [chartId, drillUpAction])
+  const reset = useCallback(() => resetDrillAction(chartId), [chartId, resetDrillAction])
   const navigateTo = useCallback(
-    (level: number) => drillToLevelAction(level),
-    [drillToLevelAction],
+    (levelIndex: number) => drillToLevelAction(chartId, levelIndex),
+    [chartId, drillToLevelAction],
   )
 
   return {
-    sourceChartId,
     levels,
     depth,
-    data: drilledData,
-    isLoading,
-    isDetailMode: isDrillDetailMode(depth),
+    hierarchy,
+    isAtDetailLevel,
+    canDrill,
+    canGoBack,
     drill,
     back,
     reset,
     navigateTo,
-    canGoBack: depth > 0,
   }
 }
 
-/** Re-aggregate rows by a grouping field, summing numeric columns. */
+/**
+ * Apply drill filters to chart data and re-aggregate by the next hierarchy column.
+ * Used for intermediate drill levels (client-side re-aggregation).
+ *
+ * Accepts optional `metricColumns` from config metadata (review concern 2).
+ * When provided, uses config-defined columns instead of runtime type heuristic.
+ */
+export function applyDrillFilters(
+  data: ChartDataResponse | undefined,
+  levels: DrillLevel[],
+  nextGroupByColumn?: string,
+  metricColumns?: string[],
+): ChartDataResponse | undefined {
+  if (!data?.data?.length || levels.length === 0) return data
+
+  let filtered = data.data as Record<string, unknown>[]
+  for (const level of levels) {
+    if (filtered.length > 0 && level.column in filtered[0]) {
+      filtered = filtered.filter((r) => String(r[level.column]) === level.value)
+    }
+  }
+
+  if (filtered.length === 0) return { ...data, data: [], rowCount: 0 }
+
+  // If a next grouping column is provided, re-aggregate
+  if (nextGroupByColumn && filtered.length > 0 && nextGroupByColumn in filtered[0]) {
+    return reaggregateByField(filtered, nextGroupByColumn, data.columns, metricColumns)
+  }
+
+  return { ...data, data: filtered, rowCount: filtered.length }
+}
+
+/**
+ * Re-aggregates rows by a grouping column, summing metric columns.
+ *
+ * Addresses review concern 2: metric column detection.
+ * When `knownMetricColumns` is provided (from config/schema), uses those directly.
+ * Falls back to runtime heuristic: scans ALL rows for any numeric value in a column
+ * (not just first row), which handles null/undefined in row 0 correctly.
+ */
 function reaggregateByField(
   rows: Record<string, unknown>[],
   groupBy: string,
-  metricCols: string[],
+  allColumns: string[],
+  knownMetricColumns?: string[],
 ): ChartDataResponse {
-  const groups = new Map<string, Record<string, unknown>>()
+  const metricCols = knownMetricColumns
+    ? knownMetricColumns.filter((c) => c !== groupBy && allColumns.includes(c))
+    : allColumns.filter((c) => {
+        if (c === groupBy) return false
+        // Scan up to 10 rows for a numeric value (not just row 0)
+        // Addresses review concern 2: typeof sample === 'number' on row 0 is brittle
+        // when first row has null/undefined for a metric column
+        for (let i = 0; i < Math.min(rows.length, 10); i++) {
+          if (typeof rows[i]?.[c] === 'number') return true
+        }
+        return false
+      })
 
+  const groups = new Map<string, Record<string, unknown>>()
   for (const row of rows) {
     const key = String(row[groupBy] ?? 'Unknown')
     if (!groups.has(key)) {
@@ -155,18 +137,4 @@ function reaggregateByField(
     data,
     rowCount: data.length,
   }
-}
-
-/** Heuristic: is this a metric/measure column? */
-function isMetricColumn(col: string): boolean {
-  const lower = col.toLowerCase()
-  return (
-    lower === 'count' ||
-    lower.includes('count') ||
-    lower.includes('sum') ||
-    lower.includes('avg') ||
-    lower.includes('total') ||
-    lower.includes('amount') ||
-    lower.includes('rate')
-  )
 }
