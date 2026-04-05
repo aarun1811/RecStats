@@ -41,7 +41,7 @@ function makeItemStyler(
  * Uses metricColumns and categoryColumn from ChartConfig instead of column order.
  * Returns null for unsupported chart types (handled by ChartFactory).
  */
-function buildSeries(
+export function buildSeries(
   vizType: string,
   columns: string[],
   metricColumns: string[],
