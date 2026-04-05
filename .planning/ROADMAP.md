@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 2: Cross-Filtering and Drill-Down** - Add client-side cross-filtering and drill-down navigation to the existing dashboard renderer
 - [x] **Phase 02.1: Chart Rendering Foundation** - (INSERTED) Fix all major chart types to render correctly from query data, validate Phase 2 cross-filter/drill-down end-to-end (completed 2026-04-05)
 - [ ] **Phase 3: Chart and Grid Interactions** - Add fullscreen view, chart/grid export, manual refresh, and configurable auto-refresh to dashboard panels
-- [ ] **Phase 4: Data Source Connectivity** - Integrate Oracle, Hive, and Elasticsearch via Superset with a connection management UI for the dev team
+- [x] **Phase 4: Data Source Connectivity** - Integrate Oracle, Hive, and Elasticsearch via Superset with a connection management UI for the dev team (completed 2026-04-05)
 - [ ] **Phase 5: Dataset Management** - Dev team can create, edit, and manage datasets with SQL queries, column metadata, and roles
 - [ ] **Phase 6: Chart Library** - Users can create, save, and reuse charts from datasets with a visual chart type selector and library browser
 - [ ] **Phase 7: KPI Library** - Dev team defines reusable KPI templates; business users pick and configure KPIs for dashboards
@@ -111,7 +111,7 @@ Plans:
 Plans:
 - [x] 04-01-PLAN.md -- Backend: driver installation, cx_Oracle aliasing, URI builder fix, connection status tracker, env-aware config
 - [x] 04-02-PLAN.md -- Frontend: dynamic backend-specific form fields, test-before-save enforcement, status dots on cards/rows
-- [ ] 04-03-PLAN.md -- Verification: Docker build, full test suite, visual verification checkpoint
+- [x] 04-03-PLAN.md -- Verification: Docker build, full test suite, visual verification checkpoint
 
 ### Phase 5: Dataset Management
 **Goal**: Dev team can create named datasets from SQL queries with rich column metadata, so business users have a curated catalog of data to build charts from
@@ -209,7 +209,7 @@ Phases execute in numeric order: 1 -> 2 -> 02.1 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 ->
 | 2. Cross-Filtering and Drill-Down | 0/3 | Planning complete | - |
 | 02.1. Chart Rendering Foundation | 3/3 | Complete   | 2026-04-05 |
 | 3. Chart and Grid Interactions | 0/3 | Planning complete | - |
-| 4. Data Source Connectivity | 0/3 | Planning complete | - |
+| 4. Data Source Connectivity | 3/3 | Complete | 2026-04-05 |
 | 5. Dataset Management | 0/0 | Not started | - |
 | 6. Chart Library | 0/0 | Not started | - |
 | 7. KPI Library | 0/0 | Not started | - |
