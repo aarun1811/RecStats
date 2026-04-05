@@ -92,7 +92,7 @@ Plans:
 **UI hint**: yes
 
 Plans:
-- [ ] 03-01-PLAN.md -- Chart ref forwarding, export utilities, hover-reveal toolbar, fullscreen dialog
+- [x] 03-01-PLAN.md -- Chart ref forwarding, export utilities, hover-reveal toolbar, fullscreen dialog
 - [ ] 03-02-PLAN.md -- Grid toolbar (CSV, Excel, columns, density, auto-size) and dead code cleanup
 - [ ] 03-03-PLAN.md -- Dashboard manual refresh, auto-refresh with configurable interval and countdown
 
