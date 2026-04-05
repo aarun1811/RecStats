@@ -110,7 +110,7 @@ Plans:
 
 Plans:
 - [x] 04-01-PLAN.md -- Backend: driver installation, cx_Oracle aliasing, URI builder fix, connection status tracker, env-aware config
-- [ ] 04-02-PLAN.md -- Frontend: dynamic backend-specific form fields, test-before-save enforcement, status dots on cards/rows
+- [x] 04-02-PLAN.md -- Frontend: dynamic backend-specific form fields, test-before-save enforcement, status dots on cards/rows
 - [ ] 04-03-PLAN.md -- Verification: Docker build, full test suite, visual verification checkpoint
 
 ### Phase 5: Dataset Management
