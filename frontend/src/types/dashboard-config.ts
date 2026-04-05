@@ -68,6 +68,8 @@ export interface DashboardChartConfig {
   crossFilter?: boolean
   drillHierarchy?: string[]
   drillDetailDataSourceId?: string
+  /** Per-chart refresh interval override in milliseconds. undefined = use dashboard default. */
+  refreshInterval?: number
 }
 
 export interface GridColumn {
@@ -119,6 +121,8 @@ export interface DashboardConfig {
   charts: DashboardChartConfig[]
   grids: GridConfig[]
   layout: DashboardLayoutConfig
+  /** Auto-refresh interval in milliseconds. 0 = disabled. Default: 600000 (10 min). */
+  autoRefreshInterval?: number
 }
 
 export interface KpiResult {

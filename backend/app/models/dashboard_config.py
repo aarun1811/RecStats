@@ -73,6 +73,7 @@ class DashboardChartConfig(BaseModel):
     cross_filter: bool | None = None  # None = participates (default), False = opt-out
     drill_hierarchy: list[str] | None = None
     drill_detail_data_source_id: str | None = None
+    refresh_interval: int | None = None  # ms, per-chart override
 
 
 class GridSource(BaseModel):
@@ -124,3 +125,4 @@ class DashboardConfig(BaseModel):
     charts: list[DashboardChartConfig] = []
     grids: list[GridConfig] = []
     layout: LayoutConfig = LayoutConfig()
+    auto_refresh_interval: int | None = None  # ms, 0 = disabled, default ~600000 (10 min)
