@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [ ] **Phase 1: Foundation Hardening** - Remove mock fallbacks, clean legacy code, add financial formatting, pin Superset, persist configs to database
 - [ ] **Phase 2: Cross-Filtering and Drill-Down** - Add client-side cross-filtering and drill-down navigation to the existing dashboard renderer
-- [ ] **Phase 2.1: Chart Rendering Foundation** - (INSERTED) Fix all major chart types to render correctly from query data, validate Phase 2 cross-filter/drill-down end-to-end
+- [ ] **Phase 02.1: Chart Rendering Foundation** - (INSERTED) Fix all major chart types to render correctly from query data, validate Phase 2 cross-filter/drill-down end-to-end
 - [ ] **Phase 3: Chart and Grid Interactions** - Add fullscreen view, chart/grid export, manual refresh, and configurable auto-refresh to dashboard panels
 - [ ] **Phase 4: Data Source Connectivity** - Integrate Oracle, Hive, and Elasticsearch via Superset with a connection management UI for the dev team
 - [ ] **Phase 5: Dataset Management** - Dev team can create, edit, and manage datasets with SQL queries, column metadata, and roles
