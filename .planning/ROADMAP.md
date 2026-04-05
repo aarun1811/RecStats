@@ -56,7 +56,7 @@ Plans:
 Plans:
 - [x] 02-01-PLAN.md -- Foundation data layer: types, stores, utilities, hooks, and tests for cross-filtering and drill-down
 - [x] 02-02-PLAN.md -- Cross-filtering UI integration into dashboard renderer, chart grid, KPI row, data grid, and chart wrappers
-- [ ] 02-03-PLAN.md -- Drill-down UI: breadcrumb navigation, detail grid, chart grid drill insertion, and end-to-end verification
+- [x] 02-03-PLAN.md -- Drill-down UI: breadcrumb navigation, detail grid, chart grid drill insertion, and end-to-end verification
 
 ### Phase 3: Chart and Grid Interactions
 **Goal**: Users can export, enlarge, and refresh individual charts and grids from toolbar controls on each panel
