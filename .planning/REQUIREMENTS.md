@@ -51,10 +51,10 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Dashboard Interactions
 
-- [ ] **INTR-01**: Cross-filtering — click a chart segment to filter all other charts on the dashboard; client-side only, zero network calls, instant response
-- [ ] **INTR-02**: Cross-filter visual state — selected items full color, excluded items dimmed (not hidden); selection bar showing active cross-filters with one-click removal
-- [ ] **INTR-03**: Drill-down — click aggregated data to see breakdown, then detail rows; breadcrumb navigation showing drill path
-- [ ] **INTR-04**: Drill-down detail level fetches raw rows from backend via AG Grid with full sort/filter/pagination
+- [x] **INTR-01**: Cross-filtering — click a chart segment to filter all other charts on the dashboard; client-side only, zero network calls, instant response
+- [x] **INTR-02**: Cross-filter visual state — selected items full color, excluded items dimmed (not hidden); selection bar showing active cross-filters with one-click removal
+- [x] **INTR-03**: Drill-down — click aggregated data to see breakdown, then detail rows; breadcrumb navigation showing drill path
+- [x] **INTR-04**: Drill-down detail level fetches raw rows from backend via AG Grid with full sort/filter/pagination
 - [ ] **INTR-05**: Fullscreen chart view — expand any chart to a modal/overlay for detailed inspection
 - [ ] **INTR-06**: Chart export — PNG, CSV, clipboard from chart toolbar
 - [ ] **INTR-07**: Grid export — CSV and Excel via AG Grid Enterprise built-in export
@@ -134,10 +134,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFR-04 | Phase 1: Foundation Hardening | Complete |
 | INFR-05 | Phase 1: Foundation Hardening | Complete |
 | INFR-06 | Phase 1: Foundation Hardening | Complete |
-| INTR-01 | Phase 2: Cross-Filtering and Drill-Down | Pending |
-| INTR-02 | Phase 2: Cross-Filtering and Drill-Down | Pending |
-| INTR-03 | Phase 2: Cross-Filtering and Drill-Down | Pending |
-| INTR-04 | Phase 2: Cross-Filtering and Drill-Down | Pending |
+| INTR-01 | Phase 2: Cross-Filtering and Drill-Down | Complete |
+| INTR-02 | Phase 2: Cross-Filtering and Drill-Down | Complete |
+| INTR-03 | Phase 2: Cross-Filtering and Drill-Down | Complete |
+| INTR-04 | Phase 2: Cross-Filtering and Drill-Down | Complete |
 | INTR-05 | Phase 3: Chart and Grid Interactions | Pending |
 | INTR-06 | Phase 3: Chart and Grid Interactions | Pending |
 | INTR-07 | Phase 3: Chart and Grid Interactions | Pending |

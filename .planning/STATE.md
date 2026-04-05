@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 2 UI-SPEC approved
-last_updated: "2026-04-05T07:30:03.358Z"
-last_activity: 2026-04-05 -- Phase 2 planning complete
+stopped_at: Completed 02-01-PLAN.md
+last_updated: "2026-04-05T08:42:31.225Z"
+last_activity: 2026-04-05
 progress:
   total_phases: 9
   completed_phases: 1
   total_plans: 6
-  completed_plans: 3
-  percent: 50
+  completed_plans: 4
+  percent: 67
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-04)
 
 **Core value:** Business users can view, interact with, and customize dashboards over reconciliation data without depending on another team.
-**Current focus:** Phase 01 — foundation-hardening
+**Current focus:** Phase 02 — Cross-Filtering and Drill-Down
 
 ## Current Position
 
-Phase: 2
-Plan: Not started
+Phase: 02 (Cross-Filtering and Drill-Down) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
-Last activity: 2026-04-05 -- Phase 2 planning complete
+Last activity: 2026-04-05
 
 Progress: [..........] 0%
 
@@ -55,6 +55,7 @@ Progress: [..........] 0%
 | Phase 01 P02 | 5min | 2 tasks | 14 files |
 | Phase 01 P01 | 17min | 2 tasks | 21 files |
 | Phase 01 P03 | 8min | 2 tasks | 17 files |
+| Phase 02 P01 | 7min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -74,6 +75,10 @@ Recent decisions affecting current work:
 - [Phase 01]: Search endpoint gracefully degrades: returns partial results from ConfigStore when Superset unavailable (no 503)
 - [Phase 01]: Error detail sanitized via sanitize_detail(): truncates to 500 chars, redacts connection URIs
 - [Phase 01]: Global API error toast via QueryCache onError (fires for all queries, no per-hook wiring)
+- [Phase 02]: Per-chart drill state via Map<string, PerChartDrill> instead of global single-chart DrillState
+- [Phase 02]: Column-name matching replaces rule-based CrossFilterRule targeting
+- [Phase 02]: KPI re-aggregation reports partial matches when cross-filter column missing from data source
+- [Phase 02]: reaggregateByField scans up to 10 rows for numeric detection instead of just row 0
 
 ### Pending Todos
 
@@ -87,6 +92,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-05T06:29:08.409Z
-Stopped at: Phase 2 UI-SPEC approved
-Resume file: .planning/phases/02-cross-filtering-and-drill-down/02-UI-SPEC.md
+Last session: 2026-04-05T08:42:31.223Z
+Stopped at: Completed 02-01-PLAN.md
+Resume file: None
