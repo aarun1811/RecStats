@@ -8,6 +8,7 @@ import { CrossFilterBar } from '@/components/dashboard/cross-filter-bar'
 import { useDashboardKpis } from '@/hooks/use-dashboard-kpis'
 import { useCrossFilterData } from '@/hooks/use-cross-filter-data'
 import { useFilterStore } from '@/stores/filter-store'
+import { useDrillStore } from '@/stores/drill-store'
 import type { DashboardConfig } from '@/types/dashboard-config'
 import type { FilterValue } from '@/types/filter'
 
@@ -28,6 +29,7 @@ export function DashboardRenderer({
   const appliedFilters = useFilterStore((s) => s.applied)
   const crossFilters = useFilterStore((s) => s.crossFilters)
   const clearCrossFilters = useFilterStore((s) => s.clearCrossFilters)
+  const resetAllDrills = useDrillStore((s) => s.resetAllDrills)
   const hasAutoApplied = useRef(false)
 
   useEffect(() => {
@@ -40,6 +42,7 @@ export function DashboardRenderer({
     const merged = { ...defaults, ...initialFilters }
     initializeFilters(merged, lockedFilters)
     hasAutoApplied.current = false
+    resetAllDrills()
   }, [config.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-apply once when single-select filters auto-fill their first option
@@ -52,14 +55,17 @@ export function DashboardRenderer({
     }
   }, [values, applyFilters])
 
-  // Clear cross-filters when global filters change (stale value prevention)
+  // Clear cross-filters and drill state when global filters change (stale value prevention)
   const prevAppliedRef = useRef(appliedFilters)
   useEffect(() => {
-    if (prevAppliedRef.current !== appliedFilters && crossFilters.length > 0) {
-      clearCrossFilters()
+    if (prevAppliedRef.current !== appliedFilters) {
+      if (crossFilters.length > 0) {
+        clearCrossFilters()
+      }
+      resetAllDrills()
     }
     prevAppliedRef.current = appliedFilters
-  }, [appliedFilters, crossFilters.length, clearCrossFilters])
+  }, [appliedFilters, crossFilters.length, clearCrossFilters, resetAllDrills])
 
   const { data: kpisData } = useDashboardKpis(config.id, appliedFilters)
   const kpiResults = kpisData?.kpis
@@ -79,6 +85,7 @@ export function DashboardRenderer({
   }, [config]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const crossFilterEnabled = config.features.crossFilter
+  const drillDownEnabled = config.features.drillDown
 
   return (
     <div className="flex flex-col gap-4">
@@ -94,6 +101,7 @@ export function DashboardRenderer({
         charts={config.charts}
         kpiResults={crossFilteredKpis ?? kpiResults}
         crossFilterEnabled={crossFilterEnabled}
+        drillDownEnabled={drillDownEnabled}
       />
       <ConfigDataGrid
         grids={config.grids}
