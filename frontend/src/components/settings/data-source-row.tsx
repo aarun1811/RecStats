@@ -1,8 +1,7 @@
 import { ChevronRight, Database } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import type { DatabaseInfo } from '@/types/database'
-import { BACKEND_LABELS, BACKEND_COLORS, STATUS_STYLES, STATUS_LABELS } from './data-source-card'
+import { BACKEND_LABELS, BACKEND_COLORS, STATUS_LABELS, StatusDot } from './data-source-card'
 
 interface DataSourceRowProps {
   database: DatabaseInfo
@@ -24,9 +23,10 @@ export function DataSourceRow({ database, onClick }: DataSourceRowProps) {
           {BACKEND_LABELS[backendKey] || database.backend} &middot; {database.datasetCount} tables
         </p>
       </div>
-      <Badge variant="secondary" className={cn('text-[10px] shrink-0', STATUS_STYLES[database.status])}>
-        {STATUS_LABELS[database.status] || database.status}
-      </Badge>
+      <div className="flex items-center gap-1.5 shrink-0">
+        <StatusDot status={database.status} />
+        <span className="text-[10px] text-muted-foreground">{STATUS_LABELS[database.status]}</span>
+      </div>
       <ChevronRight className="size-4 text-muted-foreground shrink-0" />
     </div>
   )

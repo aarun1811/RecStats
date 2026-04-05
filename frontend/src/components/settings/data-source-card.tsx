@@ -1,6 +1,5 @@
 import { Database } from 'lucide-react'
 import { Card } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import type { DatabaseInfo, ConnectionStatus, DatabaseBackend } from '@/types/database'
 
@@ -35,7 +34,27 @@ const STATUS_LABELS: Record<ConnectionStatus, string> = {
   untested: 'Untested',
 }
 
-export { BACKEND_LABELS, BACKEND_COLORS, STATUS_STYLES, STATUS_LABELS }
+const STATUS_DOT_COLORS: Record<ConnectionStatus, string> = {
+  connected: 'bg-green-500',
+  unreachable: 'bg-red-500',
+  untested: 'bg-gray-400',
+}
+
+interface StatusDotProps {
+  status: ConnectionStatus
+}
+
+export function StatusDot({ status }: StatusDotProps) {
+  return (
+    <span
+      className={cn('inline-block size-2 rounded-full', STATUS_DOT_COLORS[status])}
+      title={STATUS_LABELS[status]}
+      aria-label={`Status: ${STATUS_LABELS[status]}`}
+    />
+  )
+}
+
+export { BACKEND_LABELS, BACKEND_COLORS, STATUS_STYLES, STATUS_LABELS, STATUS_DOT_COLORS }
 
 export function DataSourceCard({ database, onClick }: DataSourceCardProps) {
   const backendKey = database.backend
@@ -48,9 +67,10 @@ export function DataSourceCard({ database, onClick }: DataSourceCardProps) {
       <div className="flex flex-col gap-3">
         <div className="flex items-start justify-between">
           <Database className={cn('size-8', BACKEND_COLORS[backendKey] || 'text-muted-foreground')} />
-          <Badge variant="secondary" className={cn('text-[10px]', STATUS_STYLES[database.status])}>
-            {STATUS_LABELS[database.status] || database.status}
-          </Badge>
+          <div className="flex items-center gap-1.5">
+            <StatusDot status={database.status} />
+            <span className="text-[10px] text-muted-foreground">{STATUS_LABELS[database.status]}</span>
+          </div>
         </div>
         <div>
           <p className="text-sm font-medium truncate">{database.databaseName}</p>

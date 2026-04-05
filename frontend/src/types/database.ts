@@ -10,6 +10,7 @@ export interface DatabaseInfo {
   exposeInSqllab: boolean
   datasetCount: number
   status: ConnectionStatus
+  lastTested: string | null
 }
 
 export interface DatabaseCreate {
@@ -44,6 +45,7 @@ export interface TestConnectionRequest {
   database?: string
   username?: string
   password?: string
+  databaseId?: number
 }
 
 export interface TestConnectionResponse {
