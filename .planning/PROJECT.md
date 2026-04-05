@@ -25,6 +25,9 @@ Business users can view, interact with, and customize dashboards over reconcilia
 - ✓ Centralized financial number formatting (Intl.NumberFormat, locale-pinned) — Phase 1
 - ✓ Structured error handling with per-component isolation — Phase 1
 - ✓ Legacy dead code removed, cross-filter/drill-down preserved — Phase 1
+- ✓ Oracle database connectivity via Superset (python-oracledb thin mode, cx_Oracle aliasing) — Phase 4
+- ✓ Hive database connectivity via Superset (PyHive driver) — Phase 4
+- ✓ Connection management UI with dynamic forms, test-before-save, status tracking — Phase 4
 
 ### Active
 
@@ -110,4 +113,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-04 after Phase 1 completion*
+*Last updated: 2026-04-05 after Phase 4 completion*
