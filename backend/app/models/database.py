@@ -37,6 +37,7 @@ class DatabaseInfo(CamelModel):
     expose_in_sqllab: bool = True
     dataset_count: int = 0
     status: str = "untested"
+    last_tested: str | None = None
 
 
 class TestConnectionRequest(CamelModel):
