@@ -24,6 +24,8 @@ interface ConfigChartGridProps {
   crossFilterEnabled?: boolean
   drillDownEnabled?: boolean
   dashboardHasFilters?: boolean
+  onRefreshKpis?: () => void
+  isRefreshingKpis?: boolean
 }
 
 /** Builds a ChartDataResponse from KPI results for a kpi_values chart (e.g. donut). */
@@ -337,10 +339,14 @@ function KpiValuesChartItem({
   chart,
   kpiResults,
   crossFilterEnabled,
+  onRefresh,
+  isRefreshing,
 }: {
   chart: DashboardChartConfig
   kpiResults: KpiResult[]
   crossFilterEnabled?: boolean
+  onRefresh?: () => void
+  isRefreshing?: boolean
 }) {
   const crossFilters = useFilterStore((s) => s.crossFilters)
   const addCrossFilter = useFilterStore((s) => s.addCrossFilter)
@@ -406,6 +412,8 @@ function KpiValuesChartItem({
                   chartRef={chartRef}
                   chartTitle={chart.title}
                   onFullscreen={() => setFullscreenOpen(true)}
+                  onRefresh={onRefresh}
+                  isRefreshing={isRefreshing}
                 />
               </motion.div>
             )}
@@ -434,6 +442,8 @@ function KpiValuesChartItem({
             chartRef={fullscreenChartRef}
             chartTitle={chart.title}
             onFullscreen={() => {}}
+            onRefresh={onRefresh}
+            isRefreshing={isRefreshing}
             isInsideFullscreen
           />
         }
@@ -482,7 +492,7 @@ function ChartItemSkeleton({ title }: { title?: string }) {
  * breadcrumb shows inside chart header, and a full-width detail grid
  * slides in below the drilled chart row via CSS grid `gridColumn: 1 / -1`.
  */
-export function ConfigChartGrid({ charts, kpiResults, crossFilterEnabled, drillDownEnabled, dashboardHasFilters }: ConfigChartGridProps) {
+export function ConfigChartGrid({ charts, kpiResults, crossFilterEnabled, drillDownEnabled, dashboardHasFilters, onRefreshKpis, isRefreshingKpis }: ConfigChartGridProps) {
   return (
     <div
       className="grid gap-4"
@@ -504,6 +514,8 @@ export function ConfigChartGrid({ charts, kpiResults, crossFilterEnabled, drillD
                 chart={chart}
                 kpiResults={kpiResults ?? []}
                 crossFilterEnabled={crossFilterEnabled}
+                onRefresh={onRefreshKpis}
+                isRefreshing={isRefreshingKpis}
               />
             </div>
           )

@@ -149,6 +149,8 @@ export function DashboardRenderer({
         crossFilterEnabled={crossFilterEnabled}
         drillDownEnabled={drillDownEnabled}
         dashboardHasFilters={config.filters.length > 0}
+        onRefreshKpis={handleRefresh}
+        isRefreshingKpis={isRefreshing}
       />
       <ConfigDataGrid
         grids={config.grids}

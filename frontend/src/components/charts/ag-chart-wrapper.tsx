@@ -344,9 +344,33 @@ export const AgChartWrapper = forwardRef<AgChartRef, ChartWrapperProps>(function
     )
   }
 
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [containerSize, setContainerSize] = useState<{ width: number; height: number } | null>(null)
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0]
+      if (entry) {
+        const { width, height } = entry.contentRect
+        if (width > 0 && height > 0) {
+          setContainerSize({ width: Math.floor(width), height: Math.floor(height) })
+        }
+      }
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
+  const sizedOptions = useMemo(() => {
+    if (!containerSize) return options
+    return { ...options, width: containerSize.width, height: containerSize.height, autoSize: false }
+  }, [options, containerSize])
+
   return (
-    <div className={cn('h-[300px] w-full', className)}>
-      <AgCharts ref={internalChartRef} options={options} />
+    <div ref={containerRef} className={cn('h-[300px] w-full', className)}>
+      {containerSize ? <AgCharts ref={internalChartRef} options={sizedOptions} /> : null}
     </div>
   )
 })

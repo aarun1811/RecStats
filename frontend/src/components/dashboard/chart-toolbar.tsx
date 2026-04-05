@@ -38,18 +38,13 @@ export function ChartToolbar({
   return (
     <TooltipProvider delayDuration={300}>
       <div className="flex items-center gap-1 rounded-md bg-background/80 backdrop-blur-sm px-1 py-0.5">
-        {/* Export dropdown */}
-        <DropdownMenu>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="size-7 p-0">
-                  <Download className="size-3.5" />
-                </Button>
-              </DropdownMenuTrigger>
-            </TooltipTrigger>
-            <TooltipContent>Export chart</TooltipContent>
-          </Tooltip>
+        {/* Export dropdown — no Tooltip wrapper; Radix Tooltip steals focus and kills the dropdown */}
+        <DropdownMenu modal={false}>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="size-7 p-0" title="Export chart">
+              <Download className="size-3.5" />
+            </Button>
+          </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Image</DropdownMenuLabel>
             <DropdownMenuItem
