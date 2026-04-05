@@ -70,12 +70,12 @@ Plans:
   3. All chart types render real data from query data sources -- no "No data to display" on valid data
   4. Cross-filtering works visually: clicking a chart segment dims other charts and shows the filter badge bar
   5. Drill-down works visually: double-clicking navigates through hierarchy with breadcrumb, detail grid slides in
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 **UI hint**: yes
 
 Plans:
 - [x] 02.1-01-PLAN.md -- Config-driven column mapping refactor for AG Charts + ECharts wrappers, error panels, theme overrides
-- [ ] 02.1-02-PLAN.md -- Showcase dashboard config, dedicated data sources, seed data, and unit tests for buildSeries
+- [x] 02.1-02-PLAN.md -- Showcase dashboard config, dedicated data sources, seed data, and unit tests for buildSeries
 - [ ] 02.1-03-PLAN.md -- Playwright E2E tests for all chart types, cross-filter/drill-down validation, tlm-stats regression, manual checkpoint
 
 ### Phase 3: Chart and Grid Interactions
@@ -205,7 +205,7 @@ Phases execute in numeric order: 1 -> 2 -> 02.1 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 ->
 |-------|----------------|--------|-----------|
 | 1. Foundation Hardening | 0/3 | Planning complete | - |
 | 2. Cross-Filtering and Drill-Down | 0/3 | Planning complete | - |
-| 02.1. Chart Rendering Foundation | 1/3 | In Progress|  |
+| 02.1. Chart Rendering Foundation | 2/3 | In Progress|  |
 | 3. Chart and Grid Interactions | 0/0 | Not started | - |
 | 4. Data Source Connectivity | 0/0 | Not started | - |
 | 5. Dataset Management | 0/0 | Not started | - |
