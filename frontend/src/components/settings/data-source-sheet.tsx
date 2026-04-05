@@ -23,7 +23,6 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
@@ -42,8 +41,8 @@ import {
 import {
   BACKEND_LABELS,
   BACKEND_COLORS,
-  STATUS_STYLES,
   STATUS_LABELS,
+  StatusDot,
 } from './data-source-card'
 
 import type {
@@ -51,6 +50,7 @@ import type {
   DatabaseInfo,
   DatabaseCreate,
   DatasetSummary,
+  TestConnectionRequest,
 } from '@/types/database'
 
 type SheetMode = 'create' | 'edit' | 'detail'
@@ -64,11 +64,65 @@ interface DataSourceSheetProps {
   onModeChange: (mode: SheetMode) => void
 }
 
-const BACKENDS: { value: DatabaseBackend; label: string; defaultPort: number }[] = [
-  { value: 'postgresql', label: 'PostgreSQL', defaultPort: 5432 },
-  { value: 'oracle', label: 'Oracle', defaultPort: 1521 },
-  { value: 'hive', label: 'Hive', defaultPort: 10000 },
-  { value: 'elasticsearch', label: 'Elasticsearch', defaultPort: 9200 },
+// ── Backend field configuration ──────────────────────────────
+
+interface BackendFieldDef {
+  name: string
+  label: string
+  placeholder: string
+  type: 'text' | 'password' | 'number'
+  required: boolean
+  gridSpan?: 1 | 2
+}
+
+interface BackendFieldConfig {
+  fields: BackendFieldDef[]
+  defaultPort: number
+}
+
+const BACKEND_FIELDS: Record<DatabaseBackend, BackendFieldConfig> = {
+  oracle: {
+    defaultPort: 1521,
+    fields: [
+      { name: 'host', label: 'Host', placeholder: 'oracle-host.example.com', type: 'text', required: true, gridSpan: 2 },
+      { name: 'port', label: 'Port', placeholder: '1521', type: 'number', required: true },
+      { name: 'database', label: 'Service Name', placeholder: 'MYSERVICE', type: 'text', required: true },
+      { name: 'schemaName', label: 'Schema', placeholder: 'RECON_OWNER', type: 'text', required: false },
+      { name: 'username', label: 'Username', placeholder: 'recon_user', type: 'text', required: true },
+      { name: 'password', label: 'Password', placeholder: '', type: 'password', required: true },
+    ],
+  },
+  hive: {
+    defaultPort: 10000,
+    fields: [
+      { name: 'host', label: 'Host', placeholder: 'hive-host.example.com', type: 'text', required: true, gridSpan: 2 },
+      { name: 'port', label: 'Port', placeholder: '10000', type: 'number', required: true },
+      { name: 'database', label: 'Database', placeholder: 'default', type: 'text', required: true },
+      { name: 'username', label: 'Username', placeholder: 'hive_user', type: 'text', required: false },
+      { name: 'password', label: 'Password', placeholder: '', type: 'password', required: false },
+    ],
+  },
+  postgresql: {
+    defaultPort: 5432,
+    fields: [
+      { name: 'host', label: 'Host', placeholder: 'pg-host.example.com', type: 'text', required: true, gridSpan: 2 },
+      { name: 'port', label: 'Port', placeholder: '5432', type: 'number', required: true },
+      { name: 'database', label: 'Database', placeholder: 'mydb', type: 'text', required: true },
+      { name: 'username', label: 'Username', placeholder: 'db_user', type: 'text', required: true },
+      { name: 'password', label: 'Password', placeholder: '', type: 'password', required: true },
+    ],
+  },
+  elasticsearch: {
+    defaultPort: 9200,
+    fields: [],
+  },
+}
+
+const BACKENDS: { value: DatabaseBackend; label: string; disabled?: boolean }[] = [
+  { value: 'postgresql', label: 'PostgreSQL' },
+  { value: 'oracle', label: 'Oracle' },
+  { value: 'hive', label: 'Hive' },
+  { value: 'elasticsearch', label: 'Elasticsearch', disabled: true },
 ]
 
 export function DataSourceSheet({
@@ -82,16 +136,12 @@ export function DataSourceSheet({
   const [backend, setBackend] = useState<DatabaseBackend>('postgresql')
   const [displayName, setDisplayName] = useState('')
   const [connectionTab, setConnectionTab] = useState<ConnectionTab>('simple')
-  const [host, setHost] = useState('')
-  const [port, setPort] = useState('')
-  const [database, setDatabase] = useState('')
-  const [schemaName, setSchemaName] = useState('')
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
+  const [formValues, setFormValues] = useState<Record<string, string>>({})
   const [sqlalchemyUri, setSqlalchemyUri] = useState('')
 
   // Test connection state
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
+  const [hasPassedTest, setHasPassedTest] = useState(false)
 
   // Dataset expand state
   const [expandedDataset, setExpandedDataset] = useState<number | null>(null)
@@ -119,20 +169,20 @@ export function DataSourceSheet({
   )
   const totalDatasets = datasetsPages?.pages[0]?.total ?? 0
 
+  const updateFormValue = (name: string, value: string) => {
+    setFormValues((prev) => ({ ...prev, [name]: value }))
+  }
+
   // Reset form when mode/database changes
   useEffect(() => {
     setTestResult(null)
+    setHasPassedTest(false)
     setExpandedDataset(null)
     if (mode === 'create') {
       setBackend('postgresql')
       setDisplayName('')
       setConnectionTab('simple')
-      setHost('')
-      setPort('5432')
-      setDatabase('')
-      setSchemaName('')
-      setUsername('')
-      setPassword('')
+      setFormValues({ port: String(BACKEND_FIELDS.postgresql.defaultPort) })
       setSqlalchemyUri('')
     }
   }, [mode, databaseId, open])
@@ -140,21 +190,37 @@ export function DataSourceSheet({
   // Auto-fill port when backend changes in create/edit mode
   useEffect(() => {
     if (mode === 'create' || mode === 'edit') {
-      const backendConfig = BACKENDS.find((b) => b.value === backend)
-      if (backendConfig) {
-        setPort(String(backendConfig.defaultPort))
-      }
+      setFormValues((prev) => ({
+        ...prev,
+        port: String(BACKEND_FIELDS[backend].defaultPort),
+      }))
     }
   }, [backend, mode])
 
+  // Reset hasPassedTest when connection params change
+  useEffect(() => {
+    setHasPassedTest(false)
+  }, [formValues, backend, connectionTab, sqlalchemyUri])
+
   const handleTestConnection = () => {
     setTestResult(null)
-    const payload =
+    const payload: TestConnectionRequest =
       connectionTab === 'advanced'
         ? { backend, sqlalchemyUri }
-        : { backend, host, port: port ? parseInt(port) : undefined, database, username, password }
+        : {
+            backend,
+            host: formValues.host,
+            port: formValues.port ? parseInt(formValues.port) : undefined,
+            database: formValues.database,
+            username: formValues.username,
+            password: formValues.password,
+            ...(mode === 'edit' && databaseId ? { databaseId } : {}),
+          }
     testMutation.mutate(payload, {
-      onSuccess: (res) => setTestResult(res),
+      onSuccess: (res) => {
+        setTestResult(res)
+        if (res.success) setHasPassedTest(true)
+      },
       onError: () => setTestResult({ success: false, message: 'Request failed' }),
     })
   }
@@ -165,7 +231,14 @@ export function DataSourceSheet({
       backend,
       ...(connectionTab === 'advanced'
         ? { sqlalchemyUri }
-        : { host, port: port ? parseInt(port) : undefined, database, schemaName, username, password }),
+        : {
+            host: formValues.host,
+            port: formValues.port ? parseInt(formValues.port) : undefined,
+            database: formValues.database,
+            schemaName: formValues.schemaName,
+            username: formValues.username,
+            password: formValues.password,
+          }),
     }
 
     if (mode === 'create') {
@@ -210,7 +283,11 @@ export function DataSourceSheet({
     })
   }
 
-  const canSave = !!(displayName.trim() && (connectionTab === 'advanced' ? sqlalchemyUri.trim() : host.trim()))
+  const canSave = mode === 'create'
+    ? !!(displayName.trim() && hasPassedTest)
+    : !!(displayName.trim() && (
+        connectionTab === 'advanced' ? sqlalchemyUri.trim() : formValues.host?.trim()
+      ))
   const isSaving = createMutation.isPending || updateMutation.isPending
 
   // ── Render ──────────────────────────────────────────────────
@@ -247,18 +324,8 @@ export function DataSourceSheet({
             onDisplayNameChange={setDisplayName}
             connectionTab={connectionTab}
             onConnectionTabChange={setConnectionTab}
-            host={host}
-            onHostChange={setHost}
-            port={port}
-            onPortChange={setPort}
-            database={database}
-            onDatabaseChange={setDatabase}
-            schemaName={schemaName}
-            onSchemaNameChange={setSchemaName}
-            username={username}
-            onUsernameChange={setUsername}
-            password={password}
-            onPasswordChange={setPassword}
+            formValues={formValues}
+            onFormValueChange={updateFormValue}
             sqlalchemyUri={sqlalchemyUri}
             onSqlalchemyUriChange={setSqlalchemyUri}
             onTestConnection={handleTestConnection}
@@ -348,11 +415,15 @@ function DetailView({
               {database.createdOn && (
                 <> &middot; Created {new Date(database.createdOn).toLocaleDateString()}</>
               )}
+              {database.lastTested && (
+                <> &middot; Last tested {new Date(database.lastTested).toLocaleString()}</>
+              )}
             </SheetDescription>
           </div>
-          <Badge variant="secondary" className={cn('text-[10px] shrink-0', STATUS_STYLES[database.status])}>
-            {STATUS_LABELS[database.status]}
-          </Badge>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <StatusDot status={database.status} />
+            <span className="text-xs text-muted-foreground">{STATUS_LABELS[database.status]}</span>
+          </div>
         </div>
       </SheetHeader>
 
@@ -499,18 +570,8 @@ interface FormViewProps {
   onDisplayNameChange: (v: string) => void
   connectionTab: ConnectionTab
   onConnectionTabChange: (t: ConnectionTab) => void
-  host: string
-  onHostChange: (v: string) => void
-  port: string
-  onPortChange: (v: string) => void
-  database: string
-  onDatabaseChange: (v: string) => void
-  schemaName: string
-  onSchemaNameChange: (v: string) => void
-  username: string
-  onUsernameChange: (v: string) => void
-  password: string
-  onPasswordChange: (v: string) => void
+  formValues: Record<string, string>
+  onFormValueChange: (name: string, value: string) => void
   sqlalchemyUri: string
   onSqlalchemyUriChange: (v: string) => void
   onTestConnection: () => void
@@ -530,18 +591,8 @@ function FormView({
   onDisplayNameChange,
   connectionTab,
   onConnectionTabChange,
-  host,
-  onHostChange,
-  port,
-  onPortChange,
-  database,
-  onDatabaseChange,
-  schemaName,
-  onSchemaNameChange,
-  username,
-  onUsernameChange,
-  password,
-  onPasswordChange,
+  formValues,
+  onFormValueChange,
   sqlalchemyUri,
   onSqlalchemyUriChange,
   onTestConnection,
@@ -552,6 +603,8 @@ function FormView({
   onSave,
   onCancel,
 }: FormViewProps) {
+  const fields = BACKEND_FIELDS[backend].fields
+
   return (
     <>
       <SheetHeader className="border-b px-6 py-4">
@@ -575,30 +628,42 @@ function FormView({
                 <button
                   key={b.value}
                   type="button"
-                  onClick={() => onBackendChange(b.value)}
+                  disabled={b.disabled}
+                  onClick={() => !b.disabled && onBackendChange(b.value)}
                   className={cn(
-                    'flex flex-col items-center gap-1.5 rounded-lg border-2 p-3 transition-colors cursor-pointer',
-                    backend === b.value
-                      ? 'border-primary bg-primary/5'
-                      : 'border-muted hover:border-muted-foreground/30',
+                    'flex flex-col items-center gap-1.5 rounded-lg border-2 p-3 transition-colors',
+                    b.disabled
+                      ? 'border-muted opacity-40 cursor-not-allowed'
+                      : backend === b.value
+                        ? 'border-primary bg-primary/5 cursor-pointer'
+                        : 'border-muted hover:border-muted-foreground/30 cursor-pointer',
                   )}
                 >
                   <Database
                     className={cn(
                       'size-5',
-                      backend === b.value
-                        ? BACKEND_COLORS[b.value]
-                        : 'text-muted-foreground',
+                      b.disabled
+                        ? 'text-muted-foreground'
+                        : backend === b.value
+                          ? BACKEND_COLORS[b.value]
+                          : 'text-muted-foreground',
                     )}
                   />
                   <span
                     className={cn(
                       'text-[11px] font-medium',
-                      backend === b.value ? 'text-foreground' : 'text-muted-foreground',
+                      b.disabled
+                        ? 'text-muted-foreground'
+                        : backend === b.value
+                          ? 'text-foreground'
+                          : 'text-muted-foreground',
                     )}
                   >
                     {b.label}
                   </span>
+                  {b.disabled && (
+                    <span className="text-[9px] text-muted-foreground">Coming soon</span>
+                  )}
                 </button>
               ))}
             </div>
@@ -642,69 +707,29 @@ function FormView({
             </div>
 
             {connectionTab === 'simple' ? (
-              <div className="space-y-3">
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="col-span-2 space-y-1.5">
-                    <Label htmlFor="host" className="text-xs">Host</Label>
+              <div className="grid grid-cols-2 gap-3">
+                {fields.map((field) => (
+                  <div
+                    key={field.name}
+                    className={cn('space-y-1.5', field.gridSpan === 2 && 'col-span-2')}
+                  >
+                    <Label htmlFor={field.name} className="text-xs">
+                      {field.label}
+                      {field.required && <span className="text-destructive ml-0.5">*</span>}
+                    </Label>
                     <Input
-                      id="host"
-                      placeholder="db-host.example.com"
-                      value={host}
-                      onChange={(e) => onHostChange(e.target.value)}
+                      id={field.name}
+                      type={field.type}
+                      placeholder={
+                        mode === 'edit' && field.type === 'password'
+                          ? 'Leave blank to keep current'
+                          : field.placeholder
+                      }
+                      value={formValues[field.name] ?? ''}
+                      onChange={(e) => onFormValueChange(field.name, e.target.value)}
                     />
                   </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="port" className="text-xs">Port</Label>
-                    <Input
-                      id="port"
-                      placeholder="5432"
-                      value={port}
-                      onChange={(e) => onPortChange(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="database" className="text-xs">Database</Label>
-                    <Input
-                      id="database"
-                      placeholder="mydb"
-                      value={database}
-                      onChange={(e) => onDatabaseChange(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="schema" className="text-xs">Schema</Label>
-                    <Input
-                      id="schema"
-                      placeholder="public"
-                      value={schemaName}
-                      onChange={(e) => onSchemaNameChange(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <Separator />
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="username" className="text-xs">Username</Label>
-                    <Input
-                      id="username"
-                      placeholder="db_user"
-                      value={username}
-                      onChange={(e) => onUsernameChange(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="password" className="text-xs">Password</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => onPasswordChange(e.target.value)}
-                    />
-                  </div>
-                </div>
+                ))}
               </div>
             ) : (
               <div className="space-y-1.5">
