@@ -6,6 +6,7 @@ import logging
 
 import httpx
 from fastapi import APIRouter, HTTPException
+from starlette.requests import Request
 
 from app.core.dependencies import SupersetDep
 from app.core.errors import sanitize_detail
@@ -14,11 +15,16 @@ from app.models.database import (
     DatabaseUpdate,
     TestConnectionRequest,
 )
+from app.services.connection_status import ConnectionStatusTracker
 from app.services.uri_builder import build_sqlalchemy_uri
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/databases", tags=["databases"])
+
+
+def _get_status_tracker(request: Request) -> ConnectionStatusTracker | None:
+    return getattr(request.app.state, "connection_status", None)
 
 
 def _resolve_uri(body: DatabaseCreate | DatabaseUpdate | TestConnectionRequest) -> str:
@@ -71,41 +77,57 @@ def _handle_httpx_error(e: Exception, context: str) -> HTTPException:
 
 
 @router.get("")
-async def list_databases(superset: SupersetDep) -> list[dict]:
+async def list_databases(superset: SupersetDep, request: Request) -> list[dict]:
     if not superset:
         raise _superset_unavailable()
     try:
+        tracker = _get_status_tracker(request)
         raw = await superset.list_databases()
-        return [
-            {
-                "id": db.get("id"),
-                "database_name": db.get("database_name", ""),
-                "backend": db.get("backend", ""),
-                "created_on": db.get("created_on"),
-                "expose_in_sqllab": db.get("expose_in_sqllab", True),
-                "dataset_count": 0,
-                "status": "connected",
-            }
-            for db in raw
-        ]
+        results = []
+        for db in raw:
+            db_id = db.get("id")
+            if tracker and db_id is not None:
+                status_info = tracker.get_status(db_id)
+            else:
+                status_info = {"status": "untested", "last_tested": None}
+            results.append(
+                {
+                    "id": db_id,
+                    "database_name": db.get("database_name", ""),
+                    "backend": db.get("backend", ""),
+                    "created_on": db.get("created_on"),
+                    "expose_in_sqllab": db.get("expose_in_sqllab", True),
+                    "dataset_count": 0,
+                    "status": status_info["status"],
+                    "last_tested": status_info["last_tested"],
+                }
+            )
+        return results
     except Exception as e:
         raise _handle_httpx_error(e, "list_databases")
 
 
 @router.get("/{db_id}")
-async def get_database(db_id: int, superset: SupersetDep) -> dict:
+async def get_database(db_id: int, superset: SupersetDep, request: Request) -> dict:
     if not superset:
         raise _superset_unavailable()
     try:
+        tracker = _get_status_tracker(request)
         raw = await superset.get_database(db_id)
+        raw_id = raw.get("id", db_id)
+        if tracker and raw_id is not None:
+            status_info = tracker.get_status(raw_id)
+        else:
+            status_info = {"status": "untested", "last_tested": None}
         return {
-            "id": raw.get("id"),
+            "id": raw_id,
             "database_name": raw.get("database_name", ""),
             "backend": raw.get("backend", ""),
             "created_on": raw.get("created_on"),
             "expose_in_sqllab": raw.get("expose_in_sqllab", True),
             "dataset_count": 0,
-            "status": "connected",
+            "status": status_info["status"],
+            "last_tested": status_info["last_tested"],
         }
     except Exception as e:
         raise _handle_httpx_error(e, f"get_database({db_id})")
@@ -173,10 +195,11 @@ async def create_database(body: DatabaseCreate, superset: SupersetDep) -> dict:
 
 
 @router.put("/{db_id}")
-async def update_database(db_id: int, body: DatabaseUpdate, superset: SupersetDep) -> dict:
+async def update_database(db_id: int, body: DatabaseUpdate, superset: SupersetDep, request: Request) -> dict:
     if not superset:
         raise _superset_unavailable()
     try:
+        tracker = _get_status_tracker(request)
         payload: dict = {}
         if body.database_name:
             payload["database_name"] = body.database_name
@@ -184,14 +207,20 @@ async def update_database(db_id: int, body: DatabaseUpdate, superset: SupersetDe
             payload["sqlalchemy_uri"] = _resolve_uri(body)
         result = await superset.update_database(db_id, payload)
         updated = result.get("result", result)
+        updated_id = updated.get("id", db_id)
+        if tracker and updated_id is not None:
+            status_info = tracker.get_status(updated_id)
+        else:
+            status_info = {"status": "untested", "last_tested": None}
         return {
-            "id": updated.get("id", db_id),
+            "id": updated_id,
             "database_name": updated.get("database_name", ""),
             "backend": updated.get("backend", ""),
             "created_on": updated.get("created_on"),
             "expose_in_sqllab": updated.get("expose_in_sqllab", True),
             "dataset_count": 0,
-            "status": "connected",
+            "status": status_info["status"],
+            "last_tested": status_info["last_tested"],
         }
     except Exception as e:
         raise _handle_httpx_error(e, f"update_database({db_id})")
@@ -209,18 +238,25 @@ async def delete_database(db_id: int, superset: SupersetDep) -> dict:
 
 
 @router.post("/test")
-async def test_connection(body: TestConnectionRequest, superset: SupersetDep) -> dict:
+async def test_connection(body: TestConnectionRequest, superset: SupersetDep, request: Request) -> dict:
     if not superset:
         raise _superset_unavailable()
+    tracker = _get_status_tracker(request)
     try:
         uri = _resolve_uri(body)
         await superset.test_connection({"sqlalchemy_uri": uri})
+        if tracker and body.database_id is not None:
+            tracker.mark_connected(body.database_id)
         return {"success": True, "message": "Connection successful"}
     except httpx.HTTPStatusError as e:
         logger.warning("Connection test failed: %s", e)
+        if tracker and body.database_id is not None:
+            tracker.mark_unreachable(body.database_id)
         return {"success": False, "message": f"Connection failed: {sanitize_detail(e)}"}
     except Exception as e:
         logger.warning("Connection test error: %s", e)
+        if tracker and body.database_id is not None:
+            tracker.mark_unreachable(body.database_id)
         return {"success": False, "message": f"Connection error: {sanitize_detail(e)}"}
 
 

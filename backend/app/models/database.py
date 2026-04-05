@@ -48,6 +48,7 @@ class TestConnectionRequest(CamelModel):
     database: str | None = None
     username: str | None = None
     password: str | None = None
+    database_id: int | None = None  # Superset ID for status tracking on existing DBs
 
 
 class TestConnectionResponse(CamelModel):

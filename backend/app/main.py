@@ -15,6 +15,7 @@ from starlette.responses import Response
 from app.api.router import api_router
 from app.config import settings
 from app.db.engine import engine
+from app.services.connection_status import ConnectionStatusTracker
 from app.services.database_registrar import DatabaseRegistrar
 from app.services.query_engine import QueryEngine
 from app.services.superset_client import SupersetClient
@@ -45,11 +46,17 @@ async def lifespan(app: FastAPI):
     app.state.database_registrar = registrar
     logger.info("DatabaseRegistrar synced")
 
-    # 3. Create QueryEngine (no longer needs ConfigStore — data sources
+    # 3. Create connection status tracker (in-memory, resets on restart)
+    status_tracker = ConnectionStatusTracker()
+    app.state.connection_status = status_tracker
+    logger.info("ConnectionStatusTracker initialized")
+
+    # 4. Create QueryEngine (no longer needs ConfigStore — data sources
     #    are resolved per-request via ResolvedDataSourceDep)
     app.state.query_engine = QueryEngine(
         superset_client=superset,
         database_registrar=registrar,
+        status_tracker=status_tracker,
     )
     logger.info("QueryEngine initialized — ready to serve")
 

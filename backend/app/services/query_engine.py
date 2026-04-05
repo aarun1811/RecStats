@@ -3,10 +3,38 @@ from __future__ import annotations
 import re
 from typing import Any
 
+import httpx
+
 from app.models.data_source_config import DataSourceConfig
+from app.services.connection_status import ConnectionStatusTracker
 from app.services.database_registrar import DatabaseRegistrar
 
 DEFAULT_MAX_ROWS = 10_000
+
+# Strings in Superset error responses that indicate a connection-level failure
+# rather than a query-level error (bad SQL). Used to detect unreachable databases
+# even when Superset returns HTTP 400 instead of 5xx.
+# (Addresses review concern: Superset returns 400 with connection failure in body)
+_CONNECTION_FAILURE_PATTERNS = (
+    "connection refused",
+    "could not connect",
+    "connection failed",
+    "connection timed out",
+    "no listener",           # Oracle: TNS:no listener
+    "ora-12541",             # Oracle: no listener
+    "ora-12514",             # Oracle: service not found
+    "ora-12170",             # Oracle: connect timeout
+    "thrift.transport",      # Hive: Thrift transport errors
+    "could not establish",
+    "name or service not known",
+    "connection reset",
+)
+
+
+def _is_connection_failure(error_text: str) -> bool:
+    """Check if an error message indicates a connection-level failure."""
+    lower = error_text.lower()
+    return any(pattern in lower for pattern in _CONNECTION_FAILURE_PATTERNS)
 
 
 class QueryEngine:
@@ -21,9 +49,11 @@ class QueryEngine:
         self,
         superset_client: Any,
         database_registrar: DatabaseRegistrar,
+        status_tracker: ConnectionStatusTracker | None = None,
     ) -> None:
         self._superset = superset_client
         self._registrar = database_registrar
+        self._status_tracker = status_tracker
 
     def _resolve_database(self, ds: DataSourceConfig, filters: dict) -> str:
         routing = ds.database_routing
@@ -132,6 +162,40 @@ class QueryEngine:
 
         return sql
 
+    def _handle_connection_error(
+        self, exc: Exception, db_id: int
+    ) -> None:
+        """Inspect an httpx exception and mark the database unreachable if
+        the error indicates a connection-level failure."""
+        if not self._status_tracker:
+            return
+
+        if isinstance(exc, httpx.ConnectError):
+            self._status_tracker.mark_unreachable(db_id)
+            return
+
+        if isinstance(exc, httpx.HTTPStatusError):
+            status = exc.response.status_code
+            if status in (500, 502, 503):
+                self._status_tracker.mark_unreachable(db_id)
+            elif status == 400:
+                # Superset returns 400 for some connection failures with error
+                # details in the JSON body. Inspect the body to distinguish
+                # connection failures from query errors (bad SQL).
+                try:
+                    body = exc.response.json()
+                    error_text = str(body.get("message", ""))
+                    errors_list = body.get("errors", [])
+                    for err in errors_list:
+                        error_text += " " + str(err.get("message", ""))
+                        error_text += " " + str(
+                            err.get("extra", {}).get("issue_codes", "")
+                        )
+                    if _is_connection_failure(error_text):
+                        self._status_tracker.mark_unreachable(db_id)
+                except Exception:
+                    pass  # If body parsing fails, don't mask the original error
+
     async def execute(
         self,
         ds: DataSourceConfig,
@@ -146,9 +210,19 @@ class QueryEngine:
         sql = self._build_sql(
             ds, filters, dialect=dialect, db_name=db_name
         )
-        result = await self._superset.execute_sql(
-            database_id=db_id, sql=sql, schema=schema or "", limit=max_rows
-        )
+
+        try:
+            result = await self._superset.execute_sql(
+                database_id=db_id, sql=sql, schema=schema or "", limit=max_rows
+            )
+        except (httpx.ConnectError, httpx.HTTPStatusError) as exc:
+            self._handle_connection_error(exc, db_id)
+            raise
+
+        # Success -- mark connected
+        if self._status_tracker:
+            self._status_tracker.mark_connected(db_id)
+
         if result and result.get("status") == "success":
             rows = result.get("data", [])
             truncated = len(rows) > max_rows
@@ -176,9 +250,19 @@ class QueryEngine:
         sql = self._build_sql(
             ds, filters, column=column, dialect=dialect, db_name=db_name
         )
-        result = await self._superset.execute_sql(
-            database_id=db_id, sql=sql, schema=schema or ""
-        )
+
+        try:
+            result = await self._superset.execute_sql(
+                database_id=db_id, sql=sql, schema=schema or ""
+            )
+        except (httpx.ConnectError, httpx.HTTPStatusError) as exc:
+            self._handle_connection_error(exc, db_id)
+            raise
+
+        # Success -- mark connected
+        if self._status_tracker:
+            self._status_tracker.mark_connected(db_id)
+
         if result and result.get("data"):
             return [row.get(column, "") for row in result["data"]]
         return []

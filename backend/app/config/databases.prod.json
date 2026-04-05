@@ -1,0 +1,27 @@
+{
+  "databases": [
+    {
+      "name": "superset_db_TCOSPRD",
+      "display_name": "TLM Consumer (TCOSPRD)",
+      "sqlalchemy_uri": "oracle://recon_user:CHANGE_ME@oracle-prod:1521/?service_name=TCOSPRD",
+      "dialect": "oracle",
+      "schema": "RECON_OWNER",
+      "type": "tlm"
+    },
+    {
+      "name": "superset_db_TFINPRD",
+      "display_name": "TLM Finance (TFINPRD)",
+      "sqlalchemy_uri": "oracle://recon_user:CHANGE_ME@oracle-prod:1521/?service_name=TFINPRD",
+      "dialect": "oracle",
+      "schema": "RECON_OWNER",
+      "type": "tlm"
+    },
+    {
+      "name": "superset_db_hive_historical",
+      "display_name": "Historical Data (Hive)",
+      "sqlalchemy_uri": "hive://hive_user@hive-prod:10000/recon_history",
+      "dialect": "hive",
+      "type": "historical"
+    }
+  ]
+}
