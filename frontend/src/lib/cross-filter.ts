@@ -49,3 +49,22 @@ export function rowPassesCrossFilters(
   }
   return true
 }
+
+/**
+ * Apply cross-filters to raw row arrays (for KPI re-aggregation).
+ * Unlike applyCrossFilters which operates on ChartDataResponse,
+ * this works on plain Record<string, unknown>[] arrays.
+ */
+export function applyCrossFiltersToRows(
+  rows: Record<string, unknown>[],
+  crossFilters: CrossFilter[],
+): Record<string, unknown>[] {
+  if (rows.length === 0 || crossFilters.length === 0) return rows
+  let filtered = rows
+  for (const filter of crossFilters) {
+    if (filtered.length > 0 && filter.column in filtered[0]) {
+      filtered = filtered.filter((row) => row[filter.column] === filter.value)
+    }
+  }
+  return filtered
+}

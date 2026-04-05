@@ -65,6 +65,9 @@ export interface DashboardChartConfig {
   sources?: ChartSource[]
   kpiSegments?: KpiSegment[]
   layout: ChartLayout
+  crossFilter?: boolean
+  drillHierarchy?: string[]
+  drillDetailDataSourceId?: string
 }
 
 export interface GridColumn {
@@ -93,6 +96,7 @@ export interface GridConfig {
   columns: GridColumn[]
   visibleWhen?: VisibleWhen
   layout: ChartLayout
+  crossFilterColumn?: string
 }
 
 export interface DashboardFeatures {
