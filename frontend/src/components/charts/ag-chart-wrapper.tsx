@@ -29,9 +29,9 @@ function makeItemStyler(
   return (params: { datum: Record<string, unknown>; fillOpacity?: number; strokeWidth?: number }) => {
     const val = params.datum[categoryKey]
     if (val === selection.value) {
-      return { fillOpacity: 1, strokeWidth: 2 }
+      return { fillOpacity: 1, strokeWidth: 2, offset: 8 }
     }
-    return { fillOpacity: 0.25, strokeWidth: 0 }
+    return { fillOpacity: 0.25, strokeWidth: 0, offset: 0 }
   }
 }
 
@@ -171,9 +171,11 @@ export function AgChartWrapper({
 
   // Stable click handler refs to avoid re-creating chart options on every render
   const clickHandlerRef = useRef(onChartClick)
-  clickHandlerRef.current = onChartClick
   const dblClickHandlerRef = useRef(onChartDoubleClick)
-  dblClickHandlerRef.current = onChartDoubleClick
+  useEffect(() => {
+    clickHandlerRef.current = onChartClick
+    dblClickHandlerRef.current = onChartDoubleClick
+  }, [onChartClick, onChartDoubleClick])
 
   // Debounce single-click to distinguish from double-click
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)

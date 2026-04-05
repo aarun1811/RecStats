@@ -1,6 +1,13 @@
-import { TrendingDown, TrendingUp } from 'lucide-react'
+import { useMemo } from 'react'
+import { Info, TrendingDown, TrendingUp } from 'lucide-react'
 
 import { Skeleton } from '@/components/ui/skeleton'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { CountAnimation } from '@/components/shared/count-animation'
 import { ErrorPanel } from '@/components/shared/error-panel'
 import { useDashboardKpis } from '@/hooks/use-dashboard-kpis'
@@ -8,12 +15,15 @@ import { useFilterStore } from '@/stores/filter-store'
 import { formatValueFull } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import { ApiError } from '@/lib/api-client'
-import type { KpiConfig } from '@/types/dashboard-config'
+import type { KpiConfig, KpiResult } from '@/types/dashboard-config'
+import type { KpiPartialMatch } from '@/lib/kpi-aggregator'
 import type { FormatType, FormatNumberOptions } from '@/types/formatting'
 
 interface ConfigKpiRowProps {
   dashboardId: string
   kpis: KpiConfig[]
+  crossFilteredKpis?: KpiResult[] | null
+  partialMatches?: KpiPartialMatch[]
 }
 
 /**
@@ -43,9 +53,25 @@ function KpiSkeleton() {
   )
 }
 
-export function ConfigKpiRow({ dashboardId, kpis }: ConfigKpiRowProps) {
+export function ConfigKpiRow({
+  dashboardId,
+  kpis,
+  crossFilteredKpis,
+  partialMatches,
+}: ConfigKpiRowProps) {
   const appliedFilters = useFilterStore((s) => s.applied)
   const { data, isLoading, isError, error, refetch } = useDashboardKpis(dashboardId, appliedFilters)
+
+  // Build partial match lookup for quick access
+  const partialMatchMap = useMemo(() => {
+    const map = new Map<string, string[]>()
+    if (partialMatches) {
+      for (const pm of partialMatches) {
+        map.set(pm.kpiId, pm.missingColumns)
+      }
+    }
+    return map
+  }, [partialMatches])
 
   if (isLoading || !data) {
     return (
@@ -69,8 +95,12 @@ export function ConfigKpiRow({ dashboardId, kpis }: ConfigKpiRowProps) {
     )
   }
 
+  // Dual-path: use cross-filtered KPIs when available, otherwise server-computed
+  const serverKpis = data?.kpis
+  const effectiveKpis = crossFilteredKpis ?? serverKpis
+
   const kpiResultsMap = new Map(
-    data?.kpis.map((result) => [result.id, result]),
+    effectiveKpis?.map((result) => [result.id, result]) ?? [],
   )
 
   return (
@@ -82,6 +112,7 @@ export function ConfigKpiRow({ dashboardId, kpis }: ConfigKpiRowProps) {
         const hasTrend = kpi.trend !== undefined && percentage != null
         const formatOptions = buildFormatOptions(kpi)
         const fullValueTooltip = formatValueFull(value, formatOptions)
+        const missingCols = partialMatchMap.get(kpi.id)
 
         return (
           <div
@@ -89,9 +120,29 @@ export function ConfigKpiRow({ dashboardId, kpis }: ConfigKpiRowProps) {
             className="rounded-lg border bg-card px-4 py-3 flex items-center justify-between gap-3"
           >
             <div className="min-w-0">
-              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground truncate">
-                {kpi.label}
-              </p>
+              <div className="flex items-center gap-1">
+                <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground truncate">
+                  {kpi.label}
+                </p>
+                {missingCols && missingCols.length > 0 && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="size-3.5 text-muted-foreground shrink-0" />
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-[200px]">
+                        <p className="text-xs">
+                          Does not include the active{' '}
+                          {missingCols
+                            .map((c) => `'${c.replace(/_/g, ' ')}'`)
+                            .join(', ')}{' '}
+                          filter
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </div>
               <div
                 className="mt-0.5 text-2xl font-semibold tabular-nums tracking-tight"
                 title={fullValueTooltip}

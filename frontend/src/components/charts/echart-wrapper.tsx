@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useState } from 'react'
+import { useMemo, useEffect, useRef, useState } from 'react'
 import ReactEChartsCore from 'echarts-for-react/lib/core'
 import * as echarts from 'echarts/core'
 import { SankeyChart, RadarChart, SunburstChart, GaugeChart, FunnelChart, GraphChart, ParallelChart } from 'echarts/charts'
@@ -207,6 +207,8 @@ export function EChartWrapper({
   isLoading,
   error,
   onChartClick,
+  onChartDoubleClick,
+  activeSelection,
   className,
 }: ChartWrapperProps) {
   const { resolvedTheme } = useTheme()
@@ -221,25 +223,56 @@ export function EChartWrapper({
     return () => cancelAnimationFrame(frame)
   }, [resolvedTheme])
 
+  const chartRef = useRef<ReactEChartsCore>(null)
+
+  // Apply highlight/downplay for cross-filter dimming
+  useEffect(() => {
+    const instance = chartRef.current?.getEchartsInstance()
+    if (!instance) return
+
+    if (activeSelection) {
+      instance.dispatchAction({ type: 'downplay', seriesIndex: 0 })
+      instance.dispatchAction({
+        type: 'highlight',
+        seriesIndex: 0,
+        name: String(activeSelection.value),
+      })
+    } else {
+      instance.dispatchAction({ type: 'downplay', seriesIndex: 0 })
+    }
+  }, [activeSelection])
+
   const option = useMemo(() => {
     if (!data?.data?.length) return {}
     return buildEChartsOption(config.vizType, data.columns, data.data)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, config.vizType, themeReady])
 
-  const onEvents = useMemo((): Record<string, Function> | undefined => {
-    if (!onChartClick) return undefined
-    return {
-      click: (params: { name?: string; value?: unknown; data?: Record<string, unknown> }) => {
+  type EChartEventHandler = (...args: unknown[]) => void
+  const onEvents = useMemo((): Record<string, EChartEventHandler> | undefined => {
+    const events: Record<string, EChartEventHandler> = {}
+    if (onChartClick) {
+      events.click = (params: { name?: string; value?: unknown; data?: Record<string, unknown> }) => {
         onChartClick({
           chartId,
           column: data?.columns[0] ?? '',
           value: (params.name ?? params.value ?? '') as string | number,
           row: (params.data ?? {}) as Record<string, unknown>,
         })
-      },
+      }
     }
-  }, [onChartClick, chartId, data?.columns])
+    if (onChartDoubleClick) {
+      events.dblclick = (params: { name?: string; value?: unknown; data?: Record<string, unknown> }) => {
+        onChartDoubleClick({
+          chartId,
+          column: data?.columns[0] ?? '',
+          value: (params.name ?? params.value ?? '') as string | number,
+          row: (params.data ?? {}) as Record<string, unknown>,
+        })
+      }
+    }
+    return Object.keys(events).length > 0 ? events : undefined
+  }, [onChartClick, onChartDoubleClick, chartId, data?.columns])
 
   if (isLoading) {
     return <Skeleton className={cn('h-[300px] w-full rounded-lg', className)} />
@@ -269,6 +302,7 @@ export function EChartWrapper({
   return (
     <div className={cn('h-[300px] w-full', className)}>
       <ReactEChartsCore
+        ref={chartRef}
         echarts={echarts}
         option={option}
         theme="recviz"

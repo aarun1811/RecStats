@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AgGridReact } from 'ag-grid-react'
 import { type ColDef, type GridApi, type GridReadyEvent, themeQuartz, colorSchemeDark } from 'ag-grid-community'
 
@@ -10,12 +10,14 @@ import { useTheme } from '@/components/layout/theme-provider'
 import { useDataSourceQuery } from '@/hooks/use-data-source-query'
 import { useDataSourceMerge } from '@/hooks/use-data-source-merge'
 import { useFilterStore } from '@/stores/filter-store'
+import { rowPassesCrossFilters } from '@/lib/cross-filter'
 import { ApiError } from '@/lib/api-client'
 import type { GridColumn, GridConfig, KpiResult, VisibleWhen } from '@/types/dashboard-config'
 
 interface ConfigDataGridProps {
   grids: GridConfig[]
   kpiResults?: KpiResult[]
+  crossFilterEnabled?: boolean
 }
 
 const PAGE_SIZE = 50
@@ -55,11 +57,30 @@ function buildColDefs(columns: GridColumn[]): ColDef[] {
 }
 
 /**
+ * Resolve cross-filter column: explicit config > first dimension (string) > first column.
+ * Avoids using ID/timestamp columns that are too granular for cross-filtering (review concern 1).
+ */
+function resolveCrossFilterField(grid: GridConfig): string | undefined {
+  if (grid.crossFilterColumn) return grid.crossFilterColumn
+  // Find first dimension (string-type) column -- avoids IDs/timestamps
+  const firstDimension = grid.columns.find((c) => c.type === 'string')
+  return firstDimension?.field ?? grid.columns[0]?.field
+}
+
+/**
  * Grid item powered by a single data source.
  * Hook is always called at the top level (not conditionally).
  */
-function SingleSourceGrid({ grid }: { grid: GridConfig }) {
+function SingleSourceGrid({
+  grid,
+  crossFilterEnabled,
+}: {
+  grid: GridConfig
+  crossFilterEnabled?: boolean
+}) {
   const appliedFilters = useFilterStore((s) => s.applied)
+  const crossFilters = useFilterStore((s) => s.crossFilters)
+  const addCrossFilter = useFilterStore((s) => s.addCrossFilter)
   const { resolvedTheme } = useTheme()
 
   const [gridApi, setGridApi] = useState<GridApi | null>(null)
@@ -74,6 +95,17 @@ function SingleSourceGrid({ grid }: { grid: GridConfig }) {
   const columnDefs = useMemo(() => buildColDefs(grid.columns), [grid.columns])
   const rowData = useMemo(() => queryResponse?.rows ?? [], [queryResponse])
   const gridTheme = resolvedTheme === 'dark' ? themeQuartz.withPart(colorSchemeDark) : themeQuartz
+
+  // Resolve cross-filter column for row-click emission
+  const crossFilterField = useMemo(
+    () => resolveCrossFilterField(grid),
+    [grid],
+  )
+
+  // Trigger external filter refresh when cross-filters change
+  useEffect(() => {
+    gridApi?.onFilterChanged()
+  }, [crossFilters, gridApi])
 
   const onGridReady = useCallback((event: GridReadyEvent) => {
     setGridApi(event.api)
@@ -132,6 +164,26 @@ function SingleSourceGrid({ grid }: { grid: GridConfig }) {
             paginationPageSizeSelector={[25, 50, 100]}
             enableCellTextSelection
             onGridReady={onGridReady}
+            isExternalFilterPresent={() =>
+              crossFilterEnabled === true && crossFilters.length > 0
+            }
+            doesExternalFilterPass={(node) => {
+              const externalFilters = crossFilters.filter(
+                (f) => f.sourceChartId !== grid.id,
+              )
+              return rowPassesCrossFilters(
+                node.data as Record<string, unknown>,
+                externalFilters,
+              )
+            }}
+            onRowClicked={(event) => {
+              if (!crossFilterEnabled || !event.data || !crossFilterField) return
+              addCrossFilter({
+                sourceChartId: grid.id,
+                column: crossFilterField,
+                value: (event.data as Record<string, unknown>)[crossFilterField] as string | number,
+              })
+            }}
           />
         </div>
       </CardContent>
@@ -143,8 +195,16 @@ function SingleSourceGrid({ grid }: { grid: GridConfig }) {
  * Grid item powered by multiple merged data sources.
  * Hook is always called at the top level (not conditionally).
  */
-function MergedSourceGrid({ grid }: { grid: GridConfig }) {
+function MergedSourceGrid({
+  grid,
+  crossFilterEnabled,
+}: {
+  grid: GridConfig
+  crossFilterEnabled?: boolean
+}) {
   const appliedFilters = useFilterStore((s) => s.applied)
+  const crossFilters = useFilterStore((s) => s.crossFilters)
+  const addCrossFilter = useFilterStore((s) => s.addCrossFilter)
   const { resolvedTheme } = useTheme()
 
   const [gridApi, setGridApi] = useState<GridApi | null>(null)
@@ -169,6 +229,17 @@ function MergedSourceGrid({ grid }: { grid: GridConfig }) {
   const rowData = useMemo(() => queryResponse?.rows ?? [], [queryResponse])
   const gridTheme = resolvedTheme === 'dark' ? themeQuartz.withPart(colorSchemeDark) : themeQuartz
 
+  // Resolve cross-filter column for row-click emission
+  const crossFilterField = useMemo(
+    () => resolveCrossFilterField(grid),
+    [grid],
+  )
+
+  // Trigger external filter refresh when cross-filters change
+  useEffect(() => {
+    gridApi?.onFilterChanged()
+  }, [crossFilters, gridApi])
+
   const onGridReady = useCallback((event: GridReadyEvent) => {
     setGridApi(event.api)
   }, [])
@@ -226,6 +297,26 @@ function MergedSourceGrid({ grid }: { grid: GridConfig }) {
             paginationPageSizeSelector={[25, 50, 100]}
             enableCellTextSelection
             onGridReady={onGridReady}
+            isExternalFilterPresent={() =>
+              crossFilterEnabled === true && crossFilters.length > 0
+            }
+            doesExternalFilterPass={(node) => {
+              const externalFilters = crossFilters.filter(
+                (f) => f.sourceChartId !== grid.id,
+              )
+              return rowPassesCrossFilters(
+                node.data as Record<string, unknown>,
+                externalFilters,
+              )
+            }}
+            onRowClicked={(event) => {
+              if (!crossFilterEnabled || !event.data || !crossFilterField) return
+              addCrossFilter({
+                sourceChartId: grid.id,
+                column: crossFilterField,
+                value: (event.data as Record<string, unknown>)[crossFilterField] as string | number,
+              })
+            }}
           />
         </div>
       </CardContent>
@@ -259,7 +350,7 @@ function GridSkeleton({ title }: { title?: string }) {
  * Grids support conditional visibility based on KPI values (e.g. only show the
  * breaks grid when breaks > 0).
  */
-export function ConfigDataGrid({ grids, kpiResults }: ConfigDataGridProps) {
+export function ConfigDataGrid({ grids, kpiResults, crossFilterEnabled }: ConfigDataGridProps) {
   return (
     <div className="flex flex-col gap-4">
       {grids.map((grid) => {
@@ -269,10 +360,22 @@ export function ConfigDataGrid({ grids, kpiResults }: ConfigDataGridProps) {
 
         // Determine whether this grid uses a single source or merged sources
         if (grid.sources && grid.sources.length > 0) {
-          return <MergedSourceGrid key={grid.id} grid={grid} />
+          return (
+            <MergedSourceGrid
+              key={grid.id}
+              grid={grid}
+              crossFilterEnabled={crossFilterEnabled}
+            />
+          )
         }
 
-        return <SingleSourceGrid key={grid.id} grid={grid} />
+        return (
+          <SingleSourceGrid
+            key={grid.id}
+            grid={grid}
+            crossFilterEnabled={crossFilterEnabled}
+          />
+        )
       })}
     </div>
   )
