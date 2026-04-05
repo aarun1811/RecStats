@@ -97,7 +97,7 @@ Plans:
 - [x] 03-03-PLAN.md -- Dashboard manual refresh, auto-refresh with configurable interval and countdown
 
 ### Phase 4: Data Source Connectivity
-**Goal**: Dev team can connect to Oracle, Hive, and Elasticsearch databases through Superset, with a management UI for adding and testing connections
+**Goal**: Dev team can connect to Oracle and Hive databases through Superset, with a connection management UI for adding and testing connections. Elasticsearch deferred (DATA-03) to a future phase.
 **Depends on**: Phase 1
 **Requirements**: DATA-01, DATA-02, DATA-03, DATA-04
 **Success Criteria** (what must be TRUE):
@@ -105,12 +105,13 @@ Plans:
   2. A Hive database connection executes historical/batch queries with caching appropriate for slow-running queries
   3. Elasticsearch is queryable both via Superset SQL (elasticsearch-dbapi) for standard queries and via the FastAPI sidecar (elasticsearch-py) for complex aggregations and full-text search
   4. Dev team can add, edit, and test database connections from a management UI -- test button verifies connectivity before saving
-**Plans**: TBD
+**Plans:** 3 plans
 **UI hint**: yes
 
 Plans:
-- [ ] 04-01: TBD
-- [ ] 04-02: TBD
+- [ ] 04-01-PLAN.md -- Backend: driver installation, cx_Oracle aliasing, URI builder fix, connection status tracker, env-aware config
+- [ ] 04-02-PLAN.md -- Frontend: dynamic backend-specific form fields, test-before-save enforcement, status dots on cards/rows
+- [ ] 04-03-PLAN.md -- Verification: Docker build, full test suite, visual verification checkpoint
 
 ### Phase 5: Dataset Management
 **Goal**: Dev team can create named datasets from SQL queries with rich column metadata, so business users have a curated catalog of data to build charts from
@@ -208,7 +209,7 @@ Phases execute in numeric order: 1 -> 2 -> 02.1 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 ->
 | 2. Cross-Filtering and Drill-Down | 0/3 | Planning complete | - |
 | 02.1. Chart Rendering Foundation | 3/3 | Complete   | 2026-04-05 |
 | 3. Chart and Grid Interactions | 0/3 | Planning complete | - |
-| 4. Data Source Connectivity | 0/0 | Not started | - |
+| 4. Data Source Connectivity | 0/3 | Planning complete | - |
 | 5. Dataset Management | 0/0 | Not started | - |
 | 6. Chart Library | 0/0 | Not started | - |
 | 7. KPI Library | 0/0 | Not started | - |
