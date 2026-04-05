@@ -57,7 +57,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **INTR-04**: Drill-down detail level fetches raw rows from backend via AG Grid with full sort/filter/pagination
 - [x] **INTR-05**: Fullscreen chart view — expand any chart to a modal/overlay for detailed inspection
 - [x] **INTR-06**: Chart export — PNG, CSV, clipboard from chart toolbar
-- [ ] **INTR-07**: Grid export — CSV and Excel via AG Grid Enterprise built-in export
+- [x] **INTR-07**: Grid export — CSV and Excel via AG Grid Enterprise built-in export
 - [ ] **INTR-08**: Manual refresh button per dashboard — invalidates cache, re-fetches all data
 - [ ] **INTR-09**: Configurable auto-refresh — default ~10 min interval, user-configurable per dashboard
 
@@ -140,7 +140,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INTR-04 | Phase 2: Cross-Filtering and Drill-Down | Complete |
 | INTR-05 | Phase 3: Chart and Grid Interactions | Complete |
 | INTR-06 | Phase 3: Chart and Grid Interactions | Complete |
-| INTR-07 | Phase 3: Chart and Grid Interactions | Pending |
+| INTR-07 | Phase 3: Chart and Grid Interactions | Complete |
 | INTR-08 | Phase 3: Chart and Grid Interactions | Pending |
 | INTR-09 | Phase 3: Chart and Grid Interactions | Pending |
 | DATA-01 | Phase 4: Data Source Connectivity | Pending |
