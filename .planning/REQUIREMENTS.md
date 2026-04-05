@@ -58,8 +58,8 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **INTR-05**: Fullscreen chart view — expand any chart to a modal/overlay for detailed inspection
 - [x] **INTR-06**: Chart export — PNG, CSV, clipboard from chart toolbar
 - [x] **INTR-07**: Grid export — CSV and Excel via AG Grid Enterprise built-in export
-- [ ] **INTR-08**: Manual refresh button per dashboard — invalidates cache, re-fetches all data
-- [ ] **INTR-09**: Configurable auto-refresh — default ~10 min interval, user-configurable per dashboard
+- [x] **INTR-08**: Manual refresh button per dashboard — invalidates cache, re-fetches all data
+- [x] **INTR-09**: Configurable auto-refresh — default ~10 min interval, user-configurable per dashboard
 
 ### Sharing & Views
 
@@ -141,8 +141,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INTR-05 | Phase 3: Chart and Grid Interactions | Complete |
 | INTR-06 | Phase 3: Chart and Grid Interactions | Complete |
 | INTR-07 | Phase 3: Chart and Grid Interactions | Complete |
-| INTR-08 | Phase 3: Chart and Grid Interactions | Pending |
-| INTR-09 | Phase 3: Chart and Grid Interactions | Pending |
+| INTR-08 | Phase 3: Chart and Grid Interactions | Complete |
+| INTR-09 | Phase 3: Chart and Grid Interactions | Complete |
 | DATA-01 | Phase 4: Data Source Connectivity | Pending |
 | DATA-02 | Phase 4: Data Source Connectivity | Pending |
 | DATA-03 | Phase 4: Data Source Connectivity | Pending |
