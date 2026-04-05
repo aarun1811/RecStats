@@ -144,6 +144,38 @@ export function getAgChartsTheme() {
           innerRadiusRatio: 0.6,
         },
       },
+      heatmap: {
+        series: {
+          colorRange: [p.series[1], p.series[3], p.series[4]],
+          label: { enabled: false },
+          stroke: p.background,
+          strokeWidth: 2,
+        },
+      },
+      treemap: {
+        series: {
+          colorRange: ['#43A047', '#FF5722'],
+          tile: {
+            label: { fontSize: 12, minimumFontSize: 9, color: p.foreground },
+            padding: 6,
+            gap: 2,
+          },
+          group: {
+            label: { fontSize: 14, color: p.foreground },
+            padding: 8,
+            gap: 4,
+          },
+        },
+      },
+      waterfall: {
+        series: {
+          item: {
+            positive: { name: 'Increase' },
+            negative: { name: 'Decrease' },
+          },
+          line: { strokeWidth: 2 },
+        },
+      },
     },
   }
 }

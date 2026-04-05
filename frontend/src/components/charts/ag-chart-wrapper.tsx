@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
 import type { ChartWrapperProps, ChartSelection } from '@/types/chart'
 import { cn } from '@/lib/utils'
+import { ColumnMissingError } from './column-missing-error'
 
 /** Detect epoch-ms values and convert to short date strings for axis labels. */
 function formatDates(rows: Record<string, unknown>[], categoryKey: string): Record<string, unknown>[] {
@@ -35,9 +36,26 @@ function makeItemStyler(
   }
 }
 
-function buildSeries(vizType: string, columns: string[], selection?: ChartSelection) {
-  const categoryKey = columns[0] ?? 'category'
-  const metricKeys = columns.slice(1)
+/**
+ * Config-driven series builder (D-01).
+ * Uses metricColumns and categoryColumn from ChartConfig instead of column order.
+ * Returns null for unsupported chart types (handled by ChartFactory).
+ */
+function buildSeries(
+  vizType: string,
+  columns: string[],
+  metricColumns: string[],
+  categoryColumn: string | undefined,
+  selection?: ChartSelection,
+) {
+  // Resolve category: explicit config > first non-metric string column > columns[0]
+  const categoryKey = categoryColumn
+    ?? columns.find((c) => !metricColumns.includes(c))
+    ?? columns[0]
+    ?? 'category'
+  const metricKeys = metricColumns.length > 0
+    ? metricColumns.filter((c) => columns.includes(c))
+    : columns.filter((c) => c !== categoryKey)
   const styler = makeItemStyler(categoryKey, selection)
 
   switch (vizType) {
@@ -74,37 +92,78 @@ function buildSeries(vizType: string, columns: string[], selection?: ChartSelect
         marker: { size: 4 },
       }))
 
-    case 'pie':
+    case 'pie': {
+      const angleKey = metricKeys[0] ?? columns.find((c) => c !== categoryKey) ?? 'count'
       return [
         {
           type: 'pie' as const,
-          angleKey: metricKeys[0] ?? 'count',
+          angleKey,
           calloutLabelKey: categoryKey,
-          sectorLabelKey: metricKeys[0] ?? 'count',
+          sectorLabelKey: angleKey,
           ...(styler ? { itemStyler: styler } : {}),
         },
       ]
+    }
 
-    case 'donut':
+    case 'donut': {
+      const angleKey = metricKeys[0] ?? columns.find((c) => c !== categoryKey) ?? 'count'
       return [
         {
           type: 'donut' as const,
-          angleKey: metricKeys[0] ?? 'count',
+          angleKey,
           calloutLabelKey: categoryKey,
           innerRadiusRatio: 0.6,
           ...(styler ? { itemStyler: styler } : {}),
         },
       ]
+    }
 
-    case 'scatter':
+    case 'scatter': {
+      const xKey = metricColumns[0] ?? columns[0] ?? 'x'
+      const yKey = metricColumns[1] ?? columns[1] ?? 'y'
+      const sizeKey = metricColumns[2] ?? columns[2]
       return [
         {
           type: 'scatter' as const,
-          xKey: columns[0] ?? 'x',
-          yKey: columns[1] ?? 'y',
-          ...(columns[2] ? { sizeKey: columns[2] } : {}),
+          xKey,
+          yKey,
+          ...(sizeKey ? { sizeKey } : {}),
         },
       ]
+    }
+
+    case 'heatmap': {
+      const colorKey = metricKeys[0] ?? columns[2] ?? 'value'
+      const xKey = categoryKey
+      const nonMetricCols = columns.filter((c) => !metricKeys.includes(c))
+      const yKey = nonMetricCols.length > 1
+        ? nonMetricCols[1]
+        : nonMetricCols[0] !== xKey
+          ? nonMetricCols[0]
+          : columns[1] ?? 'y'
+      return [{ type: 'heatmap' as const, xKey, yKey, colorKey }]
+    }
+
+    case 'treemap': {
+      const labelKey = categoryKey
+      const sizeKey = metricKeys[0] ?? columns[1] ?? 'value'
+      const colorKey = metricKeys[1]
+      return [{
+        type: 'treemap' as const,
+        labelKey,
+        sizeKey,
+        ...(colorKey ? { colorKey, colorRange: ['#43A047', '#FF5722'] } : {}),
+      }]
+    }
+
+    case 'waterfall':
+      return [{
+        type: 'waterfall' as const,
+        xKey: categoryKey,
+        yKey: metricKeys[0] ?? 'value',
+        item: { positive: { name: 'Increase' }, negative: { name: 'Decrease' } },
+        line: { strokeWidth: 2 },
+      }]
 
     case 'histogram':
       return [
@@ -113,16 +172,6 @@ function buildSeries(vizType: string, columns: string[], selection?: ChartSelect
           xKey: categoryKey,
           yKey: metricKeys[0] ?? 'count',
           cornerRadius: 2,
-          ...(styler ? { itemStyler: styler } : {}),
-        },
-      ]
-
-    case 'waterfall':
-      return [
-        {
-          type: 'bar' as const,
-          xKey: categoryKey,
-          yKey: metricKeys[0] ?? 'value',
           ...(styler ? { itemStyler: styler } : {}),
         },
       ]
@@ -138,14 +187,8 @@ function buildSeries(vizType: string, columns: string[], selection?: ChartSelect
       ]
 
     default:
-      return metricKeys.map((key) => ({
-        type: 'bar' as const,
-        xKey: categoryKey,
-        yKey: key,
-        yName: key,
-        cornerRadius: 4,
-        ...(styler ? { itemStyler: styler } : {}),
-      }))
+      // Unsupported type — return null to signal error (D-05)
+      return null
   }
 }
 
@@ -180,18 +223,41 @@ export function AgChartWrapper({
   // Debounce single-click to distinguish from double-click
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Column validation (D-09, D-10)
+  const missingColumns = useMemo(() => {
+    if (!data?.columns) return []
+    const missing: string[] = []
+    for (const mc of config.metricColumns ?? []) {
+      if (!data.columns.includes(mc)) missing.push(mc)
+    }
+    if (config.categoryColumn && !data.columns.includes(config.categoryColumn)) {
+      missing.push(config.categoryColumn)
+    }
+    return missing
+  }, [data?.columns, config.metricColumns, config.categoryColumn])
+
   const options = useMemo((): AgChartOptions => {
     if (!data?.data?.length) {
       return { data: [], series: [] } as AgChartOptions
     }
 
-    const categoryKey = data.columns[0] ?? 'category'
-    const series = buildSeries(config.vizType, data.columns, activeSelection)
+    // Config-driven category resolution (D-01)
+    const categoryKey = config.categoryColumn
+      ?? data.columns.find((c) => !(config.metricColumns ?? []).includes(c))
+      ?? data.columns[0]
+      ?? 'category'
+    const series = buildSeries(
+      config.vizType,
+      data.columns,
+      config.metricColumns ?? [],
+      config.categoryColumn,
+      activeSelection,
+    )
     const rows = formatDates(data.data as Record<string, unknown>[], categoryKey)
 
     return {
       data: rows,
-      series,
+      series: series ?? [],
       theme: {
         palette: theme.palette,
         overrides: theme.overrides,
@@ -230,7 +296,11 @@ export function AgChartWrapper({
         },
       },
     } as AgChartOptions
-  }, [data, config.vizType, theme, chartId, activeSelection])
+  }, [data, config.vizType, config.metricColumns, config.categoryColumn, theme, chartId, activeSelection])
+
+  if (missingColumns.length > 0 && data?.columns) {
+    return <ColumnMissingError missing={missingColumns} available={data.columns} />
+  }
 
   if (isLoading) {
     return <Skeleton className={cn('h-[300px] w-full rounded-lg', className)} />

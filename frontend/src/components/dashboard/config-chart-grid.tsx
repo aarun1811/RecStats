@@ -41,11 +41,17 @@ function buildKpiChartData(
 
 /** Converts a DashboardChartConfig to the ChartConfig shape expected by ChartPanel / ChartFactory. */
 function toChartConfig(chart: DashboardChartConfig): ChartConfig {
+  const metricColumns: string[] = []
+  for (const source of chart.sources ?? []) {
+    if (source.metric) metricColumns.push(source.metric)
+  }
   return {
     id: chart.id,
     name: chart.title,
     vizType: chart.type,
     datasourceId: 0, // config-driven charts don't use Superset datasource IDs
+    metricColumns,
+    // categoryColumn intentionally omitted — resolved at render time as first non-metric string column
   }
 }
 

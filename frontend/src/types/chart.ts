@@ -1,16 +1,23 @@
 export type ChartType =
   | 'line'
   | 'bar'
+  | 'stacked-bar'
   | 'pie'
   | 'donut'
   | 'area'
   | 'scatter'
   | 'heatmap'
   | 'treemap'
+  | 'waterfall'
+  | 'combo'
+  | 'histogram'
   | 'sankey'
   | 'sunburst'
   | 'radar'
   | 'gauge'
+  | 'funnel'
+  | 'graph'
+  | 'parallel'
 
 export interface ChartConfig {
   id: string
@@ -19,6 +26,10 @@ export interface ChartConfig {
   datasourceId: number
   description?: string | null
   params?: Record<string, unknown>
+  /** Config-driven column mapping (D-02): metric columns from DashboardChartConfig.sources[].metric */
+  metricColumns: string[]
+  /** Config-driven column mapping (D-02): explicit category column, resolved at render time if omitted */
+  categoryColumn?: string
 }
 
 export interface ChartDataResponse {
