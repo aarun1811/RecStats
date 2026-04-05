@@ -1,0 +1,24 @@
+{
+  "id": "showcase_sankey",
+  "name": "Showcase: Sankey / Graph",
+  "database_routing": {
+    "type": "static",
+    "database": "superset_db_reconmgmt"
+  },
+  "query": "SELECT source, target, value FROM showcase_sankey ORDER BY value DESC {{filters}}",
+  "filter_mappings": [],
+  "columns": [
+    {
+      "name": "source",
+      "type": "string"
+    },
+    {
+      "name": "target",
+      "type": "string"
+    },
+    {
+      "name": "value",
+      "type": "number"
+    }
+  ]
+}

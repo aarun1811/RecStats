@@ -379,6 +379,7 @@ def seed_showcase_data(conn) -> None:
         "showcase_categories", "showcase_timeseries", "showcase_distribution",
         "showcase_scatter", "showcase_heatmap", "showcase_treemap",
         "showcase_waterfall", "showcase_funnel",
+        "showcase_sankey", "showcase_radar", "showcase_gauge",
     ]
     showcase_ds = {}
     for ds_name in showcase_ds_files:
@@ -609,6 +610,87 @@ def seed_showcase_data(conn) -> None:
             {"stage", "count"},
         )
 
+    # ---- showcase_sankey (10 rows: source → target flow links) ---- #
+    cur.execute("DROP TABLE IF EXISTS showcase_sankey CASCADE")
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS showcase_sankey (
+            source VARCHAR(50) NOT NULL,
+            target VARCHAR(50) NOT NULL,
+            value INTEGER NOT NULL
+        )
+    """)
+    sankey_data = [
+        ("Received", "Validated", 10000),
+        ("Received", "Rejected", 500),
+        ("Validated", "Matched", 8200),
+        ("Validated", "Breaks", 1300),
+        ("Matched", "Reconciled", 6800),
+        ("Matched", "Escalated", 1400),
+        ("Breaks", "Escalated", 800),
+        ("Breaks", "Resolved", 500),
+        ("Reconciled", "Closed", 5500),
+        ("Escalated", "Closed", 1700),
+    ]
+    cur.executemany(
+        "INSERT INTO showcase_sankey (source, target, value) VALUES (%s, %s, %s)",
+        sankey_data,
+    )
+    if "showcase_sankey" in showcase_ds:
+        validate_columns(
+            "showcase_sankey",
+            showcase_ds["showcase_sankey"]["query"],
+            {"source", "target", "value"},
+        )
+
+    # ---- showcase_radar (5 rows: performance metrics with score + benchmark) ---- #
+    cur.execute("DROP TABLE IF EXISTS showcase_radar CASCADE")
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS showcase_radar (
+            metric_name VARCHAR(50) NOT NULL,
+            score NUMERIC(5,1) NOT NULL,
+            benchmark NUMERIC(5,1) NOT NULL
+        )
+    """)
+    radar_data = [
+        ("Accuracy", 92.5, 85.0),
+        ("Speed", 78.0, 80.0),
+        ("Coverage", 88.3, 90.0),
+        ("Completeness", 95.1, 88.0),
+        ("Timeliness", 82.7, 85.0),
+    ]
+    cur.executemany(
+        "INSERT INTO showcase_radar (metric_name, score, benchmark) VALUES (%s, %s, %s)",
+        radar_data,
+    )
+    if "showcase_radar" in showcase_ds:
+        validate_columns(
+            "showcase_radar",
+            showcase_ds["showcase_radar"]["query"],
+            {"metric_name", "score", "benchmark"},
+        )
+
+    # ---- showcase_gauge (1 row: single metric value) ---- #
+    cur.execute("DROP TABLE IF EXISTS showcase_gauge CASCADE")
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS showcase_gauge (
+            metric_name VARCHAR(50) NOT NULL,
+            value NUMERIC(5,1) NOT NULL
+        )
+    """)
+    gauge_data = [
+        ("Match Rate", 87.5),
+    ]
+    cur.executemany(
+        "INSERT INTO showcase_gauge (metric_name, value) VALUES (%s, %s)",
+        gauge_data,
+    )
+    if "showcase_gauge" in showcase_ds:
+        validate_columns(
+            "showcase_gauge",
+            showcase_ds["showcase_gauge"]["query"],
+            {"metric_name", "value"},
+        )
+
     conn.commit()
     print(f"  Inserted {len(categories_data)} showcase_categories rows")
     print(f"  Inserted {len(timeseries_data)} showcase_timeseries rows")
@@ -618,6 +700,9 @@ def seed_showcase_data(conn) -> None:
     print(f"  Inserted {len(treemap_data)} showcase_treemap rows")
     print(f"  Inserted {len(waterfall_data)} showcase_waterfall rows")
     print(f"  Inserted {len(funnel_data)} showcase_funnel rows")
+    print(f"  Inserted {len(sankey_data)} showcase_sankey rows")
+    print(f"  Inserted {len(radar_data)} showcase_radar rows")
+    print(f"  Inserted {len(gauge_data)} showcase_gauge rows")
     cur.close()
 
 

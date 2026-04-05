@@ -1,0 +1,20 @@
+{
+  "id": "showcase_gauge",
+  "name": "Showcase: Gauge",
+  "database_routing": {
+    "type": "static",
+    "database": "superset_db_reconmgmt"
+  },
+  "query": "SELECT metric_name, value FROM showcase_gauge {{filters}}",
+  "filter_mappings": [],
+  "columns": [
+    {
+      "name": "metric_name",
+      "type": "string"
+    },
+    {
+      "name": "value",
+      "type": "number"
+    }
+  ]
+}

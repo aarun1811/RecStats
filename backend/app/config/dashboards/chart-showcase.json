@@ -136,8 +136,72 @@
       "sources": [{ "data_source_id": "showcase_funnel", "metric": "count" }],
       "layout": { "col": 7, "row": 6, "width": 6, "height": 1 },
       "cross_filter": true
+    },
+    {
+      "id": "sc-histogram",
+      "title": "Histogram",
+      "type": "histogram",
+      "source_type": "query",
+      "sources": [{ "data_source_id": "showcase_scatter", "metric": "record_count" }],
+      "layout": { "col": 1, "row": 7, "width": 6, "height": 1 },
+      "cross_filter": false
+    },
+    {
+      "id": "sc-sankey",
+      "title": "Sankey (ECharts)",
+      "type": "sankey",
+      "source_type": "query",
+      "sources": [{ "data_source_id": "showcase_sankey", "metric": "value" }],
+      "layout": { "col": 7, "row": 7, "width": 6, "height": 1 },
+      "cross_filter": false
+    },
+    {
+      "id": "sc-radar",
+      "title": "Radar (ECharts)",
+      "type": "radar",
+      "source_type": "query",
+      "sources": [
+        { "data_source_id": "showcase_radar", "metric": "score" },
+        { "data_source_id": "showcase_radar", "metric": "benchmark" }
+      ],
+      "layout": { "col": 1, "row": 8, "width": 6, "height": 1 },
+      "cross_filter": false
+    },
+    {
+      "id": "sc-gauge",
+      "title": "Gauge (ECharts)",
+      "type": "gauge",
+      "source_type": "query",
+      "sources": [{ "data_source_id": "showcase_gauge", "metric": "value" }],
+      "layout": { "col": 7, "row": 8, "width": 6, "height": 1 },
+      "cross_filter": false
+    },
+    {
+      "id": "sc-graph",
+      "title": "Graph / Network (ECharts)",
+      "type": "graph",
+      "source_type": "query",
+      "sources": [{ "data_source_id": "showcase_sankey", "metric": "value" }],
+      "layout": { "col": 1, "row": 9, "width": 6, "height": 1 },
+      "cross_filter": false
+    },
+    {
+      "id": "sc-parallel",
+      "title": "Parallel Coordinates (ECharts)",
+      "type": "parallel",
+      "source_type": "query",
+      "sources": [
+        { "data_source_id": "showcase_scatter", "metric": "processing_time_ms" },
+        { "data_source_id": "showcase_scatter", "metric": "record_count" },
+        { "data_source_id": "showcase_scatter", "metric": "error_rate" }
+      ],
+      "layout": { "col": 7, "row": 9, "width": 6, "height": 1 },
+      "cross_filter": false
     }
   ],
+  "_comments": {
+    "sunburst_skipped": "Sunburst chart type is supported in the ECharts wrapper but requires hierarchical JSON data (name/value/children). Our SQL-based data pipeline returns flat rows, so sunburst cannot be exercised through the standard query pipeline. It would need a custom data transformation layer or a dedicated API endpoint returning nested JSON."
+  },
   "grids": [],
   "layout": {
     "type": "standard",

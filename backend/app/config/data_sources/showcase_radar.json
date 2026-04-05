@@ -1,0 +1,24 @@
+{
+  "id": "showcase_radar",
+  "name": "Showcase: Radar",
+  "database_routing": {
+    "type": "static",
+    "database": "superset_db_reconmgmt"
+  },
+  "query": "SELECT metric_name, score, benchmark FROM showcase_radar {{filters}}",
+  "filter_mappings": [],
+  "columns": [
+    {
+      "name": "metric_name",
+      "type": "string"
+    },
+    {
+      "name": "score",
+      "type": "number"
+    },
+    {
+      "name": "benchmark",
+      "type": "number"
+    }
+  ]
+}
