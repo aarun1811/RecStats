@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
-stopped_at: Phase 2.1 context gathered
-last_updated: "2026-04-05T11:51:06.810Z"
+status: executing
+stopped_at: Completed 02.1-01-PLAN.md
+last_updated: "2026-04-05T12:54:09.312Z"
 last_activity: 2026-04-05
 progress:
   total_phases: 10
   completed_phases: 2
-  total_plans: 6
-  completed_plans: 6
-  percent: 100
+  total_plans: 9
+  completed_plans: 7
+  percent: 78
 ---
 
 # Project State
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-04)
 
 **Core value:** Business users can view, interact with, and customize dashboards over reconciliation data without depending on another team.
-**Current focus:** Phase 02 — Cross-Filtering and Drill-Down
+**Current focus:** Phase 02.1 — chart-rendering-foundation
 
 ## Current Position
 
-Phase: 02 (Cross-Filtering and Drill-Down) — EXECUTING
-Plan: 3 of 3
-Status: Phase complete — ready for verification
+Phase: 02.1 (chart-rendering-foundation) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
 Last activity: 2026-04-05
 
 Progress: [..........] 0%
@@ -58,6 +58,7 @@ Progress: [..........] 0%
 | Phase 02 P01 | 7min | 2 tasks | 9 files |
 | Phase 02 P02 | 8min | 2 tasks | 7 files |
 | Phase 02 P03 | 5min | 3 tasks | 6 files |
+| Phase 02.1 P01 | 5min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -87,6 +88,9 @@ Recent decisions affecting current work:
 - [Phase 02]: Guard chart queries until filters are applied to prevent empty-filter queries on initial render
 - [Phase 02]: Normalize column objects to strings in ChartDataResponse (Superset returns {column_name, name, type} objects)
 - [Phase 02]: Phase 2 checkpoint approved: visual testing deferred to Phase 2.1 for chart wrapper fixes; 53 unit tests confirm infrastructure correctness
+- [Phase 02.1]: Config-driven column resolution: categoryColumn from config > first non-metric column > columns[0] fallback chain
+- [Phase 02.1]: buildSeries() returns null for unsupported types instead of silent bar fallback; ChartFactory gates with SUPPORTED_AG_TYPES
+- [Phase 02.1]: Sankey/graph/parallel retain position-based column mapping (data shaped specifically for type)
 
 ### Roadmap Evolution
 
@@ -104,6 +108,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-05T11:51:06.807Z
-Stopped at: Phase 2.1 context gathered
-Resume file: .planning/phases/02.1-chart-rendering-foundation/02.1-CONTEXT.md
+Last session: 2026-04-05T12:54:09.309Z
+Stopped at: Completed 02.1-01-PLAN.md
+Resume file: None
