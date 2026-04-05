@@ -357,6 +357,269 @@ def seed_recon_data(conn) -> None:
     print(f"  Inserted {len(manual_rows)} mr_csum_man_match_stats_hist rows")
     cur.close()
 
+    # Seed showcase data for chart-showcase dashboard
+    seed_showcase_data(conn)
+
+
+# --------------------------------------------------------------------------- #
+# Seed showcase data (chart-showcase dashboard)
+# --------------------------------------------------------------------------- #
+
+def seed_showcase_data(conn) -> None:
+    """Create showcase tables and insert synthetic data for every chart type.
+
+    Used by the chart-showcase dashboard to exercise all AG Charts + ECharts types.
+    Tables are created in the recon_data database (same as other seed data).
+    """
+    cur = conn.cursor()
+    random.seed(42)  # Reproducible data
+
+    # Validate showcase data source SQL templates against table columns
+    showcase_ds_files = [
+        "showcase_categories", "showcase_timeseries", "showcase_distribution",
+        "showcase_scatter", "showcase_heatmap", "showcase_treemap",
+        "showcase_waterfall", "showcase_funnel",
+    ]
+    showcase_ds = {}
+    for ds_name in showcase_ds_files:
+        ds_path = DATA_SOURCES_DIR / f"{ds_name}.json"
+        if ds_path.exists():
+            showcase_ds[ds_name] = json.loads(ds_path.read_text())
+
+    # ---- showcase_categories (6 rows) ---- #
+    cur.execute("DROP TABLE IF EXISTS showcase_categories CASCADE")
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS showcase_categories (
+            department VARCHAR(50) NOT NULL,
+            revenue NUMERIC(12,2) NOT NULL,
+            headcount INTEGER NOT NULL
+        )
+    """)
+    categories_data = [
+        ("Engineering", 4500000, 120),
+        ("Sales", 3200000, 85),
+        ("Marketing", 1800000, 45),
+        ("Operations", 2100000, 95),
+        ("Finance", 1500000, 35),
+        ("Support", 900000, 60),
+    ]
+    cur.executemany(
+        "INSERT INTO showcase_categories (department, revenue, headcount) VALUES (%s, %s, %s)",
+        categories_data,
+    )
+    if "showcase_categories" in showcase_ds:
+        validate_columns(
+            "showcase_categories",
+            showcase_ds["showcase_categories"]["query"],
+            {"department", "revenue", "headcount"},
+        )
+
+    # ---- showcase_timeseries (12 rows) ---- #
+    cur.execute("DROP TABLE IF EXISTS showcase_timeseries CASCADE")
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS showcase_timeseries (
+            month_label VARCHAR(20) NOT NULL,
+            sort_order INTEGER NOT NULL,
+            processed_count INTEGER NOT NULL,
+            exception_count INTEGER NOT NULL
+        )
+    """)
+    months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+              "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    timeseries_data = []
+    for i, month in enumerate(months):
+        processed = 12000 + int(i * 590)  # 12000 to ~18490
+        exception = random.randint(150, 400)
+        timeseries_data.append((month, i + 1, processed, exception))
+    cur.executemany(
+        "INSERT INTO showcase_timeseries (month_label, sort_order, processed_count, exception_count) "
+        "VALUES (%s, %s, %s, %s)",
+        timeseries_data,
+    )
+    if "showcase_timeseries" in showcase_ds:
+        validate_columns(
+            "showcase_timeseries",
+            showcase_ds["showcase_timeseries"]["query"],
+            {"month_label", "sort_order", "processed_count", "exception_count"},
+        )
+
+    # ---- showcase_distribution (5 rows) ---- #
+    cur.execute("DROP TABLE IF EXISTS showcase_distribution CASCADE")
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS showcase_distribution (
+            status VARCHAR(50) NOT NULL,
+            item_count INTEGER NOT NULL
+        )
+    """)
+    distribution_data = [
+        ("Matched", 8500),
+        ("Breaks", 1200),
+        ("Pending", 650),
+        ("Escalated", 180),
+        ("Resolved", 3200),
+    ]
+    cur.executemany(
+        "INSERT INTO showcase_distribution (status, item_count) VALUES (%s, %s)",
+        distribution_data,
+    )
+    if "showcase_distribution" in showcase_ds:
+        validate_columns(
+            "showcase_distribution",
+            showcase_ds["showcase_distribution"]["query"],
+            {"status", "item_count"},
+        )
+
+    # ---- showcase_scatter (30 rows) ---- #
+    cur.execute("DROP TABLE IF EXISTS showcase_scatter CASCADE")
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS showcase_scatter (
+            processing_time_ms NUMERIC(8,2) NOT NULL,
+            record_count INTEGER NOT NULL,
+            error_rate NUMERIC(5,4) NOT NULL
+        )
+    """)
+    scatter_data = []
+    for _ in range(30):
+        proc_time = round(random.uniform(50, 500), 2)
+        rec_count = random.randint(100, 10000)
+        err_rate = round(random.uniform(0.001, 0.05), 4)
+        scatter_data.append((proc_time, rec_count, err_rate))
+    cur.executemany(
+        "INSERT INTO showcase_scatter (processing_time_ms, record_count, error_rate) VALUES (%s, %s, %s)",
+        scatter_data,
+    )
+    if "showcase_scatter" in showcase_ds:
+        validate_columns(
+            "showcase_scatter",
+            showcase_ds["showcase_scatter"]["query"],
+            {"processing_time_ms", "record_count", "error_rate"},
+        )
+
+    # ---- showcase_heatmap (35 rows: 7 days x 5 hour slots) ---- #
+    cur.execute("DROP TABLE IF EXISTS showcase_heatmap CASCADE")
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS showcase_heatmap (
+            day_of_week VARCHAR(10) NOT NULL,
+            hour_slot VARCHAR(10) NOT NULL,
+            match_count INTEGER NOT NULL
+        )
+    """)
+    days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    hours = ["08:00", "10:00", "12:00", "14:00", "16:00"]
+    heatmap_data = []
+    for day in days:
+        for hour in hours:
+            count = random.randint(50, 500)
+            heatmap_data.append((day, hour, count))
+    cur.executemany(
+        "INSERT INTO showcase_heatmap (day_of_week, hour_slot, match_count) VALUES (%s, %s, %s)",
+        heatmap_data,
+    )
+    if "showcase_heatmap" in showcase_ds:
+        validate_columns(
+            "showcase_heatmap",
+            showcase_ds["showcase_heatmap"]["query"],
+            {"day_of_week", "hour_slot", "match_count"},
+        )
+
+    # ---- showcase_treemap (10 rows) ---- #
+    cur.execute("DROP TABLE IF EXISTS showcase_treemap CASCADE")
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS showcase_treemap (
+            entity_name VARCHAR(50) NOT NULL,
+            total_volume NUMERIC(12,2) NOT NULL,
+            net_change NUMERIC(8,2) NOT NULL
+        )
+    """)
+    treemap_data = [
+        ("US Equities", 5000000, 200000),
+        ("EU Fixed Income", 4200000, -50000),
+        ("APAC FX", 3800000, 150000),
+        ("LatAm Rates", 2500000, -30000),
+        ("US Credit", 2100000, 80000),
+        ("EU Equities", 1900000, 120000),
+        ("APAC Commodities", 1500000, -20000),
+        ("Global Derivatives", 3200000, 175000),
+        ("EM Sovereign", 800000, 45000),
+        ("UK Gilts", 600000, -15000),
+    ]
+    cur.executemany(
+        "INSERT INTO showcase_treemap (entity_name, total_volume, net_change) VALUES (%s, %s, %s)",
+        treemap_data,
+    )
+    if "showcase_treemap" in showcase_ds:
+        validate_columns(
+            "showcase_treemap",
+            showcase_ds["showcase_treemap"]["query"],
+            {"entity_name", "total_volume", "net_change"},
+        )
+
+    # ---- showcase_waterfall (7 rows) ---- #
+    cur.execute("DROP TABLE IF EXISTS showcase_waterfall CASCADE")
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS showcase_waterfall (
+            line_item VARCHAR(50) NOT NULL,
+            amount NUMERIC(12,2) NOT NULL,
+            sort_order INTEGER NOT NULL
+        )
+    """)
+    waterfall_data = [
+        ("Revenue", 5000000, 1),
+        ("COGS", -2100000, 2),
+        ("Gross Profit", 2900000, 3),
+        ("OpEx", -1200000, 4),
+        ("R&D", -800000, 5),
+        ("Tax", -380000, 6),
+        ("Net Income", 520000, 7),
+    ]
+    cur.executemany(
+        "INSERT INTO showcase_waterfall (line_item, amount, sort_order) VALUES (%s, %s, %s)",
+        waterfall_data,
+    )
+    if "showcase_waterfall" in showcase_ds:
+        validate_columns(
+            "showcase_waterfall",
+            showcase_ds["showcase_waterfall"]["query"],
+            {"line_item", "amount", "sort_order"},
+        )
+
+    # ---- showcase_funnel (5 rows) ---- #
+    cur.execute("DROP TABLE IF EXISTS showcase_funnel CASCADE")
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS showcase_funnel (
+            stage VARCHAR(50) NOT NULL,
+            count INTEGER NOT NULL
+        )
+    """)
+    funnel_data = [
+        ("Received", 10000),
+        ("Validated", 8200),
+        ("Matched", 6800),
+        ("Reconciled", 5500),
+        ("Closed", 4900),
+    ]
+    cur.executemany(
+        "INSERT INTO showcase_funnel (stage, count) VALUES (%s, %s)",
+        funnel_data,
+    )
+    if "showcase_funnel" in showcase_ds:
+        validate_columns(
+            "showcase_funnel",
+            showcase_ds["showcase_funnel"]["query"],
+            {"stage", "count"},
+        )
+
+    conn.commit()
+    print(f"  Inserted {len(categories_data)} showcase_categories rows")
+    print(f"  Inserted {len(timeseries_data)} showcase_timeseries rows")
+    print(f"  Inserted {len(distribution_data)} showcase_distribution rows")
+    print(f"  Inserted {len(scatter_data)} showcase_scatter rows")
+    print(f"  Inserted {len(heatmap_data)} showcase_heatmap rows")
+    print(f"  Inserted {len(treemap_data)} showcase_treemap rows")
+    print(f"  Inserted {len(waterfall_data)} showcase_waterfall rows")
+    print(f"  Inserted {len(funnel_data)} showcase_funnel rows")
+    cur.close()
+
 
 # --------------------------------------------------------------------------- #
 # Seed RecViz config data (superset_meta database)

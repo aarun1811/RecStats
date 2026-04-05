@@ -1,0 +1,11 @@
+{
+  "id": "showcase_distribution",
+  "name": "Showcase: Distribution",
+  "database_routing": { "type": "static" },
+  "query": "SELECT status, item_count FROM showcase_distribution {{filters}}",
+  "filter_mappings": [],
+  "columns": [
+    { "name": "status", "type": "string" },
+    { "name": "item_count", "type": "number" }
+  ]
+}

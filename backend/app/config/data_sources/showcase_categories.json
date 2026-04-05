@@ -1,0 +1,12 @@
+{
+  "id": "showcase_categories",
+  "name": "Showcase: Category Metrics",
+  "database_routing": { "type": "static" },
+  "query": "SELECT department, revenue, headcount FROM showcase_categories {{filters}}",
+  "filter_mappings": [],
+  "columns": [
+    { "name": "department", "type": "string" },
+    { "name": "revenue", "type": "number" },
+    { "name": "headcount", "type": "number" }
+  ]
+}

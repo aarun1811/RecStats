@@ -1,0 +1,12 @@
+{
+  "id": "showcase_timeseries",
+  "name": "Showcase: Time Series",
+  "database_routing": { "type": "static" },
+  "query": "SELECT month_label, processed_count, exception_count FROM showcase_timeseries ORDER BY sort_order {{filters}}",
+  "filter_mappings": [],
+  "columns": [
+    { "name": "month_label", "type": "string" },
+    { "name": "processed_count", "type": "number" },
+    { "name": "exception_count", "type": "number" }
+  ]
+}

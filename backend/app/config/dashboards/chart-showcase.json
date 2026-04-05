@@ -1,0 +1,146 @@
+{
+  "id": "chart-showcase",
+  "name": "Chart Type Showcase",
+  "description": "Test dashboard exercising all supported chart types with dedicated data sources",
+  "features": {
+    "cross_filter": true,
+    "drill_down": true
+  },
+  "filters": [],
+  "kpis": [],
+  "charts": [
+    {
+      "id": "sc-bar",
+      "title": "Bar Chart",
+      "type": "bar",
+      "sourceType": "query",
+      "sources": [{ "dataSourceId": "showcase_categories", "metric": "revenue" }],
+      "layout": { "col": 1, "row": 1, "width": 6, "height": 1 },
+      "crossFilter": true,
+      "drillHierarchy": ["department"]
+    },
+    {
+      "id": "sc-stacked-bar",
+      "title": "Stacked Bar Chart",
+      "type": "stacked-bar",
+      "sourceType": "query",
+      "sources": [
+        { "dataSourceId": "showcase_categories", "metric": "revenue" },
+        { "dataSourceId": "showcase_categories", "metric": "headcount" }
+      ],
+      "layout": { "col": 7, "row": 1, "width": 6, "height": 1 },
+      "crossFilter": true
+    },
+    {
+      "id": "sc-line",
+      "title": "Line Chart",
+      "type": "line",
+      "sourceType": "query",
+      "sources": [
+        { "dataSourceId": "showcase_timeseries", "metric": "processed_count" },
+        { "dataSourceId": "showcase_timeseries", "metric": "exception_count" }
+      ],
+      "layout": { "col": 1, "row": 2, "width": 6, "height": 1 },
+      "crossFilter": true
+    },
+    {
+      "id": "sc-area",
+      "title": "Area Chart",
+      "type": "area",
+      "sourceType": "query",
+      "sources": [
+        { "dataSourceId": "showcase_timeseries", "metric": "processed_count" },
+        { "dataSourceId": "showcase_timeseries", "metric": "exception_count" }
+      ],
+      "layout": { "col": 7, "row": 2, "width": 6, "height": 1 },
+      "crossFilter": true
+    },
+    {
+      "id": "sc-pie",
+      "title": "Pie Chart",
+      "type": "pie",
+      "sourceType": "query",
+      "sources": [{ "dataSourceId": "showcase_distribution", "metric": "item_count" }],
+      "layout": { "col": 1, "row": 3, "width": 6, "height": 1 },
+      "crossFilter": true
+    },
+    {
+      "id": "sc-donut",
+      "title": "Donut Chart",
+      "type": "donut",
+      "sourceType": "query",
+      "sources": [{ "dataSourceId": "showcase_distribution", "metric": "item_count" }],
+      "layout": { "col": 7, "row": 3, "width": 6, "height": 1 },
+      "crossFilter": true
+    },
+    {
+      "id": "sc-scatter",
+      "title": "Scatter Chart",
+      "type": "scatter",
+      "sourceType": "query",
+      "sources": [
+        { "dataSourceId": "showcase_scatter", "metric": "processing_time_ms" },
+        { "dataSourceId": "showcase_scatter", "metric": "record_count" },
+        { "dataSourceId": "showcase_scatter", "metric": "error_rate" }
+      ],
+      "layout": { "col": 1, "row": 4, "width": 6, "height": 1 },
+      "crossFilter": false
+    },
+    {
+      "id": "sc-heatmap",
+      "title": "Heatmap",
+      "type": "heatmap",
+      "sourceType": "query",
+      "sources": [{ "dataSourceId": "showcase_heatmap", "metric": "match_count" }],
+      "layout": { "col": 7, "row": 4, "width": 6, "height": 1 },
+      "crossFilter": true
+    },
+    {
+      "id": "sc-treemap",
+      "title": "Treemap",
+      "type": "treemap",
+      "sourceType": "query",
+      "sources": [
+        { "dataSourceId": "showcase_treemap", "metric": "total_volume" },
+        { "dataSourceId": "showcase_treemap", "metric": "net_change" }
+      ],
+      "layout": { "col": 1, "row": 5, "width": 6, "height": 1 },
+      "crossFilter": true
+    },
+    {
+      "id": "sc-waterfall",
+      "title": "Waterfall Chart",
+      "type": "waterfall",
+      "sourceType": "query",
+      "sources": [{ "dataSourceId": "showcase_waterfall", "metric": "amount" }],
+      "layout": { "col": 7, "row": 5, "width": 6, "height": 1 },
+      "crossFilter": false
+    },
+    {
+      "id": "sc-combo",
+      "title": "Combo Chart (Bar + Line)",
+      "type": "combo",
+      "sourceType": "query",
+      "sources": [
+        { "dataSourceId": "showcase_categories", "metric": "revenue" },
+        { "dataSourceId": "showcase_categories", "metric": "headcount" }
+      ],
+      "layout": { "col": 1, "row": 6, "width": 6, "height": 1 },
+      "crossFilter": true
+    },
+    {
+      "id": "sc-funnel",
+      "title": "Funnel (ECharts)",
+      "type": "funnel",
+      "sourceType": "query",
+      "sources": [{ "dataSourceId": "showcase_funnel", "metric": "count" }],
+      "layout": { "col": 7, "row": 6, "width": 6, "height": 1 },
+      "crossFilter": true
+    }
+  ],
+  "grids": [],
+  "layout": {
+    "type": "standard",
+    "sections": ["charts"]
+  }
+}
