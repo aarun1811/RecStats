@@ -50,12 +50,13 @@ Plans:
   2. Cross-filtered charts show selected items at full color and excluded items dimmed -- a selection bar displays active filters with one-click removal
   3. Clicking aggregated data opens a breakdown level, then a detail level with raw rows in AG Grid -- breadcrumb navigation shows the full drill path
   4. Drill-down detail level loads rows from the backend with full AG Grid sort, filter, and pagination working
-**Plans**: TBD
+**Plans:** 3 plans
 **UI hint**: yes
 
 Plans:
-- [ ] 02-01: TBD
-- [ ] 02-02: TBD
+- [ ] 02-01-PLAN.md -- Foundation data layer: types, stores, utilities, hooks, and tests for cross-filtering and drill-down
+- [ ] 02-02-PLAN.md -- Cross-filtering UI integration into dashboard renderer, chart grid, KPI row, data grid, and chart wrappers
+- [ ] 02-03-PLAN.md -- Drill-down UI: breadcrumb navigation, detail grid, chart grid drill insertion, and end-to-end verification
 
 ### Phase 3: Chart and Grid Interactions
 **Goal**: Users can export, enlarge, and refresh individual charts and grids from toolbar controls on each panel
@@ -183,7 +184,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation Hardening | 0/3 | Planning complete | - |
-| 2. Cross-Filtering and Drill-Down | 0/0 | Not started | - |
+| 2. Cross-Filtering and Drill-Down | 0/3 | Planning complete | - |
 | 3. Chart and Grid Interactions | 0/0 | Not started | - |
 | 4. Data Source Connectivity | 0/0 | Not started | - |
 | 5. Dataset Management | 0/0 | Not started | - |
