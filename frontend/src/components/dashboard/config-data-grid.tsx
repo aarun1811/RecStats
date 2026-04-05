@@ -3,8 +3,8 @@ import { AgGridReact } from 'ag-grid-react'
 import { type ColDef, type GridApi, type GridReadyEvent, themeQuartz, colorSchemeDark } from 'ag-grid-community'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
+import { GridToolbar } from '@/components/dashboard/grid-toolbar'
 import { ErrorPanel } from '@/components/shared/error-panel'
 import { useTheme } from '@/components/layout/theme-provider'
 import { useDataSourceQuery } from '@/hooks/use-data-source-query'
@@ -85,6 +85,7 @@ function SingleSourceGrid({
 
   const [gridApi, setGridApi] = useState<GridApi | null>(null)
   const [quickFilter, setQuickFilter] = useState('')
+  const [displayedRowCount, setDisplayedRowCount] = useState(0)
 
   const { data: queryResponse, isLoading, isError, error, refetch } = useDataSourceQuery(
     grid.dataSourceId ?? '',
@@ -109,6 +110,11 @@ function SingleSourceGrid({
 
   const onGridReady = useCallback((event: GridReadyEvent) => {
     setGridApi(event.api)
+    setDisplayedRowCount(event.api.getDisplayedRowCount())
+    // Update displayed count when filters change
+    event.api.addEventListener('filterChanged', () => {
+      setDisplayedRowCount(event.api.getDisplayedRowCount())
+    })
   }, [])
 
   const handleQuickFilter = useCallback(
@@ -147,11 +153,13 @@ function SingleSourceGrid({
         <CardTitle className="text-sm font-medium">{grid.title}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-2 px-4">
-        <Input
-          placeholder="Quick filter..."
-          value={quickFilter}
-          onChange={(e) => handleQuickFilter(e.target.value)}
-          className="max-w-sm"
+        <GridToolbar
+          gridApi={gridApi}
+          gridTitle={grid.title}
+          totalRows={rowData.length}
+          displayedRows={displayedRowCount || rowData.length}
+          quickFilter={quickFilter}
+          onQuickFilterChange={handleQuickFilter}
         />
         <div style={{ height: 400, width: '100%' }}>
           <AgGridReact
@@ -209,6 +217,7 @@ function MergedSourceGrid({
 
   const [gridApi, setGridApi] = useState<GridApi | null>(null)
   const [quickFilter, setQuickFilter] = useState('')
+  const [displayedRowCount, setDisplayedRowCount] = useState(0)
 
   const mergeConfig = useMemo(
     () => ({
@@ -242,6 +251,11 @@ function MergedSourceGrid({
 
   const onGridReady = useCallback((event: GridReadyEvent) => {
     setGridApi(event.api)
+    setDisplayedRowCount(event.api.getDisplayedRowCount())
+    // Update displayed count when filters change
+    event.api.addEventListener('filterChanged', () => {
+      setDisplayedRowCount(event.api.getDisplayedRowCount())
+    })
   }, [])
 
   const handleQuickFilter = useCallback(
@@ -280,11 +294,13 @@ function MergedSourceGrid({
         <CardTitle className="text-sm font-medium">{grid.title}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-2 px-4">
-        <Input
-          placeholder="Quick filter..."
-          value={quickFilter}
-          onChange={(e) => handleQuickFilter(e.target.value)}
-          className="max-w-sm"
+        <GridToolbar
+          gridApi={gridApi}
+          gridTitle={grid.title}
+          totalRows={rowData.length}
+          displayedRows={displayedRowCount || rowData.length}
+          quickFilter={quickFilter}
+          onQuickFilterChange={handleQuickFilter}
         />
         <div style={{ height: 400, width: '100%' }}>
           <AgGridReact
