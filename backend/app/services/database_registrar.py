@@ -79,8 +79,8 @@ class DatabaseRegistrar:
                 except Exception as e:
                     logger.warning(
                         "Failed to register database '%s' in Superset: %s "
-                        "(if using local dev, ensure seed.db exists: "
-                        "python scripts/generate-seed-db.py)",
+                        "(if using local dev, ensure PostgreSQL is seeded: "
+                        "python scripts/seed-postgres.py)",
                         entry.name,
                         e,
                     )
