@@ -1,12 +1,24 @@
 {
   "id": "showcase_heatmap",
   "name": "Showcase: Heatmap",
-  "database_routing": { "type": "static" },
+  "database_routing": {
+    "type": "static",
+    "database": "superset_db_reconmgmt"
+  },
   "query": "SELECT day_of_week, hour_slot, match_count FROM showcase_heatmap {{filters}}",
   "filter_mappings": [],
   "columns": [
-    { "name": "day_of_week", "type": "string" },
-    { "name": "hour_slot", "type": "string" },
-    { "name": "match_count", "type": "number" }
+    {
+      "name": "day_of_week",
+      "type": "string"
+    },
+    {
+      "name": "hour_slot",
+      "type": "string"
+    },
+    {
+      "name": "match_count",
+      "type": "number"
+    }
   ]
 }

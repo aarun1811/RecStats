@@ -1,12 +1,24 @@
 {
   "id": "showcase_categories",
   "name": "Showcase: Category Metrics",
-  "database_routing": { "type": "static" },
+  "database_routing": {
+    "type": "static",
+    "database": "superset_db_reconmgmt"
+  },
   "query": "SELECT department, revenue, headcount FROM showcase_categories {{filters}}",
   "filter_mappings": [],
   "columns": [
-    { "name": "department", "type": "string" },
-    { "name": "revenue", "type": "number" },
-    { "name": "headcount", "type": "number" }
+    {
+      "name": "department",
+      "type": "string"
+    },
+    {
+      "name": "revenue",
+      "type": "number"
+    },
+    {
+      "name": "headcount",
+      "type": "number"
+    }
   ]
 }

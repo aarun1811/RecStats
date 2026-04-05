@@ -1,11 +1,20 @@
 {
   "id": "showcase_funnel",
   "name": "Showcase: Funnel",
-  "database_routing": { "type": "static" },
+  "database_routing": {
+    "type": "static",
+    "database": "superset_db_reconmgmt"
+  },
   "query": "SELECT stage, count FROM showcase_funnel ORDER BY count DESC {{filters}}",
   "filter_mappings": [],
   "columns": [
-    { "name": "stage", "type": "string" },
-    { "name": "count", "type": "number" }
+    {
+      "name": "stage",
+      "type": "string"
+    },
+    {
+      "name": "count",
+      "type": "number"
+    }
   ]
 }

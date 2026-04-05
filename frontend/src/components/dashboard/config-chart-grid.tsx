@@ -20,6 +20,7 @@ interface ConfigChartGridProps {
   kpiResults?: KpiResult[]
   crossFilterEnabled?: boolean
   drillDownEnabled?: boolean
+  dashboardHasFilters?: boolean
 }
 
 /** Builds a ChartDataResponse from KPI results for a kpi_values chart (e.g. donut). */
@@ -65,10 +66,12 @@ function QueryChartItemWithDrill({
   chart,
   crossFilterEnabled,
   drillDownEnabled,
+  dashboardHasFilters,
 }: {
   chart: DashboardChartConfig
   crossFilterEnabled?: boolean
   drillDownEnabled?: boolean
+  dashboardHasFilters?: boolean
 }) {
   const appliedFilters = useFilterStore((s) => s.applied)
   const crossFilters = useFilterStore((s) => s.crossFilters)
@@ -80,7 +83,7 @@ function QueryChartItemWithDrill({
   const { data: queryResponse, isLoading, isError, error, refetch } = useDataSourceQuery(
     dataSourceId,
     appliedFilters,
-    !!dataSourceId && hasAppliedFilters,
+    !!dataSourceId && (hasAppliedFilters || !dashboardHasFilters),
   )
 
   const chartData: ChartDataResponse | undefined = useMemo(() => {
@@ -354,7 +357,7 @@ function ChartItemSkeleton({ title }: { title?: string }) {
  * breadcrumb shows inside chart header, and a full-width detail grid
  * slides in below the drilled chart row via CSS grid `gridColumn: 1 / -1`.
  */
-export function ConfigChartGrid({ charts, kpiResults, crossFilterEnabled, drillDownEnabled }: ConfigChartGridProps) {
+export function ConfigChartGrid({ charts, kpiResults, crossFilterEnabled, drillDownEnabled, dashboardHasFilters }: ConfigChartGridProps) {
   return (
     <div
       className="grid gap-4"
@@ -386,6 +389,7 @@ export function ConfigChartGrid({ charts, kpiResults, crossFilterEnabled, drillD
             chart={chart}
             crossFilterEnabled={crossFilterEnabled}
             drillDownEnabled={drillDownEnabled}
+            dashboardHasFilters={dashboardHasFilters}
           />
         )
       })}

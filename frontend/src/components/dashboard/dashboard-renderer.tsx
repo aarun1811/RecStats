@@ -102,6 +102,7 @@ export function DashboardRenderer({
         kpiResults={crossFilteredKpis ?? kpiResults}
         crossFilterEnabled={crossFilterEnabled}
         drillDownEnabled={drillDownEnabled}
+        dashboardHasFilters={config.filters.length > 0}
       />
       <ConfigDataGrid
         grids={config.grids}

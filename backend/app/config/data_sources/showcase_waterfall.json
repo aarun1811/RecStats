@@ -1,11 +1,20 @@
 {
   "id": "showcase_waterfall",
   "name": "Showcase: Waterfall",
-  "database_routing": { "type": "static" },
+  "database_routing": {
+    "type": "static",
+    "database": "superset_db_reconmgmt"
+  },
   "query": "SELECT line_item, amount FROM showcase_waterfall ORDER BY sort_order {{filters}}",
   "filter_mappings": [],
   "columns": [
-    { "name": "line_item", "type": "string" },
-    { "name": "amount", "type": "number" }
+    {
+      "name": "line_item",
+      "type": "string"
+    },
+    {
+      "name": "amount",
+      "type": "number"
+    }
   ]
 }
