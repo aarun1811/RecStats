@@ -1,322 +1,387 @@
 # Codebase Structure
 
-**Analysis Date:** 2026-04-04
+**Analysis Date:** 2026-04-05
 
 ## Directory Layout
 
 ```
 RecViz/
-├── frontend/                    # React SPA (Vite + TypeScript)
+├── frontend/                   # React 19 SPA (Vite 6)
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── charts/          # AG Charts + ECharts wrappers, chart factory
-│   │   │   ├── dashboard/       # Config-driven + legacy dashboard components
-│   │   │   ├── embed/           # Embed mode topbar
-│   │   │   ├── explorer/        # SQL editor, schema browser, query results, chart builder
-│   │   │   ├── grid/            # AG Grid wrapper, toolbar, cell renderers
-│   │   │   ├── layout/          # Sidebar, header, nav, theme provider/switch, command palette
-│   │   │   ├── settings/        # Data source management UI
-│   │   │   ├── shared/          # Error boundary, page transition, count animation
-│   │   │   └── ui/              # Shadcn/ui base components (owned code, not a dependency)
-│   │   ├── hooks/               # Custom hooks wrapping TanStack Query
-│   │   ├── lib/                 # API client, query client, utils, chart themes, cross-filter
-│   │   ├── pages/               # (empty — routes are in routes/)
-│   │   ├── routes/              # TanStack Router file-based routes
-│   │   │   ├── __root.tsx       # Root layout (providers, toaster)
-│   │   │   ├── _app.tsx         # App shell layout (sidebar + header)
+│   │   │   ├── ui/             # Shadcn/ui primitives (owned code, not dependency)
+│   │   │   ├── layout/         # App shell: sidebar, header, nav, theme
+│   │   │   ├── dashboard/      # Config-driven dashboard components
+│   │   │   ├── charts/         # Chart factory, AG Chart wrapper, EChart wrapper
+│   │   │   ├── grid/           # AG Grid cell renderers
+│   │   │   ├── explorer/       # SQL editor, schema browser, query results
+│   │   │   ├── embed/          # Embed-mode topbar
+│   │   │   ├── settings/       # Data source management UI
+│   │   │   └── shared/         # Error boundary, error panel, page transition, count animation
+│   │   ├── hooks/              # Custom hooks (data fetching, cross-filter, drill-down)
+│   │   ├── stores/             # Zustand stores (filter, drill)
+│   │   ├── lib/                # API client, query client, utils, formatters, chart themes
+│   │   ├── types/              # TypeScript type definitions
+│   │   ├── routes/             # TanStack Router file-based routes
+│   │   │   ├── __root.tsx      # Root layout (providers)
+│   │   │   ├── _app.tsx        # App layout (sidebar + header)
 │   │   │   ├── _app/
-│   │   │   │   ├── dashboards/  # Dashboard list + detail pages
-│   │   │   │   ├── explorer/    # SQL data explorer page
-│   │   │   │   ├── reports/     # Reports page
-│   │   │   │   └── settings/    # Settings page
+│   │   │   │   ├── dashboards/ # Dashboard list + detail pages
+│   │   │   │   ├── explorer/   # SQL explorer page
+│   │   │   │   ├── reports/    # Reports placeholder page
+│   │   │   │   └── settings/   # Settings page (theme, views, data sources)
 │   │   │   ├── embed/
-│   │   │   │   └── dashboards/  # Embeddable dashboard (no sidebar/header)
-│   │   │   └── index.tsx        # Root redirect to /dashboards
-│   │   ├── stores/              # Zustand state stores
-│   │   └── types/               # TypeScript type definitions
-│   ├── public/                  # Static assets
-│   ├── index.html               # HTML entry point
-│   ├── vite.config.ts           # Vite config (React, Tailwind, TanStack Router, @ alias)
-│   ├── tsconfig.json            # TypeScript project references
-│   ├── tsconfig.app.json        # App-specific TS config
-│   ├── eslint.config.js         # ESLint config
-│   ├── components.json          # Shadcn/ui CLI config
-│   └── package.json             # Dependencies + scripts
+│   │   │   │   └── dashboards/ # Embeddable dashboard (iframe-friendly)
+│   │   │   └── index.tsx       # Root redirect to /dashboards
+│   │   ├── pages/              # Empty (unused, routes/ is the active system)
+│   │   ├── App.tsx             # Router provider
+│   │   ├── main.tsx            # Entry point (AG Grid/Charts registration)
+│   │   ├── index.css           # Tailwind + Shadcn CSS variables
+│   │   └── routeTree.gen.ts    # Auto-generated route tree (do not edit)
+│   ├── e2e/                    # Playwright E2E tests
+│   ├── public/                 # Static assets
+│   ├── vite.config.ts          # Vite config
+│   ├── tsconfig.json           # TypeScript config (strict)
+│   ├── tailwind.config.ts      # Tailwind CSS config
+│   └── package.json            # Frontend dependencies
 │
-├── backend/                     # FastAPI backend
+├── backend/                    # FastAPI sidecar
 │   ├── app/
-│   │   ├── api/                 # Route handlers (thin controllers)
-│   │   │   ├── router.py        # Aggregates all route modules
-│   │   │   ├── dashboards.py    # Config-driven dashboard endpoints
-│   │   │   ├── data_sources.py  # Data source query + merge + distinct endpoints
-│   │   │   ├── charts.py        # Legacy chart endpoints (Superset datasource-based)
-│   │   │   ├── sql.py           # SQL Lab execution + history
-│   │   │   ├── databases.py     # Database CRUD (Superset proxy)
-│   │   │   ├── datasets.py      # Dataset listing + data (Superset proxy)
-│   │   │   ├── search.py        # Global search endpoint
-│   │   │   ├── custom.py        # Legacy KPI + aggregation endpoints
-│   │   │   ├── export.py        # PDF/Excel export stubs
-│   │   │   └── views.py         # Saved views CRUD
-│   │   ├── config/              # JSON configuration files
-│   │   │   ├── dashboards/      # Dashboard config JSONs
-│   │   │   ├── data_sources/    # Data source config JSONs
-│   │   │   ├── databases.json   # Database connection registry
-│   │   │   └── seed/            # SQLite seed database for local dev
-│   │   ├── core/                # Framework concerns
-│   │   │   └── dependencies.py  # FastAPI Depends() injection definitions
-│   │   ├── models/              # Pydantic v2 models
-│   │   │   ├── base.py          # CamelModel base class
-│   │   │   ├── dashboard_config.py  # Dashboard config schema
-│   │   │   ├── data_source_config.py # Data source config schema
-│   │   │   ├── database_config.py   # Database connection schema
-│   │   │   ├── filters.py       # Legacy filter models
-│   │   │   ├── chart_data.py    # Chart data request/response
-│   │   │   ├── database.py      # Database CRUD models
-│   │   │   ├── dataset.py       # Dataset models
-│   │   │   ├── export.py        # Export request/status
-│   │   │   └── views.py         # Saved view models
-│   │   ├── services/            # Business logic
-│   │   │   ├── superset_client.py    # Async Superset REST API client
-│   │   │   ├── query_engine.py       # SQL builder + executor
-│   │   │   ├── config_store.py       # JSON config loader + registry
-│   │   │   ├── database_registrar.py # DB sync + name resolution
-│   │   │   ├── merge_engine.py       # Multi-source row merge
-│   │   │   └── uri_builder.py        # SQLAlchemy URI constructor
-│   │   ├── config.py            # pydantic-settings app configuration
-│   │   ├── main.py              # FastAPI app factory + lifespan
-│   │   └── mock_data.py         # Mock data for fallback mode
-│   ├── tests/                   # pytest test files
-│   │   ├── test_config_store.py
-│   │   ├── test_database_registrar.py
-│   │   ├── test_merge_engine.py
-│   │   └── test_query_engine.py
-│   └── requirements.txt         # Python dependencies
+│   │   ├── api/                # Route handlers (thin controllers)
+│   │   │   ├── router.py       # Aggregates all sub-routers
+│   │   │   ├── dashboards.py   # Dashboard list, detail, KPI computation
+│   │   │   ├── data_sources.py # Data source query, merge, distinct values
+│   │   │   ├── databases.py    # Database CRUD (Superset proxy)
+│   │   │   ├── charts.py       # Legacy chart data (hardcoded Superset queries)
+│   │   │   ├── datasets.py     # Dataset listing (Superset proxy)
+│   │   │   ├── sql.py          # SQL execution + history
+│   │   │   ├── search.py       # Search endpoint
+│   │   │   ├── custom.py       # Custom aggregation endpoints
+│   │   │   ├── export.py       # PDF/Excel export stubs
+│   │   │   └── views.py        # Saved views (in-memory store)
+│   │   ├── services/           # Business logic layer
+│   │   │   ├── superset_client.py     # Async Superset API client
+│   │   │   ├── query_engine.py        # Template SQL builder + executor
+│   │   │   ├── database_registrar.py  # Database config -> Superset sync
+│   │   │   ├── config_store.py        # DB-backed config CRUD
+│   │   │   ├── config_migrator.py     # Config schema migration pipeline
+│   │   │   ├── merge_engine.py        # Multi-source data merge (outer/inner join)
+│   │   │   └── uri_builder.py         # SQLAlchemy URI construction
+│   │   ├── models/             # Pydantic request/response models
+│   │   │   ├── base.py         # CamelModel (camelCase alias generator)
+│   │   │   ├── dashboard_config.py    # Full dashboard config schema
+│   │   │   ├── data_source_config.py  # Data source config schema
+│   │   │   ├── database_config.py     # databases.json schema
+│   │   │   ├── database.py     # Database CRUD request models
+│   │   │   ├── chart_data.py   # Chart data response models
+│   │   │   ├── dataset.py      # Dataset response models
+│   │   │   ├── filters.py      # GlobalFilters, ChartDataRequest
+│   │   │   ├── export.py       # Export request/status models
+│   │   │   ├── views.py        # Saved view models
+│   │   │   └── error.py        # Error response models
+│   │   ├── core/               # Framework-level utilities
+│   │   │   ├── dependencies.py # FastAPI DI: SupersetDep, ConfigStoreDep, QueryEngineDep, ResolvedDataSourceDep
+│   │   │   └── errors.py       # Error sanitization (truncation, credential redaction)
+│   │   ├── db/                 # SQLAlchemy models and engine
+│   │   │   ├── engine.py       # Async engine + session factory
+│   │   │   ├── base.py         # DeclarativeBase
+│   │   │   └── models/
+│   │   │       ├── dashboard.py    # RecvizDashboard (JSONB config)
+│   │   │       └── data_source.py  # RecvizDataSource (JSONB config)
+│   │   ├── migrations/         # Alembic (async, custom version table)
+│   │   │   ├── env.py
+│   │   │   └── versions/
+│   │   │       └── 001_initial_schema.py
+│   │   ├── config/             # Static config files
+│   │   │   ├── databases.json           # Database connection definitions
+│   │   │   ├── dashboards/              # JSON dashboard configs (for seeding)
+│   │   │   ├── data_sources/            # JSON data source configs (for seeding)
+│   │   │   └── seed/                    # SQLite seed database
+│   │   ├── config.py           # Settings (pydantic-settings, reads .env)
+│   │   └── main.py             # FastAPI app, lifespan, middleware
+│   ├── tests/                  # Backend tests
+│   └── requirements.txt        # Python dependencies
 │
-├── superset/                    # Superset configuration
-│   ├── superset_config.py       # Production Superset config
-│   ├── superset_config_local.py # Local dev overrides
-│   └── Dockerfile               # Superset Docker image
+├── superset/                   # Superset configuration (installed via pip)
+│   ├── superset_config.py      # Production config (PostgreSQL + Redis)
+│   ├── superset_config_local.py # Local dev config
+│   ├── Dockerfile              # Superset container build
+│   └── superset-entrypoint.sh  # Init script (db upgrade, init, admin user)
 │
-├── docker/                      # Docker support files
-│   └── init-db.sql              # PostgreSQL init script
+├── docker/                     # Docker support files
+│   └── init-db.sql             # PostgreSQL init (creates recon_data DB)
 │
-├── docker-compose.yml           # PostgreSQL + Redis + Superset
+├── scripts/                    # Utility scripts
+├── seed/                       # Seed data files
+├── docs/                       # Documentation, plans, research
 │
-├── scripts/                     # Utility scripts
-├── seed/                        # Seed data utilities
-├── docs/                        # Documentation
-│   ├── plans/                   # Implementation plans
-│   ├── research/                # Research documents
-│   ├── superpowers/             # Gemini review, plans, specs
-│   └── testing/                 # Testing documentation
-│
-├── _references/                 # Reference UI kit (shadcn-ui-kit-dashboard)
-├── CLAUDE.md                    # Project context and conventions
-└── .gitignore
+├── docker-compose.yml          # PostgreSQL + Redis + Superset
+├── CLAUDE.md                   # Project conventions and context
+└── .planning/                  # GSD planning artifacts
+    └── codebase/               # Codebase analysis documents
 ```
 
 ## Directory Purposes
 
-**`frontend/src/components/charts/`:**
-- Purpose: Chart rendering abstraction layer
-- Contains: `chart-factory.tsx` (router), `ag-chart-wrapper.tsx` (AG Charts), `echart-wrapper.tsx` (ECharts)
-- Key files: `chart-factory.tsx` dispatches to correct wrapper based on viz type
+**`frontend/src/components/ui/`:**
+- Purpose: Shadcn/ui component library -- owned code, not a dependency
+- Contains: Primitives (Button, Card, Dialog, Select, Tabs, etc.) + custom additions (Empty, Spinner, Kbd, Timeline, Resizable)
+- Key files: `sidebar.tsx`, `card.tsx`, `command.tsx`, `dialog.tsx`, `sonner.tsx`
+- Rule: Do NOT modify these files unless absolutely necessary. Extend via composition in domain components.
 
 **`frontend/src/components/dashboard/`:**
-- Purpose: All dashboard-related components for both config-driven and legacy systems
-- Contains: Config-driven (`config-filter-bar.tsx`, `config-kpi-row.tsx`, `config-chart-grid.tsx`, `config-data-grid.tsx`, `dashboard-renderer.tsx`) and legacy (`filter-bar.tsx`, `kpi-row.tsx`, `chart-grid.tsx`, `chart-panel.tsx`, `cross-filter-bar.tsx`, `drill-breadcrumb.tsx`, `kpi-card.tsx`)
-- Key files: `dashboard-renderer.tsx` is the primary orchestrator for config-driven dashboards
+- Purpose: Config-driven dashboard rendering components
+- Contains: All `config-*` prefixed components that render from `DashboardConfig`
+- Key files:
+  - `dashboard-renderer.tsx` -- orchestrates filter bar, KPIs, charts, grids, auto-refresh
+  - `config-filter-bar.tsx` -- renders filter controls from config (single-select, multi-select, preset-range)
+  - `config-chart-grid.tsx` -- renders charts in 12-column CSS grid with cross-filter + drill-down
+  - `config-kpi-row.tsx` -- renders KPI cards with animated counters
+  - `config-data-grid.tsx` -- renders AG Grid tables
+  - `cross-filter-bar.tsx` -- shows active cross-filter chips
+  - `drill-breadcrumb.tsx` -- navigation breadcrumb for drill-down state
+  - `drill-detail-grid.tsx` -- detail-level AG Grid that appears at bottom of drill
+  - `chart-toolbar.tsx` -- hover-revealed toolbar (export, fullscreen, refresh)
+  - `chart-fullscreen-dialog.tsx` -- fullscreen chart dialog with identical state
+  - `dashboard-toolbar.tsx` -- refresh button, auto-refresh controls
+  - `auto-refresh-control.tsx` -- interval selector and countdown
+  - `grid-toolbar.tsx` -- grid toolbar with export actions
 
-**`frontend/src/components/explorer/`:**
-- Purpose: SQL data explorer IDE components
-- Contains: `sql-editor.tsx` (Monaco), `schema-browser.tsx`, `query-results.tsx` (AG Grid), `query-history.tsx`, `chart-builder-dialog.tsx`
-
-**`frontend/src/components/grid/`:**
-- Purpose: AG Grid wrapper and custom cell renderers for legacy grid
-- Contains: `data-grid.tsx`, `grid-toolbar.tsx`, `cell-renderers/amount-cell.tsx`, `cell-renderers/sla-cell.tsx`, `cell-renderers/status-cell.tsx`
+**`frontend/src/components/charts/`:**
+- Purpose: Chart rendering abstraction layer
+- Contains: Factory pattern routing to AG Charts or ECharts
+- Key files:
+  - `chart-factory.tsx` -- routes by `vizType` to AG Charts or ECharts wrapper. Exposes unified `ChartRef` for export.
+  - `ag-chart-wrapper.tsx` -- AG Charts Enterprise renderer
+  - `echart-wrapper.tsx` -- ECharts renderer (exotic chart types only)
+  - `unsupported-chart-error.tsx` -- error panel for unknown chart types
+  - `column-missing-error.tsx` -- error panel when expected columns are missing
 
 **`frontend/src/components/layout/`:**
-- Purpose: Application shell -- sidebar, header, navigation, theming
-- Contains: `app-sidebar.tsx`, `header.tsx`, `nav-main.tsx`, `nav-user.tsx`, `search.tsx`, `command-palette.tsx`, `theme-provider.tsx`, `theme-switch.tsx`
-
-**`frontend/src/components/settings/`:**
-- Purpose: Data source management CRUD UI
-- Contains: `data-sources-tab.tsx`, `data-source-card.tsx`, `data-source-row.tsx`, `data-source-sheet.tsx`, `data-sources-toolbar.tsx`
-
-**`frontend/src/components/shared/`:**
-- Purpose: Cross-cutting UI utilities
-- Contains: `error-boundary.tsx`, `page-transition.tsx`, `count-animation.tsx`
-
-**`frontend/src/components/ui/`:**
-- Purpose: Shadcn/ui base component library (copy-pasted, owned code)
-- Contains: 30+ components: `button.tsx`, `card.tsx`, `dialog.tsx`, `sidebar.tsx`, `command.tsx`, `select.tsx`, `tabs.tsx`, `tooltip.tsx`, `skeleton.tsx`, `badge.tsx`, `sonner.tsx`, etc.
-- Note: Do not modify these directly. Extend via composition in domain components.
+- Purpose: App shell and navigation
+- Contains: Sidebar, header, nav, theme toggle, command palette
+- Key files:
+  - `app-sidebar.tsx` -- collapsible sidebar with navigation groups
+  - `header.tsx` -- top bar with breadcrumb and search
+  - `nav-main.tsx` -- sidebar navigation items
+  - `nav-user.tsx` -- user avatar and menu in sidebar footer
+  - `search.tsx` -- Cmd+K search trigger
+  - `command-palette.tsx` -- command dialog
+  - `theme-provider.tsx` -- light/dark/system theme context
+  - `theme-switch.tsx` -- theme toggle button
 
 **`frontend/src/hooks/`:**
-- Purpose: Custom hooks wrapping TanStack Query for data fetching
-- Contains: 18 hook files covering dashboard configs, KPIs, data source queries, filter options, SQL execution, databases, datasets, search, saved views, breaks, cross-filter, drill-down, prefetch
-- Key files: `use-dashboard-config.ts`, `use-data-source-query.ts`, `use-dashboard-kpis.ts`, `use-filter-options.ts`, `use-data-source-merge.ts`
-
-**`frontend/src/lib/`:**
-- Purpose: Utilities and framework configuration
-- Contains: `api-client.ts` (fetch wrapper with snake->camel transform), `query-client.ts` (TanStack Query config), `utils.ts` (cn utility), `chart-themes.ts` (AG Charts theme from CSS vars), `cross-filter.ts` (client-side filtering)
+- Purpose: Custom React hooks wrapping TanStack Query and Zustand interactions
+- Contains: Data fetching hooks, filter/drill hooks, utility hooks
+- Key files:
+  - `use-dashboard-config.ts` -- fetches dashboard JSON config
+  - `use-dashboard-kpis.ts` -- fetches KPI values for a dashboard
+  - `use-data-source-query.ts` -- executes a data source query with filters
+  - `use-data-source-merge.ts` -- merges multiple data sources
+  - `use-chart-data.ts` -- legacy chart data fetching (direct Superset)
+  - `use-cross-filter.ts` -- applies cross-filters to chart data (client-side)
+  - `use-cross-filter-data.ts` -- fetches KPI data sources for cross-filter recomputation
+  - `use-drill-down.ts` -- per-chart drill state + client-side re-aggregation
+  - `use-drill-detail.ts` -- detail-level data fetching at drill bottom
+  - `use-filter-options.ts` -- fetches filter dropdown options from data sources
+  - `use-auto-refresh.ts` -- auto-refresh timer with countdown
+  - `use-dashboards.ts` -- fetches dashboard list
+  - `use-databases.ts` -- fetches database list
+  - `use-datasets.ts` -- fetches dataset list
+  - `use-sql-execute.ts` -- SQL execution mutation
+  - `use-sql-history.ts` -- SQL history query
+  - `use-saved-views.ts` -- saved views CRUD
+  - `use-search.ts` -- search hook
+  - `use-prefetch.ts` -- prefetch utilities
 
 **`frontend/src/stores/`:**
-- Purpose: Zustand state stores
-- Contains: `filter-store.ts` (filter values, applied state, locked filters, cross-filters), `drill-store.ts` (drill-down breadcrumb stack)
+- Purpose: Zustand client state stores
+- Contains: Filter and drill-down state
+- Key files:
+  - `filter-store.ts` -- filter values, locked filters, applied snapshot, cross-filters
+  - `drill-store.ts` -- per-chart drill levels (Map<chartId, DrillLevel[]>)
+
+**`frontend/src/lib/`:**
+- Purpose: Shared utilities and infrastructure
+- Contains: API client, query client config, formatters, chart themes, cross-filter logic
+- Key files:
+  - `api-client.ts` -- typed fetch wrapper with snake->camel key transform, `ApiError` class
+  - `query-client.ts` -- TanStack Query client config (staleTime, gcTime, error toasts)
+  - `cross-filter.ts` -- `applyCrossFilters()`, `rowPassesCrossFilters()`, `applyCrossFiltersToRows()`
+  - `kpi-aggregator.ts` -- `recomputeKpis()` for client-side KPI recomputation under cross-filters
+  - `formatters.ts` -- number/currency/percent formatting utilities
+  - `chart-themes.ts` -- AG Charts and ECharts theme from Shadcn CSS variables
+  - `chart-export.ts` -- chart PNG/SVG/CSV export utilities
+  - `utils.ts` -- `cn()` class merge utility
 
 **`frontend/src/types/`:**
-- Purpose: Shared TypeScript interfaces
-- Contains: `dashboard-config.ts`, `filter.ts`, `chart.ts`, `api.ts`, `dashboard.ts`, `database.ts`, `dataset.ts`, `views.ts`, `index.ts`
-
-**`frontend/src/routes/`:**
-- Purpose: TanStack Router file-based route definitions
-- Contains: `__root.tsx` (providers), `_app.tsx` (shell layout), `_app/dashboards/` (list + detail), `_app/explorer/`, `_app/reports/`, `_app/settings/`, `embed/dashboards/` (iframe mode), `index.tsx` (redirect)
+- Purpose: Shared TypeScript type definitions
+- Contains: All domain types used across components, hooks, and lib
+- Key files:
+  - `dashboard-config.ts` -- `DashboardConfig`, `FilterConfig`, `KpiConfig`, `DashboardChartConfig`, `GridConfig`, `KpiResult`, `DataSourceQueryResponse`
+  - `filter.ts` -- `GlobalFilters`, `CrossFilter`, `DrillLevel`, `FilterValue`, `FilterState`
+  - `chart.ts` -- `ChartDataResponse`, `ChartConfig`, `ChartWrapperProps`, `ChartClickEvent`, `ChartRef`
+  - `dashboard.ts` -- dashboard list item type
+  - `dataset.ts` -- dataset type
+  - `database.ts` -- database type
+  - `formatting.ts` -- column formatting config types
+  - `api.ts` -- SQL result types
+  - `views.ts` -- saved view types
+  - `index.ts` -- barrel export (exception to no-barrel rule, only for types)
 
 **`backend/app/api/`:**
-- Purpose: FastAPI route handlers (thin controllers)
-- Contains: 10 route modules aggregated by `router.py`
-- Key files: `dashboards.py` (config-driven), `data_sources.py` (config-driven queries + merge), `charts.py` (legacy), `sql.py` (explorer), `databases.py` (CRUD)
+- Purpose: Thin route handlers (validate -> call service -> return)
+- Contains: FastAPI routers for each domain
+- Key pattern: Import dependency types from `core/dependencies.py`, delegate to services
 
 **`backend/app/services/`:**
-- Purpose: Core business logic and external API clients
-- Contains: 6 service files
-- Key files: `query_engine.py` (SQL building + execution), `superset_client.py` (Superset REST client), `config_store.py` (JSON config registry), `database_registrar.py` (DB sync + resolution), `merge_engine.py` (row joining)
+- Purpose: Business logic isolated from HTTP layer
+- Contains: Superset communication, query building, config management, data merging
+- Key pattern: Services are injected via FastAPI `Depends()`. Singleton services stored on `app.state`.
 
 **`backend/app/models/`:**
-- Purpose: Pydantic v2 validation models
-- Contains: 10 model files covering configs, requests, responses
+- Purpose: Pydantic v2 models for request/response validation
+- Contains: All schema definitions used by API routes
+- Key pattern: Backend uses `snake_case`. `CamelModel` base class provides camelCase aliases for legacy endpoints.
+
+**`backend/app/db/`:**
+- Purpose: SQLAlchemy ORM layer for RecViz-owned tables
+- Contains: Async engine, session factory, ORM models
+- Key pattern: JSONB columns store full config documents. Alembic with `recviz_alembic_version` table.
 
 **`backend/app/config/`:**
-- Purpose: JSON configuration files that drive the entire config-driven dashboard system
-- Contains: `dashboards/` (dashboard definitions), `data_sources/` (SQL templates + routing), `databases.json` (connection registry), `seed/` (SQLite dev DB)
+- Purpose: Static configuration files and seed data
+- Contains: `databases.json` (database connections), dashboard JSON configs, data source JSON configs, SQLite seed DB
+- Key pattern: JSON configs seeded into PostgreSQL on first run via seed scripts
 
 ## Key File Locations
 
 **Entry Points:**
-- `frontend/src/main.tsx`: React app bootstrap (AG module registration, root render)
-- `frontend/src/App.tsx`: Creates TanStack Router
-- `frontend/src/routes/__root.tsx`: Root layout (providers)
-- `frontend/src/routes/_app.tsx`: App shell (sidebar + header + outlet)
-- `backend/app/main.py`: FastAPI app factory + lifespan (startup/shutdown)
+- `frontend/src/main.tsx`: SPA entry -- AG Grid/Charts registration, React mount
+- `frontend/src/App.tsx`: Router provider
+- `backend/app/main.py`: FastAPI app creation, lifespan, CORS
 
 **Configuration:**
-- `frontend/vite.config.ts`: Vite config (React, Tailwind CSS, TanStack Router, `@` alias)
-- `frontend/tsconfig.app.json`: TypeScript strict config with path aliases
-- `frontend/eslint.config.js`: ESLint config
-- `frontend/components.json`: Shadcn/ui CLI configuration
-- `backend/app/config.py`: pydantic-settings configuration (Superset URL, credentials, Redis, DB)
+- `backend/app/config.py`: `Settings` class (env vars via pydantic-settings)
 - `backend/app/config/databases.json`: Database connection definitions
-- `superset/superset_config.py`: Superset configuration (DB, Redis, CORS, Celery, cache)
-- `docker-compose.yml`: PostgreSQL + Redis + Superset containers
+- `frontend/vite.config.ts`: Vite build configuration
+- `frontend/tsconfig.json`: TypeScript configuration
+- `docker-compose.yml`: Infrastructure services
 
 **Core Logic:**
-- `backend/app/services/query_engine.py`: Central query builder and executor
-- `backend/app/services/superset_client.py`: Superset REST API client with auth
-- `backend/app/services/config_store.py`: Dashboard and data source config registry
-- `backend/app/services/database_registrar.py`: Database sync and name resolution
-- `backend/app/services/merge_engine.py`: Multi-source row merge engine
-- `frontend/src/components/dashboard/dashboard-renderer.tsx`: Dashboard orchestrator
-- `frontend/src/lib/api-client.ts`: Frontend HTTP client with snake->camel transform
+- `backend/app/services/query_engine.py`: SQL template resolution and execution
+- `backend/app/services/superset_client.py`: Superset API communication
+- `backend/app/services/database_registrar.py`: Database registration and routing
+- `frontend/src/components/dashboard/dashboard-renderer.tsx`: Dashboard orchestration
+- `frontend/src/components/dashboard/config-chart-grid.tsx`: Chart rendering with cross-filter + drill
+- `frontend/src/lib/cross-filter.ts`: Cross-filter application logic
+- `frontend/src/hooks/use-drill-down.ts`: Drill-down state and re-aggregation
 
 **Testing:**
-- `backend/tests/test_config_store.py`: ConfigStore unit tests
-- `backend/tests/test_database_registrar.py`: DatabaseRegistrar unit tests
-- `backend/tests/test_merge_engine.py`: MergeEngine unit tests
-- `backend/tests/test_query_engine.py`: QueryEngine unit tests
+- `frontend/src/components/charts/ag-chart-wrapper.test.ts`
+- `frontend/src/components/charts/chart-factory.test.tsx`
+- `frontend/src/components/dashboard/grid-toolbar.test.tsx`
+- `frontend/src/hooks/use-auto-refresh.test.ts`
+- `frontend/src/lib/chart-export.test.ts`
+- `frontend/src/lib/cross-filter.test.ts`
+- `frontend/src/lib/formatters.test.ts`
+- `frontend/src/lib/kpi-aggregator.test.ts`
+- `frontend/src/stores/filter-store.test.ts`
+- `frontend/src/stores/drill-store.test.ts`
+- `backend/tests/`
+- `frontend/e2e/`
 
 ## Naming Conventions
 
 **Files:**
-- Frontend components: `kebab-case.tsx` (e.g., `config-filter-bar.tsx`, `ag-chart-wrapper.tsx`)
-- Frontend hooks: `use-{name}.ts` (e.g., `use-dashboard-config.ts`, `use-filter-options.ts`)
-- Frontend stores: `{name}-store.ts` (e.g., `filter-store.ts`, `drill-store.ts`)
-- Frontend types: `{name}.ts` (e.g., `dashboard-config.ts`, `filter.ts`)
-- Frontend utils: `kebab-case.ts` (e.g., `api-client.ts`, `chart-themes.ts`)
-- Backend Python: `snake_case.py` (e.g., `superset_client.py`, `query_engine.py`)
-- Config JSON: `kebab-case.json` for dashboards (e.g., `tlm-stats.json`), `snake_case.json` for data sources (e.g., `tlm_automatch.json`)
+- React components: `kebab-case.tsx` (e.g., `config-chart-grid.tsx`, `error-boundary.tsx`)
+- Hooks: `use-{name}.ts` (e.g., `use-dashboard-config.ts`, `use-cross-filter.ts`)
+- Stores: `{name}-store.ts` (e.g., `filter-store.ts`, `drill-store.ts`)
+- Types: `{name}.ts` (e.g., `dashboard-config.ts`, `filter.ts`)
+- Utilities: `kebab-case.ts` (e.g., `api-client.ts`, `chart-export.ts`)
+- Tests: `{name}.test.ts(x)` co-located with source (e.g., `cross-filter.test.ts`)
+- Route pages: `index.tsx` or `$paramName.tsx` (TanStack Router convention)
+- Python modules: `snake_case.py` (e.g., `superset_client.py`, `query_engine.py`)
 
 **Directories:**
-- Frontend: `kebab-case` (e.g., `cell-renderers/`)
-- Backend: `snake_case` (e.g., `data_sources/`)
+- `kebab-case` for frontend directories (e.g., `cell-renderers/`)
+- `snake_case` for backend directories (e.g., `data_sources/`)
 
-**Routes:**
-- File-based TanStack Router: `$paramName.tsx` for dynamic segments, `index.tsx` for index routes
-- Layout routes: `_app.tsx` (underscore prefix = layout, no URL segment)
+**Route Files (TanStack Router):**
+- `__root.tsx` -- root layout (providers)
+- `_app.tsx` -- layout route (underscore prefix = pathless layout)
+- `_app/dashboards/index.tsx` -- `/dashboards` list page
+- `_app/dashboards/$dashboardId.tsx` -- `/dashboards/:id` detail page
+- `embed/dashboards/$dashboardId.tsx` -- `/embed/dashboards/:id` embed page
 
 ## Where to Add New Code
 
-**New Dashboard:**
-- Create JSON config: `backend/app/config/dashboards/{dashboard-id}.json` (follow `tlm-stats.json` pattern)
-- Data sources if needed: `backend/app/config/data_sources/{source-id}.json`
-- No frontend code changes needed -- `ConfigStore` auto-loads new JSONs, dashboard appears in list
+**New Dashboard Feature/Component:**
+- Primary code: `frontend/src/components/dashboard/`
+- Name it: `{feature-name}.tsx` (kebab-case)
+- If it needs data: add a hook in `frontend/src/hooks/use-{feature}.ts`
+- If it needs client state: add to existing store or create `frontend/src/stores/{name}-store.ts`
+- Tests: co-located as `{feature-name}.test.tsx`
 
-**New Data Source:**
-- Create config: `backend/app/config/data_sources/{source-id}.json`
-- Define `query` (SQL template with `{{filters}}` placeholder), `filter_mappings`, `database_routing`, `columns`
-- Reference from dashboard config's KPI sources, chart sources, or grid data sources
-
-**New Frontend Component:**
-- Component file: `frontend/src/components/{category}/{component-name}.tsx`
-- Test file: `frontend/src/components/{category}/{component-name}.test.tsx` (co-located)
-- Export: Named export (no barrel files, import directly from file path)
+**New Chart Type:**
+- If AG Charts supports it: add to `SUPPORTED_AG_TYPES` set in `frontend/src/components/charts/chart-factory.tsx` and handle in `ag-chart-wrapper.tsx`
+- If exotic (ECharts only): add to `ECHART_TYPES` set in `chart-factory.tsx` and handle in `echart-wrapper.tsx`
 
 **New API Endpoint:**
-- Route handler: `backend/app/api/{module}.py` (new file or add to existing)
-- Register in: `backend/app/api/router.py`
-- Request/response models: `backend/app/models/{name}.py`
-- Service logic: `backend/app/services/{name}.py`
-- Inject dependencies via `backend/app/core/dependencies.py` typed aliases
+- Route handler: `backend/app/api/{domain}.py`
+- Pydantic models: `backend/app/models/{domain}.py`
+- Business logic: `backend/app/services/{service_name}.py`
+- Register router: add `include_router()` in `backend/app/api/router.py`
+- Add dependency if needed: `backend/app/core/dependencies.py`
 
-**New Hook:**
-- File: `frontend/src/hooks/use-{name}.ts`
-- Pattern: Wrap `useQuery` or `useMutation` from TanStack Query
-- Query key convention: `['entity-name', identifier, filters]`
-- Use `api.get()` or `api.post()` from `frontend/src/lib/api-client.ts`
+**New Data Source Config:**
+- JSON file: `backend/app/config/data_sources/{name}.json`
+- Seed into DB via seed script or migration
 
-**New Store:**
-- File: `frontend/src/stores/{name}-store.ts`
-- Pattern: `create<StoreInterface>((set) => ({ ... }))`
-- Selectors: Consumers use `useStore((s) => s.specificField)` for selective re-renders
+**New Dashboard Config:**
+- JSON file: `backend/app/config/dashboards/{name}.json`
+- Seed into DB via seed script or migration
 
-**New Type:**
-- Frontend: `frontend/src/types/{name}.ts`
-- Backend: `backend/app/models/{name}.py`
-- Keep in sync: Frontend types mirror backend Pydantic models (camelCase vs snake_case)
+**New Frontend Page:**
+- Create route file: `frontend/src/routes/_app/{section}/index.tsx` (for new section)
+- Add to sidebar navigation: `frontend/src/components/layout/app-sidebar.tsx`
+- Page component exports `Route = createFileRoute('/_app/{section}/')({ component: PageComponent })`
 
-**New Shadcn/ui Component:**
-- Use Shadcn CLI or copy from reference kit
-- Location: `frontend/src/components/ui/{component}.tsx`
-- Do not modify existing ui/ files; extend via composition
+**New Shared Type:**
+- Add to `frontend/src/types/{domain}.ts`
+- Import directly from the file (no barrel imports from `types/index.ts` except for legacy types)
 
-**New Page/Route:**
-- File: `frontend/src/routes/_app/{section}/index.tsx` or `frontend/src/routes/_app/{section}/$paramName.tsx`
-- Use `createFileRoute()` with the matching path string
-- Page components use `default export` (TanStack Router requirement)
-- TanStack Router auto-generates `routeTree.gen.ts`
+**New Shadcn Component:**
+- Use `npx shadcn@latest add {component}` to copy into `frontend/src/components/ui/`
+- Extend via composition in domain components, not by modifying the base file
 
-**New Backend Test:**
-- File: `backend/tests/test_{module}.py`
-- Follow existing pytest patterns in `backend/tests/`
+**New Utility/Helper:**
+- Frontend: `frontend/src/lib/{name}.ts`
+- Backend: `backend/app/services/{name}.py` (if it has side effects) or `backend/app/core/{name}.py` (if pure utility)
+
+**New Database Table:**
+- SQLAlchemy model: `backend/app/db/models/{name}.py`
+- Register import in `backend/app/db/models/__init__.py`
+- Alembic migration: `backend/app/migrations/versions/{number}_{description}.py`
 
 ## Special Directories
 
 **`frontend/src/components/ui/`:**
-- Purpose: Shadcn/ui base components
-- Generated: Yes (via Shadcn CLI, then owned)
+- Purpose: Shadcn/ui component library (copy-pasted, owned code)
+- Generated: Yes (via `npx shadcn@latest add`)
 - Committed: Yes
-- Note: Treat as owned code but prefer extending via composition over modification
+- Rule: Do not modify unless necessary. Extend via composition.
 
 **`frontend/src/routeTree.gen.ts`:**
-- Purpose: Auto-generated route tree from file-based routes
-- Generated: Yes (by TanStack Router Vite plugin)
+- Purpose: Auto-generated route tree for TanStack Router
+- Generated: Yes (by TanStack Router file-based routing)
 - Committed: Yes
-- Note: Do not edit manually; regenerated on route file changes
+- Rule: Do not edit manually. Regenerated when route files change.
 
 **`frontend/.tanstack/`:**
-- Purpose: TanStack Router temp files
+- Purpose: TanStack Router temporary files
 - Generated: Yes
-- Committed: No (or should not be)
+- Committed: No
 
 **`frontend/dist/`:**
 - Purpose: Vite production build output
@@ -324,21 +389,27 @@ RecViz/
 - Committed: No
 
 **`backend/app/config/seed/`:**
-- Purpose: SQLite seed database for local development (simulates Oracle/Hive data)
-- Generated: Yes (by `scripts/generate-seed-db.py`)
-- Committed: Yes (seed.db binary)
+- Purpose: SQLite seed database for initial data loading
+- Generated: Yes (via seed scripts)
+- Committed: Yes
+
+**`backend/app/migrations/`:**
+- Purpose: Alembic database migrations
+- Generated: Partially (auto-generated then edited)
+- Committed: Yes
+- Rule: Uses custom `recviz_alembic_version` table to avoid Superset migration conflicts
+
+**`.planning/`:**
+- Purpose: GSD workflow planning artifacts
+- Generated: Yes (by GSD commands)
+- Committed: Yes
 
 **`_references/`:**
-- Purpose: Reference UI kit (shadcn-ui-kit-dashboard) for visual patterns
-- Generated: No
+- Purpose: Reference UI kit (shadcn-ui-kit-dashboard) -- visual baseline for design
+- Generated: No (external reference)
 - Committed: Yes
-- Note: Source of truth for component adaptation; see CLAUDE.md for adaptation rules
-
-**`docs/`:**
-- Purpose: Design documents, research, plans, specs
-- Generated: No
-- Committed: Yes
+- Rule: Adapt patterns from here into `src/components/`, do not import directly
 
 ---
 
-*Structure analysis: 2026-04-04*
+*Structure analysis: 2026-04-05*

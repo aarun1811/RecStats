@@ -1,314 +1,304 @@
 # Coding Conventions
 
-**Analysis Date:** 2026-04-04
+**Analysis Date:** 2026-04-05
 
 ## Naming Patterns
 
-**Files (Frontend):**
-- Components: `kebab-case.tsx` (e.g., `kpi-card.tsx`, `config-filter-bar.tsx`, `ag-chart-wrapper.tsx`)
-- Hooks: `use-{name}.ts` (e.g., `use-chart-data.ts`, `use-dashboard-config.ts`, `use-cross-filter.ts`)
+**Files:**
+- Components: `kebab-case.tsx` (e.g., `config-filter-bar.tsx`, `kpi-card.tsx`, `error-panel.tsx`)
+- Hooks: `use-{name}.ts` (e.g., `use-chart-data.ts`, `use-auto-refresh.ts`)
 - Stores: `{name}-store.ts` (e.g., `filter-store.ts`, `drill-store.ts`)
-- Types: `{name}.ts` in `types/` (e.g., `chart.ts`, `filter.ts`, `dashboard-config.ts`)
-- Utils/lib: `kebab-case.ts` (e.g., `api-client.ts`, `chart-themes.ts`, `cross-filter.ts`)
-- Pages/routes: `index.tsx` for directory indices, `$paramName.tsx` for dynamic params (e.g., `$dashboardId.tsx`)
+- Types: `{name}.ts` in `types/` (e.g., `filter.ts`, `chart.ts`, `dashboard-config.ts`)
+- Utilities: `kebab-case.ts` (e.g., `api-client.ts`, `cross-filter.ts`, `chart-themes.ts`)
+- Tests: `{name}.test.ts(x)` co-located with source (e.g., `formatters.test.ts` next to `formatters.ts`)
+- Page routes: `$paramName.tsx` or `index.tsx` following TanStack Router file-based routing
+- Python: `snake_case.py` (e.g., `superset_client.py`, `config_store.py`, `data_sources.py`)
 
-**Files (Backend):**
-- All Python files use `snake_case.py` (e.g., `superset_client.py`, `config_store.py`, `query_engine.py`)
-- Test files: `test_{module}.py` in `backend/tests/` (e.g., `test_config_store.py`, `test_query_engine.py`)
+**Functions:**
+- camelCase for all TypeScript functions and methods
+- snake_case for all Python functions
+- React components: PascalCase (e.g., `ConfigFilterBar`, `ErrorPanel`, `CountAnimation`)
+- Hooks: `use` prefix + camelCase (e.g., `useChartData`, `useAutoRefresh`, `useDashboardConfig`)
 
-**Functions (Frontend):**
-- React components: `PascalCase` (e.g., `KpiCard`, `ConfigFilterBar`, `AgChartWrapper`)
-- Hooks: `useCamelCase` (e.g., `useChartData`, `useDashboardConfig`, `useCrossFilter`)
-- Utility functions: `camelCase` (e.g., `applyCrossFilters`, `rowPassesCrossFilters`, `formatDates`)
+**Variables:**
+- camelCase for TypeScript (e.g., `crossFilters`, `queryClient`, `metricColumns`)
+- snake_case for Python (e.g., `kpi_values`, `data_source_id`, `filter_mappings`)
+- Constants: SCREAMING_SNAKE_CASE (e.g., `LOCALE`, `EXPORT_PIXEL_RATIO`, `DATA_KEYS`)
 
-**Functions (Backend):**
-- All functions and methods: `snake_case` (e.g., `list_dashboards`, `get_chart_data`, `_build_sql`)
-- Private/internal methods: prefixed with underscore `_` (e.g., `_build_sql`, `_resolve_database`, `_load_configs`)
-
-**Variables (Frontend):**
-- `camelCase` for all variables and properties
-- Constants: `UPPER_SNAKE_CASE` for module-level constants (e.g., `ECHART_TYPES`, `DEFAULT_COL_DEF`, `PAGE_SIZE`)
-
-**Variables (Backend):**
-- `snake_case` for variables and function parameters
-- Module constants: `UPPER_SNAKE_CASE` (e.g., `DEFAULT_MAX_ROWS`, `TOKEN_REFRESH_BUFFER`, `CHART_DATASOURCE_MAP`)
-
-**Types/Interfaces (Frontend):**
-- Props interfaces: `{ComponentName}Props` defined above the component (e.g., `KpiCardProps`, `ConfigFilterBarProps`)
-- Type aliases: `PascalCase` (e.g., `ChartType`, `FilterValue`, `ChartClickEvent`)
-- Use `interface` for object shapes, `type` for unions and aliases
-
-**Models (Backend):**
-- Pydantic models: `PascalCase` (e.g., `DashboardConfig`, `DataSourceConfig`, `FilterConfig`)
-- Request/response models defined either in `app/models/` or inline in route files
+**Types/Interfaces:**
+- PascalCase with descriptive suffixes: `{Name}Props`, `{Name}Config`, `{Name}Response`
+- Examples: `ConfigFilterBarProps`, `DashboardConfig`, `ChartDataResponse`, `KpiResult`
+- Prefer `interface` over `type` for object shapes
+- Use `type` for unions and aliases (e.g., `type FormatType = 'number' | 'currency' | ...`)
+- Python models: PascalCase Pydantic `BaseModel` subclasses (e.g., `DataSourceConfig`, `ErrorResponse`)
 
 ## Code Style
 
-**Formatting (Frontend):**
-- No Prettier config detected. Code style enforced via ESLint + TypeScript strict mode
-- Single quotes for strings (consistent throughout codebase)
-- Trailing commas in multi-line arrays/objects
-- No semicolons (appears to be the convention based on all source files)
-- 2-space indentation (TypeScript/TSX files)
+**Formatting:**
+- No dedicated formatter config file (no Prettier); rely on ESLint + editor defaults
+- Consistent single quotes in TypeScript
+- No semicolons (implicit ASI style throughout)
+- 2-space indentation in TypeScript/TSX
+- 4-space indentation in Python
 
-**Formatting (Backend):**
-- No explicit formatter config (no `pyproject.toml`, no Black/Ruff config)
-- 4-space indentation (Python standard)
-- Double quotes for strings (Python convention)
-- Type hints used extensively via `from __future__ import annotations`
+**Linting:**
+- ESLint 9 flat config at `frontend/eslint.config.js`
+- Extends: `@eslint/js` recommended, `typescript-eslint` recommended, `react-hooks` recommended, `react-refresh` vite
+- Ignores: `dist/`
+- Python: no linter config detected (no ruff, flake8, or mypy config)
 
-**Linting (Frontend):**
-- ESLint 9 with flat config at `frontend/eslint.config.js`
-- Plugins: `@eslint/js`, `typescript-eslint`, `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh`
-- Uses `js.configs.recommended` + `tseslint.configs.recommended` + `reactHooks.configs.flat.recommended`
-- Run via: `pnpm lint`
-
-**Linting (Backend):**
-- No linter config detected. No flake8, ruff, or pylint configuration
-
-**TypeScript:**
-- Strict mode enabled in `frontend/tsconfig.app.json`: `"strict": true`
-- Additional strict checks: `noUnusedLocals`, `noUnusedParameters`, `noFallthroughCasesInSwitch`, `noUncheckedSideEffectImports`
-- `verbatimModuleSyntax` enabled (requires `type` keyword for type-only imports)
-- Target: ES2022, module: ESNext, JSX: react-jsx
-- Path alias: `@/*` maps to `./src/*`
+**TypeScript Strictness:**
+- `strict: true` in `frontend/tsconfig.app.json`
+- `noUnusedLocals: true`, `noUnusedParameters: true`
+- `noFallthroughCasesInSwitch: true`
+- `verbatimModuleSyntax: true` (forces explicit `import type`)
+- Target: ES2022, Module: ESNext, JSX: react-jsx
+- No `any` allowed per project rules; use `unknown` + type narrowing
 
 ## Import Organization
 
-**Order (Frontend):**
-1. React imports (`import { useState, useEffect, useMemo } from 'react'`)
-2. External libraries (`import { useQuery } from '@tanstack/react-query'`, `import { motion } from 'motion/react'`)
-3. Internal absolute imports via `@/` alias (`import { api } from '@/lib/api-client'`)
-4. Relative imports (`import { NavMain } from './nav-main'`)
-5. Type-only imports use `import type { ... }` syntax (required by `verbatimModuleSyntax`)
+**Order:**
+1. React core (`react`, `react-dom`)
+2. External libraries (`@tanstack/react-query`, `zustand`, `lucide-react`, `ag-charts-react`, etc.)
+3. Internal absolute paths via `@/` alias (`@/components/...`, `@/hooks/...`, `@/lib/...`, `@/stores/...`, `@/types/...`)
+4. Relative imports (`./column-missing-error`, `./ag-chart-wrapper`)
+5. Type imports use `import type` syntax (enforced by `verbatimModuleSyntax`)
 
-Blank lines separate groups. Example from `frontend/src/components/dashboard/config-filter-bar.tsx`:
+**Blank line between groups.** Example from `frontend/src/components/dashboard/config-kpi-row.tsx`:
 ```tsx
-import { useEffect, useMemo, useState } from 'react'
-import { ChevronsUpDown, Lock, RotateCcw } from 'lucide-react'
+import { useMemo } from 'react'
+import { Info, TrendingDown, TrendingUp } from 'lucide-react'
 
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-// ... more @/ imports
-
-import { useFilterOptions } from '@/hooks/use-filter-options'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Tooltip, ... } from '@/components/ui/tooltip'
+import { CountAnimation } from '@/components/shared/count-animation'
+import { useDashboardKpis } from '@/hooks/use-dashboard-kpis'
 import { useFilterStore } from '@/stores/filter-store'
+import { formatValueFull } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
-import type { FilterConfig } from '@/types/dashboard-config'
-import type { FilterValue } from '@/types/filter'
+import { ApiError } from '@/lib/api-client'
+import type { KpiConfig, KpiResult } from '@/types/dashboard-config'
+import type { FormatType, FormatNumberOptions } from '@/types/formatting'
 ```
-
-**Order (Backend):**
-1. `from __future__ import annotations` (always first when present)
-2. Standard library imports
-3. Third-party imports (`fastapi`, `pydantic`, `httpx`)
-4. Internal imports (`from app.services...`, `from app.models...`, `from app.core...`)
 
 **Path Aliases:**
-- Frontend: `@/*` resolves to `frontend/src/*` (configured in `tsconfig.json` and `vite.config.ts`)
-- Backend: Uses relative Python imports from `app.` root (e.g., `from app.services.config_store import ConfigStore`)
+- `@/*` maps to `./src/*` (configured in `frontend/tsconfig.json` and `frontend/vite.config.ts`)
+- Vite alias: `{ '@': path.resolve(__dirname, './src') }` in `frontend/vite.config.ts`
 
-## Component Patterns
-
-**Functional components only.** The sole exception is `ErrorBoundary` at `frontend/src/components/shared/error-boundary.tsx` (React class component required for error boundary API).
-
-**Named exports** for all components, hooks, stores, and utilities. The exception: `App.tsx` uses `export default` and page components use unnamed local functions with TanStack Router's `createFileRoute`.
-
-**Props interface above component:**
-```tsx
-// Pattern from frontend/src/components/dashboard/kpi-card.tsx
-interface KpiCardProps {
-  title: string
-  value: number
-  icon: LucideIcon
-  format?: 'number' | 'currency' | 'percent' | 'decimal'
-  trend?: { value: number; isPositive: boolean }
-}
-
-export function KpiCard({ title, value, icon: Icon, format = 'number', trend }: KpiCardProps) {
-  // ...
-}
-```
-
-**Skeleton loading companion components** are co-located in the same file:
-```tsx
-// Pattern from frontend/src/components/dashboard/kpi-card.tsx
-export function KpiCardSkeleton() {
-  return (
-    <Card>
-      <Skeleton className="h-8 w-32" />
-    </Card>
-  )
-}
-```
-
-**Helper components** used by only one parent live in the same file (e.g., `FilterControl`, `SingleSelectFilter`, `MultiSelectFilter` in `config-filter-bar.tsx`). These are NOT exported.
-
-**No barrel exports** except `frontend/src/types/index.ts` which re-exports all type modules. This is the only barrel file.
-
-## State Management Patterns
-
-**Zustand stores** at `frontend/src/stores/`:
-- `filter-store.ts`: Global filter values, locked filters, applied filters, cross-filters
-- `drill-store.ts`: Drill-down state (source chart, breadcrumb levels)
-- Stores hold state + simple setters. No business logic in stores.
-- Use selectors to avoid re-renders:
-```tsx
-// Pattern: select individual pieces, not the whole store
-const values = useFilterStore((s) => s.values)
-const setFilterValue = useFilterStore((s) => s.setFilterValue)
-```
-
-**TanStack Query** for all server state:
-- Custom hooks in `frontend/src/hooks/` wrap `useQuery` / `useMutation`
-- Query key convention: `['entity', identifier, filters]` (e.g., `['chart-data', chartId, globalFilters]`)
-- Global defaults in `frontend/src/lib/query-client.ts`: `staleTime: 5min`, `gcTime: 30min`, `retry: 1`, `refetchOnWindowFocus: false`
-- Use `keepPreviousData` / `placeholderData` for smooth filter transitions
-
-**Never store fetched data in Zustand.** Server data lives exclusively in TanStack Query cache.
-
-## API Client Pattern
-
-**Single API client** at `frontend/src/lib/api-client.ts`:
-- Uses native `fetch` (no axios)
-- Generic typed methods: `api.get<T>()`, `api.post<T>()`, `api.put<T>()`, `api.delete<T>()`
-- Custom `ApiError` class with `status` and `body` properties
-- Auto-transforms snake_case response keys to camelCase (except data keys like `rows`, `columns`)
-- Base URL from `import.meta.env.VITE_API_BASE_URL`, fallback `http://localhost:8000`
-- Throws on non-2xx responses. TanStack Query handles errors.
+**Python imports:**
+- `from __future__ import annotations` at top of every file (PEP 563 deferred evaluation)
+- stdlib, then third-party, then `app.*` internal
 
 ## Error Handling
 
 **Frontend Patterns:**
-- `ErrorBoundary` class component at `frontend/src/components/shared/error-boundary.tsx` wraps the main app layout
-- Chart wrappers show inline error states with retry buttons (see `frontend/src/components/charts/ag-chart-wrapper.tsx`)
-- API client throws `ApiError` on non-2xx; TanStack Query catches and surfaces via `error` property
-- Route-level errors handled by TanStack Router's `errorComponent`
-- Loading states: Skeleton components for every data component. Never show blank screens.
-- Empty states: "No data available" inline messages
+
+1. **ApiError class** (`frontend/src/lib/api-client.ts`): Custom error thrown on non-2xx responses. Parses `status`, `code`, `userMessage`, `detail`, `retryAfter` from response body.
+
+2. **TanStack Query global error handler** (`frontend/src/lib/query-client.ts`): `QueryCache.onError` catches `ApiError` and shows toast via Sonner:
+   ```tsx
+   onError: (error) => {
+     if (error instanceof ApiError) {
+       toast.error(error.userMessage, {
+         description: `Error code: ${error.code}`,
+       })
+     }
+   }
+   ```
+
+3. **ErrorBoundary** (`frontend/src/components/shared/error-boundary.tsx`): Class component wrapping React subtrees. Catches rendering crashes with retry button.
+
+4. **ErrorPanel** (`frontend/src/components/shared/error-panel.tsx`): Reusable inline error display with message, expandable detail, and optional retry callback. Use for data-fetch errors within components.
+
+5. **Component-level error handling**: Components check `isError` from `useQuery`, render `ErrorPanel` with retry:
+   ```tsx
+   if (isError) {
+     const apiError = error instanceof ApiError ? error : null
+     return (
+       <ErrorPanel
+         message={apiError?.userMessage ?? 'Failed to load KPI data'}
+         detail={apiError?.detail}
+         onRetry={() => refetch()}
+         compact
+       />
+     )
+   }
+   ```
 
 **Backend Patterns:**
-- `HTTPException` raised in route handlers for known errors (404 not found, 400 bad request)
-- `ValueError` raised in service layer, caught by route handlers and converted to `HTTPException`
-- Superset client: auto-retries on 401 (re-authenticates), raises `httpx` errors for other failures
-- Some endpoints silently fall through to mock data on Superset errors (e.g., `charts.py`, `sql.py`)
-- `try/except Exception: pass` pattern used for Superset fallback (broad catch, silent fail)
 
-## Backend Architecture Patterns
+1. **HTTPException with structured detail**: Route handlers catch `ValueError` and raise `HTTPException(status_code=400, detail=str(e))`.
 
-**Service layer pattern:**
-- Route handlers are thin: validate input, call service, return response
-- Services live in `backend/app/services/`: `SupersetClient`, `ConfigStore`, `QueryEngine`, `DatabaseRegistrar`, `MergeEngine`
-- Dependency injection via FastAPI `Depends()` with typed aliases at `backend/app/core/dependencies.py`:
-```python
-SupersetDep = Annotated[SupersetClient | None, Depends(get_superset_client)]
-ConfigStoreDep = Annotated[ConfigStore, Depends(get_config_store)]
-QueryEngineDep = Annotated[QueryEngine, Depends(get_query_engine)]
-```
+2. **Structured error model** (`backend/app/models/error.py`): `ErrorResponse` Pydantic model with `error`, `message`, `detail`, `retry_after` fields. Machine-readable error codes like `"superset_unavailable"`, `"query_timeout"`.
 
-**Pydantic v2 models:**
-- All request/response bodies use Pydantic models
-- `CamelModel` base class at `backend/app/models/base.py` with `alias_generator = to_camel` for JSON camelCase serialization
-- Some route handlers define inline request/response models (e.g., `KpiRequest`, `KpiResponse` in `dashboards.py`)
-- Config models at `backend/app/models/dashboard_config.py` and `backend/app/models/data_source_config.py`
-
-**Async everywhere:**
-- All route handlers are `async def`
-- `httpx.AsyncClient` for Superset HTTP calls
-- Shared HTTP client created in lifespan, stored on `app.state`
-
-**Router organization:**
-- Each feature has its own router module in `backend/app/api/`
-- All routers aggregated in `backend/app/api/router.py`
-- URL prefix pattern: `/api/{resource}` (e.g., `/api/dashboards`, `/api/data-sources`, `/api/sql`)
-- Tags match resource names for OpenAPI docs
-
-## Routing Patterns (Frontend)
-
-**TanStack Router file-based routing** at `frontend/src/routes/`:
-- Root route: `__root.tsx` (providers: ThemeProvider, QueryClientProvider, Toaster)
-- Layout route: `_app.tsx` (sidebar, header, error boundary, page transitions)
-- Page routes: `_app/dashboards/index.tsx`, `_app/explorer/index.tsx`, etc.
-- Dynamic routes: `$dashboardId.tsx` for parameterized pages
-- Root redirect: `/` redirects to `/dashboards`
-- Route tree auto-generated in `frontend/src/routeTree.gen.ts` (do not edit manually)
-
-**Page component pattern:**
-```tsx
-export const Route = createFileRoute('/_app/dashboards/$dashboardId')({
-  component: DashboardPage,
-})
-
-function DashboardPage() {
-  const { dashboardId } = Route.useParams()
-  // ... render with skeleton loading, error states
-}
-```
-
-## Tailwind CSS & Styling
-
-**Tailwind CSS 4** with Shadcn's CSS variable theming system:
-- CSS variables defined in `frontend/src/index.css` using `oklch` color space
-- Both light (`:root`) and dark (`.dark`) themes defined
-- Dark mode via class strategy: `.dark` on `<html>` element
-- Use only Shadcn semantic color classes: `text-foreground`, `bg-background`, `text-muted-foreground`, `bg-muted`, `border`, etc.
-- Status colors: `text-green-600 dark:text-green-400` for positive, `text-red-600 dark:text-red-400` for negative
-
-**Utility `cn()`** from `frontend/src/lib/utils.ts` for merging Tailwind classes (uses `clsx` + `tailwind-merge`).
-
-**Spacing conventions:**
-- Page padding: `p-6`
-- Section gaps: `gap-4` to `gap-6`
-- Card padding: Shadcn Card defaults
-
-**Micro-interactions** defined in `frontend/src/index.css`:
-- Card hover: subtle lift (`translateY(-1px)`) + shadow (`box-shadow: 0 4px 12px`)
-- Smooth focus transitions on interactive elements
-- Page transitions: 200ms ease-out fade+slide via `motion/react` (see `frontend/src/components/shared/page-transition.tsx`)
-
-**Font:** Inter loaded via CSS `font-family: "Inter", system-ui, sans-serif`
-
-## Chart Conventions
-
-**AG Charts (primary):** All standard chart types - bar, line, area, pie, donut, scatter, histogram, waterfall, combo, stacked-bar
-- Wrapper: `frontend/src/components/charts/ag-chart-wrapper.tsx`
-- Theme reads CSS variables, updates on theme toggle
-
-**ECharts (exotic only):** sankey, radar, sunburst, gauge, funnel, graph, parallel
-- Wrapper: `frontend/src/components/charts/echart-wrapper.tsx`
-- Factory: `frontend/src/components/charts/chart-factory.tsx` routes to correct wrapper based on `vizType`
-
-**Chart themes** at `frontend/src/lib/chart-themes.ts`:
-- `getAgChartsTheme()` and `getEChartsTheme()` read Shadcn CSS variables from DOM
-- Series palette: 10 distinct colors starting with primary
+3. **Service layer raises ValueError**: Business logic in services raises `ValueError` for validation failures; route handlers convert to HTTP 400/404.
 
 ## Logging
 
-**Frontend:** `console.error` only (in ErrorBoundary's `componentDidCatch`)
+**Frontend:** `console.error` in ErrorBoundary. No structured logging framework.
 
-**Backend:**
-- Python `logging` module with `basicConfig(level=logging.INFO)` in `backend/app/main.py`
-- Logger per module: `logger = logging.getLogger(__name__)`
-- `logger.info()` for startup events, `logger.warning()` for recoverable errors
+**Backend:** Python `logging` module.
+- `logging.basicConfig(level=logging.INFO)` in `backend/app/main.py`
+- `logger = logging.getLogger(__name__)` per module
+- Use `logger.info()` for lifecycle events (startup, sync), `logger.error()` for failures
 
 ## Comments
 
-**When to comment:**
-- JSDoc-style `/** ... */` comments on exported utility functions explaining purpose and behavior
-- Section separators using `// ----` comment lines in large files (see `config-filter-bar.tsx`)
-- Inline comments explaining non-obvious behavior (e.g., key transform skip logic in `api-client.ts`)
+**When to Comment:**
+- Section dividers: Dashed line comments for visual separation within files:
+  ```tsx
+  // ---------------------------------------------------------------------------
+  // Individual filter control dispatcher
+  // ---------------------------------------------------------------------------
+  ```
+- JSDoc on public utility functions explaining purpose, parameters, returns
+- Inline comments for non-obvious logic (dialect switches, cross-filter self-exclusion, epoch detection)
+- TODO comments with phase references: `// TODO: Phase 2 -- port chart data fetching logic`
 
-**Python docstrings:**
-- Module-level docstrings in service files (e.g., `"""Async Superset API client with auto-authentication and retry on 401."""`)
-- Method docstrings for complex methods (e.g., `_build_sql`, `resolve`)
-- Comments using `# ── Section ──` style in `superset_client.py`
+**JSDoc/TSDoc:**
+- Used on hooks and utility functions with `@param` and `@returns`
+- Not used on React components (Props interface is self-documenting)
+- Python: module-level docstrings (`"""..."""`) and class docstrings on Pydantic models
+
+## Function Design
+
+**Size:** Small focused functions. Utility functions typically 10-30 lines. Components can be 50-180 lines.
+
+**Parameters:**
+- React components: destructured Props interface, always typed
+- Hooks: positional parameters with defaults (e.g., `useChartData(chartId: string, enabled = true)`)
+- Python: type-annotated parameters with defaults
+
+**Return Values:**
+- Hooks return `useQuery` results directly (object with `data`, `isLoading`, `isError`, `error`, `refetch`)
+- Custom hooks like `useAutoRefresh` return typed objects (not arrays): `{ remainingMs, isActive, reset }`
+- Zustand stores: state + action methods in single interface
+- Python: route handlers return Pydantic models or dicts; services return raw dicts
+
+## Component Design
+
+**Functional components only.** Exception: `ErrorBoundary` uses class component (React requirement for `getDerivedStateFromError`).
+
+**Props interface** defined above component, named `{ComponentName}Props`:
+```tsx
+interface ErrorPanelProps {
+  message: string
+  detail?: string
+  onRetry?: () => void
+  className?: string
+  compact?: boolean
+}
+
+export function ErrorPanel({ message, detail, onRetry, className, compact = false }: ErrorPanelProps) {
+```
+
+**Named exports** for all components, hooks, stores, utilities. Exception: page route components are not exported (TanStack Router uses `Route.component`).
+
+**One primary component per file.** Helper components used only by the primary component are defined in the same file (e.g., `FilterControl`, `SingleSelectFilter` inside `config-filter-bar.tsx`; `KpiSkeleton` inside `config-kpi-row.tsx`).
+
+**No barrel exports** -- no `index.ts` re-export files. Import directly from the source file.
 
 ## Module Design
 
-**Exports:** Named exports only. No default exports except `App.tsx` and the `CountAnimation` component (which has both named and default).
+**Exports:** Named exports everywhere. No default exports except `App.tsx` (entry point).
 
-**Barrel Files:** Only `frontend/src/types/index.ts` acts as a barrel, re-exporting with `export type * from './...'`. No other barrel files exist. Import directly from the file.
+**Barrel Files:** Not used. Direct imports only.
+
+**Zustand Store Pattern:**
+```tsx
+import { create } from 'zustand'
+
+interface FilterStore {
+  // State
+  values: Record<string, FilterValue>
+  // Actions
+  setFilterValue: (filterId: string, value: FilterValue) => void
+}
+
+export const useFilterStore = create<FilterStore>((set) => ({
+  values: {},
+  setFilterValue: (filterId, value) =>
+    set((s) => ({ values: { ...s.values, [filterId]: value } })),
+}))
+```
+
+**TanStack Query Hook Pattern:**
+```tsx
+export function useDashboardConfig(dashboardId: string) {
+  return useQuery({
+    queryKey: ['dashboard-config', dashboardId],
+    queryFn: () => api.get<DashboardConfig>(`/api/dashboards/${dashboardId}`),
+    enabled: !!dashboardId,
+    staleTime: 10 * 60 * 1000,
+  })
+}
+```
+
+**Query key convention:** `['entity', identifier, filters]` -- always array, entity first, identifiers second, filter state third.
+
+**API client pattern:** Single `api` object with typed generic methods:
+```tsx
+export const api = {
+  get: <T>(path: string) => request<T>('GET', path),
+  post: <T>(path: string, body?: unknown) => request<T>('POST', path, body),
+}
+```
+
+## Tailwind / Styling Conventions
+
+**CSS Variables:** All colors via Shadcn CSS variable system (`text-foreground`, `bg-background`, `text-muted-foreground`, `bg-muted`, `border`, `bg-destructive/10`, etc.). Never hardcode hex/rgb values.
+
+**Dark Mode:** Class strategy via `dark:` variant. Every status color includes dark variant:
+```tsx
+'text-green-600 dark:text-green-400'  // positive
+'text-red-600 dark:text-red-400'      // negative
+```
+
+**cn() utility:** Always use `cn()` from `@/lib/utils` for conditional/merged class strings:
+```tsx
+className={cn(
+  'flex flex-col items-center justify-center gap-2',
+  compact && 'gap-1 p-2',
+  className,
+)}
+```
+
+**Spacing:** Pages own `p-6`. Section gaps `gap-6` or `space-y-6`. Card internal uses component defaults. Grid gaps `gap-3` or `gap-4`.
+
+**Typography:** `text-2xl font-semibold tracking-tight` for page titles. `text-xs font-medium uppercase text-muted-foreground` for labels. `text-sm` for body text.
+
+## Backend Conventions (Python/FastAPI)
+
+**Async everywhere:** All endpoints `async def`. `httpx.AsyncClient` for HTTP. `AsyncSession` for DB.
+
+**Dependency injection:** `Annotated` type aliases for dependencies:
+```python
+ConfigStoreDep = Annotated[ConfigStore, Depends(get_config_store)]
+QueryEngineDep = Annotated[QueryEngine, Depends(get_query_engine)]
+ResolvedDataSourceDep = Annotated[DataSourceConfig, Depends(get_resolved_data_source)]
+```
+
+**Route handler pattern:** Thin handlers validate input, call service, return response:
+```python
+@router.post("/{data_source_id}/query")
+async def query_data_source(
+    ds_config: ResolvedDataSourceDep,
+    body: QueryRequest,
+    query_engine: QueryEngineDep,
+):
+    try:
+        result = await query_engine.execute(ds_config, body.filters)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    return result
+```
+
+**Pydantic models:** All request/response bodies modeled. Inline models in route files for request bodies, shared models in `backend/app/models/`.
+
+**Config:** `pydantic-settings` `BaseSettings` class in `backend/app/config.py` reading from env vars with `.env` fallback.
+
+**Lifespan pattern:** Startup/shutdown managed via `@asynccontextmanager` lifespan function in `backend/app/main.py`. Shared services stored on `app.state`.
 
 ---
 
-*Convention analysis: 2026-04-04*
+*Convention analysis: 2026-04-05*
