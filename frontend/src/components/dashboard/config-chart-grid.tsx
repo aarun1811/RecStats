@@ -1,5 +1,6 @@
-import { Fragment, useCallback, useMemo } from 'react'
+import { Fragment, useCallback, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
+import { useQueryClient } from '@tanstack/react-query'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -7,13 +8,15 @@ import { ChartFactory } from '@/components/charts/chart-factory'
 import { ErrorPanel } from '@/components/shared/error-panel'
 import { DrillBreadcrumb } from '@/components/dashboard/drill-breadcrumb'
 import { DrillDetailGrid } from '@/components/dashboard/drill-detail-grid'
+import { ChartToolbar } from '@/components/dashboard/chart-toolbar'
+import { ChartFullscreenDialog } from '@/components/dashboard/chart-fullscreen-dialog'
 import { useDataSourceQuery } from '@/hooks/use-data-source-query'
 import { useCrossFilter } from '@/hooks/use-cross-filter'
 import { useDrillDown, applyDrillFilters } from '@/hooks/use-drill-down'
 import { useFilterStore } from '@/stores/filter-store'
 import { ApiError } from '@/lib/api-client'
 import type { DashboardChartConfig, KpiResult } from '@/types/dashboard-config'
-import type { ChartClickEvent, ChartConfig, ChartDataResponse, ChartSelection } from '@/types/chart'
+import type { ChartClickEvent, ChartConfig, ChartDataResponse, ChartSelection, ChartRef } from '@/types/chart'
 
 interface ConfigChartGridProps {
   charts: DashboardChartConfig[]
@@ -77,14 +80,28 @@ function QueryChartItemWithDrill({
   const crossFilters = useFilterStore((s) => s.crossFilters)
   const addCrossFilter = useFilterStore((s) => s.addCrossFilter)
 
+  // ---- Refs for chart export ----
+  const chartRef = useRef<ChartRef>(null)
+  const fullscreenChartRef = useRef<ChartRef>(null)
+
+  // ---- Hover & fullscreen state ----
+  const [hovered, setHovered] = useState(false)
+  const [fullscreenOpen, setFullscreenOpen] = useState(false)
+
   // ---- Data fetching ----
   const dataSourceId = chart.sources?.[0]?.dataSourceId ?? ''
   const hasAppliedFilters = Object.keys(appliedFilters).length > 0
-  const { data: queryResponse, isLoading, isError, error, refetch } = useDataSourceQuery(
+  const { data: queryResponse, isLoading, isError, error, refetch, isFetching } = useDataSourceQuery(
     dataSourceId,
     appliedFilters,
     !!dataSourceId && (hasAppliedFilters || !dashboardHasFilters),
   )
+
+  // ---- Per-chart refresh ----
+  const queryClient = useQueryClient()
+  const handleChartRefresh = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['data-source', dataSourceId] })
+  }, [queryClient, dataSourceId])
 
   const chartData: ChartDataResponse | undefined = useMemo(() => {
     if (!queryResponse) return undefined
@@ -206,9 +223,11 @@ function QueryChartItemWithDrill({
           gridColumn: `span ${chart.layout.width}`,
           gridRow: `span ${chart.layout.height}`,
         }}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
       >
         <Card className="flex flex-col py-4 gap-2">
-          <CardHeader className="px-4 py-0 space-y-1">
+          <CardHeader className="relative px-4 py-0 space-y-1">
             <CardTitle className="text-sm font-medium">{chart.title}</CardTitle>
             {canGoBack && (
               <DrillBreadcrumb
@@ -217,9 +236,29 @@ function QueryChartItemWithDrill({
                 onReset={reset}
               />
             )}
+            <AnimatePresence>
+              {hovered && (
+                <motion.div
+                  className="absolute top-0 right-2 z-10"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                >
+                  <ChartToolbar
+                    chartRef={chartRef}
+                    chartTitle={chart.title}
+                    onFullscreen={() => setFullscreenOpen(true)}
+                    onRefresh={handleChartRefresh}
+                    isRefreshing={isFetching}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </CardHeader>
           <CardContent className="flex-1 px-3 pb-2">
             <ChartFactory
+              ref={chartRef}
               chartId={chart.id}
               config={config}
               data={drilledData ?? crossFilteredData}
@@ -231,6 +270,35 @@ function QueryChartItemWithDrill({
           </CardContent>
         </Card>
       </div>
+
+      {/* Fullscreen dialog with IDENTICAL cross-filter state as the dashboard card */}
+      <ChartFullscreenDialog
+        open={fullscreenOpen}
+        onOpenChange={setFullscreenOpen}
+        chartTitle={chart.title}
+        toolbarSlot={
+          <ChartToolbar
+            chartRef={fullscreenChartRef}
+            chartTitle={chart.title}
+            onFullscreen={() => {}}
+            onRefresh={handleChartRefresh}
+            isRefreshing={isFetching}
+            isInsideFullscreen
+          />
+        }
+      >
+        <ChartFactory
+          ref={fullscreenChartRef}
+          chartId={chart.id}
+          config={config}
+          data={drilledData ?? crossFilteredData}
+          isLoading={false}
+          onChartClick={crossFilterEnabled ? handleChartClick : undefined}
+          onChartDoubleClick={drillDownEnabled ? handleChartDoubleClick : undefined}
+          activeSelection={activeSelection}
+          className="h-[calc(85vh-120px)]"
+        />
+      </ChartFullscreenDialog>
 
       <AnimatePresence>
         {isAtDetailLevel && chart.drillDetailDataSourceId && (
@@ -277,6 +345,14 @@ function KpiValuesChartItem({
   const crossFilters = useFilterStore((s) => s.crossFilters)
   const addCrossFilter = useFilterStore((s) => s.addCrossFilter)
 
+  // ---- Refs for chart export ----
+  const chartRef = useRef<ChartRef>(null)
+  const fullscreenChartRef = useRef<ChartRef>(null)
+
+  // ---- Hover & fullscreen state ----
+  const [hovered, setHovered] = useState(false)
+  const [fullscreenOpen, setFullscreenOpen] = useState(false)
+
   const chartData = useMemo(
     () => buildKpiChartData(chart, kpiResults),
     [chart, kpiResults],
@@ -310,21 +386,70 @@ function KpiValuesChartItem({
   const config = useMemo(() => toChartConfig(chart), [chart])
 
   return (
-    <Card className="flex flex-col py-4 gap-2">
-      <CardHeader className="px-4 py-0">
-        <CardTitle className="text-sm font-medium">{chart.title}</CardTitle>
-      </CardHeader>
-      <CardContent className="flex-1 px-3 pb-2">
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <Card className="flex flex-col py-4 gap-2">
+        <CardHeader className="relative px-4 py-0">
+          <CardTitle className="text-sm font-medium">{chart.title}</CardTitle>
+          <AnimatePresence>
+            {hovered && (
+              <motion.div
+                className="absolute top-0 right-2 z-10"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+              >
+                <ChartToolbar
+                  chartRef={chartRef}
+                  chartTitle={chart.title}
+                  onFullscreen={() => setFullscreenOpen(true)}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </CardHeader>
+        <CardContent className="flex-1 px-3 pb-2">
+          <ChartFactory
+            ref={chartRef}
+            chartId={chart.id}
+            config={config}
+            data={crossFilteredData}
+            isLoading={false}
+            onChartClick={crossFilterEnabled ? handleChartClick : undefined}
+            activeSelection={activeSelection}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Fullscreen dialog with identical cross-filter state */}
+      <ChartFullscreenDialog
+        open={fullscreenOpen}
+        onOpenChange={setFullscreenOpen}
+        chartTitle={chart.title}
+        toolbarSlot={
+          <ChartToolbar
+            chartRef={fullscreenChartRef}
+            chartTitle={chart.title}
+            onFullscreen={() => {}}
+            isInsideFullscreen
+          />
+        }
+      >
         <ChartFactory
+          ref={fullscreenChartRef}
           chartId={chart.id}
           config={config}
           data={crossFilteredData}
           isLoading={false}
           onChartClick={crossFilterEnabled ? handleChartClick : undefined}
           activeSelection={activeSelection}
+          className="h-[calc(85vh-120px)]"
         />
-      </CardContent>
-    </Card>
+      </ChartFullscreenDialog>
+    </div>
   )
 }
 
