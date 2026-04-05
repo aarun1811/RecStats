@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [ ] **Phase 1: Foundation Hardening** - Remove mock fallbacks, clean legacy code, add financial formatting, pin Superset, persist configs to database
 - [ ] **Phase 2: Cross-Filtering and Drill-Down** - Add client-side cross-filtering and drill-down navigation to the existing dashboard renderer
-- [ ] **Phase 02.1: Chart Rendering Foundation** - (INSERTED) Fix all major chart types to render correctly from query data, validate Phase 2 cross-filter/drill-down end-to-end
+- [x] **Phase 02.1: Chart Rendering Foundation** - (INSERTED) Fix all major chart types to render correctly from query data, validate Phase 2 cross-filter/drill-down end-to-end (completed 2026-04-05)
 - [ ] **Phase 3: Chart and Grid Interactions** - Add fullscreen view, chart/grid export, manual refresh, and configurable auto-refresh to dashboard panels
 - [ ] **Phase 4: Data Source Connectivity** - Integrate Oracle, Hive, and Elasticsearch via Superset with a connection management UI for the dev team
 - [ ] **Phase 5: Dataset Management** - Dev team can create, edit, and manage datasets with SQL queries, column metadata, and roles
@@ -40,7 +40,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 Plans:
 - [x] 01-01-PLAN.md -- Database persistence layer (SQLAlchemy async + Alembic + DB-backed ConfigStore)
 - [x] 01-02-PLAN.md -- Number formatting utilities, Superset pinning, legacy dead code cleanup
-- [ ] 01-03-PLAN.md -- Mock data removal and structured error handling (backend + frontend)
+- [x] 01-03-PLAN.md -- Mock data removal and structured error handling (backend + frontend)
 
 ### Phase 2: Cross-Filtering and Drill-Down
 **Goal**: Users can click chart elements to instantly filter all other charts on a dashboard, and drill from aggregated views down to raw detail rows
@@ -70,13 +70,13 @@ Plans:
   3. All chart types render real data from query data sources -- no "No data to display" on valid data
   4. Cross-filtering works visually: clicking a chart segment dims other charts and shows the filter badge bar
   5. Drill-down works visually: double-clicking navigates through hierarchy with breadcrumb, detail grid slides in
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 **UI hint**: yes
 
 Plans:
 - [x] 02.1-01-PLAN.md -- Config-driven column mapping refactor for AG Charts + ECharts wrappers, error panels, theme overrides
 - [x] 02.1-02-PLAN.md -- Showcase dashboard config, dedicated data sources, seed data, and unit tests for buildSeries
-- [ ] 02.1-03-PLAN.md -- Playwright E2E tests for all chart types, cross-filter/drill-down validation, tlm-stats regression, manual checkpoint
+- [x] 02.1-03-PLAN.md -- Playwright E2E tests for all chart types, cross-filter/drill-down validation, tlm-stats regression, manual checkpoint
 
 ### Phase 3: Chart and Grid Interactions
 **Goal**: Users can export, enlarge, and refresh individual charts and grids from toolbar controls on each panel
@@ -88,12 +88,13 @@ Plans:
   3. User can export grid data as CSV or Excel using AG Grid's built-in export
   4. User can click a refresh button on a dashboard to invalidate cache and re-fetch all data, with a loading indicator during the refresh
   5. Dashboard auto-refreshes at a configurable interval (default ~10 min), and the user can change the interval per dashboard
-**Plans**: TBD
+**Plans:** 3 plans
 **UI hint**: yes
 
 Plans:
-- [ ] 03-01: TBD
-- [ ] 03-02: TBD
+- [ ] 03-01-PLAN.md -- Chart ref forwarding, export utilities, hover-reveal toolbar, fullscreen dialog
+- [ ] 03-02-PLAN.md -- Grid toolbar (CSV, Excel, columns, density, auto-size) and dead code cleanup
+- [ ] 03-03-PLAN.md -- Dashboard manual refresh, auto-refresh with configurable interval and countdown
 
 ### Phase 4: Data Source Connectivity
 **Goal**: Dev team can connect to Oracle, Hive, and Elasticsearch databases through Superset, with a management UI for adding and testing connections
@@ -205,8 +206,8 @@ Phases execute in numeric order: 1 -> 2 -> 02.1 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 ->
 |-------|----------------|--------|-----------|
 | 1. Foundation Hardening | 0/3 | Planning complete | - |
 | 2. Cross-Filtering and Drill-Down | 0/3 | Planning complete | - |
-| 02.1. Chart Rendering Foundation | 2/3 | In Progress|  |
-| 3. Chart and Grid Interactions | 0/0 | Not started | - |
+| 02.1. Chart Rendering Foundation | 3/3 | Complete   | 2026-04-05 |
+| 3. Chart and Grid Interactions | 0/3 | Planning complete | - |
 | 4. Data Source Connectivity | 0/0 | Not started | - |
 | 5. Dataset Management | 0/0 | Not started | - |
 | 6. Chart Library | 0/0 | Not started | - |
