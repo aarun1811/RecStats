@@ -1,12 +1,17 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+
+import { useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 
 import { ConfigFilterBar } from '@/components/dashboard/config-filter-bar'
 import { ConfigKpiRow } from '@/components/dashboard/config-kpi-row'
 import { ConfigChartGrid } from '@/components/dashboard/config-chart-grid'
 import { ConfigDataGrid } from '@/components/dashboard/config-data-grid'
 import { CrossFilterBar } from '@/components/dashboard/cross-filter-bar'
+import { DashboardToolbar } from '@/components/dashboard/dashboard-toolbar'
 import { useDashboardKpis } from '@/hooks/use-dashboard-kpis'
 import { useCrossFilterData } from '@/hooks/use-cross-filter-data'
+import { useAutoRefresh } from '@/hooks/use-auto-refresh'
 import { useFilterStore } from '@/stores/filter-store'
 import { useDrillStore } from '@/stores/drill-store'
 import type { DashboardConfig } from '@/types/dashboard-config'
@@ -31,6 +36,38 @@ export function DashboardRenderer({
   const clearCrossFilters = useFilterStore((s) => s.clearCrossFilters)
   const resetAllDrills = useDrillStore((s) => s.resetAllDrills)
   const hasAutoApplied = useRef(false)
+  const queryClient = useQueryClient()
+
+  // Auto-refresh interval state (persisted in config)
+  const [autoRefreshInterval, setAutoRefreshInterval] = useState(
+    config.autoRefreshInterval ?? 600_000,
+  )
+
+  // Manual refresh handler.
+  // TanStack Query deduplicates: shared query keys = single network request.
+  // No staggering needed -- TQ scheduling + HTTP/2 multiplexing + Superset cache handle concurrency.
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true)
+    try {
+      await queryClient.invalidateQueries({ queryKey: ['data-source'] })
+      await queryClient.invalidateQueries({ queryKey: ['dashboard-kpis'] })
+      toast.success('Dashboard refreshed')
+    } catch (err) {
+      toast.error(
+        `Refresh failed: ${err instanceof Error ? err.message : 'Unknown error'}. Showing cached data.`,
+      )
+    } finally {
+      setIsRefreshing(false)
+      reset()
+    }
+  }, [queryClient]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-refresh hook wired to the same refresh handler
+  const { remainingMs, isActive, reset } = useAutoRefresh(
+    autoRefreshInterval,
+    handleRefresh,
+  )
 
   useEffect(() => {
     const defaults: Record<string, FilterValue> = {}
@@ -43,6 +80,7 @@ export function DashboardRenderer({
     initializeFilters(merged, lockedFilters)
     hasAutoApplied.current = false
     resetAllDrills()
+    setAutoRefreshInterval(config.autoRefreshInterval ?? 600_000)
   }, [config.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-apply once when single-select filters auto-fill their first option
@@ -89,6 +127,14 @@ export function DashboardRenderer({
 
   return (
     <div className="flex flex-col gap-4">
+      <DashboardToolbar
+        onRefresh={handleRefresh}
+        isRefreshing={isRefreshing}
+        autoRefreshIntervalMs={autoRefreshInterval}
+        onAutoRefreshIntervalChange={setAutoRefreshInterval}
+        autoRefreshRemainingMs={remainingMs}
+        autoRefreshIsActive={isActive}
+      />
       <ConfigFilterBar filters={config.filters} />
       {crossFilterEnabled && <CrossFilterBar columnLabels={columnLabels} />}
       <ConfigKpiRow
