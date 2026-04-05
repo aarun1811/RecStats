@@ -35,8 +35,9 @@ Add client-side cross-filtering and per-chart drill-down navigation to the exist
 - **D-13:** Breadcrumb navigation shows the full drill path on the drilled chart's panel (e.g., "Overview > Unmatched > 30-60 days"). User can click any breadcrumb level to navigate back.
 
 ### Architecture Direction
-- **D-14:** Research DuckDB-WASM as a potential client-side engine for cross-filtering. The hypothesis is that loading chart data into a client-side DuckDB instance enables fast SQL-based cross-filtering without custom JS array filtering. This needs proper research — DuckDB-WASM may or may not be the right approach depending on data volume, browser memory, and integration complexity.
-- **D-15:** Existing legacy cross-filter and drill-down code (filter-store crossFilters, drill-store, use-cross-filter hook, use-drill-down hook, cross-filter.ts utilities) should be evaluated during research. The user is open to a full rewrite if research shows a better architecture. Do not assume the legacy code is correct or should be preserved — assess it objectively.
+- **D-14:** Cross-Filter Data Layer pattern — cache all data-source result sets via TanStack Query. When cross-filters change, re-filter and re-aggregate KPIs client-side using JS functions that mirror backend aggregation logic. Dual-path: server-computed KPIs when no cross-filters are active, client-side re-computed when cross-filters are active. This handles complex KPI formulas (ratios, percentages, weighted averages) correctly. Research confirmed JS handles 100K rows in <3ms — no WASM engine needed at current data volumes (backend caps at DEFAULT_MAX_ROWS=10,000 per data source, ~40-50K total per dashboard).
+- **D-15:** Existing legacy cross-filter and drill-down code has ~70% reusable infrastructure. Key changes needed: (a) drill-store must become per-chart Map<string, DrillState> instead of global, (b) use-cross-filter hook must replace rule-based targeting with column-name matching. Filter-store crossFilters state, cross-filter-bar UI, and cross-filter.ts utilities are reusable with modifications.
+- **D-16:** Web Worker is the upgrade path if data volumes grow. Same JS aggregation code moves to a Worker thread. DuckDB-WASM only becomes relevant if client-side data exceeds 1M+ rows (which would indicate a backend aggregation gap, not a frontend problem).
 
 ### Claude's Discretion
 - Cross-filter indicator bar design and placement (D-05 — lean toward badge bar)
@@ -92,8 +93,9 @@ Add client-side cross-filtering and per-chart drill-down navigation to the exist
 - `filter-store.ts`: Already has crossFilters state and actions — may be reusable if architecture stays Zustand-based
 - `drill-store.ts`: Breadcrumb stack model is solid — but needs to become per-chart instead of global
 - `cross-filter-bar.tsx`: Badge-based UI component — good starting point for the indicator bar
-- `cross-filter.ts`: Simple row filtering logic — may be replaced by DuckDB-WASM or may stay for simple cases
-- AG Charts and ECharts both support click events natively — research exact APIs
+- `cross-filter.ts`: Row filtering logic — reusable with modifications for column-name matching
+- AG Charts `seriesNodeClick` event + `itemStyler` for opacity dimming already in ag-chart-wrapper.tsx
+- ECharts click events already wired in echart-wrapper.tsx
 
 ### Established Patterns
 - Zustand stores for client state, TanStack Query for server state — new cross-filter/drill code should follow this split
@@ -111,8 +113,8 @@ Add client-side cross-filtering and per-chart drill-down navigation to the exist
 <specifics>
 ## Specific Ideas
 
-- DuckDB-WASM as client-side query engine for cross-filtering — user wants this researched as a potential approach for faster client-side data operations. Not a hard requirement — research should evaluate feasibility vs simpler alternatives.
-- Existing legacy cross-filter/drill-down code quality is uncertain — user is comfortable with a full rewrite if research recommends it. Don't preserve code just because it exists.
+- Cross-Filter Data Layer: cache data-source results in TanStack Query, re-filter and re-aggregate client-side when cross-filters change. Dual-path KPIs (server-computed normally, client-computed under cross-filter). Research confirmed JS handles this at current data volumes (<3ms for 100K rows).
+- Existing code is ~70% reusable — drill-store needs per-chart refactor, use-cross-filter needs column-name matching rewrite, but filter-store/cross-filter-bar/cross-filter.ts are solid foundations.
 - Cross-filter must feel instant — no loading spinners when clicking chart elements. Client-side filtering is the requirement (INTR-01: "zero network calls, instant response").
 - The slide-down detail grid pattern (grid appears below the drilled chart's row, pushes content down) was chosen specifically because dashboards can have 10+ charts and 2+ existing grids — appending to the bottom would bury the detail view.
 
