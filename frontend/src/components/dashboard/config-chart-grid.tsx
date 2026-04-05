@@ -70,17 +70,22 @@ function QueryChartItemWithDrill({
 
   // ---- Data fetching ----
   const dataSourceId = chart.sources?.[0]?.dataSourceId ?? ''
+  const hasAppliedFilters = Object.keys(appliedFilters).length > 0
   const { data: queryResponse, isLoading, isError, error, refetch } = useDataSourceQuery(
     dataSourceId,
     appliedFilters,
-    !!dataSourceId,
+    !!dataSourceId && hasAppliedFilters,
   )
 
   const chartData: ChartDataResponse | undefined = useMemo(() => {
     if (!queryResponse) return undefined
+    // Columns can be objects ({column_name, name, type}) or strings — normalize to strings
+    const columns = queryResponse.columns.map((c: unknown) =>
+      typeof c === 'string' ? c : (c as Record<string, string>).name ?? (c as Record<string, string>).column_name,
+    )
     return {
       chartId: chart.id,
-      columns: queryResponse.columns,
+      columns,
       data: queryResponse.rows,
       rowCount: queryResponse.rowCount,
     }

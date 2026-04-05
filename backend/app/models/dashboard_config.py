@@ -70,6 +70,9 @@ class DashboardChartConfig(BaseModel):
     sources: list[ChartSource] | None = None
     kpi_segments: list[KpiSegment] | None = None
     layout: ChartLayout
+    cross_filter: bool | None = None  # None = participates (default), False = opt-out
+    drill_hierarchy: list[str] | None = None
+    drill_detail_data_source_id: str | None = None
 
 
 class GridSource(BaseModel):
@@ -98,6 +101,7 @@ class GridConfig(BaseModel):
     columns: list[GridColumn]
     visible_when: VisibleWhen | None = None
     layout: ChartLayout
+    cross_filter_column: str | None = None
 
 
 class DashboardFeatures(BaseModel):
