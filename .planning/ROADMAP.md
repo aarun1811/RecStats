@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 02.1: Chart Rendering Foundation** - (INSERTED) Fix all major chart types to render correctly from query data, validate Phase 2 cross-filter/drill-down end-to-end (completed 2026-04-05)
 - [ ] **Phase 3: Chart and Grid Interactions** - Add fullscreen view, chart/grid export, manual refresh, and configurable auto-refresh to dashboard panels
 - [x] **Phase 4: Data Source Connectivity** - Integrate Oracle, Hive, and Elasticsearch via Superset with a connection management UI for the dev team (completed 2026-04-05)
-- [ ] **Phase 5: Dataset Management** - Dev team can create, edit, and manage datasets with SQL queries, column metadata, and roles
+- [x] **Phase 5: Dataset Management** - Dev team can create, edit, and manage datasets with SQL queries, column metadata, and roles
 - [ ] **Phase 6: Chart Library** - Users can create, save, and reuse charts from datasets with a visual chart type selector and library browser
 - [ ] **Phase 7: KPI Library** - Dev team defines reusable KPI templates; business users pick and configure KPIs for dashboards
 - [ ] **Phase 8: Dashboard Builder** - Business users create dashboards with a grid-based layout editor, adding charts, KPIs, and filters from libraries
@@ -128,7 +128,7 @@ Plans:
 Plans:
 - [x] 05-01-PLAN.md -- Backend CRUD + Superset sync: SQLAlchemy model, Alembic migration, Pydantic schemas, API endpoints, DatasetSyncService
 - [x] 05-02-PLAN.md -- Frontend foundation: TypeScript types, CRUD hooks, column detection/merge utilities, dataset list page, sidebar nav, Explorer save-as-dataset dialog
-- [ ] 05-03-PLAN.md -- Dataset editor: Monaco SQL editor, AG Grid column metadata, format presets, SQL re-run enforcement, delete dialog, end-to-end verification
+- [x] 05-03-PLAN.md -- Dataset editor: Monaco SQL editor, AG Grid column metadata, format presets, SQL re-run enforcement, delete dialog, end-to-end verification
 
 ### Phase 6: Chart Library
 **Goal**: Users can create charts by mapping dataset columns to visual properties, save them to a reusable library, and browse/search saved charts
@@ -210,7 +210,7 @@ Phases execute in numeric order: 1 -> 2 -> 02.1 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 ->
 | 02.1. Chart Rendering Foundation | 3/3 | Complete   | 2026-04-05 |
 | 3. Chart and Grid Interactions | 0/3 | Planning complete | - |
 | 4. Data Source Connectivity | 3/3 | Complete | 2026-04-05 |
-| 5. Dataset Management | 0/3 | Planning complete | - |
+| 5. Dataset Management | 3/3 | Complete | 2026-04-06 |
 | 6. Chart Library | 0/0 | Not started | - |
 | 7. KPI Library | 0/0 | Not started | - |
 | 8. Dashboard Builder | 0/0 | Not started | - |

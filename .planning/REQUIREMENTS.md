@@ -18,7 +18,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [x] **DSET-01**: Dev team can create a dataset by writing SQL, naming it, and saving it with column metadata
 - [x] **DSET-02**: Each dataset column has configurable metadata: friendly display name, data type (string/number/date/currency), role (dimension/measure/time), default aggregation function, format string
-- [ ] **DSET-03**: Dev team can test-execute a dataset query from the editor and preview results before publishing
+- [x] **DSET-03**: Dev team can test-execute a dataset query from the editor and preview results before publishing
 - [x] **DSET-04**: Dev team can edit and delete existing datasets
 - [x] **DSET-05**: Datasets are persisted to database (not JSON files on disk)
 
@@ -149,7 +149,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DATA-04 | Phase 4: Data Source Connectivity | Complete |
 | DSET-01 | Phase 5: Dataset Management | Complete |
 | DSET-02 | Phase 5: Dataset Management | Complete |
-| DSET-03 | Phase 5: Dataset Management | Pending |
+| DSET-03 | Phase 5: Dataset Management | Complete |
 | DSET-04 | Phase 5: Dataset Management | Complete |
 | DSET-05 | Phase 5: Dataset Management | Complete |
 | CHRT-01 | Phase 6: Chart Library | Pending |
