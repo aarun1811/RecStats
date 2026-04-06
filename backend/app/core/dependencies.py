@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.engine import async_session_factory
 from app.models.data_source_config import DataSourceConfig
 from app.services.config_store import ConfigStore
+from app.services.dataset_sync import DatasetSyncService
 from app.services.query_engine import QueryEngine
 from app.services.superset_client import SupersetClient
 
@@ -50,6 +51,14 @@ def get_query_engine(request: Request) -> QueryEngine:
 SupersetDep = Annotated[SupersetClient | None, Depends(get_superset_client)]
 ConfigStoreDep = Annotated[ConfigStore, Depends(get_config_store)]
 QueryEngineDep = Annotated[QueryEngine, Depends(get_query_engine)]
+
+
+def get_dataset_sync(request: Request) -> DatasetSyncService:
+    """Return the DatasetSyncService from app state."""
+    return request.app.state.dataset_sync
+
+
+DatasetSyncDep = Annotated[DatasetSyncService, Depends(get_dataset_sync)]
 
 
 # --------------------------------------------------------------------------- #

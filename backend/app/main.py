@@ -60,6 +60,19 @@ async def lifespan(app: FastAPI):
     )
     logger.info("QueryEngine initialized — ready to serve")
 
+    # 5. Create DatasetSyncService and reconcile unsynced datasets
+    from app.db.engine import async_session_factory
+    from app.services.dataset_sync import DatasetSyncService
+
+    dataset_sync = DatasetSyncService(superset=superset)
+    app.state.dataset_sync = dataset_sync
+    logger.info("DatasetSyncService initialized")
+
+    async with async_session_factory() as session:
+        await dataset_sync.reconcile(session)
+        await session.commit()
+    logger.info("Dataset reconciliation complete")
+
     yield
 
     # Shutdown: dispose async engine and close HTTP client
