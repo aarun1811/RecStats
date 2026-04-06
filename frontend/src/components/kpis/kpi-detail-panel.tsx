@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 
+import { cn } from '@/lib/utils'
 import {
   Sheet,
   SheetContent,
@@ -23,6 +24,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { api } from '@/lib/api-client'
+import { CountAnimation } from '@/components/shared/count-animation'
 import { useManagedKpi } from '@/hooks/use-managed-kpis'
 import {
   computeAggregation,
@@ -30,9 +32,9 @@ import {
   getTrendSubtitle,
   THRESHOLD_STYLES,
 } from '@/lib/kpi-utils'
-import { KpiPreviewCard } from './kpi-preview-card'
 import { DeleteKpiDialog } from './delete-kpi-dialog'
 import type { RecvizDataset } from '@/types/managed-dataset'
+import type { FormatNumberOptions } from '@/types/formatting'
 
 interface KpiDetailPanelProps {
   kpiId: string | null
@@ -79,10 +81,6 @@ export function KpiDetailPanel({
     return computeAggregation(values, kpi.aggregation)
   }, [rawResult, kpi])
 
-  const thresholdDescription = kpi?.config.thresholds
-    ? `Green >= ${kpi.config.thresholds.greenAbove}, Amber >= ${kpi.config.thresholds.amberAbove}, Red < ${kpi.config.thresholds.amberAbove}`
-    : 'Not configured'
-
   const trendDescription =
     getTrendSubtitle(kpi?.config.trend ?? null) || 'Not configured'
 
@@ -93,12 +91,26 @@ export function KpiDetailPanel({
         : '')
     : ''
 
+  const thresholdLevel = kpi
+    ? getThresholdLevel(computedValue, kpi.config.thresholds)
+    : 'none'
+  const thresholdColor = THRESHOLD_STYLES[thresholdLevel]
+
+  const formatOptions: FormatNumberOptions | undefined = kpi
+    ? {
+        type: kpi.config.format.type,
+        decimals: kpi.config.format.decimals ?? undefined,
+        abbreviate: kpi.config.format.abbreviate,
+        currencyCode: kpi.config.format.currencyCode ?? undefined,
+      }
+    : undefined
+
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
           side="right"
-          className="sm:max-w-lg overflow-y-auto p-0 gap-0 flex flex-col border-l-0"
+          className="w-[500px] sm:max-w-[500px] p-0 gap-0 flex flex-col border-l-0"
         >
           {kpiLoading ? (
             <div className="space-y-4 p-6">
@@ -108,7 +120,7 @@ export function KpiDetailPanel({
               </SheetHeader>
               <Skeleton className="h-6 w-2/3" />
               <Skeleton className="h-4 w-1/2" />
-              <Skeleton className="h-[120px] w-full rounded-lg" />
+              <Skeleton className="h-[200px] w-full rounded-lg" />
               <Skeleton className="h-4 w-full" />
               <Skeleton className="h-4 w-3/4" />
             </div>
@@ -128,17 +140,39 @@ export function KpiDetailPanel({
                   </SheetDescription>
                 </SheetHeader>
 
-                {/* Live KPI Preview */}
-                <div className="mx-6 mt-2">
-                  <KpiPreviewCard
-                    name={kpi.name}
-                    value={computedValue}
-                    isLoading={isDataLoading}
-                    format={kpi.config.format}
-                    trend={kpi.config.trend}
-                    thresholds={kpi.config.thresholds}
-                    subtitle={kpi.config.subtitle}
-                  />
+                {/* Hero KPI value — full-width, no inner card */}
+                <div className="mx-6 mt-2 rounded-lg overflow-hidden bg-muted/5">
+                  <div className="h-[200px] flex flex-col items-center justify-center relative">
+                    {/* Subtle radial glow behind value */}
+                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,hsl(var(--primary)/0.04)_0%,transparent_70%)]" />
+
+                    {isDataLoading ? (
+                      <Skeleton className="h-12 w-36 rounded" />
+                    ) : (
+                      <div className="relative flex flex-col items-center gap-2">
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] font-medium tracking-wide"
+                        >
+                          {kpi.aggregation}
+                        </Badge>
+                        <CountAnimation
+                          number={computedValue}
+                          duration={0.8}
+                          formatOptions={formatOptions}
+                          className={cn(
+                            'text-5xl font-bold tabular-nums tracking-tighter',
+                            thresholdColor,
+                          )}
+                        />
+                        {kpi.config.subtitle && (
+                          <p className="text-xs text-muted-foreground">
+                            {kpi.config.subtitle}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Metadata grid */}
@@ -167,17 +201,6 @@ export function KpiDetailPanel({
                     <div className="flex items-center gap-1.5 mb-1">
                       <Settings2 className="size-3 text-muted-foreground" />
                       <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
-                        Aggregation
-                      </span>
-                    </div>
-                    <Badge variant="outline" className="text-xs">
-                      {kpi.aggregation}
-                    </Badge>
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <Settings2 className="size-3 text-muted-foreground" />
-                      <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
                         Format
                       </span>
                     </div>
@@ -192,19 +215,6 @@ export function KpiDetailPanel({
                     </div>
                     <p className="text-sm">
                       {formatDistanceToNow(new Date(kpi.createdAt), {
-                        addSuffix: true,
-                      })}
-                    </p>
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <Calendar className="size-3 text-muted-foreground" />
-                      <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
-                        Updated
-                      </span>
-                    </div>
-                    <p className="text-sm">
-                      {formatDistanceToNow(new Date(kpi.updatedAt), {
                         addSuffix: true,
                       })}
                     </p>
@@ -266,7 +276,7 @@ export function KpiDetailPanel({
                     Used in Dashboards
                   </h4>
                   <p className="text-xs text-muted-foreground">
-                    Dashboard references will appear here
+                    Not used in any dashboards yet
                   </p>
                 </div>
               </div>
