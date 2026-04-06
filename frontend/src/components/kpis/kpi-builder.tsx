@@ -105,8 +105,17 @@ export function KpiBuilder({ editKpi, editDataset, isLoading }: KpiBuilderProps)
     createInitialState(editKpi, editDataset),
   )
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [editInitialized, setEditInitialized] = useState(false)
 
-  // Sync dataset when editDataset loads (for edit mode)
+  // Re-initialize state when editKpi finishes loading (async)
+  useEffect(() => {
+    if (editKpi && !editInitialized) {
+      setState(createInitialState(editKpi, editDataset))
+      setEditInitialized(true)
+    }
+  }, [editKpi, editDataset, editInitialized])
+
+  // Sync dataset when editDataset loads after editKpi
   useEffect(() => {
     if (editDataset && editKpi && !state.dataset) {
       setState((prev) => ({ ...prev, dataset: editDataset }))
