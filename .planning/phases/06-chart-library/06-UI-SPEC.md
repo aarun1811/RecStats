@@ -421,7 +421,7 @@ Compatibility is evaluated from dataset column metadata `role` field (dimension/
 
 - Card: `cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5 overflow-hidden`
 - Thumbnail area: `h-[120px] bg-muted/30 flex items-center justify-center` -- chart type icon at `size-12 text-muted-foreground/30`
-- Content area: `p-4 flex flex-col gap-1.5`
+- Content area: `p-4 flex flex-col gap-2`
 - Name row: `flex items-center gap-2` -- chart type icon (`size-5`) + name (`text-sm font-semibold truncate`)
 - Description: `text-xs text-muted-foreground line-clamp-1`
 - Metadata: `text-xs text-muted-foreground` -- "{dataset_name} . {chart_type_label}"
@@ -436,7 +436,7 @@ Compatibility is evaluated from dataset column metadata `role` field (dimension/
 +----------------------------------------------------------------------+
 ```
 
-- Container: `flex items-center gap-3 rounded-lg border p-3 cursor-pointer transition-colors hover:bg-muted/50`
+- Container: `flex items-center gap-4 rounded-lg border p-3 cursor-pointer transition-colors hover:bg-muted/50`
 - Chart type icon: `size-5 shrink-0 text-muted-foreground`
 - Name/description column: `flex-1 min-w-0` -- name (`text-sm font-semibold truncate`) + description (`text-xs text-muted-foreground truncate`)
 - Dataset name: `text-xs text-muted-foreground shrink-0`
@@ -452,11 +452,11 @@ Compatibility is evaluated from dataset column metadata `role` field (dimension/
 +----------------------------------------------------------------------+
 ```
 
-- Container: `flex items-center gap-3`
+- Container: `flex items-center gap-4`
 - Search: `relative flex-1 max-w-xs` -- `Search` icon positioned left, `Input h-8 text-sm pl-8`, placeholder "Search charts..."
 - Type filter: `Select` with "All types" default + one option per chart type
 - Dataset filter: `Select` with "All datasets" default + one option per dataset
-- View toggle: `ToggleGroup type="single" variant="outline" size="sm"` -- List and Grid icons
+- View toggle: `ToggleGroup type="single" variant="outline" size="sm"` -- `List` icon (`aria-label="List view"`) and `LayoutGrid` icon (`aria-label="Grid view"`)
 - New button: `Button size="sm" className="h-8"` with `Plus` icon + "New Chart" text
 
 **Source:** CONTEXT.md D-21, D-22, D-23, Phase 5 UI-SPEC list page patterns
@@ -548,8 +548,8 @@ Compatibility is evaluated from dataset column metadata `role` field (dimension/
 ```
 
 - Group headings: `text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2`
-- Grid: `grid grid-cols-4 gap-3`
-- Each item: `flex flex-col items-center gap-1.5 p-2 rounded-md` with chart icon (`size-8`) + label (`text-xs`)
+- Grid: `grid grid-cols-4 gap-2`
+- Each item: `flex flex-col items-center gap-2 p-2 rounded-md` with chart icon (`size-8`) + label (`text-xs`)
 - Selected: `ring-2 ring-primary bg-primary/5`
 - Dimmed: `opacity-40 cursor-not-allowed`
 - Available hover: `hover:bg-muted/50`
