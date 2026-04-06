@@ -17,6 +17,7 @@ import { useManagedDatasets } from '@/hooks/use-managed-datasets'
 import { KpiLibraryToolbar } from './kpi-library-toolbar'
 import { KpiLibraryCard } from './kpi-library-card'
 import { KpiLibraryRow } from './kpi-library-row'
+import { KpiDetailPanel } from './kpi-detail-panel'
 import type { RecvizDataset } from '@/types/managed-dataset'
 
 type ViewMode = 'grid' | 'list'
@@ -139,6 +140,15 @@ export function KpiLibraryList() {
           ))}
         </div>
       )}
+
+      <KpiDetailPanel
+        kpiId={selectedKpiId}
+        open={selectedKpiId !== null}
+        onOpenChange={(open) => {
+          if (!open) setSelectedKpiId(null)
+        }}
+        datasetMap={datasetMap}
+      />
     </div>
   )
 }
