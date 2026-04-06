@@ -39,6 +39,18 @@ interface BuilderStore {
 function buildItemsFromConfig(config: DashboardConfig): BuilderItem[] {
   const items: BuilderItem[] = []
 
+  for (const kpi of config.kpis) {
+    items.push({
+      id: kpi.id,
+      type: 'kpi',
+      layout: { col: 0, row: 0, width: 3, height: 2 },
+      kpi: {
+        kpiId: kpi.id,
+        title: kpi.label,
+      },
+    })
+  }
+
   for (const chart of config.charts) {
     items.push({
       id: chart.id,

@@ -17,16 +17,24 @@ import { DatasetPickerDialog } from '@/components/builder/dataset-picker-dialog'
 import { FilterConfigDialog } from '@/components/builder/filter-config-dialog'
 import { KpiPickerDialog } from '@/components/builder/kpi-picker-dialog'
 import { PanelConfigPopover } from '@/components/builder/panel-config-popover'
+import { SaveDashboardDialog } from '@/components/builder/save-dashboard-dialog'
 import { Button } from '@/components/ui/button'
 import { useBuilderKeyboardShortcuts } from '@/hooks/use-builder-keyboard-shortcuts'
 import {
   useCreateDashboard,
   useUpdateDashboard,
 } from '@/hooks/use-managed-dashboards'
+import { useManagedKpis } from '@/hooks/use-managed-kpis'
 import { useBuilderStore } from '@/stores/builder-store'
 import { useLayoutHistoryStore } from '@/stores/layout-history-store'
 import type { BuilderItem } from '@/types/builder'
-import type { DashboardConfig, FilterConfig } from '@/types/dashboard-config'
+import type {
+  DashboardChartConfig,
+  DashboardConfig,
+  FilterConfig,
+  GridConfig,
+  KpiConfig,
+} from '@/types/dashboard-config'
 import type { RecvizChart } from '@/types/managed-chart'
 import type { RecvizDataset } from '@/types/managed-dataset'
 import type { RecvizKpi } from '@/types/managed-kpi'
@@ -35,41 +43,93 @@ interface BuilderPageProps {
   mode: 'create' | 'edit'
 }
 
-function buildConfigFromStore(): DashboardConfig {
-  const state = useBuilderStore.getState()
+interface BuilderStoreState {
+  dashboardId: string | null
+  name: string
+  description: string
+  items: BuilderItem[]
+  filters: FilterConfig[]
+}
+
+function serializeConfig(
+  state: BuilderStoreState,
+  kpiLibrary: RecvizKpi[],
+): DashboardConfig {
+  const charts: DashboardChartConfig[] = state.items
+    .filter((item) => item.type === 'chart' && item.chart)
+    .map((item) => ({
+      id: item.id,
+      title: item.chart!.title,
+      type: item.chart!.chartType,
+      sourceType: 'query' as const,
+      sources: [{ dataSourceId: item.chart!.datasetId, metric: '' }],
+      layout: { ...item.layout },
+      crossFilter: item.chart!.crossFilter,
+      drillHierarchy:
+        item.chart!.drillHierarchy.length > 0
+          ? item.chart!.drillHierarchy
+          : undefined,
+      drillDetailDataSourceId:
+        item.chart!.drillDetailDataSourceId ?? undefined,
+      refreshInterval: item.chart!.refreshInterval ?? undefined,
+    }))
+
+  // Map KPI BuilderItems to KpiConfig[] for ConfigKpiRow consumption
+  const kpis: KpiConfig[] = state.items
+    .filter((item) => item.type === 'kpi' && item.kpi)
+    .map((item) => {
+      const kpiRef = item.kpi!
+      // Look up full KPI metadata from the library
+      const libraryKpi = kpiLibrary.find((k) => k.id === kpiRef.kpiId)
+
+      // Map KpiFormatConfig.type (FormatType) to KpiConfig.format ('number' | 'currency' | 'percent')
+      // FormatType includes: 'number', 'currency', 'percentage', 'duration'
+      // KpiConfig.format uses 'percent' (not 'percentage')
+      let format: KpiConfig['format'] = 'number'
+      if (libraryKpi) {
+        const fmtType = libraryKpi.config.format.type
+        if (fmtType === 'currency') format = 'currency'
+        else if (fmtType === 'percentage') format = 'percent'
+        else format = 'number'
+      }
+
+      return {
+        id: item.id,
+        label: kpiRef.title,
+        format,
+        sources: libraryKpi
+          ? [
+              {
+                dataSourceId: libraryKpi.datasetId,
+                metric: libraryKpi.metricColumn,
+              },
+            ]
+          : [],
+        aggregation: libraryKpi?.aggregation ?? 'SUM',
+      }
+    })
+
+  const grids: GridConfig[] = state.items
+    .filter((item) => item.type === 'grid' && item.grid)
+    .map((item) => ({
+      id: item.id,
+      title: item.grid!.title,
+      dataSourceId: item.grid!.datasetId,
+      columns: [],
+      layout: { ...item.layout },
+    }))
+
   return {
-    id: state.dashboardId ?? '',
+    id: state.dashboardId ?? crypto.randomUUID(),
     name: state.name || 'Untitled Dashboard',
     description: state.description,
-    features: { crossFilter: false, drillDown: false },
+    features: { crossFilter: true, drillDown: true },
     filters: state.filters,
-    kpis: [],
-    charts: state.items
-      .filter((item) => item.type === 'chart' && item.chart)
-      .map((item) => ({
-        id: item.id,
-        title: item.chart?.title ?? 'Untitled Chart',
-        type: item.chart?.chartType ?? 'bar',
-        sourceType: 'query' as const,
-        sources: item.chart?.datasetId
-          ? [{ dataSourceId: item.chart.datasetId }]
-          : [],
-        layout: { ...item.layout },
-        crossFilter: item.chart?.crossFilter,
-        drillHierarchy: item.chart?.drillHierarchy,
-        drillDetailDataSourceId: item.chart?.drillDetailDataSourceId ?? undefined,
-        refreshInterval: item.chart?.refreshInterval ?? undefined,
-      })),
-    grids: state.items
-      .filter((item) => item.type === 'grid' && item.grid)
-      .map((item) => ({
-        id: item.id,
-        title: item.grid?.title ?? 'Untitled Grid',
-        dataSourceId: item.grid?.datasetId,
-        columns: [],
-        layout: { ...item.layout },
-      })),
-    layout: { type: 'grid', sections: ['charts', 'grids'] },
+    kpis,
+    charts,
+    grids,
+    layout: { type: 'custom', sections: ['filters', 'kpis', 'charts', 'grids'] },
+    autoRefreshInterval: 600000,
   }
 }
 
@@ -95,7 +155,11 @@ export function BuilderPage({ mode }: BuilderPageProps) {
   const createDashboard = useCreateDashboard()
   const updateDashboard = useUpdateDashboard()
 
+  // Fetch all managed KPIs for serialization lookup
+  const { data: allKpis } = useManagedKpis()
+
   const [isSaving, setIsSaving] = useState(false)
+  const [saveAsOpen, setSaveAsOpen] = useState(false)
 
   const filters = useBuilderStore((s) => s.filters)
   const addFilter = useBuilderStore((s) => s.addFilter)
@@ -136,7 +200,8 @@ export function BuilderPage({ mode }: BuilderPageProps) {
   const handleSave = useCallback(async () => {
     setIsSaving(true)
     try {
-      const config = buildConfigFromStore()
+      const storeState = useBuilderStore.getState()
+      const config = serializeConfig(storeState, allKpis ?? [])
       if (mode === 'create' || !dashboardId) {
         const result = await createDashboard.mutateAsync({
           name: config.name,
@@ -146,7 +211,10 @@ export function BuilderPage({ mode }: BuilderPageProps) {
         markClean()
         resetHistory()
         toast.success('Dashboard saved')
-        navigate({ to: '/dashboards/$dashboardId', params: { dashboardId: result.id } })
+        navigate({
+          to: '/dashboards/$dashboardId',
+          params: { dashboardId: result.id },
+        })
       } else {
         await updateDashboard.mutateAsync({
           id: dashboardId,
@@ -159,18 +227,64 @@ export function BuilderPage({ mode }: BuilderPageProps) {
         markClean()
         resetHistory()
         toast.success('Dashboard saved')
-        navigate({ to: '/dashboards/$dashboardId', params: { dashboardId } })
+        navigate({
+          to: '/dashboards/$dashboardId',
+          params: { dashboardId },
+        })
       }
     } catch {
       toast.error('Failed to save dashboard')
     } finally {
       setIsSaving(false)
     }
-  }, [mode, dashboardId, createDashboard, updateDashboard, markClean, resetHistory, navigate])
+  }, [
+    mode,
+    dashboardId,
+    allKpis,
+    createDashboard,
+    updateDashboard,
+    markClean,
+    resetHistory,
+    navigate,
+  ])
 
   const handleSaveAs = useCallback(() => {
-    // Will be implemented with a save-as dialog in a future plan
+    setSaveAsOpen(true)
   }, [])
+
+  const handleSaveAsConfirm = useCallback(
+    async (newName: string, newDescription: string) => {
+      setIsSaving(true)
+      try {
+        const storeState = useBuilderStore.getState()
+        const config = serializeConfig(storeState, allKpis ?? [])
+        // Override name/description with the user-provided values
+        config.name = newName
+        config.description = newDescription
+        // Always create a new dashboard with a new UUID for Save As
+        config.id = crypto.randomUUID()
+
+        const result = await createDashboard.mutateAsync({
+          name: newName,
+          description: newDescription,
+          config,
+        })
+        markClean()
+        resetHistory()
+        toast.success('Dashboard saved')
+        setSaveAsOpen(false)
+        navigate({
+          to: '/dashboards/$dashboardId',
+          params: { dashboardId: result.id },
+        })
+      } catch {
+        toast.error('Failed to save dashboard')
+      } finally {
+        setIsSaving(false)
+      }
+    },
+    [allKpis, createDashboard, markClean, resetHistory, navigate],
+  )
 
   const handleExit = useCallback(() => {
     if (isDirty) {
@@ -387,6 +501,14 @@ export function BuilderPage({ mode }: BuilderPageProps) {
         open={filterDialogOpen}
         onOpenChange={setFilterDialogOpen}
         onFiltersAdded={handleFiltersAdded}
+      />
+      <SaveDashboardDialog
+        open={saveAsOpen}
+        onOpenChange={setSaveAsOpen}
+        defaultName={name || 'Untitled Dashboard'}
+        defaultDescription={description}
+        onSave={handleSaveAsConfirm}
+        isSaving={isSaving}
       />
     </div>
   )
