@@ -2,7 +2,6 @@ import { Database } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 
 import { Card } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { BACKEND_COLORS } from '@/components/settings/data-source-card'
 import type { RecvizDataset } from '@/types/managed-dataset'
@@ -21,7 +20,7 @@ export function DatasetCard({ dataset, databaseName, backendType, onClick }: Dat
 
   return (
     <Card
-      className="cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5 px-4 py-3"
+      className="cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5 p-4"
       onClick={onClick}
       tabIndex={0}
       role="button"
@@ -32,32 +31,28 @@ export function DatasetCard({ dataset, databaseName, backendType, onClick }: Dat
         }
       }}
     >
-      <div className="flex items-start gap-3">
-        <Database className={cn('size-5 mt-0.5 shrink-0', iconColor)} />
-        <div className="flex-1 min-w-0 space-y-1">
-          <div className="flex items-center gap-2">
-            <p className="text-sm font-semibold truncate">{dataset.name}</p>
-            {dataset.syncStatus !== 'synced' && (
-              <Badge
-                variant="outline"
-                className="text-[10px] shrink-0 border-amber-500/50 bg-amber-500/10 text-amber-600 dark:text-amber-400"
-              >
+      <div className="flex flex-col gap-3">
+        <div className="flex items-start justify-between">
+          <Database className={cn('size-8', iconColor)} />
+          {dataset.syncStatus !== 'synced' && (
+            <div className="flex items-center gap-1.5">
+              <span className={cn('inline-block size-2 rounded-full', dataset.syncStatus === 'error' ? 'bg-amber-500' : 'bg-gray-400')} />
+              <span className="text-[10px] text-muted-foreground">
                 {dataset.syncStatus === 'error' ? 'Sync Error' : 'Unsynced'}
-              </Badge>
-            )}
-          </div>
+              </span>
+            </div>
+          )}
+        </div>
+        <div>
+          <p className="text-sm font-medium truncate">{dataset.name}</p>
           {dataset.description && (
-            <p className="text-xs text-muted-foreground line-clamp-1">
+            <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
               {dataset.description}
             </p>
           )}
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span>{databaseName ?? backendType ?? 'Database'}</span>
-            <span>&middot;</span>
-            <span>{dataset.columns.length} columns</span>
-            <span>&middot;</span>
-            <span>{formatDistanceToNow(new Date(dataset.updatedAt), { addSuffix: true })}</span>
-          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            {databaseName ?? backendType ?? 'Database'} &middot; {dataset.columns.length} columns &middot; {formatDistanceToNow(new Date(dataset.updatedAt), { addSuffix: true })}
+          </p>
         </div>
       </div>
     </Card>
