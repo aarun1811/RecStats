@@ -90,7 +90,7 @@ async def create_managed_dataset(
     session.add(dataset)
     await session.flush()
 
-    # Attempt Superset sync (non-blocking on failure)
+    # Attempt Superset sync (non-blocking on failure per D-20)
     superset_id = await sync_service.sync_dataset(dataset)
     if superset_id is not None:
         dataset.superset_id = superset_id
@@ -130,25 +130,18 @@ async def update_managed_dataset(
         raise HTTPException(status_code=404, detail="Dataset not found")
 
     # Apply non-None fields
-    update_data = body.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        if field == "columns" and value is not None:
-            value = [
-                col.model_dump(by_alias=True) if hasattr(col, "model_dump") else col
-                for col in body.columns  # type: ignore[union-attr]
-            ]
-        setattr(dataset, field, value)
+    if body.name is not None:
+        dataset.name = body.name
+    if body.description is not None:
+        dataset.description = body.description
+    if body.sql is not None:
+        dataset.sql = body.sql
+    if body.columns is not None:
+        dataset.columns = [col.model_dump(by_alias=True) for col in body.columns]
 
-    dataset.sync_status = "unsynced"
-    await session.flush()
-
-    # Attempt re-sync
-    superset_id = await sync_service.sync_dataset(dataset)
-    if superset_id is not None:
-        dataset.superset_id = superset_id
-        dataset.sync_status = "synced"
-    else:
-        dataset.sync_status = "error"
+    # Mark for re-sync — startup reconciliation or next create will sync
+    if dataset.sql != (body.sql or dataset.sql):
+        dataset.sync_status = "unsynced"
 
     return _to_response(dataset)
 

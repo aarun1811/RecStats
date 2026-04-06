@@ -188,6 +188,7 @@ export function DatasetEditor({ mode, dataset, isLoading }: DatasetEditorProps) 
     if (!dataset) return
     deleteDataset.mutate(dataset.id, {
       onSuccess: () => {
+        setDeleteDialogOpen(false)
         toast.success(`Dataset "${dataset.name}" deleted`)
         navigate({ to: '/datasets' })
       },
