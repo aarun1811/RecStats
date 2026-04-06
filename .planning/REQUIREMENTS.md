@@ -30,7 +30,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **CHRT-04**: Saved charts are reusable — can be added to multiple dashboards; config change updates everywhere
 - [x] **CHRT-05**: AG Charts covers standard types (line, bar, area, pie, donut, scatter, heatmap, treemap, waterfall, bullet, box plot, combo)
 - [x] **CHRT-06**: ECharts covers exotic types only (Sankey, sunburst, radar, graph/network, gauge, parallel coordinates, funnel)
-- [ ] **CHRT-07**: User can browse the chart library, search by name, and preview saved charts
+- [x] **CHRT-07**: User can browse the chart library, search by name, and preview saved charts
 
 ### KPI Library
 
@@ -158,7 +158,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CHRT-04 | Phase 6: Chart Library | Complete |
 | CHRT-05 | Phase 6: Chart Library | Complete |
 | CHRT-06 | Phase 6: Chart Library | Complete |
-| CHRT-07 | Phase 6: Chart Library | Pending |
+| CHRT-07 | Phase 6: Chart Library | Complete |
 | KPI-01 | Phase 7: KPI Library | Pending |
 | KPI-02 | Phase 7: KPI Library | Pending |
 | KPI-03 | Phase 7: KPI Library | Pending |
