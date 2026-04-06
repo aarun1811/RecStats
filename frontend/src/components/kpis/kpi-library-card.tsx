@@ -1,5 +1,7 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { formatDistanceToNow } from 'date-fns'
+import { Gauge } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -61,10 +63,12 @@ export function KpiLibraryCard({
   const trendText =
     getTrendSubtitle(kpi.config.trend) || kpi.config.subtitle || ''
 
+  const timeAgo = formatDistanceToNow(new Date(kpi.updatedAt), { addSuffix: true })
+
   return (
     <div
       className={cn(
-        'group relative flex flex-col rounded-lg border bg-card p-4',
+        'group relative flex flex-col overflow-hidden rounded-lg border bg-card',
         'cursor-pointer transition-all duration-200',
         'hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5',
       )}
@@ -78,27 +82,43 @@ export function KpiLibraryCard({
         }
       }}
     >
-      <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground truncate">
-        {kpi.name}
-      </p>
-      <div className="mt-1 text-2xl font-semibold tabular-nums tracking-tight">
+      {/* Hero area — KPI value display */}
+      <div className="relative h-[180px] flex flex-col items-center justify-center gap-2">
         {isLoading ? (
-          <Skeleton className="h-7 w-24" />
+          <Skeleton className="h-10 w-32 rounded" />
         ) : (
-          <CountAnimation
-            number={computedValue}
-            formatOptions={formatOptions}
-            duration={0.8}
-            className={thresholdColor}
-          />
+          <>
+            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+              {kpi.aggregation}
+            </p>
+            <CountAnimation
+              number={computedValue}
+              formatOptions={formatOptions}
+              duration={0.8}
+              className={cn('text-4xl font-bold tabular-nums tracking-tight', thresholdColor)}
+            />
+            {trendText && (
+              <p className="text-xs text-muted-foreground">{trendText}</p>
+            )}
+          </>
         )}
+
+        {/* KPI type pill — top right, matching chart type pill */}
+        <div className="absolute top-2.5 right-2.5 z-10 flex items-center gap-1 rounded-full bg-background/80 px-2 py-0.5 text-[10px] font-medium text-muted-foreground backdrop-blur-sm border border-border/50">
+          <Gauge size={10} />
+          KPI
+        </div>
       </div>
-      {trendText && (
-        <p className="mt-1 text-xs text-muted-foreground">{trendText}</p>
-      )}
-      <p className="mt-2 text-[11px] text-muted-foreground truncate">
-        {datasetName}
-      </p>
+
+      {/* Metadata strip — matches chart card */}
+      <div className="flex flex-col gap-0.5 px-3.5 py-3">
+        <p className="text-sm font-semibold truncate leading-snug">{kpi.name}</p>
+        <p className="text-[11px] text-muted-foreground truncate">
+          {datasetName}
+          <span className="mx-1.5 opacity-40">&middot;</span>
+          {timeAgo}
+        </p>
+      </div>
     </div>
   )
 }

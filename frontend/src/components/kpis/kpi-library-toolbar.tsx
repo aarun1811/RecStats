@@ -35,8 +35,8 @@ export function KpiLibraryToolbar({
   datasets,
 }: KpiLibraryToolbarProps) {
   return (
-    <div className="flex items-center gap-2">
-      <div className="relative w-64">
+    <div className="flex items-center gap-4">
+      <div className="relative flex-1 max-w-xs">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
         <Input
           placeholder="Search KPIs..."
@@ -74,7 +74,7 @@ export function KpiLibraryToolbar({
           <LayoutGrid className="size-3.5" />
         </ToggleGroupItem>
       </ToggleGroup>
-      <Button size="sm" className="h-8 ml-auto" asChild>
+      <Button size="sm" className="h-8" asChild>
         <Link to="/kpis/new">
           <Plus className="mr-1.5 size-3.5" />
           New KPI

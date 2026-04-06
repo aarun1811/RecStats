@@ -75,9 +75,9 @@ export function KpiLibraryList() {
 
       {kpisLoading ? (
         viewMode === 'grid' ? (
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="h-[140px] rounded-lg border" />
+              <Skeleton key={i} className="h-[220px] rounded-lg" />
             ))}
           </div>
         ) : (
@@ -113,7 +113,7 @@ export function KpiLibraryList() {
           No KPIs matching &ldquo;{searchQuery}&rdquo;
         </p>
       ) : viewMode === 'grid' ? (
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filtered.map((kpi) => {
             const ds = datasetMap.get(kpi.datasetId)
             return (
@@ -129,7 +129,7 @@ export function KpiLibraryList() {
           })}
         </div>
       ) : (
-        <div className="flex flex-col gap-1">
+        <div className="space-y-2">
           {filtered.map((kpi) => (
             <KpiLibraryRow
               key={kpi.id}
