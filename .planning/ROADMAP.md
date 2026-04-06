@@ -140,13 +140,13 @@ Plans:
   3. Charts can be saved to a library with a name and description, and the same chart can be added to multiple dashboards
   4. AG Charts renders all standard types (line, bar, area, pie, donut, scatter, heatmap, treemap, waterfall, bullet, box plot, combo) and ECharts renders exotic types only (Sankey, sunburst, radar, network, gauge, parallel coordinates, funnel)
   5. User can browse the chart library, search by name, and preview any saved chart
-**Plans**: TBD
+**Plans:** 3 plans
 **UI hint**: yes
 
 Plans:
-- [ ] 06-01: TBD
-- [ ] 06-02: TBD
-- [ ] 06-03: TBD
+- [ ] 06-01-PLAN.md -- Backend CRUD + types + hooks + chart compatibility utility + icons + nav + route stubs + dataset reference wiring
+- [ ] 06-02-PLAN.md -- Chart builder accordion stepper with 5 steps, live preview panel, create and edit page wiring
+- [ ] 06-03-PLAN.md -- Chart library list page with card/row toggle, search/filters, detail side panel, delete dialog
 
 ### Phase 7: KPI Library
 **Goal**: Dev team defines reusable KPI templates with SQL and formatting rules; business users pick KPIs from the library with animated, color-coded cards
@@ -211,7 +211,7 @@ Phases execute in numeric order: 1 -> 2 -> 02.1 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 ->
 | 3. Chart and Grid Interactions | 0/3 | Planning complete | - |
 | 4. Data Source Connectivity | 3/3 | Complete | 2026-04-05 |
 | 5. Dataset Management | 3/3 | Complete | 2026-04-06 |
-| 6. Chart Library | 0/0 | Not started | - |
+| 6. Chart Library | 0/3 | Planning complete | - |
 | 7. KPI Library | 0/0 | Not started | - |
 | 8. Dashboard Builder | 0/0 | Not started | - |
 | 9. Sharing and Views | 0/0 | Not started | - |
