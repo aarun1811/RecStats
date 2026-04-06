@@ -3,6 +3,7 @@ import {
   ChevronRight,
   Database,
   FileBarChart,
+  Gauge,
   LayoutDashboard,
   PieChart,
   Settings,
@@ -63,6 +64,11 @@ export const navItems: NavGroup[] = [
         title: 'Charts',
         href: '/charts',
         icon: PieChart,
+      },
+      {
+        title: 'KPIs',
+        href: '/kpis',
+        icon: Gauge,
       },
       {
         title: 'Datasets',
