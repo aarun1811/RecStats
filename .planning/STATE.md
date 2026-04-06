@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 06-01-PLAN.md
-last_updated: "2026-04-06T09:30:49.450Z"
+stopped_at: Completed 06-02-PLAN.md
+last_updated: "2026-04-06T09:40:32.410Z"
 last_activity: 2026-04-06
 progress:
   total_phases: 10
   completed_phases: 6
   total_plans: 21
-  completed_plans: 19
-  percent: 90
+  completed_plans: 20
+  percent: 95
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 ## Current Position
 
 Phase: 06 (chart-library) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-04-06
 
@@ -72,6 +72,7 @@ Progress: [██████████] 100%
 | Phase 05 P02 | 9min | 2 tasks | 16 files |
 | Phase 05 P03 | 2min | 2 tasks | 9 files |
 | Phase 06 P01 | 7min | 2 tasks | 21 files |
+| Phase 06 P02 | 5min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -131,6 +132,9 @@ Recent decisions affecting current work:
 - [Phase 06]: Added 'config' to api-client DATA_KEYS to prevent column name corruption during camelCase transform
 - [Phase 06]: bullet and box-plot use bar series fallback until AG Charts native types verified
 - [Phase 06]: managed_charts_router registered BEFORE charts_router in router.py to prevent path collision
+- [Phase 06]: MAPPING_FIELD_LABELS as data-driven constant for all 20 chart types with correct dynamic labels (Source/Target for Sankey, not X-Axis)
+- [Phase 06]: isChartComplete validates full builder state (dataset, type, required mappings, name) not just name check
+- [Phase 06]: Secondary dimensions (heatmap Y-Axis, sankey Target) encoded in metricColumns positions since ChartColumnMapping has no secondaryDim field
 
 ### Roadmap Evolution
 
@@ -148,6 +152,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-06T09:30:49.447Z
-Stopped at: Completed 06-01-PLAN.md
+Last session: 2026-04-06T09:40:32.407Z
+Stopped at: Completed 06-02-PLAN.md
 Resume file: None

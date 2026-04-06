@@ -24,7 +24,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Chart Library (Reusable Charts)
 
-- [ ] **CHRT-01**: User can create a chart by selecting a dataset, mapping columns to axes/metrics, choosing a chart type, and configuring appearance
+- [x] **CHRT-01**: User can create a chart by selecting a dataset, mapping columns to axes/metrics, choosing a chart type, and configuring appearance
 - [x] **CHRT-02**: Chart type selector with visual thumbnails showing available types — highlight which types are compatible with selected data shape
 - [x] **CHRT-03**: Charts can be saved independently to a chart library with a name and description
 - [x] **CHRT-04**: Saved charts are reusable — can be added to multiple dashboards; config change updates everywhere
@@ -152,7 +152,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DSET-03 | Phase 5: Dataset Management | Complete |
 | DSET-04 | Phase 5: Dataset Management | Complete |
 | DSET-05 | Phase 5: Dataset Management | Complete |
-| CHRT-01 | Phase 6: Chart Library | Pending |
+| CHRT-01 | Phase 6: Chart Library | Complete |
 | CHRT-02 | Phase 6: Chart Library | Complete |
 | CHRT-03 | Phase 6: Chart Library | Complete |
 | CHRT-04 | Phase 6: Chart Library | Complete |

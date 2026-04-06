@@ -145,7 +145,7 @@ Plans:
 
 Plans:
 - [x] 06-01-PLAN.md -- Backend CRUD + types + hooks + chart compatibility utility + icons + nav + route stubs + dataset reference wiring
-- [ ] 06-02-PLAN.md -- Chart builder accordion stepper with 5 steps, live preview panel, create and edit page wiring
+- [x] 06-02-PLAN.md -- Chart builder accordion stepper with 5 steps, live preview panel, create and edit page wiring
 - [ ] 06-03-PLAN.md -- Chart library list page with card/row toggle, search/filters, detail side panel, delete dialog
 
 ### Phase 7: KPI Library
