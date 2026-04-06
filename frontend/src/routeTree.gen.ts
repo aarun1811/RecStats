@@ -21,10 +21,12 @@ import { Route as AppChartsIndexRouteImport } from './routes/_app/charts/index'
 import { Route as EmbedDashboardsDashboardIdRouteImport } from './routes/embed/dashboards/$dashboardId'
 import { Route as AppKpisNewRouteImport } from './routes/_app/kpis/new'
 import { Route as AppDatasetsNewRouteImport } from './routes/_app/datasets/new'
+import { Route as AppDashboardsNewRouteImport } from './routes/_app/dashboards/new'
 import { Route as AppDashboardsDashboardIdRouteImport } from './routes/_app/dashboards/$dashboardId'
 import { Route as AppChartsNewRouteImport } from './routes/_app/charts/new'
 import { Route as AppKpisKpiIdEditRouteImport } from './routes/_app/kpis/$kpiId.edit'
 import { Route as AppDatasetsDatasetIdEditRouteImport } from './routes/_app/datasets/$datasetId.edit'
+import { Route as AppDashboardsDashboardIdEditRouteImport } from './routes/_app/dashboards/$dashboardId.edit'
 import { Route as AppChartsChartIdEditRouteImport } from './routes/_app/charts/$chartId.edit'
 
 const AppRoute = AppRouteImport.update({
@@ -87,6 +89,11 @@ const AppDatasetsNewRoute = AppDatasetsNewRouteImport.update({
   path: '/datasets/new',
   getParentRoute: () => AppRoute,
 } as any)
+const AppDashboardsNewRoute = AppDashboardsNewRouteImport.update({
+  id: '/dashboards/new',
+  path: '/dashboards/new',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppDashboardsDashboardIdRoute =
   AppDashboardsDashboardIdRouteImport.update({
     id: '/dashboards/$dashboardId',
@@ -109,6 +116,12 @@ const AppDatasetsDatasetIdEditRoute =
     path: '/datasets/$datasetId/edit',
     getParentRoute: () => AppRoute,
   } as any)
+const AppDashboardsDashboardIdEditRoute =
+  AppDashboardsDashboardIdEditRouteImport.update({
+    id: '/edit',
+    path: '/edit',
+    getParentRoute: () => AppDashboardsDashboardIdRoute,
+  } as any)
 const AppChartsChartIdEditRoute = AppChartsChartIdEditRouteImport.update({
   id: '/charts/$chartId/edit',
   path: '/charts/$chartId/edit',
@@ -118,7 +131,8 @@ const AppChartsChartIdEditRoute = AppChartsChartIdEditRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/charts/new': typeof AppChartsNewRoute
-  '/dashboards/$dashboardId': typeof AppDashboardsDashboardIdRoute
+  '/dashboards/$dashboardId': typeof AppDashboardsDashboardIdRouteWithChildren
+  '/dashboards/new': typeof AppDashboardsNewRoute
   '/datasets/new': typeof AppDatasetsNewRoute
   '/kpis/new': typeof AppKpisNewRoute
   '/embed/dashboards/$dashboardId': typeof EmbedDashboardsDashboardIdRoute
@@ -130,13 +144,15 @@ export interface FileRoutesByFullPath {
   '/reports/': typeof AppReportsIndexRoute
   '/settings/': typeof AppSettingsIndexRoute
   '/charts/$chartId/edit': typeof AppChartsChartIdEditRoute
+  '/dashboards/$dashboardId/edit': typeof AppDashboardsDashboardIdEditRoute
   '/datasets/$datasetId/edit': typeof AppDatasetsDatasetIdEditRoute
   '/kpis/$kpiId/edit': typeof AppKpisKpiIdEditRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/charts/new': typeof AppChartsNewRoute
-  '/dashboards/$dashboardId': typeof AppDashboardsDashboardIdRoute
+  '/dashboards/$dashboardId': typeof AppDashboardsDashboardIdRouteWithChildren
+  '/dashboards/new': typeof AppDashboardsNewRoute
   '/datasets/new': typeof AppDatasetsNewRoute
   '/kpis/new': typeof AppKpisNewRoute
   '/embed/dashboards/$dashboardId': typeof EmbedDashboardsDashboardIdRoute
@@ -148,6 +164,7 @@ export interface FileRoutesByTo {
   '/reports': typeof AppReportsIndexRoute
   '/settings': typeof AppSettingsIndexRoute
   '/charts/$chartId/edit': typeof AppChartsChartIdEditRoute
+  '/dashboards/$dashboardId/edit': typeof AppDashboardsDashboardIdEditRoute
   '/datasets/$datasetId/edit': typeof AppDatasetsDatasetIdEditRoute
   '/kpis/$kpiId/edit': typeof AppKpisKpiIdEditRoute
 }
@@ -156,7 +173,8 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/_app/charts/new': typeof AppChartsNewRoute
-  '/_app/dashboards/$dashboardId': typeof AppDashboardsDashboardIdRoute
+  '/_app/dashboards/$dashboardId': typeof AppDashboardsDashboardIdRouteWithChildren
+  '/_app/dashboards/new': typeof AppDashboardsNewRoute
   '/_app/datasets/new': typeof AppDatasetsNewRoute
   '/_app/kpis/new': typeof AppKpisNewRoute
   '/embed/dashboards/$dashboardId': typeof EmbedDashboardsDashboardIdRoute
@@ -168,6 +186,7 @@ export interface FileRoutesById {
   '/_app/reports/': typeof AppReportsIndexRoute
   '/_app/settings/': typeof AppSettingsIndexRoute
   '/_app/charts/$chartId/edit': typeof AppChartsChartIdEditRoute
+  '/_app/dashboards/$dashboardId/edit': typeof AppDashboardsDashboardIdEditRoute
   '/_app/datasets/$datasetId/edit': typeof AppDatasetsDatasetIdEditRoute
   '/_app/kpis/$kpiId/edit': typeof AppKpisKpiIdEditRoute
 }
@@ -177,6 +196,7 @@ export interface FileRouteTypes {
     | '/'
     | '/charts/new'
     | '/dashboards/$dashboardId'
+    | '/dashboards/new'
     | '/datasets/new'
     | '/kpis/new'
     | '/embed/dashboards/$dashboardId'
@@ -188,6 +208,7 @@ export interface FileRouteTypes {
     | '/reports/'
     | '/settings/'
     | '/charts/$chartId/edit'
+    | '/dashboards/$dashboardId/edit'
     | '/datasets/$datasetId/edit'
     | '/kpis/$kpiId/edit'
   fileRoutesByTo: FileRoutesByTo
@@ -195,6 +216,7 @@ export interface FileRouteTypes {
     | '/'
     | '/charts/new'
     | '/dashboards/$dashboardId'
+    | '/dashboards/new'
     | '/datasets/new'
     | '/kpis/new'
     | '/embed/dashboards/$dashboardId'
@@ -206,6 +228,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/settings'
     | '/charts/$chartId/edit'
+    | '/dashboards/$dashboardId/edit'
     | '/datasets/$datasetId/edit'
     | '/kpis/$kpiId/edit'
   id:
@@ -214,6 +237,7 @@ export interface FileRouteTypes {
     | '/_app'
     | '/_app/charts/new'
     | '/_app/dashboards/$dashboardId'
+    | '/_app/dashboards/new'
     | '/_app/datasets/new'
     | '/_app/kpis/new'
     | '/embed/dashboards/$dashboardId'
@@ -225,6 +249,7 @@ export interface FileRouteTypes {
     | '/_app/reports/'
     | '/_app/settings/'
     | '/_app/charts/$chartId/edit'
+    | '/_app/dashboards/$dashboardId/edit'
     | '/_app/datasets/$datasetId/edit'
     | '/_app/kpis/$kpiId/edit'
   fileRoutesById: FileRoutesById
@@ -321,6 +346,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDatasetsNewRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/dashboards/new': {
+      id: '/_app/dashboards/new'
+      path: '/dashboards/new'
+      fullPath: '/dashboards/new'
+      preLoaderRoute: typeof AppDashboardsNewRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/dashboards/$dashboardId': {
       id: '/_app/dashboards/$dashboardId'
       path: '/dashboards/$dashboardId'
@@ -349,6 +381,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDatasetsDatasetIdEditRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/dashboards/$dashboardId/edit': {
+      id: '/_app/dashboards/$dashboardId/edit'
+      path: '/edit'
+      fullPath: '/dashboards/$dashboardId/edit'
+      preLoaderRoute: typeof AppDashboardsDashboardIdEditRouteImport
+      parentRoute: typeof AppDashboardsDashboardIdRoute
+    }
     '/_app/charts/$chartId/edit': {
       id: '/_app/charts/$chartId/edit'
       path: '/charts/$chartId/edit'
@@ -359,9 +398,24 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AppDashboardsDashboardIdRouteChildren {
+  AppDashboardsDashboardIdEditRoute: typeof AppDashboardsDashboardIdEditRoute
+}
+
+const AppDashboardsDashboardIdRouteChildren: AppDashboardsDashboardIdRouteChildren =
+  {
+    AppDashboardsDashboardIdEditRoute: AppDashboardsDashboardIdEditRoute,
+  }
+
+const AppDashboardsDashboardIdRouteWithChildren =
+  AppDashboardsDashboardIdRoute._addFileChildren(
+    AppDashboardsDashboardIdRouteChildren,
+  )
+
 interface AppRouteChildren {
   AppChartsNewRoute: typeof AppChartsNewRoute
-  AppDashboardsDashboardIdRoute: typeof AppDashboardsDashboardIdRoute
+  AppDashboardsDashboardIdRoute: typeof AppDashboardsDashboardIdRouteWithChildren
+  AppDashboardsNewRoute: typeof AppDashboardsNewRoute
   AppDatasetsNewRoute: typeof AppDatasetsNewRoute
   AppKpisNewRoute: typeof AppKpisNewRoute
   AppChartsIndexRoute: typeof AppChartsIndexRoute
@@ -378,7 +432,8 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppChartsNewRoute: AppChartsNewRoute,
-  AppDashboardsDashboardIdRoute: AppDashboardsDashboardIdRoute,
+  AppDashboardsDashboardIdRoute: AppDashboardsDashboardIdRouteWithChildren,
+  AppDashboardsNewRoute: AppDashboardsNewRoute,
   AppDatasetsNewRoute: AppDatasetsNewRoute,
   AppKpisNewRoute: AppKpisNewRoute,
   AppChartsIndexRoute: AppChartsIndexRoute,
