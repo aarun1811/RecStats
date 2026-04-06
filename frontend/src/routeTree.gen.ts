@@ -14,6 +14,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings/index'
 import { Route as AppReportsIndexRouteImport } from './routes/_app/reports/index'
 import { Route as AppExplorerIndexRouteImport } from './routes/_app/explorer/index'
+import { Route as AppDatasetsIndexRouteImport } from './routes/_app/datasets/index'
 import { Route as AppDashboardsIndexRouteImport } from './routes/_app/dashboards/index'
 import { Route as EmbedDashboardsDashboardIdRouteImport } from './routes/embed/dashboards/$dashboardId'
 import { Route as AppDashboardsDashboardIdRouteImport } from './routes/_app/dashboards/$dashboardId'
@@ -42,6 +43,11 @@ const AppExplorerIndexRoute = AppExplorerIndexRouteImport.update({
   path: '/explorer/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppDatasetsIndexRoute = AppDatasetsIndexRouteImport.update({
+  id: '/datasets/',
+  path: '/datasets/',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppDashboardsIndexRoute = AppDashboardsIndexRouteImport.update({
   id: '/dashboards/',
   path: '/dashboards/',
@@ -65,6 +71,7 @@ export interface FileRoutesByFullPath {
   '/dashboards/$dashboardId': typeof AppDashboardsDashboardIdRoute
   '/embed/dashboards/$dashboardId': typeof EmbedDashboardsDashboardIdRoute
   '/dashboards/': typeof AppDashboardsIndexRoute
+  '/datasets/': typeof AppDatasetsIndexRoute
   '/explorer/': typeof AppExplorerIndexRoute
   '/reports/': typeof AppReportsIndexRoute
   '/settings/': typeof AppSettingsIndexRoute
@@ -74,6 +81,7 @@ export interface FileRoutesByTo {
   '/dashboards/$dashboardId': typeof AppDashboardsDashboardIdRoute
   '/embed/dashboards/$dashboardId': typeof EmbedDashboardsDashboardIdRoute
   '/dashboards': typeof AppDashboardsIndexRoute
+  '/datasets': typeof AppDatasetsIndexRoute
   '/explorer': typeof AppExplorerIndexRoute
   '/reports': typeof AppReportsIndexRoute
   '/settings': typeof AppSettingsIndexRoute
@@ -85,6 +93,7 @@ export interface FileRoutesById {
   '/_app/dashboards/$dashboardId': typeof AppDashboardsDashboardIdRoute
   '/embed/dashboards/$dashboardId': typeof EmbedDashboardsDashboardIdRoute
   '/_app/dashboards/': typeof AppDashboardsIndexRoute
+  '/_app/datasets/': typeof AppDatasetsIndexRoute
   '/_app/explorer/': typeof AppExplorerIndexRoute
   '/_app/reports/': typeof AppReportsIndexRoute
   '/_app/settings/': typeof AppSettingsIndexRoute
@@ -96,6 +105,7 @@ export interface FileRouteTypes {
     | '/dashboards/$dashboardId'
     | '/embed/dashboards/$dashboardId'
     | '/dashboards/'
+    | '/datasets/'
     | '/explorer/'
     | '/reports/'
     | '/settings/'
@@ -105,6 +115,7 @@ export interface FileRouteTypes {
     | '/dashboards/$dashboardId'
     | '/embed/dashboards/$dashboardId'
     | '/dashboards'
+    | '/datasets'
     | '/explorer'
     | '/reports'
     | '/settings'
@@ -115,6 +126,7 @@ export interface FileRouteTypes {
     | '/_app/dashboards/$dashboardId'
     | '/embed/dashboards/$dashboardId'
     | '/_app/dashboards/'
+    | '/_app/datasets/'
     | '/_app/explorer/'
     | '/_app/reports/'
     | '/_app/settings/'
@@ -163,6 +175,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppExplorerIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/datasets/': {
+      id: '/_app/datasets/'
+      path: '/datasets'
+      fullPath: '/datasets/'
+      preLoaderRoute: typeof AppDatasetsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/dashboards/': {
       id: '/_app/dashboards/'
       path: '/dashboards'
@@ -190,6 +209,7 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppDashboardsDashboardIdRoute: typeof AppDashboardsDashboardIdRoute
   AppDashboardsIndexRoute: typeof AppDashboardsIndexRoute
+  AppDatasetsIndexRoute: typeof AppDatasetsIndexRoute
   AppExplorerIndexRoute: typeof AppExplorerIndexRoute
   AppReportsIndexRoute: typeof AppReportsIndexRoute
   AppSettingsIndexRoute: typeof AppSettingsIndexRoute
@@ -198,6 +218,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppDashboardsDashboardIdRoute: AppDashboardsDashboardIdRoute,
   AppDashboardsIndexRoute: AppDashboardsIndexRoute,
+  AppDatasetsIndexRoute: AppDatasetsIndexRoute,
   AppExplorerIndexRoute: AppExplorerIndexRoute,
   AppReportsIndexRoute: AppReportsIndexRoute,
   AppSettingsIndexRoute: AppSettingsIndexRoute,

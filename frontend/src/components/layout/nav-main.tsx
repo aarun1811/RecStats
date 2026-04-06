@@ -5,6 +5,7 @@ import {
   FileBarChart,
   LayoutDashboard,
   Settings,
+  Table2,
   type LucideIcon,
 } from 'lucide-react'
 import {
@@ -56,6 +57,11 @@ export const navItems: NavGroup[] = [
         title: 'Dashboards',
         href: '/dashboards',
         icon: LayoutDashboard,
+      },
+      {
+        title: 'Datasets',
+        href: '/datasets',
+        icon: Table2,
       },
       {
         title: 'Data Explorer',

@@ -7,6 +7,7 @@ import { SchemaBrowser } from '@/components/explorer/schema-browser'
 import { QueryResults } from '@/components/explorer/query-results'
 import { QueryHistory } from '@/components/explorer/query-history'
 import { ChartBuilderDialog } from '@/components/explorer/chart-builder-dialog'
+import { SaveAsDatasetDialog } from '@/components/explorer/save-as-dataset-dialog'
 import type { SqlResult } from '@/types/api'
 
 export const Route = createFileRoute('/_app/explorer/')({
@@ -20,6 +21,7 @@ function Explorer() {
   const [result, setResult] = useState<SqlResult | null>(null)
   const [executionTime, setExecutionTime] = useState<number | null>(null)
   const [chartOpen, setChartOpen] = useState(false)
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false)
   const [activeTab, setActiveTab] = useState('results')
 
   const executeMutation = useSqlExecute()
@@ -122,6 +124,11 @@ function Explorer() {
                   isLoading={executeMutation.isPending}
                   executionTime={executionTime}
                   onChartIt={handleChartIt}
+                  onSaveAsDataset={
+                    result?.status === 'success'
+                      ? () => setSaveDialogOpen(true)
+                      : undefined
+                  }
                 />
               </TabsContent>
               <TabsContent value="history" className="flex-1 min-h-0 mt-0">
@@ -140,6 +147,16 @@ function Explorer() {
           result={result}
         />
       )}
+
+      {/* Save as Dataset Dialog */}
+      <SaveAsDatasetDialog
+        open={saveDialogOpen}
+        onOpenChange={setSaveDialogOpen}
+        sql={sql}
+        databaseId={1}
+        columns={result?.columns ?? []}
+        rows={result?.data ?? []}
+      />
     </div>
   )
 }

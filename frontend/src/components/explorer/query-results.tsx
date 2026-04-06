@@ -5,7 +5,7 @@ import { useTheme } from '@/components/layout/theme-provider'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Download, Copy, BarChart3, CheckCircle2, XCircle, Clock } from 'lucide-react'
+import { Download, Copy, BarChart3, CheckCircle2, XCircle, Clock, Save } from 'lucide-react'
 import { toast } from 'sonner'
 import type { SqlResult } from '@/types/api'
 
@@ -14,6 +14,7 @@ interface QueryResultsProps {
   isLoading: boolean
   executionTime: number | null
   onChartIt: () => void
+  onSaveAsDataset?: () => void
 }
 
 const DEFAULT_COL_DEF: ColDef = {
@@ -23,7 +24,7 @@ const DEFAULT_COL_DEF: ColDef = {
   minWidth: 80,
 }
 
-export function QueryResults({ result, isLoading, executionTime, onChartIt }: QueryResultsProps) {
+export function QueryResults({ result, isLoading, executionTime, onChartIt, onSaveAsDataset }: QueryResultsProps) {
   const gridRef = useRef<AgGridReact>(null)
   const [gridApi, setGridApi] = useState<GridApi | null>(null)
   const { resolvedTheme } = useTheme()
@@ -132,6 +133,12 @@ export function QueryResults({ result, isLoading, executionTime, onChartIt }: Qu
             <Download className="mr-1 size-3" />
             CSV
           </Button>
+          {onSaveAsDataset && (
+            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={onSaveAsDataset}>
+              <Save className="mr-1 size-3" />
+              Save as Dataset
+            </Button>
+          )}
         </div>
       </div>
       {/* Results grid */}
