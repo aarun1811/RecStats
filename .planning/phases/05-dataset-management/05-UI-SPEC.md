@@ -5,6 +5,7 @@ status: draft
 shadcn_initialized: true
 preset: new-york
 created: 2026-04-06
+revised: 2026-04-06
 ---
 
 # Phase 5 -- UI Design Contract
@@ -55,35 +56,37 @@ Exceptions:
 
 | Role | Size | Weight | Line Height | Tailwind Class |
 |------|------|--------|-------------|----------------|
-| Body | 14px | 400 (regular) | 1.5 | `text-sm` |
-| Label/Caption | 12px | 500 (medium) | 1.4 | `text-xs font-medium` |
-| Section title | 18px | 500 (medium) | 1.2 | `text-lg font-medium` |
+| Body / Caption | 14px / 12px | 400 (regular) | 1.5 / 1.4 | `text-sm` / `text-xs text-muted-foreground` |
+| Label | 12px | 600 (semibold) | 1.4 | `text-xs font-semibold` |
+| Section title | 18px | 600 (semibold) | 1.2 | `text-lg font-semibold` |
 | Page title | 24px | 600 (semibold) | 1.2 | `text-2xl font-semibold tracking-tight` |
+
+**Weights declared: 2 -- 400 (regular) and 600 (semibold).** Size and color provide hierarchy between labels, section titles, and page titles. Weight 500 (medium) is not used.
 
 Phase-specific typography:
 
 | Element | Size | Weight | Class | Rationale |
 |---------|------|--------|-------|-----------|
 | Dataset list page title | 24px | 600 | `text-2xl font-semibold tracking-tight` | Standard page title from CLAUDE.md |
-| Dataset card name | 14px | 500 | `text-sm font-medium truncate` | Matches `data-source-card.tsx` pattern |
+| Dataset card name | 14px | 600 | `text-sm font-semibold truncate` | Card primary identifier, needs emphasis |
 | Dataset card description | 12px | 400 | `text-xs text-muted-foreground` | Secondary info on card |
 | Dataset card metadata (db, cols, updated) | 12px | 400 | `text-xs text-muted-foreground` | Matches data source card metadata |
-| Dataset row name | 14px | 500 | `text-sm font-medium truncate` | Matches `data-source-row.tsx` pattern |
+| Dataset row name | 14px | 600 | `text-sm font-semibold truncate` | Row primary identifier, needs emphasis |
 | Dataset editor page title | 24px | 600 | `text-2xl font-semibold tracking-tight` | Standard page title |
-| SQL Editor toolbar label | 14px | 500 | `text-sm font-medium tracking-tight` | Matches existing `sql-editor.tsx` |
-| Column metadata header | 14px | 500 | `text-sm font-medium` | AG Grid column header default |
+| SQL Editor toolbar label | 14px | 600 | `text-sm font-semibold tracking-tight` | Toolbar section label |
+| Column metadata header | 14px | 600 | `text-sm font-semibold` | AG Grid column header |
 | Column metadata cell | 14px | 400 | `text-sm` | AG Grid cell default |
 | Column name (read-only) | 14px | 400 | `font-mono text-sm` | Monospace for SQL column names |
 | Results preview status bar | 12px | 400 | `text-xs text-muted-foreground` | Matches existing `query-results.tsx` |
 | Format preset example | 12px | 400 | `text-xs text-muted-foreground` | Example value in dropdown: "$1,234.56" |
-| Sync warning badge | 12px | 500 | `text-xs font-medium` | Badge text for sync failure |
+| Sync warning badge | 12px | 600 | `text-xs font-semibold` | Badge text for sync failure |
 | Save as Dataset dialog title | 18px | 600 | `text-lg font-semibold` | Standard Shadcn DialogTitle |
 | Save as Dataset dialog description | 14px | 400 | `text-sm text-muted-foreground` | Standard Shadcn DialogDescription |
 | Keyboard shortcut hint | 12px | 400 | `text-xs text-muted-foreground` | Cmd+Enter hint |
 | Delete blocked explanation | 12px | 400 | `text-xs text-muted-foreground` | Charts referencing this dataset |
-| Diff indicator (missing column) | 12px | 500 | `text-xs font-medium text-destructive` | Red highlight for removed columns |
+| Diff indicator (missing column) | 12px | 600 | `text-xs font-semibold text-destructive` | Red highlight for removed columns |
 
-**Source:** CLAUDE.md Typography rules, existing component patterns from data-sources and explorer
+**Source:** CLAUDE.md Typography rules, existing component patterns from data-sources and explorer. Revision: collapsed from 3 weights (400/500/600) to 2 weights (400/600) per checker Dimension 4 requirement.
 
 ---
 
@@ -94,7 +97,7 @@ Phase-specific typography:
 | Dominant (60%) | `--background` | Page background, editor page background |
 | Secondary (30%) | `--card` / `--muted` | Dataset cards, dataset rows, editor panels, toolbar backgrounds, dialog surfaces |
 | Accent (10%) | `--primary` | "+ New Dataset" button fill, "Save Dataset" button fill, "Run Query" button fill, active tab indicator |
-| Destructive | `--destructive` | Delete button text, missing column highlight, sync failure badge, error message text |
+| Destructive | `--destructive` | "Delete Dataset" button text, missing column highlight, sync failure badge, error message text |
 
 Accent reserved for:
 - Primary action buttons: "+ New Dataset", "Save Dataset", "Run Query"
@@ -174,6 +177,29 @@ Accent reserved for:
 
 ---
 
+## Focal Points
+
+### Dataset List Page
+
+**Focal point:** The dataset card grid (or row list). The toolbar, page title, and card wrapper are all supporting chrome -- the user's eye should land on the first dataset card. This is achieved by:
+- Page title and toolbar are visually subdued (`text-muted-foreground` description, minimal toolbar height)
+- Cards have `bg-card` surface contrast against `bg-background` page
+- Card hover lift (`hover:shadow-md hover:-translate-y-0.5`) provides interactive affordance
+- "+ New Dataset" button uses accent fill, drawing the eye as the primary action when the list is populated
+
+**Empty state focal point:** The `Empty` component centered in the card area with the "Create Dataset" CTA button in accent fill.
+
+### Dataset Editor Page
+
+**Focal point:** The Monaco SQL editor panel. The editor is the largest visual element and the starting point for the dataset creation workflow. This is achieved by:
+- Editor panel has a `border` and `bg-card` container, visually distinct from the page background
+- Fixed height of `h-[250px]` gives it visual mass above the results/metadata split
+- Header row (name, delete, save) is compact (`h-9` toolbar height) to minimize chrome above the editor
+- "Run Query" button sits inside the editor toolbar in accent fill, guiding the user from SQL to execution
+- Results preview and column metadata sit below and are visually secondary until populated
+
+---
+
 ## Interaction Contract
 
 ### Dataset List Page
@@ -207,23 +233,24 @@ Accent reserved for:
 | Toggle "Show formatted" | Click toggle button in results preview toolbar | Results grid re-renders with formatted values applied | <200ms |
 | Save dataset | Click "Save Dataset" button | Dataset saves to RecViz DB, syncs to Superset, toast confirms, navigate to list (create) or stay (edit) | <2s |
 | Save with changed SQL not re-run | Click "Save Dataset" | Button is disabled, banner shows "Run the query before saving" | 0ms (prevented) |
-| Delete dataset | Click delete button in editor header | If no charts reference it: confirmation dialog. If charts reference: blocked dialog listing referencing charts. | <500ms to check references |
+| Delete dataset | Click "Delete Dataset" button in editor header | If no charts reference it: confirmation dialog. If charts reference: blocked dialog listing referencing charts. | <500ms to check references |
 
 ### Explorer "Save as Dataset" Flow
 
 | Interaction | Gesture | Response | Latency Target |
 |-------------|---------|----------|----------------|
 | Click "Save as Dataset" | Click button in results toolbar | Dialog opens with name, description, database (auto-selected from current Explorer DB) fields | <16ms |
-| Enter name and save | Fill name, click "Save" | Dataset created with auto-detected column metadata, dialog closes, toast confirms with link to edit | <2s |
-| Cancel dialog | Click Cancel or press Escape | Dialog closes, no side effects | <16ms |
+| Enter name and save | Fill name, click "Save Dataset" | Dataset created with auto-detected column metadata, dialog closes, toast confirms with link to edit | <2s |
+| Dismiss dialog | Click "Never mind" or press Escape | Dialog closes, no side effects | <16ms |
 
 ### Delete Dataset Flow
 
 | Interaction | Gesture | Response |
 |-------------|---------|----------|
-| Click Delete (no references) | Click delete in editor toolbar | Confirmation dialog: "Delete {name}? This cannot be undone." with Cancel and "Delete Dataset" buttons |
+| Click "Delete Dataset" (no references) | Click "Delete Dataset" in editor toolbar | Confirmation dialog: "Delete {name}? This will permanently remove the dataset and its column metadata. This cannot be undone." with "Keep Dataset" and "Delete Dataset" buttons |
 | Confirm delete | Click "Delete Dataset" in dialog | Dataset deleted, toast confirms, navigate to `/datasets` list |
-| Click Delete (has references) | Click delete in editor toolbar | Blocked dialog: "Cannot delete {name}" with list of referencing charts. Only a "Close" button. |
+| Dismiss delete | Click "Keep Dataset" in dialog | Dialog closes, no side effects |
+| Click "Delete Dataset" (has references) | Click "Delete Dataset" in editor toolbar | Blocked dialog: "Cannot delete {name}" with list of referencing charts. Only a "Close" button. |
 
 ---
 
@@ -267,7 +294,7 @@ Accent reserved for:
 ```
 +----------------------------------+
 | [DB icon]            [sync warn] |  <- icon colored by backend type, sync badge only on error
-| Dataset Name                     |  <- text-sm font-medium truncate
+| Dataset Name                     |  <- text-sm font-semibold truncate
 | Short description text...        |  <- text-xs text-muted-foreground line-clamp-2
 | Oracle . 12 columns              |  <- text-xs text-muted-foreground
 | Updated 2 hours ago              |  <- text-xs text-muted-foreground
@@ -279,7 +306,7 @@ Accent reserved for:
 - Top row: `flex items-start justify-between` -- DB icon (left), sync badge (right, only on error per D-29)
 - DB icon: `Database` from lucide-react, `size-8`, colored by backend type (reuse BACKEND_COLORS from data-source-card.tsx)
 - Sync warning: `Badge variant="outline"` with amber color, only shown when `sync_status !== 'synced'`
-- Name: `text-sm font-medium truncate`
+- Name: `text-sm font-semibold truncate`
 - Description: `text-xs text-muted-foreground line-clamp-2` (2-line clamp)
 - Metadata line: `text-xs text-muted-foreground` -- "{Backend Label} . {N} columns"
 - Updated: `text-xs text-muted-foreground` -- relative time using date-fns `formatDistanceToNow`
@@ -323,7 +350,7 @@ Accent reserved for:
 
 ```
 +----------------------------------------------------------------------+
-| [<- Back] Dataset Name Input     [Delete] [Save Dataset]             |
+| [<- Back] Dataset Name Input     [Delete Dataset] [Save Dataset]     |
 +----------------------------------------------------------------------+
 | [Database: recon_prod v]  [Description input.....................]    |
 +----------------------------------------------------------------------+
@@ -357,8 +384,8 @@ Accent reserved for:
 ### Editor Page Header
 
 - Back button: `Button variant="ghost" size="sm"` with `ArrowLeft` icon, navigates to `/datasets`
-- Name input: `Input` with `text-lg font-medium` styling, no label (inline editing, placeholder "Untitled Dataset")
-- Delete button: `Button variant="ghost" size="sm"` with `Trash2` icon, `text-destructive` -- only visible when editing existing dataset
+- Name input: `Input` with `text-lg font-semibold` styling, no label (inline editing, placeholder "Untitled Dataset")
+- Delete button: `Button variant="ghost" size="sm"` with `Trash2` icon + "Delete Dataset" text, `text-destructive` -- only visible when editing existing dataset
 - Save button: `Button size="sm"` with `Save` icon, disabled when SQL changed but not re-run (D-05)
 
 ### Editor Page Metadata Row
@@ -479,7 +506,7 @@ Dropdown with preset options showing example formatted values:
 | Refine in the dataset editor after saving.   |
 |                                              |
 +----------------------------------------------+
-| [Cancel]                    [Save Dataset]    |
+| [Never mind]                [Save Dataset]    |
 +----------------------------------------------+
 ```
 
@@ -488,7 +515,7 @@ Dropdown with preset options showing example formatted values:
 - Description field: `Textarea` with 2 rows, optional
 - Database field: `Select` dropdown, auto-populated from Explorer's current database context (D-03)
 - Info line: `text-xs text-muted-foreground` showing detected column count and auto-detection message
-- Footer: Cancel (outline) + Save Dataset (primary, disabled until name is filled)
+- Footer: "Never mind" (outline) + "Save Dataset" (primary, disabled until name is filled)
 
 **Source:** CONTEXT.md D-01 (two entry points), D-02 (quick save captures minimal info), D-03 (database auto-selected from Explorer)
 
@@ -552,10 +579,11 @@ Updated navItems Navigation group order:
 | Save success toast (edit) | `Dataset "{name}" updated` |
 | Save failure toast | `Failed to save dataset. Please try again.` |
 | Sync failure toast | `Dataset saved locally but Superset sync failed. Will retry automatically.` |
-| Delete button | `Delete` |
+| Delete button | `Delete Dataset` |
 | Delete confirm title (allowed) | `Delete "{name}"?` |
 | Delete confirm body (allowed) | `This will permanently remove the dataset and its column metadata. This cannot be undone.` |
 | Delete confirm CTA | `Delete Dataset` |
+| Delete confirm dismiss | `Keep Dataset` |
 | Delete blocked title | `Cannot delete "{name}"` |
 | Delete blocked body | `This dataset is referenced by the following charts. Remove chart references first:` |
 | Delete blocked CTA | `Close` |
@@ -567,7 +595,7 @@ Updated navItems Navigation group order:
 | Save as Dataset description label | `Description` |
 | Save as Dataset database label | `Database` |
 | Save as Dataset info | `{N} columns detected. Column metadata will be auto-detected. Refine in the dataset editor after saving.` |
-| Save as Dataset cancel | `Cancel` |
+| Save as Dataset dismiss | `Never mind` |
 | Save as Dataset CTA | `Save Dataset` |
 | Save as Dataset success toast | `Dataset "{name}" created` (with "Edit" action link) |
 | Back button tooltip | `Back to datasets` |
@@ -755,6 +783,15 @@ import { Table2 } from 'lucide-react'
 No third-party registries used in this phase. All components are either existing Shadcn/ui primitives already installed in the project or custom domain components built by composing those primitives. AG Grid Enterprise (already in the project) is used for the column metadata inline editor and results preview grid.
 
 **Source:** `frontend/components.json` `registries: {}`
+
+---
+
+## Revision Log
+
+| Date | Changes | Trigger |
+|------|---------|---------|
+| 2026-04-06 | Initial draft | gsd-ui-researcher |
+| 2026-04-06 | (1) Collapsed typography from 3 weights to 2: dropped 500/medium, all labels/section titles now use 600/semibold, body/captions use 400/regular. (2) Replaced "Cancel" with "Never mind" on Save as Dataset dialog and "Keep Dataset" on Delete confirmation dialog. (3) Changed "Delete" button to "Delete Dataset" in editor toolbar. (4) Added Focal Points section for Dataset List and Dataset Editor pages. | gsd-ui-checker revision |
 
 ---
 
