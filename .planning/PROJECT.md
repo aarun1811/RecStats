@@ -28,11 +28,11 @@ Business users can view, interact with, and customize dashboards over reconcilia
 - ✓ Oracle database connectivity via Superset (python-oracledb thin mode, cx_Oracle aliasing) — Phase 4
 - ✓ Hive database connectivity via Superset (PyHive driver) — Phase 4
 - ✓ Connection management UI with dynamic forms, test-before-save, status tracking — Phase 4
+- ✓ Dataset management UI — dev team creates, edits, and manages datasets (SQL → named dataset → column metadata) — Phase 5
 
 ### Active
 
 - [ ] Dashboard builder UI — business users create/edit dashboards from datasets
-- [ ] Dataset management UI — dev team creates, edits, and manages datasets (SQL → named dataset → column metadata)
 - [ ] Chart builder — pick dataset, choose columns for axes/metrics, select chart type, configure appearance
 - [ ] Dashboard layout editor — arrange charts, KPIs, filters on a canvas; resize and reposition
 - [ ] Cross-filtering — click a chart segment to filter all other charts on the dashboard (client-side, zero network calls)
@@ -113,4 +113,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-05 after Phase 4 completion*
+*Last updated: 2026-04-06 after Phase 5 completion*
