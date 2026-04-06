@@ -60,14 +60,14 @@ export const navItems: NavGroup[] = [
         icon: LayoutDashboard,
       },
       {
-        title: 'Datasets',
-        href: '/datasets',
-        icon: Table2,
-      },
-      {
         title: 'Charts',
         href: '/charts',
         icon: PieChart,
+      },
+      {
+        title: 'Datasets',
+        href: '/datasets',
+        icon: Table2,
       },
       {
         title: 'Data Explorer',
