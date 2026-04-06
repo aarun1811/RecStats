@@ -132,6 +132,26 @@ class SupersetClient:
         data = await self._get(f"/api/v1/dataset/{dataset_id}")
         return data.get("result", {})
 
+    async def create_dataset(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Create a virtual dataset in Superset.
+
+        Payload must use "database" key (not "database_id") for POST.
+        """
+        data = await self._post("/api/v1/dataset/", json=payload)
+        return data.get("result", data)
+
+    async def update_dataset(self, dataset_id: int, payload: dict[str, Any]) -> dict[str, Any]:
+        """Update a virtual dataset in Superset.
+
+        Payload must use "database_id" key (not "database") for PUT.
+        """
+        data = await self._request("PUT", f"/api/v1/dataset/{dataset_id}", json=payload)
+        return data.get("result", data)
+
+    async def delete_dataset(self, dataset_id: int) -> None:
+        """Delete a virtual dataset from Superset."""
+        await self._request("DELETE", f"/api/v1/dataset/{dataset_id}")
+
     # ── SQL Lab ──────────────────────────────────────────────────
 
     async def execute_sql(
