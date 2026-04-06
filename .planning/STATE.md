@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 08-01-PLAN.md
-last_updated: "2026-04-06T21:02:14.630Z"
+stopped_at: Completed 08-02-PLAN.md
+last_updated: "2026-04-06T21:06:01.194Z"
 last_activity: 2026-04-06
 progress:
   total_phases: 10
   completed_phases: 8
   total_plans: 34
-  completed_plans: 25
-  percent: 74
+  completed_plans: 26
+  percent: 76
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 ## Current Position
 
 Phase: 08 (Dashboard Builder) — EXECUTING
-Plan: 2 of 10
+Plan: 3 of 10
 Next: Phase 07 (kpi-library) — not started
 Status: Ready to execute
 Last activity: 2026-04-06
@@ -80,6 +80,7 @@ Progress: [██████████] 100%
 | Phase 07 P02 | 5min | 2 tasks | 10 files |
 | Phase 07 P03 | 4min | 2 tasks | 7 files |
 | Phase 08 P01 | 2min | 2 tasks | 5 files |
+| Phase 08 P02 | 2min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -152,6 +153,8 @@ Recent decisions affecting current work:
 - [Phase 07]: DeleteKpiDialog rendered as sibling to Sheet (not nested) to avoid z-index stacking -- matches chart library pattern
 - [Phase 08]: Dashboard config stored as untyped dict in Pydantic -- DashboardConfig shape evolves with builder features
 - [Phase 08]: managed_dashboards_router registered before dashboards_router to prevent path collision on /api/dashboards/:id
+- [Phase 08]: initFromConfig maps DashboardChartConfig to BuilderChartRef using first source's dataSourceId
+- [Phase 08]: Layout history stores ChartLayout[][] snapshots with separate canUndo/canRedo flags for derived state
 
 ### Roadmap Evolution
 
@@ -169,6 +172,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-06T21:02:14.628Z
-Stopped at: Completed 08-01-PLAN.md
+Last session: 2026-04-06T21:06:01.192Z
+Stopped at: Completed 08-02-PLAN.md
 Resume file: None
