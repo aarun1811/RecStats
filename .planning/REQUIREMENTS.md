@@ -47,7 +47,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **BLDR-05**: User can add KPI cards from the KPI library to the dashboard
 - [x] **BLDR-06**: View mode vs edit mode toggle — view mode is the consumer experience, edit mode enables drag/resize/configure
 - [x] **BLDR-07**: Dashboards persist to database with save, "Save As" (clone), and delete
-- [ ] **BLDR-08**: Dashboard list page with search, showing title, description, last modified, creator
+- [x] **BLDR-08**: Dashboard list page with search, showing title, description, last modified, creator
 
 ### Dashboard Interactions
 
@@ -169,7 +169,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BLDR-05 | Phase 8: Dashboard Builder | Complete |
 | BLDR-06 | Phase 8: Dashboard Builder | Complete |
 | BLDR-07 | Phase 8: Dashboard Builder | Complete |
-| BLDR-08 | Phase 8: Dashboard Builder | Pending |
+| BLDR-08 | Phase 8: Dashboard Builder | Complete |
 | SHAR-01 | Phase 9: Sharing and Views | Pending |
 | SHAR-02 | Phase 9: Sharing and Views | Pending |
 | SHAR-03 | Phase 9: Sharing and Views | Pending |
