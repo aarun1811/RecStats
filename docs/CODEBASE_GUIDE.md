@@ -60,7 +60,7 @@ Browser
 Built first. Uses hardcoded chart IDs, Superset datasource IDs, and a fixed `GlobalFilters` type with specific field names (region, desk, status, etc.).
 
 **Backend routes:** `/api/charts/*`, `/api/custom/kpi`, `/api/datasets/*`
-**Frontend components:** `filter-bar.tsx`, `kpi-row.tsx`, `kpi-card.tsx`, `chart-grid.tsx`, `chart-panel.tsx`, `cross-filter-bar.tsx`, `drill-breadcrumb.tsx`, `data-grid.tsx` (in `grid/`), `grid-toolbar.tsx`, cell renderers
+**Frontend components:** `cross-filter-bar.tsx`, `drill-breadcrumb.tsx`, `grid-toolbar.tsx` (in `dashboard/`), cell renderers (in `grid/cell-renderers/`). Note: 6 legacy components have been removed (`filter-bar.tsx`, `kpi-row.tsx`, `kpi-card.tsx`, `chart-grid.tsx`, `chart-panel.tsx`, `data-grid.tsx`).
 **Frontend hooks:** `use-chart-data.ts`, `use-kpi-data.ts`, `use-breaks-data.ts`, `use-prefetch.ts`
 
 **Status:** These components are NOT wired to any route. They reference a defunct filter store shape (`globalFilters`, `updateGlobalFilter`) that no longer exists in the store. They would crash at runtime. However, they contain valuable logic for cross-filtering and drill-down that the config-driven system lacks.
@@ -159,15 +159,9 @@ __root.tsx              → ThemeProvider + QueryClientProvider + Toaster + Reac
 
 | File | Purpose | Status |
 |------|---------|--------|
-| `components/dashboard/filter-bar.tsx` | Hardcoded filters (region, desk, status, date). | **BROKEN** — references `globalFilters`/`updateGlobalFilter` which don't exist in current store |
-| `components/dashboard/kpi-row.tsx` | 4 fixed KPI cards with trends. | **BROKEN** — references `useFilterStore((s) => s.globalFilters)` |
-| `components/dashboard/kpi-card.tsx` | Individual KPI card with CountAnimation. | Working component, reusable |
-| `components/dashboard/chart-grid.tsx` | 6 hardcoded charts with cross-filter + drill-down. | **BROKEN store refs**, but has cross-filter/drill logic |
-| `components/dashboard/chart-panel.tsx` | Chart card wrapper with toolbar (refresh, fullscreen, export PNG/CSV/clipboard). | Working component, reusable |
 | `components/dashboard/cross-filter-bar.tsx` | Active cross-filter badges with remove buttons. | Working, depends on filter store's crossFilters |
 | `components/dashboard/drill-breadcrumb.tsx` | Animated breadcrumb trail for drill navigation. | Working, depends on drill store |
-| `components/grid/data-grid.tsx` | AG Grid with cross-filter external filtering. | **BROKEN store refs** |
-| `components/grid/grid-toolbar.tsx` | Grid toolbar with export, column toggle, quick filter. | Working component |
+| `components/dashboard/grid-toolbar.tsx` | Grid toolbar with export, column toggle, quick filter. | Working component |
 | `components/grid/cell-renderers/status-cell.tsx` | Colored badge for status values. | Working component |
 | `components/grid/cell-renderers/amount-cell.tsx` | Currency-formatted number cell. | Working component |
 | `components/grid/cell-renderers/sla-cell.tsx` | SLA indicator (check/X icon). | Working component |
@@ -242,7 +236,7 @@ __root.tsx              → ThemeProvider + QueryClientProvider + Toaster + Reac
 | `use-breaks-data.ts` | `useQuery` for `POST /api/datasets/breaks/data` with legacy GlobalFilters | **Legacy only** |
 | `use-filter-options.ts` | Dynamic filter options with cascading dependency support | `ConfigFilterBar` |
 | `use-cross-filter.ts` | Reads `crossFilters` from store, returns `appliedCrossFilters` + `isCrossFilterActive` helpers | Legacy `ChartGrid`, `DataGrid` |
-| `use-drill-down.ts` | Complex hook: `applyDrillFilters()` filters + re-aggregates data by drill levels. `isMetricColumn()` heuristic. `reaggregateByField()` groups + sums. `isDrillDetailMode(depth >= 3)`. | Legacy `ChartGrid` |
+| `use-drill-down.ts` | Per-chart drill-down hook with config-defined hierarchy. `applyDrillFilters()` filters + re-aggregates data by drill levels. `reaggregateByField()` groups + sums metric columns (accepts optional `metricColumns` from config, falls back to numeric-type heuristic). | Config-driven drill-down |
 | `use-sql-execute.ts` | `useMutation` for `POST /api/sql/execute` | Explorer page |
 | `use-sql-history.ts` | `useQuery` for `GET /api/sql/history` | Explorer query history panel |
 | `use-datasets.ts` | `useQuery` for `GET /api/datasets` | Schema browser |
@@ -381,11 +375,11 @@ Full CRUD for database connections. Uses `uri_builder.build_sqlalchemy_uri()` to
 
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
-| `/api/sql/execute` | POST | Execute arbitrary SQL (via Superset or mock regex parser) |
+| `/api/sql/execute` | POST | Execute arbitrary SQL via Superset (returns 503 if Superset unavailable) |
 | `/api/sql/history` | GET | Last 50 query executions (in-memory) |
 | `/api/sql/databases` | GET | Available databases |
 
-The mock SQL executor (`_mock_execute()`) uses regex to parse `SELECT ... FROM ... WHERE ... LIMIT`. Only handles simple patterns — no GROUP BY, ORDER BY, JOINs, or subqueries.
+When Superset is unavailable, the endpoint returns HTTP 503 with a `superset_unavailable` error and a `retry_after` hint. There is no mock SQL fallback.
 
 #### `/api/search` — `backend/app/api/search.py`
 
@@ -421,7 +415,7 @@ Async HTTP client wrapping Superset's REST API v1.
 
 **Authentication:**
 - `authenticate()` → POST `/api/v1/security/login` with username/password → stores JWT
-- `_get_csrf_token()` → GET `/api/v1/security/csrf_token/` → stores CSRF token
+- `authenticate()` also fetches CSRF token inline → GET `/api/v1/security/csrf_token/` → stores CSRF token
 - Auto-refreshes token after 25 minutes (Superset default expiry: 30 min)
 - Auto-retries on 401 (re-authenticates + retries once)
 
@@ -654,7 +648,7 @@ User types SQL in Monaco editor
   → useSqlExecute() mutation fires
     → POST /api/sql/execute {sql, database_id, limit}
     → If Superset available: superset_client.execute_sql()
-    → If not: _mock_execute() regex parser
+    → If not: returns 503 (superset_unavailable)
   → QueryResults AG Grid renders columns + rows
   → Query added to in-memory history
   → User clicks "Chart It" → ChartBuilderDialog opens
@@ -694,7 +688,7 @@ External app renders iframe: /embed/dashboards/tlm-stats?filter.tlm_instance=TLM
 
 | # | Issue | Impact | Where |
 |---|-------|--------|-------|
-| 5 | **Legacy components reference defunct store shape** | Would crash at runtime if imported. Dead code confusion. | `filter-bar.tsx`, `kpi-row.tsx`, `chart-grid.tsx`, `data-grid.tsx` |
+| 5 | **Legacy components removed** | 6 legacy components (`filter-bar.tsx`, `kpi-row.tsx`, `kpi-card.tsx`, `chart-grid.tsx`, `chart-panel.tsx`, `data-grid.tsx`) have been deleted from the codebase. | Previously in `components/dashboard/` and `components/grid/` |
 | 6 | **Two `DashboardConfig` types** | Confusing — which one to use? | `models/dashboard.py` vs `models/dashboard_config.py` |
 | 7 | **Reports page is all mock data** | No functional buttons, no backend support | `routes/_app/reports/index.tsx` |
 | 8 | **Silent exception swallowing in backend** | `try/except Exception: pass` everywhere — debugging nightmare | Most API route handlers |
@@ -766,14 +760,14 @@ frontend/src/
 │   │   ├── config-kpi-row.tsx                  # KPI cards from config
 │   │   ├── config-chart-grid.tsx               # Charts from config
 │   │   ├── config-data-grid.tsx                # AG Grid tables from config
-│   │   ├── filter-bar.tsx                      # LEGACY — broken store refs
-│   │   ├── kpi-row.tsx                         # LEGACY — broken store refs
-│   │   ├── kpi-card.tsx                        # LEGACY — reusable component
-│   │   ├── chart-grid.tsx                      # LEGACY — has cross-filter logic
-│   │   ├── chart-panel.tsx                     # LEGACY — has export/fullscreen
-│   │   ├── cross-filter-bar.tsx                # LEGACY — filter badges
-│   │   ├── drill-breadcrumb.tsx                # LEGACY — drill navigation
-│   │   └── chart-grid.tsx                      # LEGACY — 6 hardcoded charts
+│   │   ├── auto-refresh-control.tsx            # Auto-refresh toggle with interval control
+│   │   ├── chart-fullscreen-dialog.tsx          # Fullscreen chart dialog
+│   │   ├── chart-toolbar.tsx                    # Per-chart toolbar (export, fullscreen, refresh)
+│   │   ├── cross-filter-bar.tsx                 # Cross-filter badges with remove buttons
+│   │   ├── dashboard-toolbar.tsx                # Dashboard-level toolbar (auto-refresh, export)
+│   │   ├── drill-breadcrumb.tsx                 # Drill navigation breadcrumbs
+│   │   ├── drill-detail-grid.tsx                # Detail-level drill-down AG Grid
+│   │   └── grid-toolbar.tsx                     # Grid toolbar with export, column toggle, quick filter
 │   ├── charts/
 │   │   ├── chart-factory.tsx                   # Routes vizType → AG or ECharts
 │   │   ├── ag-chart-wrapper.tsx                # AG Charts rendering
@@ -785,8 +779,6 @@ frontend/src/
 │   │   ├── query-history.tsx                   # Timeline of past queries
 │   │   └── chart-builder-dialog.tsx            # Quick viz from query results
 │   ├── grid/
-│   │   ├── data-grid.tsx                       # LEGACY AG Grid with cross-filter
-│   │   ├── grid-toolbar.tsx                    # LEGACY toolbar
 │   │   └── cell-renderers/
 │   │       ├── status-cell.tsx                 # Reusable status badge
 │   │       ├── amount-cell.tsx                 # Reusable currency format
@@ -870,7 +862,7 @@ backend/
 │   │   ├── custom.py                           # Legacy: KPI aggregations, counterparties
 │   │   ├── datasets.py                         # Legacy: dataset list + paginated data
 │   │   ├── databases.py                        # Database CRUD (proxies to Superset)
-│   │   ├── sql.py                              # SQL execution + mock parser + history
+│   │   ├── sql.py                              # SQL execution (Superset only) + history
 │   │   ├── search.py                           # Substring search
 │   │   ├── export.py                           # STUBBED: PDF/Excel export
 │   │   ├── views.py                            # Saved views (in-memory)
