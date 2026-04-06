@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react'
 import { AgGridReact } from 'ag-grid-react'
-import type { ColDef, CellValueChangedEvent, ICellRendererParams } from 'ag-grid-community'
+import { type ColDef, type CellValueChangedEvent, type ICellRendererParams, themeQuartz, colorSchemeDark } from 'ag-grid-community'
 import { X } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -68,7 +68,7 @@ function NameCellRenderer(
 
 export function ColumnMetadataGrid({ columns, onChange }: ColumnMetadataGridProps) {
   const { resolvedTheme } = useTheme()
-  const themeClass = resolvedTheme === 'dark' ? 'ag-theme-quartz-dark' : 'ag-theme-quartz'
+  const gridTheme = resolvedTheme === 'dark' ? themeQuartz.withPart(colorSchemeDark) : themeQuartz
 
   const handleDismissMissing = useCallback(
     (name: string) => {
@@ -191,9 +191,10 @@ export function ColumnMetadataGrid({ columns, onChange }: ColumnMetadataGridProp
 
   return (
     <div
-      className={cn(themeClass, useAutoHeight ? 'w-full' : 'w-full h-full')}
+      className={cn(useAutoHeight ? 'w-full' : 'w-full h-full')}
     >
       <AgGridReact<MergedColumn>
+        theme={gridTheme}
         rowData={columns}
         columnDefs={columnDefs}
         defaultColDef={defaultColDef}

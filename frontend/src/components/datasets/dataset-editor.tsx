@@ -32,7 +32,7 @@ import type { RecvizDataset, DatasetColumnMeta } from '@/types/managed-dataset'
 import type { SqlResult } from '@/types/api'
 import { useTheme } from '@/components/layout/theme-provider'
 import { AgGridReact } from 'ag-grid-react'
-import type { ColDef } from 'ag-grid-community'
+import { type ColDef, themeQuartz, colorSchemeDark } from 'ag-grid-community'
 
 interface DatasetEditorProps {
   mode: 'create' | 'edit'
@@ -212,8 +212,7 @@ export function DatasetEditor({ mode, dataset, isLoading }: DatasetEditorProps) 
     [queryResult?.data],
   )
 
-  const resultThemeClass =
-    resolvedTheme === 'dark' ? 'ag-theme-quartz-dark' : 'ag-theme-quartz'
+  const gridTheme = resolvedTheme === 'dark' ? themeQuartz.withPart(colorSchemeDark) : themeQuartz
 
   if (isLoading) {
     return (
@@ -349,8 +348,9 @@ export function DatasetEditor({ mode, dataset, isLoading }: DatasetEditorProps) 
               </pre>
             </div>
           ) : queryResult?.status === 'success' ? (
-            <div className={`flex-1 min-h-0 ${resultThemeClass}`}>
+            <div className="flex-1 min-h-0">
               <AgGridReact
+                theme={gridTheme}
                 rowData={resultRowData}
                 columnDefs={resultColumnDefs}
                 defaultColDef={{
