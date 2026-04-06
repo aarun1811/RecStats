@@ -83,28 +83,28 @@ export function KpiLibraryCard({
       }}
     >
       {/* Hero area — KPI value display */}
-      <div className="relative h-[180px] flex flex-col items-center justify-center gap-2">
+      <div className="relative h-[100px] flex flex-col items-center justify-center gap-1">
         {isLoading ? (
-          <Skeleton className="h-10 w-32 rounded" />
+          <Skeleton className="h-8 w-28 rounded" />
         ) : (
           <>
-            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
               {kpi.aggregation}
             </p>
             <CountAnimation
               number={computedValue}
               formatOptions={formatOptions}
               duration={0.8}
-              className={cn('text-4xl font-bold tabular-nums tracking-tight', thresholdColor)}
+              className={cn('text-2xl font-bold tabular-nums tracking-tight', thresholdColor)}
             />
             {trendText && (
-              <p className="text-xs text-muted-foreground">{trendText}</p>
+              <p className="text-[11px] text-muted-foreground">{trendText}</p>
             )}
           </>
         )}
 
-        {/* KPI type pill — top right, matching chart type pill */}
-        <div className="absolute top-2.5 right-2.5 z-10 flex items-center gap-1 rounded-full bg-background/80 px-2 py-0.5 text-[10px] font-medium text-muted-foreground backdrop-blur-sm border border-border/50">
+        {/* KPI type pill — top right */}
+        <div className="absolute top-2 right-2 z-10 flex items-center gap-1 rounded-full bg-background/80 px-2 py-0.5 text-[10px] font-medium text-muted-foreground backdrop-blur-sm border border-border/50">
           <Gauge size={10} />
           KPI
         </div>
