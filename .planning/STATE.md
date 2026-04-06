@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 5 UI-SPEC approved
-last_updated: "2026-04-06T02:11:13.742Z"
-last_activity: 2026-04-06 -- Phase 5 planning complete
+stopped_at: Completed 05-01-PLAN.md
+last_updated: "2026-04-06T05:09:54.475Z"
+last_activity: 2026-04-06
 progress:
   total_phases: 10
   completed_phases: 5
   total_plans: 18
-  completed_plans: 15
-  percent: 83
+  completed_plans: 16
+  percent: 89
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-04)
 
 **Core value:** Business users can view, interact with, and customize dashboards over reconciliation data without depending on another team.
-**Current focus:** Phase 04 — Data Source Connectivity
+**Current focus:** Phase 05 — dataset-management
 
 ## Current Position
 
-Phase: 5
-Plan: Not started
+Phase: 05 (dataset-management) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
-Last activity: 2026-04-06 -- Phase 5 planning complete
+Last activity: 2026-04-06
 
 Progress: [██████████] 100%
 
@@ -67,6 +67,7 @@ Progress: [██████████] 100%
 | Phase 04 P01 | 4min | 2 tasks | 11 files |
 | Phase 04 P02 | 3min | 2 tasks | 4 files |
 | Phase 04 P03 | 2min | 2 tasks | 0 files |
+| Phase 05 P01 | 7min | 2 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -116,6 +117,10 @@ Recent decisions affecting current work:
 - [Phase 04]: QueryEngine inspects HTTP 400 response bodies for connection failure patterns (Oracle TNS, Hive Thrift)
 - [Phase 04]: StatusDot replaces Badge for connection status -- colored dots are cleaner and more information-dense
 - [Phase 04]: formValues as single Record<string, string> instead of individual useState per field for dynamic form rendering
+- [Phase 05]: Python-side datetime defaults on RecvizDataset for reliable object construction before DB flush
+- [Phase 05]: Superset POST uses 'database' key, PUT uses 'database_id' key per API asymmetry
+- [Phase 05]: recviz__{uuid} table_name format for Superset virtual dataset uniqueness
+- [Phase 05]: Sync failure saves dataset with sync_status='error' rather than failing the request (D-20 resilience)
 
 ### Roadmap Evolution
 
@@ -133,6 +138,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-06T01:39:49.319Z
-Stopped at: Phase 5 UI-SPEC approved
-Resume file: .planning/phases/05-dataset-management/05-UI-SPEC.md
+Last session: 2026-04-06T05:09:54.473Z
+Stopped at: Completed 05-01-PLAN.md
+Resume file: None

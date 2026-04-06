@@ -126,7 +126,7 @@ Plans:
 **UI hint**: yes
 
 Plans:
-- [ ] 05-01-PLAN.md -- Backend CRUD + Superset sync: SQLAlchemy model, Alembic migration, Pydantic schemas, API endpoints, DatasetSyncService
+- [x] 05-01-PLAN.md -- Backend CRUD + Superset sync: SQLAlchemy model, Alembic migration, Pydantic schemas, API endpoints, DatasetSyncService
 - [ ] 05-02-PLAN.md -- Frontend foundation: TypeScript types, CRUD hooks, column detection/merge utilities, dataset list page, sidebar nav, Explorer save-as-dataset dialog
 - [ ] 05-03-PLAN.md -- Dataset editor: Monaco SQL editor, AG Grid column metadata, format presets, SQL re-run enforcement, delete dialog, end-to-end verification
 
