@@ -160,8 +160,13 @@ async def delete_managed_dataset(
     if dataset is None:
         raise HTTPException(status_code=404, detail="Dataset not found")
 
-    # Check for referencing charts (Phase 6 will populate this)
-    referencing_charts: list[dict] = []
+    # Check for referencing charts
+    from app.db.models.chart import RecvizChart
+
+    chart_stmt = select(RecvizChart).where(RecvizChart.dataset_id == dataset_id)
+    chart_result = await session.execute(chart_stmt)
+    referencing_charts_list = chart_result.scalars().all()
+    referencing_charts = [{"id": c.id, "name": c.name} for c in referencing_charts_list]
     if referencing_charts:
         raise HTTPException(
             status_code=409,
@@ -191,5 +196,12 @@ async def get_dataset_references(dataset_id: str, session: DbSessionDep):
     if dataset is None:
         raise HTTPException(status_code=404, detail="Dataset not found")
 
-    # Placeholder: Phase 6 will add real chart reference checks
-    return DatasetDeleteCheck(can_delete=True, referencing_charts=[])
+    # Check for referencing charts
+    from app.db.models.chart import RecvizChart
+    from app.models.managed_dataset import ReferencingChart
+
+    chart_stmt = select(RecvizChart).where(RecvizChart.dataset_id == dataset_id)
+    chart_result = await session.execute(chart_stmt)
+    referencing_charts_list = chart_result.scalars().all()
+    refs = [ReferencingChart(id=c.id, name=c.name) for c in referencing_charts_list]
+    return DatasetDeleteCheck(can_delete=len(refs) == 0, referencing_charts=refs)
