@@ -138,7 +138,7 @@ class SupersetClient:
         Payload must use "database" key (not "database_id") for POST.
         """
         data = await self._post("/api/v1/dataset/", json=payload)
-        return data.get("result", data)
+        return data
 
     async def update_dataset(self, dataset_id: int, payload: dict[str, Any]) -> dict[str, Any]:
         """Update a virtual dataset in Superset.
