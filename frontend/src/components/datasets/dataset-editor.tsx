@@ -90,16 +90,18 @@ export function DatasetEditor({ mode, dataset, isLoading }: DatasetEditorProps) 
           setQueryResult(result)
           setLastRunSql(sql)
 
+          const colNames = result.columns.map((c) => c.column_name ?? c.name)
+
           if (columns.length === 0) {
             // First run: auto-detect columns
-            const detected = autoDetectColumns(result.columns, result.data)
+            const detected = autoDetectColumns(colNames, result.data)
             setColumns(detected.map((c) => ({ ...c, status: 'unchanged' as const })))
           } else {
             // Subsequent run: merge columns
             const existingCols: DatasetColumnMeta[] = columns
               .filter((c) => c.status !== 'missing')
               .map(({ status: _status, ...rest }) => rest)
-            const detected = autoDetectColumns(result.columns, result.data)
+            const detected = autoDetectColumns(colNames, result.data)
             setColumns(mergeColumns(existingCols, detected))
           }
         },
@@ -198,8 +200,8 @@ export function DatasetEditor({ mode, dataset, isLoading }: DatasetEditorProps) 
   const resultColumnDefs = useMemo<ColDef[]>(() => {
     if (!queryResult?.columns) return []
     return queryResult.columns.map((col) => ({
-      field: col,
-      headerName: col,
+      field: col.column_name ?? col.name,
+      headerName: col.column_name ?? col.name,
       flex: 1,
       minWidth: 100,
     }))

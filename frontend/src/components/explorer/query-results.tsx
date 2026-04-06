@@ -31,15 +31,20 @@ export function QueryResults({ result, isLoading, executionTime, onChartIt, onSa
 
   const themeClass = resolvedTheme === 'dark' ? 'ag-theme-quartz-dark' : 'ag-theme-quartz'
 
+  const columnNames = useMemo(
+    () => result?.columns?.map((col) => typeof col === 'string' ? col : col.column_name ?? col.name) ?? [],
+    [result?.columns],
+  )
+
   const columnDefs = useMemo<ColDef[]>(() => {
-    if (!result?.columns) return []
-    return result.columns.map((col) => ({
-      field: col,
-      headerName: col,
+    if (!columnNames.length) return []
+    return columnNames.map((name) => ({
+      field: name,
+      headerName: name,
       flex: 1,
       minWidth: 100,
     }))
-  }, [result?.columns])
+  }, [columnNames])
 
   const rowData = useMemo(() => result?.data ?? [], [result?.data])
 
@@ -54,9 +59,9 @@ export function QueryResults({ result, isLoading, executionTime, onChartIt, onSa
 
   const handleCopy = () => {
     if (!result?.data?.length) return
-    const header = result.columns.join('\t')
+    const header = columnNames.join('\t')
     const rows = result.data.map((row) =>
-      result.columns.map((col) => String(row[col] ?? '')).join('\t'),
+      columnNames.map((col) => String(row[col] ?? '')).join('\t'),
     )
     const tsv = [header, ...rows].join('\n')
     navigator.clipboard.writeText(tsv)

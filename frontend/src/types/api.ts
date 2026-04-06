@@ -21,9 +21,17 @@ export interface KpiData {
   breakAmount: number
 }
 
+export interface SqlColumnInfo {
+  column_name: string
+  name: string
+  type: string
+  type_generic?: number
+  is_dttm?: boolean
+}
+
 export interface SqlResult {
   status: 'success' | 'error'
-  columns: string[]
+  columns: SqlColumnInfo[]
   data: Record<string, unknown>[]
   rowCount: number
   error?: string
