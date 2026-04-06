@@ -1,14 +1,26 @@
-import { useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Gauge } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 
+import { cn } from '@/lib/utils'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { api } from '@/lib/api-client'
-import { computeAggregation } from '@/lib/kpi-utils'
-import { KpiPreviewCard } from './kpi-preview-card'
+import { CountAnimation } from '@/components/shared/count-animation'
+import {
+  computeAggregation,
+  getThresholdLevel,
+  THRESHOLD_STYLES,
+} from '@/lib/kpi-utils'
 import type { AggregationType, KpiFormatConfig, TrendConfig, ThresholdConfig } from '@/types/managed-kpi'
 import type { RecvizDataset } from '@/types/managed-dataset'
+import type { FormatNumberOptions } from '@/types/formatting'
+
+export type KpiBuilderStep = 'dataset' | 'column' | 'format' | 'trend' | 'thresholds' | ''
 
 interface KpiBuilderPreviewProps {
+  step: KpiBuilderStep
   datasetId: string | null
   dataset: RecvizDataset | null
   metricColumn: string | null
@@ -18,9 +30,11 @@ interface KpiBuilderPreviewProps {
   thresholds: ThresholdConfig | null
   subtitle: string
   name: string
+  allComplete?: boolean
 }
 
 export function KpiBuilderPreview({
+  step,
   datasetId,
   dataset,
   metricColumn,
@@ -30,8 +44,19 @@ export function KpiBuilderPreview({
   thresholds,
   subtitle,
   name,
+  allComplete,
 }: KpiBuilderPreviewProps) {
-  const { data: rawResult, isLoading } = useQuery({
+  const [sampleData, setSampleData] = useState<Record<string, unknown>[] | null>(null)
+  const [sampleLoading, setSampleLoading] = useState(false)
+  const [sampleError, setSampleError] = useState<string | null>(null)
+
+  // Reset sample data when dataset changes
+  useEffect(() => {
+    setSampleData(null)
+    setSampleError(null)
+  }, [dataset?.id])
+
+  const { data: rawResult, isLoading: valueLoading } = useQuery({
     queryKey: ['kpi-preview-data', datasetId],
     queryFn: () =>
       api.post<{ columns: string[]; data: Record<string, unknown>[] }>(
@@ -54,62 +79,200 @@ export function KpiBuilderPreview({
     return computeAggregation(values, aggregation)
   }, [rawResult, metricColumn, aggregation])
 
-  const rowCount = rawResult?.data?.length ?? 0
+  const thresholdLevel = getThresholdLevel(computedValue, thresholds)
+  const thresholdColor = THRESHOLD_STYLES[thresholdLevel]
 
-  if (!datasetId) {
+  const formatOptions: FormatNumberOptions = {
+    type: format.type,
+    decimals: format.decimals ?? undefined,
+    abbreviate: format.abbreviate,
+    currencyCode: format.currencyCode ?? undefined,
+  }
+
+  const handleLoadSample = useCallback(async () => {
+    if (!dataset) return
+    setSampleLoading(true)
+    setSampleError(null)
+    try {
+      const result = await api.post<{
+        columns: string[]
+        data: Record<string, unknown>[]
+      }>('/api/sql/execute', {
+        database_id: dataset.databaseId,
+        sql: dataset.sql,
+        limit: 50,
+      })
+      setSampleData(result.data ?? [])
+    } catch {
+      setSampleError('Could not load preview data.')
+    } finally {
+      setSampleLoading(false)
+    }
+  }, [dataset])
+
+  // Show live KPI card when column is selected (steps: column, format, trend, thresholds, or all-done)
+  const showLiveKpi = metricColumn !== null
+
+  // No dataset selected
+  if (!dataset) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-3 h-full">
-        <Gauge className="size-10 text-muted-foreground" />
+      <div className="flex flex-1 items-center justify-center h-full">
         <p className="text-sm text-muted-foreground">
-          Select a dataset to see preview
+          Select a dataset to get started
         </p>
       </div>
     )
   }
 
-  return (
-    <div className="flex flex-col gap-6 h-full">
-      {/* Live KPI card */}
-      <div className="flex items-center justify-center flex-1 min-h-0">
-        <div className="w-full max-w-xs">
-          <KpiPreviewCard
-            name={name}
-            value={computedValue}
-            isLoading={isLoading}
-            format={format}
-            trend={trend}
-            trendPercentage={null}
-            thresholds={thresholds}
-            subtitle={subtitle}
-          />
+  // Step 1: Dataset selected — show column metadata + sample data
+  if (step === 'dataset' && !showLiveKpi) {
+    return (
+      <div className="flex flex-1 flex-col h-full">
+        {/* Column metadata */}
+        <div className="mb-1">
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+            Columns
+          </h4>
+          <div className="overflow-auto rounded border">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b bg-muted/30">
+                  <th className="px-3 py-1.5 text-left font-medium">Name</th>
+                  <th className="px-3 py-1.5 text-left font-medium">Type</th>
+                  <th className="px-3 py-1.5 text-left font-medium">Role</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dataset.columns.map((col) => (
+                  <tr key={col.name} className="border-b last:border-b-0">
+                    <td className="px-3 py-1.5 font-mono">{col.name}</td>
+                    <td className="px-3 py-1.5">{col.dataType}</td>
+                    <td className="px-3 py-1.5">
+                      <Badge variant="outline" className="text-xs">
+                        {col.role}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
 
-      {/* Summary section */}
-      <div className="shrink-0 rounded-md border bg-muted/30 px-4 py-3 space-y-1.5">
-        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-          Configuration Summary
-        </h4>
-        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-          <span className="text-muted-foreground">Dataset</span>
-          <span className="truncate">{dataset?.name ?? 'Not selected'}</span>
+        {/* Sample data */}
+        <div className="mt-4">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              Sample Data
+            </h4>
+            {!sampleData && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 text-xs"
+                onClick={handleLoadSample}
+                disabled={sampleLoading}
+              >
+                {sampleLoading ? 'Loading...' : 'Load'}
+              </Button>
+            )}
+          </div>
 
-          <span className="text-muted-foreground">Column</span>
-          <span className="truncate font-mono text-xs">
-            {metricColumn ?? 'Not selected'}
-          </span>
+          {sampleError && (
+            <p className="text-xs text-destructive">{sampleError}</p>
+          )}
 
-          <span className="text-muted-foreground">Aggregation</span>
-          <span>{aggregation}</span>
+          {sampleLoading && (
+            <div className="space-y-2">
+              <Skeleton className="h-6 w-full" />
+              <Skeleton className="h-6 w-full" />
+              <Skeleton className="h-6 w-full" />
+            </div>
+          )}
 
-          {rawResult && (
-            <>
-              <span className="text-muted-foreground">Rows sampled</span>
-              <span>{rowCount.toLocaleString()}</span>
-            </>
+          {!sampleData && !sampleLoading && !sampleError && (
+            <p className="text-xs text-muted-foreground">
+              Click Load to see sample rows
+            </p>
+          )}
+
+          {sampleData && sampleData.length > 0 && (
+            <div className="overflow-auto rounded border">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b bg-muted/30">
+                    {Object.keys(sampleData[0]).map((col) => (
+                      <th
+                        key={col}
+                        className="px-3 py-1.5 text-left font-medium font-mono"
+                      >
+                        {col}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {sampleData.slice(0, 50).map((row, i) => (
+                    <tr key={i} className="border-b last:border-b-0">
+                      {Object.values(row).map((val, j) => (
+                        <td key={j} className="px-3 py-1.5 font-mono">
+                          {val === null ? 'null' : String(val)}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       </div>
+    )
+  }
+
+  // Steps 2-5 + all complete: Live KPI value preview
+  return (
+    <div className="flex flex-col h-full">
+      {/* Hero KPI value */}
+      <div className="flex flex-1 flex-col items-center justify-center min-h-0 relative">
+        {/* Subtle radial glow */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,hsl(var(--primary)/0.04)_0%,transparent_70%)]" />
+
+        {valueLoading ? (
+          <Skeleton className="h-12 w-36 rounded" />
+        ) : (
+          <div className="relative flex flex-col items-center gap-3">
+            <Badge variant="outline" className="text-[10px] font-medium tracking-wide">
+              {aggregation}
+            </Badge>
+            <CountAnimation
+              number={computedValue}
+              duration={0.8}
+              formatOptions={formatOptions}
+              className={cn(
+                'text-5xl font-bold tabular-nums tracking-tighter',
+                thresholdColor,
+              )}
+            />
+            <p className="text-sm text-muted-foreground">
+              {name || 'Untitled KPI'}
+            </p>
+            {subtitle && (
+              <p className="text-xs text-muted-foreground">{subtitle}</p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Ready to save banner */}
+      {allComplete && (
+        <div className="mt-3 shrink-0 rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-center">
+          <p className="text-sm font-medium">Ready to save</p>
+          <p className="text-xs text-muted-foreground">
+            Name your KPI above and click Save KPI
+          </p>
+        </div>
+      )}
     </div>
   )
 }

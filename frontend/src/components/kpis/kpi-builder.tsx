@@ -29,6 +29,7 @@ import { StepFormat } from './builder/step-format'
 import { StepTrend } from './builder/step-trend'
 import { StepThresholds } from './builder/step-thresholds'
 import { KpiBuilderPreview } from './kpi-builder-preview'
+import type { KpiBuilderStep } from './kpi-builder-preview'
 import type { RecvizKpi, AggregationType, KpiFormatConfig, TrendConfig, ThresholdConfig } from '@/types/managed-kpi'
 import type { RecvizDataset } from '@/types/managed-dataset'
 
@@ -563,6 +564,7 @@ export function KpiBuilder({ editKpi, editDataset, isLoading }: KpiBuilderProps)
           </div>
           <div className="flex-1 min-h-0 p-4">
             <KpiBuilderPreview
+              step={(activeStep || '') as KpiBuilderStep}
               datasetId={state.datasetId}
               dataset={state.dataset}
               metricColumn={state.metricColumn}
@@ -572,6 +574,7 @@ export function KpiBuilder({ editKpi, editDataset, isLoading }: KpiBuilderProps)
               thresholds={state.thresholds}
               subtitle={state.subtitle}
               name={state.name}
+              allComplete={STEP_ORDER.every((s) => completedSteps.has(s))}
             />
           </div>
         </div>
