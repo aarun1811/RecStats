@@ -31,8 +31,8 @@ export function DatasetRow({ dataset, databaseName, backendType, onClick }: Data
       }}
     >
       <Database className={cn('size-5 shrink-0', iconColor)} />
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold truncate">{dataset.name}</p>
+      <div className="flex items-baseline gap-2 flex-1 min-w-0">
+        <p className="text-sm font-semibold truncate shrink-0">{dataset.name}</p>
         {dataset.description && (
           <p className="text-xs text-muted-foreground truncate">
             {dataset.description}
