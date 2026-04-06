@@ -17,7 +17,9 @@ import { Route as AppExplorerIndexRouteImport } from './routes/_app/explorer/ind
 import { Route as AppDatasetsIndexRouteImport } from './routes/_app/datasets/index'
 import { Route as AppDashboardsIndexRouteImport } from './routes/_app/dashboards/index'
 import { Route as EmbedDashboardsDashboardIdRouteImport } from './routes/embed/dashboards/$dashboardId'
+import { Route as AppDatasetsNewRouteImport } from './routes/_app/datasets/new'
 import { Route as AppDashboardsDashboardIdRouteImport } from './routes/_app/dashboards/$dashboardId'
+import { Route as AppDatasetsDatasetIdEditRouteImport } from './routes/_app/datasets/$datasetId.edit'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -59,77 +61,100 @@ const EmbedDashboardsDashboardIdRoute =
     path: '/embed/dashboards/$dashboardId',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AppDatasetsNewRoute = AppDatasetsNewRouteImport.update({
+  id: '/datasets/new',
+  path: '/datasets/new',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppDashboardsDashboardIdRoute =
   AppDashboardsDashboardIdRouteImport.update({
     id: '/dashboards/$dashboardId',
     path: '/dashboards/$dashboardId',
     getParentRoute: () => AppRoute,
   } as any)
+const AppDatasetsDatasetIdEditRoute =
+  AppDatasetsDatasetIdEditRouteImport.update({
+    id: '/datasets/$datasetId/edit',
+    path: '/datasets/$datasetId/edit',
+    getParentRoute: () => AppRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboards/$dashboardId': typeof AppDashboardsDashboardIdRoute
+  '/datasets/new': typeof AppDatasetsNewRoute
   '/embed/dashboards/$dashboardId': typeof EmbedDashboardsDashboardIdRoute
   '/dashboards/': typeof AppDashboardsIndexRoute
   '/datasets/': typeof AppDatasetsIndexRoute
   '/explorer/': typeof AppExplorerIndexRoute
   '/reports/': typeof AppReportsIndexRoute
   '/settings/': typeof AppSettingsIndexRoute
+  '/datasets/$datasetId/edit': typeof AppDatasetsDatasetIdEditRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboards/$dashboardId': typeof AppDashboardsDashboardIdRoute
+  '/datasets/new': typeof AppDatasetsNewRoute
   '/embed/dashboards/$dashboardId': typeof EmbedDashboardsDashboardIdRoute
   '/dashboards': typeof AppDashboardsIndexRoute
   '/datasets': typeof AppDatasetsIndexRoute
   '/explorer': typeof AppExplorerIndexRoute
   '/reports': typeof AppReportsIndexRoute
   '/settings': typeof AppSettingsIndexRoute
+  '/datasets/$datasetId/edit': typeof AppDatasetsDatasetIdEditRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/_app/dashboards/$dashboardId': typeof AppDashboardsDashboardIdRoute
+  '/_app/datasets/new': typeof AppDatasetsNewRoute
   '/embed/dashboards/$dashboardId': typeof EmbedDashboardsDashboardIdRoute
   '/_app/dashboards/': typeof AppDashboardsIndexRoute
   '/_app/datasets/': typeof AppDatasetsIndexRoute
   '/_app/explorer/': typeof AppExplorerIndexRoute
   '/_app/reports/': typeof AppReportsIndexRoute
   '/_app/settings/': typeof AppSettingsIndexRoute
+  '/_app/datasets/$datasetId/edit': typeof AppDatasetsDatasetIdEditRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/dashboards/$dashboardId'
+    | '/datasets/new'
     | '/embed/dashboards/$dashboardId'
     | '/dashboards/'
     | '/datasets/'
     | '/explorer/'
     | '/reports/'
     | '/settings/'
+    | '/datasets/$datasetId/edit'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/dashboards/$dashboardId'
+    | '/datasets/new'
     | '/embed/dashboards/$dashboardId'
     | '/dashboards'
     | '/datasets'
     | '/explorer'
     | '/reports'
     | '/settings'
+    | '/datasets/$datasetId/edit'
   id:
     | '__root__'
     | '/'
     | '/_app'
     | '/_app/dashboards/$dashboardId'
+    | '/_app/datasets/new'
     | '/embed/dashboards/$dashboardId'
     | '/_app/dashboards/'
     | '/_app/datasets/'
     | '/_app/explorer/'
     | '/_app/reports/'
     | '/_app/settings/'
+    | '/_app/datasets/$datasetId/edit'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -196,6 +221,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EmbedDashboardsDashboardIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/datasets/new': {
+      id: '/_app/datasets/new'
+      path: '/datasets/new'
+      fullPath: '/datasets/new'
+      preLoaderRoute: typeof AppDatasetsNewRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/dashboards/$dashboardId': {
       id: '/_app/dashboards/$dashboardId'
       path: '/dashboards/$dashboardId'
@@ -203,25 +235,36 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDashboardsDashboardIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/datasets/$datasetId/edit': {
+      id: '/_app/datasets/$datasetId/edit'
+      path: '/datasets/$datasetId/edit'
+      fullPath: '/datasets/$datasetId/edit'
+      preLoaderRoute: typeof AppDatasetsDatasetIdEditRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
 interface AppRouteChildren {
   AppDashboardsDashboardIdRoute: typeof AppDashboardsDashboardIdRoute
+  AppDatasetsNewRoute: typeof AppDatasetsNewRoute
   AppDashboardsIndexRoute: typeof AppDashboardsIndexRoute
   AppDatasetsIndexRoute: typeof AppDatasetsIndexRoute
   AppExplorerIndexRoute: typeof AppExplorerIndexRoute
   AppReportsIndexRoute: typeof AppReportsIndexRoute
   AppSettingsIndexRoute: typeof AppSettingsIndexRoute
+  AppDatasetsDatasetIdEditRoute: typeof AppDatasetsDatasetIdEditRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppDashboardsDashboardIdRoute: AppDashboardsDashboardIdRoute,
+  AppDatasetsNewRoute: AppDatasetsNewRoute,
   AppDashboardsIndexRoute: AppDashboardsIndexRoute,
   AppDatasetsIndexRoute: AppDatasetsIndexRoute,
   AppExplorerIndexRoute: AppExplorerIndexRoute,
   AppReportsIndexRoute: AppReportsIndexRoute,
   AppSettingsIndexRoute: AppSettingsIndexRoute,
+  AppDatasetsDatasetIdEditRoute: AppDatasetsDatasetIdEditRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
