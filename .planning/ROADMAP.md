@@ -122,13 +122,13 @@ Plans:
   2. Each dataset column has configurable metadata: display name, data type, dimension/measure/time role, default aggregation, and format string
   3. Dev can test-execute a dataset query from the editor and preview results in a table before publishing
   4. Dev can edit SQL, column metadata, or delete existing datasets -- changes propagate to any charts using that dataset
-**Plans**: TBD
+**Plans:** 3 plans
 **UI hint**: yes
 
 Plans:
-- [ ] 05-01: TBD
-- [ ] 05-02: TBD
-- [ ] 05-03: TBD
+- [ ] 05-01-PLAN.md -- Backend CRUD + Superset sync: SQLAlchemy model, Alembic migration, Pydantic schemas, API endpoints, DatasetSyncService
+- [ ] 05-02-PLAN.md -- Frontend foundation: TypeScript types, CRUD hooks, column detection/merge utilities, dataset list page, sidebar nav, Explorer save-as-dataset dialog
+- [ ] 05-03-PLAN.md -- Dataset editor: Monaco SQL editor, AG Grid column metadata, format presets, SQL re-run enforcement, delete dialog, end-to-end verification
 
 ### Phase 6: Chart Library
 **Goal**: Users can create charts by mapping dataset columns to visual properties, save them to a reusable library, and browse/search saved charts
@@ -210,7 +210,7 @@ Phases execute in numeric order: 1 -> 2 -> 02.1 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 ->
 | 02.1. Chart Rendering Foundation | 3/3 | Complete   | 2026-04-05 |
 | 3. Chart and Grid Interactions | 0/3 | Planning complete | - |
 | 4. Data Source Connectivity | 3/3 | Complete | 2026-04-05 |
-| 5. Dataset Management | 0/0 | Not started | - |
+| 5. Dataset Management | 0/3 | Planning complete | - |
 | 6. Chart Library | 0/0 | Not started | - |
 | 7. KPI Library | 0/0 | Not started | - |
 | 8. Dashboard Builder | 0/0 | Not started | - |
