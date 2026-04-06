@@ -25,11 +25,11 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Chart Library (Reusable Charts)
 
 - [ ] **CHRT-01**: User can create a chart by selecting a dataset, mapping columns to axes/metrics, choosing a chart type, and configuring appearance
-- [ ] **CHRT-02**: Chart type selector with visual thumbnails showing available types — highlight which types are compatible with selected data shape
-- [ ] **CHRT-03**: Charts can be saved independently to a chart library with a name and description
-- [ ] **CHRT-04**: Saved charts are reusable — can be added to multiple dashboards; config change updates everywhere
-- [ ] **CHRT-05**: AG Charts covers standard types (line, bar, area, pie, donut, scatter, heatmap, treemap, waterfall, bullet, box plot, combo)
-- [ ] **CHRT-06**: ECharts covers exotic types only (Sankey, sunburst, radar, graph/network, gauge, parallel coordinates, funnel)
+- [x] **CHRT-02**: Chart type selector with visual thumbnails showing available types — highlight which types are compatible with selected data shape
+- [x] **CHRT-03**: Charts can be saved independently to a chart library with a name and description
+- [x] **CHRT-04**: Saved charts are reusable — can be added to multiple dashboards; config change updates everywhere
+- [x] **CHRT-05**: AG Charts covers standard types (line, bar, area, pie, donut, scatter, heatmap, treemap, waterfall, bullet, box plot, combo)
+- [x] **CHRT-06**: ECharts covers exotic types only (Sankey, sunburst, radar, graph/network, gauge, parallel coordinates, funnel)
 - [ ] **CHRT-07**: User can browse the chart library, search by name, and preview saved charts
 
 ### KPI Library
@@ -153,11 +153,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DSET-04 | Phase 5: Dataset Management | Complete |
 | DSET-05 | Phase 5: Dataset Management | Complete |
 | CHRT-01 | Phase 6: Chart Library | Pending |
-| CHRT-02 | Phase 6: Chart Library | Pending |
-| CHRT-03 | Phase 6: Chart Library | Pending |
-| CHRT-04 | Phase 6: Chart Library | Pending |
-| CHRT-05 | Phase 6: Chart Library | Pending |
-| CHRT-06 | Phase 6: Chart Library | Pending |
+| CHRT-02 | Phase 6: Chart Library | Complete |
+| CHRT-03 | Phase 6: Chart Library | Complete |
+| CHRT-04 | Phase 6: Chart Library | Complete |
+| CHRT-05 | Phase 6: Chart Library | Complete |
+| CHRT-06 | Phase 6: Chart Library | Complete |
 | CHRT-07 | Phase 6: Chart Library | Pending |
 | KPI-01 | Phase 7: KPI Library | Pending |
 | KPI-02 | Phase 7: KPI Library | Pending |
