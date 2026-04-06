@@ -50,6 +50,10 @@ export function DeleteKpiDialog({
       <DialogContent className="max-w-md">
         {isLoading ? (
           <div className="flex flex-col gap-3 py-6">
+            <DialogHeader className="sr-only">
+              <DialogTitle>Checking references</DialogTitle>
+              <DialogDescription>Loading KPI reference data</DialogDescription>
+            </DialogHeader>
             <Skeleton className="h-5 w-3/4" />
             <Skeleton className="h-4 w-full" />
             <Skeleton className="h-4 w-2/3" />

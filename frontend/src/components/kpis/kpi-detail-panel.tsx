@@ -102,6 +102,10 @@ export function KpiDetailPanel({
         >
           {kpiLoading ? (
             <div className="space-y-4 p-6">
+              <SheetHeader className="sr-only">
+                <SheetTitle>Loading KPI</SheetTitle>
+                <SheetDescription>Loading KPI details</SheetDescription>
+              </SheetHeader>
               <Skeleton className="h-6 w-2/3" />
               <Skeleton className="h-4 w-1/2" />
               <Skeleton className="h-[120px] w-full rounded-lg" />
