@@ -113,14 +113,23 @@ describe('buildSeries', () => {
     })
   })
 
-  describe('unsupported types', () => {
-    it('returns null for unknown vizType', () => {
-      const result = buildSeries('bullet', ['a', 'b'], ['b'], undefined)
-      expect(result).toBeNull()
+  describe('bullet and box-plot types', () => {
+    it('bullet returns series (fallback to bar)', () => {
+      const result = buildSeries('bullet', ['category', 'actual', 'target'], ['actual', 'target'], undefined)
+      expect(result).not.toBeNull()
+      expect(result![0]).toMatchObject({ type: 'bar' })
     })
 
-    it('returns null for another unknown vizType', () => {
-      const result = buildSeries('box-plot', ['a', 'b', 'c'], ['b', 'c'], undefined)
+    it('box-plot returns series (fallback to bar)', () => {
+      const result = buildSeries('box-plot', ['group', 'min', 'q1', 'median', 'q3', 'max'], ['min', 'q1', 'median', 'q3', 'max'], undefined)
+      expect(result).not.toBeNull()
+      expect(result![0]).toMatchObject({ type: 'bar' })
+    })
+  })
+
+  describe('unsupported types', () => {
+    it('returns null for truly unknown vizType', () => {
+      const result = buildSeries('unknown-type' as any, ['a', 'b'], ['b'], undefined)
       expect(result).toBeNull()
     })
   })

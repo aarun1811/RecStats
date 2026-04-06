@@ -61,9 +61,16 @@ describe('ChartFactory', () => {
     expect(getByTestId('echart')).toBeDefined()
   })
 
+  it('routes bullet to AgChartWrapper', () => {
+    const { getByTestId } = render(
+      <ChartFactory chartId="test-1" config={{ ...baseConfig, vizType: 'bullet' }} />,
+    )
+    expect(getByTestId('ag-chart')).toBeDefined()
+  })
+
   it('renders UnsupportedChartError for unknown type', () => {
     const { getByText } = render(
-      <ChartFactory chartId="test-1" config={{ ...baseConfig, vizType: 'bullet' }} />,
+      <ChartFactory chartId="test-1" config={{ ...baseConfig, vizType: 'unknown-type' as any }} />,
     )
     expect(getByText('Unsupported chart type')).toBeDefined()
   })
