@@ -183,7 +183,7 @@ Plans:
 - [x] 08-02-PLAN.md -- Builder types, Zustand stores (builder state + undo/redo), route stubs for /new and /:id/edit
 - [x] 08-03-PLAN.md -- Install react-grid-layout, BuilderCanvas component with 12-column grid, wire into route pages
 - [x] 08-04-PLAN.md -- BuilderPanel grid item wrapper (drag handle, edit/remove buttons) and empty canvas state
-- [ ] 08-05-PLAN.md -- BuilderToolbar (+ Add, Undo, Redo, Save, Save As, Exit), keyboard shortcuts, BuilderPage composition
+- [x] 08-05-PLAN.md -- BuilderToolbar (+ Add, Undo, Redo, Save, Save As, Exit), keyboard shortcuts, BuilderPage composition
 - [ ] 08-06-PLAN.md -- AddContentMenu dropdown and chart/KPI/dataset picker dialogs
 - [ ] 08-07-PLAN.md -- PanelConfigPopover (cross-filter, drill, refresh) and wiring AddContentMenu + pickers into BuilderPage
 - [ ] 08-08-PLAN.md -- FilterConfigDialog (dataset column picker) and BuilderFilterBar with reorder/remove
