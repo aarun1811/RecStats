@@ -34,9 +34,9 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### KPI Library
 
-- [ ] **KPI-01**: Dev team can define reusable KPI templates with SQL fragments, format rules, and trend indicator logic
-- [ ] **KPI-02**: Business users can pick KPIs from the library when building dashboards — select metric, configure threshold colors, trend direction
-- [ ] **KPI-03**: KPI cards display animated counters, trend arrows (up/down with percentage change), and configurable status colors
+- [x] **KPI-01**: Dev team can define reusable KPI templates with SQL fragments, format rules, and trend indicator logic
+- [x] **KPI-02**: Business users can pick KPIs from the library when building dashboards — select metric, configure threshold colors, trend direction
+- [x] **KPI-03**: KPI cards display animated counters, trend arrows (up/down with percentage change), and configurable status colors
 
 ### Dashboard Builder
 
@@ -159,9 +159,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CHRT-05 | Phase 6: Chart Library | Complete |
 | CHRT-06 | Phase 6: Chart Library | Complete |
 | CHRT-07 | Phase 6: Chart Library | Complete |
-| KPI-01 | Phase 7: KPI Library | Pending |
-| KPI-02 | Phase 7: KPI Library | Pending |
-| KPI-03 | Phase 7: KPI Library | Pending |
+| KPI-01 | Phase 7: KPI Library | Complete |
+| KPI-02 | Phase 7: KPI Library | Complete |
+| KPI-03 | Phase 7: KPI Library | Complete |
 | BLDR-01 | Phase 8: Dashboard Builder | Pending |
 | BLDR-02 | Phase 8: Dashboard Builder | Pending |
 | BLDR-03 | Phase 8: Dashboard Builder | Pending |
