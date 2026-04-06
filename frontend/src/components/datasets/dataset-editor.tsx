@@ -272,7 +272,7 @@ export function DatasetEditor({ mode, dataset, isLoading }: DatasetEditorProps) 
 
         {/* Dataset name as editable heading */}
         <input
-          className="text-2xl font-semibold tracking-tight bg-transparent border-none outline-none w-full placeholder:text-muted-foreground/50"
+          className="text-2xl font-semibold tracking-tight bg-transparent border-b border-transparent hover:border-border focus:border-primary outline-none w-full placeholder:text-muted-foreground/50 transition-colors pb-1"
           placeholder="Untitled Dataset"
           value={name}
           onChange={(e) => setName(e.target.value)}
