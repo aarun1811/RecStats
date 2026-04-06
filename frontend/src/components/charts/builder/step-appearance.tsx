@@ -1,6 +1,3 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import {
@@ -18,39 +15,8 @@ interface StepAppearanceProps {
 }
 
 export function StepAppearance({ appearance, onChange }: StepAppearanceProps) {
-  const [localTitle, setLocalTitle] = useState(appearance.title)
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>(null)
-
-  // Sync local title when appearance prop changes (e.g., edit mode load)
-  useEffect(() => {
-    setLocalTitle(appearance.title)
-  }, [appearance.title])
-
-  const handleTitleChange = useCallback(
-    (value: string) => {
-      setLocalTitle(value)
-      if (debounceRef.current) clearTimeout(debounceRef.current)
-      debounceRef.current = setTimeout(() => {
-        onChange({ ...appearance, title: value })
-      }, 300)
-    },
-    [appearance, onChange],
-  )
-
   return (
     <div className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="chart-title" className="text-sm font-semibold">
-          Title
-        </Label>
-        <Input
-          id="chart-title"
-          value={localTitle}
-          onChange={(e) => handleTitleChange(e.target.value)}
-          placeholder="Chart title (optional)"
-        />
-      </div>
-
       <div className="flex items-center justify-between">
         <Label htmlFor="legend-toggle" className="text-sm">
           Legend

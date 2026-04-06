@@ -12,8 +12,7 @@ import type { LibraryChartType } from '@/types/managed-chart'
 const STANDARD_TYPES: LibraryChartType[] = [
   'bar', 'stacked-bar', 'line', 'area',
   'pie', 'donut', 'scatter', 'heatmap',
-  'treemap', 'waterfall', 'bullet', 'box-plot',
-  'combo',
+  'treemap', 'waterfall', 'combo',
 ]
 
 const EXOTIC_TYPES: LibraryChartType[] = [
@@ -67,15 +66,15 @@ function ChartTypeGroup({ label, types, datasetShape, selectedType, onSelect }: 
           const { compatible, tooltip } = isChartTypeCompatible(type, datasetShape)
           const isSelected = selectedType === type
 
+          const cellClass = 'flex h-[72px] flex-col items-center justify-center gap-1.5 rounded-md p-2'
+
           if (!compatible) {
             return (
               <Tooltip key={type}>
                 <TooltipTrigger asChild>
-                  <div
-                    className="flex cursor-not-allowed flex-col items-center gap-2 rounded-md p-2 opacity-40"
-                  >
-                    <ChartTypeIcon chartType={type} size={32} />
-                    <span className="text-xs">{CHART_DISPLAY_NAMES[type]}</span>
+                  <div className={cn(cellClass, 'cursor-not-allowed opacity-40')}>
+                    <ChartTypeIcon chartType={type} size={24} />
+                    <span className="text-[10px] leading-tight text-center">{CHART_DISPLAY_NAMES[type]}</span>
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -91,14 +90,15 @@ function ChartTypeGroup({ label, types, datasetShape, selectedType, onSelect }: 
               type="button"
               onClick={() => onSelect(type)}
               className={cn(
-                'flex flex-col items-center gap-2 rounded-md p-2 transition-colors',
+                cellClass,
+                'transition-colors',
                 isSelected
                   ? 'bg-primary/5 ring-2 ring-primary'
                   : 'cursor-pointer hover:bg-muted/50',
               )}
             >
-              <ChartTypeIcon chartType={type} size={32} />
-              <span className="text-xs">{CHART_DISPLAY_NAMES[type]}</span>
+              <ChartTypeIcon chartType={type} size={24} />
+              <span className="text-[10px] leading-tight text-center">{CHART_DISPLAY_NAMES[type]}</span>
             </button>
           )
         })}

@@ -35,15 +35,22 @@ const CHART_TYPE_DESCRIPTIONS: Record<string, string> = {
 interface ChartBuilderPreviewProps {
   state: BuilderPreviewState
   onPreviewData: () => void
+  allComplete?: boolean
 }
 
-export function ChartBuilderPreview({ state, onPreviewData }: ChartBuilderPreviewProps) {
+export function ChartBuilderPreview({ state, onPreviewData, allComplete }: ChartBuilderPreviewProps) {
   const [previewData, setPreviewData] = useState<Record<string, unknown>[] | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
   const [previewError, setPreviewError] = useState<string | null>(null)
   const [chartData, setChartData] = useState<ChartDataResponse | null>(null)
   const [chartLoading, setChartLoading] = useState(false)
   const [chartError, setChartError] = useState<string | null>(null)
+
+  // Reset sample data when dataset changes
+  useEffect(() => {
+    setPreviewData(null)
+    setPreviewError(null)
+  }, [state.dataset?.id])
 
   // Fetch chart data for live preview when mapping is configured
   useEffect(() => {
@@ -78,7 +85,10 @@ export function ChartBuilderPreview({ state, onPreviewData }: ChartBuilderPrevie
         if (cancelled) return
 
         const rawData = result.data ?? []
-        const rawColumns = result.columns ?? (rawData.length > 0 ? Object.keys(rawData[0]) : [])
+        const rawColumns = (result.columns ?? (rawData.length > 0 ? Object.keys(rawData[0]) : []))
+          .map((col: unknown) =>
+            typeof col === 'string' ? col : (col as Record<string, string>).column_name ?? (col as Record<string, string>).name ?? String(col),
+          )
 
         setChartData({
           chartId: 'builder-preview',
@@ -124,9 +134,7 @@ export function ChartBuilderPreview({ state, onPreviewData }: ChartBuilderPrevie
   }, [state.dataset, onPreviewData])
 
   return (
-    <div className="flex flex-col rounded-lg border bg-card p-6 min-h-[320px]">
-      <h3 className="mb-4 text-sm font-semibold">Preview</h3>
-
+    <div className="flex flex-1 flex-col">
       {/* No dataset selected */}
       {!state.dataset && (
         <div className="flex flex-1 items-center justify-center">
@@ -136,18 +144,19 @@ export function ChartBuilderPreview({ state, onPreviewData }: ChartBuilderPrevie
         </div>
       )}
 
-      {/* Step 1: Dataset selected -- show column metadata */}
+      {/* Step 1: Dataset selected -- show column metadata + sample data */}
       {state.dataset && state.step === 'dataset' && (
-        <div className="flex flex-1 flex-col gap-4">
-          <div className="space-y-2">
-            <h4 className="text-sm font-semibold">Column Metadata</h4>
+        <div className="flex flex-1 flex-col">
+          {/* Column metadata */}
+          <div className="mb-1">
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Columns</h4>
             <div className="overflow-auto rounded border">
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b bg-muted/30">
-                    <th className="px-3 py-2 text-left font-medium">Name</th>
-                    <th className="px-3 py-2 text-left font-medium">Type</th>
-                    <th className="px-3 py-2 text-left font-medium">Role</th>
+                    <th className="px-3 py-1.5 text-left font-medium">Name</th>
+                    <th className="px-3 py-1.5 text-left font-medium">Type</th>
+                    <th className="px-3 py-1.5 text-left font-medium">Role</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -167,53 +176,66 @@ export function ChartBuilderPreview({ state, onPreviewData }: ChartBuilderPrevie
             </div>
           </div>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handlePreviewData}
-            disabled={previewLoading}
-          >
-            {previewLoading ? 'Loading...' : 'Preview Data'}
-          </Button>
-
-          {previewError && (
-            <p className="text-xs text-destructive">{previewError}</p>
-          )}
-
-          {previewLoading && (
-            <div className="space-y-2">
-              <Skeleton className="h-6 w-full" />
-              <Skeleton className="h-6 w-full" />
-              <Skeleton className="h-6 w-full" />
+          {/* Sample data */}
+          <div className="mt-4">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Sample Data</h4>
+              {!previewData && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 text-xs"
+                  onClick={handlePreviewData}
+                  disabled={previewLoading}
+                >
+                  {previewLoading ? 'Loading...' : 'Load'}
+                </Button>
+              )}
             </div>
-          )}
 
-          {previewData && previewData.length > 0 && (
-            <div className="overflow-auto rounded border">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b bg-muted/30">
-                    {Object.keys(previewData[0]).map((col) => (
-                      <th key={col} className="px-3 py-2 text-left font-medium font-mono">
-                        {col}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {previewData.slice(0, 50).map((row, i) => (
-                    <tr key={i} className="border-b last:border-b-0">
-                      {Object.values(row).map((val, j) => (
-                        <td key={j} className="px-3 py-1.5 font-mono">
-                          {val === null ? 'null' : String(val)}
-                        </td>
+            {previewError && (
+              <p className="text-xs text-destructive">{previewError}</p>
+            )}
+
+            {previewLoading && (
+              <div className="space-y-2">
+                <Skeleton className="h-6 w-full" />
+                <Skeleton className="h-6 w-full" />
+                <Skeleton className="h-6 w-full" />
+              </div>
+            )}
+
+            {!previewData && !previewLoading && !previewError && (
+              <p className="text-xs text-muted-foreground">Click Load to see sample rows</p>
+            )}
+
+            {previewData && previewData.length > 0 && (
+              <div className="overflow-auto rounded border">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b bg-muted/30">
+                      {Object.keys(previewData[0]).map((col) => (
+                        <th key={col} className="px-3 py-1.5 text-left font-medium font-mono">
+                          {col}
+                        </th>
                       ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                  </thead>
+                  <tbody>
+                    {previewData.slice(0, 50).map((row, i) => (
+                      <tr key={i} className="border-b last:border-b-0">
+                        {Object.values(row).map((val, j) => (
+                          <td key={j} className="px-3 py-1.5 font-mono">
+                            {val === null ? 'null' : String(val)}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -239,7 +261,7 @@ export function ChartBuilderPreview({ state, onPreviewData }: ChartBuilderPrevie
         </div>
       )}
 
-      {/* Steps 3-5: Live chart preview */}
+      {/* Steps 3-4: Live chart preview */}
       {state.dataset &&
         (state.step === 'mapping' || state.step === 'appearance' || state.step === 'save') && (
           <div className="flex flex-1 flex-col">
@@ -256,7 +278,7 @@ export function ChartBuilderPreview({ state, onPreviewData }: ChartBuilderPrevie
             )}
 
             {chartData && !chartLoading && !chartError && state.chartType && state.columnMapping && (
-              <div className="flex-1" style={{ minHeight: 280 }}>
+              <div className="flex-1 min-h-0">
                 <ChartFactory
                   chartId="builder-preview"
                   config={buildPreviewConfig(state)}
@@ -273,13 +295,20 @@ export function ChartBuilderPreview({ state, onPreviewData }: ChartBuilderPrevie
                 </p>
               </div>
             )}
+
+            {allComplete && (
+              <div className="mt-3 shrink-0 rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-center">
+                <p className="text-sm font-medium">Ready to save</p>
+                <p className="text-xs text-muted-foreground">Name your chart above and click Save Chart</p>
+              </div>
+            )}
           </div>
         )}
     </div>
   )
 }
 
-function buildPreviewConfig(state: BuilderPreviewState): ChartConfig {
+export function buildPreviewConfig(state: BuilderPreviewState): ChartConfig {
   return {
     id: 'builder-preview',
     name: state.appearance?.title || 'Preview',
@@ -287,5 +316,13 @@ function buildPreviewConfig(state: BuilderPreviewState): ChartConfig {
     datasourceId: 0,
     metricColumns: state.columnMapping?.metricColumns ?? [],
     categoryColumn: state.columnMapping?.categoryColumn ?? undefined,
+    appearance: state.appearance
+      ? {
+          showLegend: state.appearance.showLegend,
+          legendPosition: state.appearance.legendPosition,
+          showXLabel: state.appearance.showXLabel,
+          showYLabel: state.appearance.showYLabel,
+        }
+      : undefined,
   }
 }

@@ -400,27 +400,6 @@ export function StepMapping({ chartType, columns, mapping, onChange }: StepMappi
               </SelectContent>
             </Select>
 
-            {/* Show aggregation for the selected single metric */}
-            {actualMetrics[0] && (
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">Aggregation:</span>
-                <Select
-                  value={mapping.aggregations[actualMetrics[0]] ?? 'NONE'}
-                  onValueChange={(v) => updateAggregation(actualMetrics[0], v)}
-                >
-                  <SelectTrigger className="h-7 w-auto gap-1 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {AGGREGATION_OPTIONS.map((agg) => (
-                      <SelectItem key={agg} value={agg}>
-                        {agg}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
           </>
         )}
       </div>

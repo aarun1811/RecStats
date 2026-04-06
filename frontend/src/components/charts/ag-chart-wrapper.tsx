@@ -332,8 +332,19 @@ export const AgChartWrapper = forwardRef<AgChartRef, ChartWrapperProps>(function
           })
         },
       },
+      // Appearance overrides from chart builder
+      ...(config.appearance?.showLegend === false && { legend: { enabled: false } }),
+      ...(config.appearance?.showLegend !== false && config.appearance?.legendPosition && {
+        legend: { enabled: true, position: config.appearance.legendPosition },
+      }),
+      ...(config.appearance && {
+        axes: [
+          { type: 'category', position: 'bottom', ...(config.appearance.showXLabel === false && { label: { enabled: false } }) },
+          { type: 'number', position: 'left', ...(config.appearance.showYLabel === false && { label: { enabled: false } }) },
+        ],
+      }),
     } as AgChartOptions
-  }, [data, config.vizType, config.metricColumns, config.categoryColumn, theme, chartId, activeSelection])
+  }, [data, config.vizType, config.metricColumns, config.categoryColumn, config.appearance, theme, chartId, activeSelection])
 
   if (missingColumns.length > 0 && data?.columns) {
     return <ColumnMissingError missing={missingColumns} available={data.columns} />

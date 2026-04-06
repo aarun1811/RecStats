@@ -33,9 +33,9 @@ export function ChartLibraryList() {
   const [selectedChartId, setSelectedChartId] = useState<string | null>(null)
 
   const datasetMap = useMemo(() => {
-    const map = new Map<string, string>()
+    const map = new Map<string, { name: string; dataset: typeof datasets[number] }>()
     for (const ds of datasets) {
-      map.set(ds.id, ds.name)
+      map.set(ds.id, { name: ds.name, dataset: ds })
     }
     return map
   }, [datasets])
@@ -120,14 +120,18 @@ export function ChartLibraryList() {
         </p>
       ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filtered.map((chart) => (
-            <ChartLibraryCard
-              key={chart.id}
-              chart={chart}
-              datasetName={datasetMap.get(chart.datasetId) ?? 'Unknown'}
-              onClick={() => setSelectedChartId(chart.id)}
-            />
-          ))}
+          {filtered.map((chart) => {
+            const ds = datasetMap.get(chart.datasetId)
+            return (
+              <ChartLibraryCard
+                key={chart.id}
+                chart={chart}
+                dataset={ds?.dataset}
+                datasetName={ds?.name ?? 'Unknown'}
+                onClick={() => setSelectedChartId(chart.id)}
+              />
+            )
+          })}
         </div>
       ) : (
         <div className="space-y-2">
@@ -135,7 +139,7 @@ export function ChartLibraryList() {
             <ChartLibraryRow
               key={chart.id}
               chart={chart}
-              datasetName={datasetMap.get(chart.datasetId) ?? 'Unknown'}
+              datasetName={datasetMap.get(chart.datasetId)?.name ?? 'Unknown'}
               onClick={() => setSelectedChartId(chart.id)}
             />
           ))}
@@ -148,7 +152,7 @@ export function ChartLibraryList() {
           selectedChartId
             ? datasetMap.get(
                 charts.find((c) => c.id === selectedChartId)?.datasetId ?? '',
-              ) ?? 'Unknown'
+              )?.name ?? 'Unknown'
             : ''
         }
         onClose={() => setSelectedChartId(null)}

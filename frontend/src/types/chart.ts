@@ -30,6 +30,14 @@ export interface ChartConfig {
   metricColumns: string[]
   /** Config-driven column mapping (D-02): explicit category column, resolved at render time if omitted */
   categoryColumn?: string
+  /** Appearance overrides from chart builder */
+  appearance?: {
+    showLegend?: boolean
+    legendPosition?: 'top' | 'bottom' | 'left' | 'right'
+    showXLabel?: boolean
+    showYLabel?: boolean
+    interactive?: boolean
+  }
 }
 
 export interface ChartDataResponse {

@@ -1,9 +1,8 @@
 import { useState } from 'react'
-import { Check, ChevronsUpDown, Database } from 'lucide-react'
+import { Check, ChevronsUpDown } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import {
   Popover,
   PopoverContent,
@@ -68,17 +67,13 @@ export function StepDataset({ selectedDataset, onSelect }: StepDatasetProps) {
                     >
                       <Check
                         className={cn(
-                          'mr-2 size-4',
+                          'mr-2 size-4 shrink-0',
                           selectedDataset?.id === dataset.id
                             ? 'opacity-100'
                             : 'opacity-0',
                         )}
                       />
-                      <span className="flex-1 truncate">{dataset.name}</span>
-                      <Badge variant="outline" className="ml-2 shrink-0 text-xs">
-                        <Database className="mr-1 size-3" />
-                        {dataset.databaseId}
-                      </Badge>
+                      <span className="truncate">{dataset.name}</span>
                     </CommandItem>
                   ))
                 )}
@@ -88,20 +83,6 @@ export function StepDataset({ selectedDataset, onSelect }: StepDatasetProps) {
         </PopoverContent>
       </Popover>
 
-      {selectedDataset && (
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold">{selectedDataset.name}</span>
-            <Badge variant="outline" className="text-xs">
-              <Database className="mr-1 size-3" />
-              {selectedDataset.databaseId}
-            </Badge>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {selectedDataset.columns.length} columns
-          </p>
-        </div>
-      )}
     </div>
   )
 }

@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
-import { Check } from 'lucide-react'
+import { ArrowLeft, Check, Loader2, Save, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { cn } from '@/lib/utils'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   Accordion,
   AccordionContent,
@@ -11,17 +15,18 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion'
 import { getDatasetShape } from '@/lib/chart-compatibility'
-import { CHART_DISPLAY_NAMES } from '@/components/charts/chart-type-icon'
+import { ChartTypeIcon, CHART_DISPLAY_NAMES } from '@/components/charts/chart-type-icon'
+import { ChartBuilderPreview } from '@/components/charts/chart-builder-preview'
+import { DeleteChartDialog } from '@/components/charts/delete-chart-dialog'
 import { useCreateChart, useUpdateChart } from '@/hooks/use-managed-charts'
 import { StepDataset } from './builder/step-dataset'
 import { StepType } from './builder/step-type'
 import { StepMapping } from './builder/step-mapping'
 import { StepAppearance } from './builder/step-appearance'
-import { StepSave } from './builder/step-save'
 import type { RecvizChart, LibraryChartType, ChartColumnMapping, ChartAppearance } from '@/types/managed-chart'
 import type { RecvizDataset, DatasetColumnMeta } from '@/types/managed-dataset'
 
-const STEP_ORDER = ['dataset', 'type', 'mapping', 'appearance', 'save'] as const
+const STEP_ORDER = ['dataset', 'type', 'mapping', 'appearance'] as const
 type StepKey = (typeof STEP_ORDER)[number]
 
 const STEP_LABELS: Record<StepKey, string> = {
@@ -29,7 +34,6 @@ const STEP_LABELS: Record<StepKey, string> = {
   type: '2. Chart Type',
   mapping: '3. Column Mapping',
   appearance: '4. Appearance',
-  save: '5. Save',
 }
 
 interface BuilderState {
@@ -121,21 +125,21 @@ function buildMappingSummary(
     }
     return col
   })
-  return category ? `${category} x ${metrics.join(', ')}` : metrics.join(', ')
+  return category ? `${category} × ${metrics.join(', ')}` : metrics.join(', ')
 }
 
 interface ChartBuilderProps {
   mode: 'create' | 'edit'
   initialChart?: RecvizChart
   initialDataset?: RecvizDataset | null
-  onPreviewChange: (state: BuilderPreviewState) => void
+  isLoading?: boolean
 }
 
 export function ChartBuilder({
   mode,
   initialChart,
   initialDataset,
-  onPreviewChange,
+  isLoading,
 }: ChartBuilderProps) {
   const navigate = useNavigate()
   const createChart = useCreateChart()
@@ -150,9 +154,10 @@ export function ChartBuilder({
   const [completedSteps, setCompletedSteps] = useState<Set<StepKey>>(
     () =>
       mode === 'edit' && initialChart
-        ? new Set(STEP_ORDER.filter((_, i) => i < 4) as StepKey[])
+        ? new Set(STEP_ORDER.slice() as StepKey[])
         : new Set<StepKey>(),
   )
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
   // Sync dataset when initialDataset loads (for edit mode)
   useEffect(() => {
@@ -166,18 +171,23 @@ export function ChartBuilder({
     [state.dataset],
   )
 
-  // Sync preview state whenever builder state or active step changes
-  useEffect(() => {
-    onPreviewChange({
-      step: (activeStep as StepKey) || 'dataset',
+  // Build preview state from builder state
+  // When all steps are done and accordion is collapsed, keep showing the live chart
+  const allStepsComplete = STEP_ORDER.every((s) => completedSteps.has(s))
+  const effectiveStep: StepKey = (activeStep as StepKey) || (allStepsComplete ? 'appearance' : 'dataset')
+
+  const previewState = useMemo<BuilderPreviewState>(
+    () => ({
+      step: effectiveStep,
       dataset: state.dataset,
       chartType: state.chartType,
       columnMapping: state.columnMapping.metricColumns.length > 0 ? state.columnMapping : null,
       appearance: state.appearance,
       previewDataLoading: false,
       previewData: null,
-    })
-  }, [activeStep, state, onPreviewChange])
+    }),
+    [effectiveStep, state.dataset, state.chartType, state.columnMapping, state.appearance],
+  )
 
   const completeStep = useCallback((step: StepKey, nextStep: StepKey) => {
     setCompletedSteps((prev) => new Set([...prev, step]))
@@ -221,7 +231,6 @@ export function ChartBuilder({
       ...prev,
       datasetId: dataset.id,
       dataset,
-      // Reset downstream if dataset changes
       ...(isChange
         ? {
             chartType: null,
@@ -233,6 +242,9 @@ export function ChartBuilder({
     if (isChange) {
       resetFromStep('dataset')
     }
+  }
+
+  function handleDatasetContinue() {
     completeStep('dataset', 'type')
   }
 
@@ -264,11 +276,8 @@ export function ChartBuilder({
   }
 
   function handleAppearanceComplete() {
-    completeStep('appearance', 'save')
-  }
-
-  function handleSaveFieldsChange(name: string, description: string) {
-    setState((prev) => ({ ...prev, name, description }))
+    setCompletedSteps((prev) => new Set([...prev, 'appearance']))
+    setActiveStep('')
   }
 
   async function handleSave() {
@@ -315,7 +324,7 @@ export function ChartBuilder({
     switch (step) {
       case 'dataset':
         return state.dataset
-          ? `${state.dataset.name} \u00b7 ${state.dataset.columns.length} cols`
+          ? `${state.dataset.name} · ${state.dataset.columns.length} cols`
           : null
       case 'type':
         return state.chartType ? CHART_DISPLAY_NAMES[state.chartType] ?? state.chartType : null
@@ -323,120 +332,253 @@ export function ChartBuilder({
         return buildMappingSummary(state.columnMapping, state.dataset?.columns ?? [])
       case 'appearance':
         return state.appearance.title ? `Title: ${state.appearance.title}` : 'Default appearance'
-      case 'save':
-        return null
     }
   }
 
+  // Loading skeleton (edit mode)
+  if (isLoading) {
+    return (
+      <div className="flex flex-col h-[calc(100vh-3.5rem)]">
+        <div className="px-6 pt-4 pb-4 shrink-0 space-y-3">
+          <Skeleton className="h-8 w-32" />
+          <Skeleton className="h-9 w-96" />
+          <Skeleton className="h-5 w-64" />
+        </div>
+        <div className="flex gap-4 flex-1 min-h-0 px-6 pb-4">
+          <div className="w-[380px] shrink-0 space-y-3">
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+          </div>
+          <Skeleton className="flex-1 min-h-[320px]" />
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="overflow-y-auto">
-      <Accordion
-        type="single"
-        collapsible
-        value={activeStep}
-        onValueChange={handleAccordionChange}
-      >
-        {STEP_ORDER.map((step) => {
-          const locked = isStepLocked(step)
-          const completed = completedSteps.has(step)
-          const summary = getStepSummary(step)
-          const isActive = activeStep === step
-
-          return (
-            <AccordionItem
-              key={step}
-              value={step}
-              disabled={locked}
-              className={cn(
-                'border-b last:border-b-0',
-                locked && 'opacity-50',
-                isActive && 'border-l-2 border-l-primary',
-              )}
-            >
-              <AccordionTrigger
-                className={cn(
-                  locked && 'cursor-not-allowed hover:no-underline',
-                )}
+    <div className="flex flex-col h-[calc(100vh-3.5rem)]">
+      {/* Header */}
+      <div className="px-6 pt-4 pb-4 shrink-0 space-y-3">
+        {/* Top bar: back + actions */}
+        <div className="flex items-center justify-between">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground -ml-2"
+            onClick={() => navigate({ to: '/charts' })}
+          >
+            <ArrowLeft className="mr-1.5 size-3.5" />
+            Back
+          </Button>
+          <div className="flex items-center gap-2">
+            {mode === 'edit' && initialChart && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-destructive"
+                onClick={() => setDeleteDialogOpen(true)}
               >
-                <div className="flex flex-1 flex-col items-start gap-0.5">
-                  <div className="flex items-center gap-2">
-                    {completed && !isActive && (
-                      <Check className="size-4 text-primary" />
-                    )}
-                    <span className="text-sm font-semibold">
-                      {STEP_LABELS[step]}
-                    </span>
-                  </div>
-                  {summary && !isActive && (
-                    <span className="text-sm text-muted-foreground">
-                      {summary}
-                    </span>
-                  )}
-                </div>
-              </AccordionTrigger>
+                <Trash2 className="mr-1.5 size-3.5" />
+                Delete Chart
+              </Button>
+            )}
+            <Button
+              size="sm"
+              onClick={handleSave}
+              disabled={!chartComplete || isSaving}
+            >
+              {isSaving ? (
+                <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+              ) : (
+                <Save className="mr-1.5 size-3.5" />
+              )}
+              {mode === 'create' ? 'Save Chart' : 'Save Changes'}
+            </Button>
+          </div>
+        </div>
 
-              <AccordionContent className="p-4 pt-0">
-                {step === 'dataset' && (
-                  <StepDataset
-                    selectedDataset={state.dataset}
-                    onSelect={handleDatasetSelect}
-                  />
-                )}
-                {step === 'type' && state.dataset && (
-                  <StepType
-                    datasetShape={datasetShape}
-                    selectedType={state.chartType}
-                    onSelect={handleTypeSelect}
-                  />
-                )}
-                {step === 'mapping' && state.chartType && state.dataset && (
-                  <div className="space-y-4">
-                    <StepMapping
-                      chartType={state.chartType}
-                      columns={state.dataset.columns}
-                      mapping={state.columnMapping}
-                      onChange={handleMappingChange}
-                    />
-                    <button
-                      type="button"
-                      onClick={handleMappingComplete}
-                      className="text-sm font-medium text-primary hover:underline"
+        {/* Chart name as editable heading */}
+        <input
+          className="text-2xl font-semibold tracking-tight bg-transparent border-b border-transparent hover:border-border focus:border-primary outline-none w-full placeholder:text-muted-foreground/50 transition-colors pb-1"
+          placeholder="Untitled Chart"
+          value={state.name}
+          onChange={(e) => setState((prev) => ({ ...prev, name: e.target.value }))}
+        />
+
+        {/* Description */}
+        <Input
+          className="h-8 text-sm"
+          placeholder="Add a description..."
+          value={state.description}
+          onChange={(e) => setState((prev) => ({ ...prev, description: e.target.value }))}
+        />
+
+        {/* Metadata badges */}
+        {(state.dataset || state.chartType) && (
+          <div className="flex items-center gap-2">
+            {state.chartType && (
+              <Badge variant="outline" className="gap-1.5">
+                <ChartTypeIcon chartType={state.chartType} size={12} />
+                {CHART_DISPLAY_NAMES[state.chartType]}
+              </Badge>
+            )}
+            {state.dataset && (
+              <Badge variant="outline">
+                {state.dataset.name}
+              </Badge>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Side-by-side panels */}
+      <div className="flex gap-4 flex-1 min-h-0 px-6 pb-4">
+        {/* Left: Steps */}
+        <div className="w-[380px] shrink-0 rounded-lg border bg-card overflow-hidden flex flex-col">
+          <div className="flex items-center px-3 h-9 border-b bg-muted/30 shrink-0">
+            <span className="text-sm font-semibold tracking-tight">Steps</span>
+          </div>
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <Accordion
+              type="single"
+              collapsible
+              value={activeStep}
+              onValueChange={handleAccordionChange}
+            >
+              {STEP_ORDER.map((step) => {
+                const locked = isStepLocked(step)
+                const completed = completedSteps.has(step)
+                const summary = getStepSummary(step)
+                const isActive = activeStep === step
+
+                return (
+                  <AccordionItem
+                    key={step}
+                    value={step}
+                    disabled={locked}
+                    className={cn(
+                      'border-b last:border-b-0',
+                      locked && 'opacity-50',
+                      isActive && 'border-l-2 border-l-primary',
+                    )}
+                  >
+                    <AccordionTrigger
+                      className={cn(
+                        'py-2.5 px-3',
+                        locked && 'cursor-not-allowed hover:no-underline',
+                      )}
                     >
-                      Continue to Appearance
-                    </button>
-                  </div>
-                )}
-                {step === 'appearance' && (
-                  <div className="space-y-4">
-                    <StepAppearance
-                      appearance={state.appearance}
-                      onChange={handleAppearanceChange}
-                    />
-                    <button
-                      type="button"
-                      onClick={handleAppearanceComplete}
-                      className="text-sm font-medium text-primary hover:underline"
-                    >
-                      Continue to Save
-                    </button>
-                  </div>
-                )}
-                {step === 'save' && (
-                  <StepSave
-                    name={state.name}
-                    description={state.description}
-                    onChange={handleSaveFieldsChange}
-                    onSave={handleSave}
-                    isSaving={isSaving}
-                    mode={mode}
-                    isChartComplete={chartComplete}
-                  />
-                )}
-              </AccordionContent>
-            </AccordionItem>
-          )
-        })}
-      </Accordion>
+                      <div className="flex flex-1 flex-col items-start gap-0.5">
+                        <div className="flex items-center gap-2">
+                          {completed && !isActive && (
+                            <Check className="size-4 text-primary" />
+                          )}
+                          <span className="text-sm font-semibold">
+                            {STEP_LABELS[step]}
+                          </span>
+                        </div>
+                        {summary && !isActive && (
+                          <span className="text-sm text-muted-foreground">
+                            {summary}
+                          </span>
+                        )}
+                      </div>
+                    </AccordionTrigger>
+
+                    <AccordionContent className="p-4 pt-0">
+                      {step === 'dataset' && (
+                        <div className="space-y-3">
+                          <StepDataset
+                            selectedDataset={state.dataset}
+                            onSelect={handleDatasetSelect}
+                          />
+                          {state.dataset && (
+                            <div className="flex justify-end">
+                              <Button
+                                size="sm"
+                                onClick={handleDatasetContinue}
+                              >
+                                Continue
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {step === 'type' && state.dataset && (
+                        <StepType
+                          datasetShape={datasetShape}
+                          selectedType={state.chartType}
+                          onSelect={handleTypeSelect}
+                        />
+                      )}
+                      {step === 'mapping' && state.chartType && state.dataset && (
+                        <div className="space-y-3">
+                          <StepMapping
+                            chartType={state.chartType}
+                            columns={state.dataset.columns}
+                            mapping={state.columnMapping}
+                            onChange={handleMappingChange}
+                          />
+                          <div className="flex justify-end">
+                            <Button
+                              size="sm"
+                              onClick={handleMappingComplete}
+                            >
+                              Continue
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                      {step === 'appearance' && (
+                        <div className="space-y-3">
+                          <StepAppearance
+                            appearance={state.appearance}
+                            onChange={handleAppearanceChange}
+                          />
+                          <div className="flex justify-end">
+                            <Button
+                              size="sm"
+                              onClick={handleAppearanceComplete}
+                            >
+                              Done
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </AccordionContent>
+                  </AccordionItem>
+                )
+              })}
+            </Accordion>
+          </div>
+        </div>
+
+        {/* Right: Preview */}
+        <div className="flex-1 min-w-0 rounded-lg border bg-card overflow-hidden flex flex-col">
+          <div className="flex items-center px-3 h-9 border-b bg-muted/30 shrink-0">
+            <span className="text-sm font-semibold tracking-tight">Preview</span>
+          </div>
+          <div className="flex-1 min-h-0 p-4">
+            <ChartBuilderPreview
+              state={previewState}
+              onPreviewData={() => {}}
+              allComplete={allStepsComplete}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Delete dialog (edit mode) */}
+      {mode === 'edit' && initialChart && (
+        <DeleteChartDialog
+          chart={initialChart}
+          open={deleteDialogOpen}
+          onOpenChange={setDeleteDialogOpen}
+          onDeleted={() => navigate({ to: '/charts' })}
+        />
+      )}
     </div>
   )
 }
