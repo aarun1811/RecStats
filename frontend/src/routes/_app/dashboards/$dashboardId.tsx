@@ -1,8 +1,10 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { Pencil } from 'lucide-react'
 
 import { DashboardRenderer } from '@/components/dashboard/dashboard-renderer'
-import { useDashboardConfig } from '@/hooks/use-dashboard-config'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useManagedDashboard } from '@/hooks/use-managed-dashboards'
 
 export const Route = createFileRoute('/_app/dashboards/$dashboardId')({
   component: DashboardPage,
@@ -10,7 +12,8 @@ export const Route = createFileRoute('/_app/dashboards/$dashboardId')({
 
 function DashboardPage() {
   const { dashboardId } = Route.useParams()
-  const { data: config, isLoading } = useDashboardConfig(dashboardId)
+  const navigate = useNavigate()
+  const { data: dashboard, isLoading } = useManagedDashboard(dashboardId)
 
   if (isLoading) {
     return (
@@ -26,19 +29,38 @@ function DashboardPage() {
     )
   }
 
-  if (!config) {
+  if (!dashboard) {
     return <div className="p-6 text-muted-foreground">Dashboard not found</div>
   }
 
+  const config = dashboard.config
+
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{config.name}</h1>
-        {config.description && (
-          <p className="text-sm text-muted-foreground mt-1">
-            {config.description}
-          </p>
-        )}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {config.name}
+          </h1>
+          {config.description && (
+            <p className="text-sm text-muted-foreground mt-1">
+              {config.description}
+            </p>
+          )}
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() =>
+            navigate({
+              to: '/dashboards/$dashboardId/edit',
+              params: { dashboardId },
+            })
+          }
+        >
+          <Pencil className="mr-1.5 size-4" />
+          Edit
+        </Button>
       </div>
       <DashboardRenderer config={config} />
     </div>

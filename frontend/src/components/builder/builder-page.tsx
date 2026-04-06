@@ -18,6 +18,7 @@ import { FilterConfigDialog } from '@/components/builder/filter-config-dialog'
 import { KpiPickerDialog } from '@/components/builder/kpi-picker-dialog'
 import { PanelConfigPopover } from '@/components/builder/panel-config-popover'
 import { SaveDashboardDialog } from '@/components/builder/save-dashboard-dialog'
+import { UnsavedChangesGuard } from '@/components/builder/unsaved-changes-guard'
 import { Button } from '@/components/ui/button'
 import { useBuilderKeyboardShortcuts } from '@/hooks/use-builder-keyboard-shortcuts'
 import {
@@ -160,6 +161,7 @@ export function BuilderPage({ mode }: BuilderPageProps) {
 
   const [isSaving, setIsSaving] = useState(false)
   const [saveAsOpen, setSaveAsOpen] = useState(false)
+  const [showLeaveDialog, setShowLeaveDialog] = useState(false)
 
   const filters = useBuilderStore((s) => s.filters)
   const addFilter = useBuilderStore((s) => s.addFilter)
@@ -286,19 +288,30 @@ export function BuilderPage({ mode }: BuilderPageProps) {
     [allKpis, createDashboard, markClean, resetHistory, navigate],
   )
 
-  const handleExit = useCallback(() => {
-    if (isDirty) {
-      const confirmed = window.confirm(
-        'You have unsaved changes. Leave without saving?',
-      )
-      if (!confirmed) return
-    }
+  const navigateAway = useCallback(() => {
     if (dashboardId) {
       navigate({ to: '/dashboards/$dashboardId', params: { dashboardId } })
     } else {
       navigate({ to: '/dashboards' })
     }
-  }, [isDirty, dashboardId, navigate])
+  }, [dashboardId, navigate])
+
+  const handleExit = useCallback(() => {
+    if (isDirty) {
+      setShowLeaveDialog(true)
+      return
+    }
+    navigateAway()
+  }, [isDirty, navigateAway])
+
+  const handleConfirmLeave = useCallback(() => {
+    setShowLeaveDialog(false)
+    navigateAway()
+  }, [navigateAway])
+
+  const handleCancelLeave = useCallback(() => {
+    setShowLeaveDialog(false)
+  }, [])
 
   // Picker handlers -- create BuilderItems from selected library items
   const handleChartSelected = useCallback(
@@ -509,6 +522,12 @@ export function BuilderPage({ mode }: BuilderPageProps) {
         defaultDescription={description}
         onSave={handleSaveAsConfirm}
         isSaving={isSaving}
+      />
+      <UnsavedChangesGuard
+        isDirty={isDirty}
+        open={showLeaveDialog}
+        onConfirmLeave={handleConfirmLeave}
+        onCancelLeave={handleCancelLeave}
       />
     </div>
   )
