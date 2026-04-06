@@ -13,7 +13,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Kbd } from '@/components/ui/kbd'
 import { Skeleton } from '@/components/ui/skeleton'
 import { SqlEditor } from '@/components/explorer/sql-editor'
 import { ColumnMetadataGrid } from '@/components/datasets/column-metadata-grid'
@@ -294,33 +293,12 @@ export function DatasetEditor({ mode, dataset, isLoading }: DatasetEditorProps) 
       </div>
 
       {/* SQL Editor panel */}
-      <div className="mx-6 rounded-lg border bg-card overflow-hidden mb-4 shrink-0">
-        <div className="flex items-center justify-between px-3 h-9 border-b bg-muted/30">
-          <span className="text-sm font-semibold tracking-tight">SQL Editor</span>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground flex items-center gap-1">
-              <Kbd>&#8984;</Kbd>+<Kbd>&#9166;</Kbd>
-            </span>
-            <Button
-              size="sm"
-              className="h-7"
-              onClick={handleRunQuery}
-              disabled={sqlExecute.isPending || !sql.trim() || !databaseId}
-            >
-              {sqlExecute.isPending ? (
-                <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-              ) : (
-                <Play className="mr-1.5 size-3.5" />
-              )}
-              Run Query
-            </Button>
-          </div>
-        </div>
+      <div className="mx-6 rounded-lg border bg-card overflow-hidden mb-4 shrink-0 h-[250px]">
         <SqlEditor
           value={sql}
           onChange={setSql}
           onRun={handleRunQuery}
-          isRunning={sqlExecute.isPending}
+          isRunning={sqlExecute.isPending || !databaseId}
         />
       </div>
 
