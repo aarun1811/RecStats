@@ -8,11 +8,13 @@ import { toast } from 'sonner'
 import { AddContentMenu } from '@/components/builder/add-content-menu'
 import { BuilderCanvas } from '@/components/builder/builder-canvas'
 import { BuilderEmptyState } from '@/components/builder/builder-empty-state'
+import { BuilderFilterBar } from '@/components/builder/builder-filter-bar'
 import { BuilderPanel } from '@/components/builder/builder-panel'
 import { BuilderPanelContent } from '@/components/builder/builder-panel-content'
 import { BuilderToolbar } from '@/components/builder/builder-toolbar'
 import { ChartPickerDialog } from '@/components/builder/chart-picker-dialog'
 import { DatasetPickerDialog } from '@/components/builder/dataset-picker-dialog'
+import { FilterConfigDialog } from '@/components/builder/filter-config-dialog'
 import { KpiPickerDialog } from '@/components/builder/kpi-picker-dialog'
 import { PanelConfigPopover } from '@/components/builder/panel-config-popover'
 import { Button } from '@/components/ui/button'
@@ -24,7 +26,7 @@ import {
 import { useBuilderStore } from '@/stores/builder-store'
 import { useLayoutHistoryStore } from '@/stores/layout-history-store'
 import type { BuilderItem } from '@/types/builder'
-import type { DashboardConfig } from '@/types/dashboard-config'
+import type { DashboardConfig, FilterConfig } from '@/types/dashboard-config'
 import type { RecvizChart } from '@/types/managed-chart'
 import type { RecvizDataset } from '@/types/managed-dataset'
 import type { RecvizKpi } from '@/types/managed-kpi'
@@ -95,10 +97,16 @@ export function BuilderPage({ mode }: BuilderPageProps) {
 
   const [isSaving, setIsSaving] = useState(false)
 
+  const filters = useBuilderStore((s) => s.filters)
+  const addFilter = useBuilderStore((s) => s.addFilter)
+  const removeFilter = useBuilderStore((s) => s.removeFilter)
+  const reorderFilters = useBuilderStore((s) => s.reorderFilters)
+
   // Dialog visibility state
   const [chartPickerOpen, setChartPickerOpen] = useState(false)
   const [kpiPickerOpen, setKpiPickerOpen] = useState(false)
   const [gridPickerOpen, setGridPickerOpen] = useState(false)
+  const [filterDialogOpen, setFilterDialogOpen] = useState(false)
   const [editingPanelId, setEditingPanelId] = useState<string | null>(null)
 
   const handleUndo = useCallback(() => {
@@ -255,6 +263,16 @@ export function BuilderPage({ mode }: BuilderPageProps) {
     // No-op: AddContentMenu is now wired directly as a dropdown trigger
   }, [])
 
+  const handleFiltersAdded = useCallback(
+    (newFilters: FilterConfig[]) => {
+      for (const filter of newFilters) {
+        addFilter(filter)
+        toast.success(`Filter "${filter.label}" added`)
+      }
+    },
+    [addFilter],
+  )
+
   useBuilderKeyboardShortcuts({
     onUndo: handleUndo,
     onRedo: handleRedo,
@@ -275,9 +293,7 @@ export function BuilderPage({ mode }: BuilderPageProps) {
             onSelectChart={() => setChartPickerOpen(true)}
             onSelectKpi={() => setKpiPickerOpen(true)}
             onSelectGrid={() => setGridPickerOpen(true)}
-            onSelectFilter={() => {
-              // Filter dialog wired in Plan 08
-            }}
+            onSelectFilter={() => setFilterDialogOpen(true)}
           >
             <Button size="sm">
               <Plus className="mr-1.5 size-4" />
@@ -286,6 +302,15 @@ export function BuilderPage({ mode }: BuilderPageProps) {
           </AddContentMenu>
         }
       />
+
+      {filters.length > 0 && (
+        <BuilderFilterBar
+          filters={filters}
+          onRemove={removeFilter}
+          onReorder={reorderFilters}
+          onAddFilter={() => setFilterDialogOpen(true)}
+        />
+      )}
 
       <div className="flex-1 overflow-auto px-6 pb-6">
         <div className="py-4">
@@ -357,6 +382,11 @@ export function BuilderPage({ mode }: BuilderPageProps) {
         open={gridPickerOpen}
         onOpenChange={setGridPickerOpen}
         onSelectDataset={handleGridSelected}
+      />
+      <FilterConfigDialog
+        open={filterDialogOpen}
+        onOpenChange={setFilterDialogOpen}
+        onFiltersAdded={handleFiltersAdded}
       />
     </div>
   )
