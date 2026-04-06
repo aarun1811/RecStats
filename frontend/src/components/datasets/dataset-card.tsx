@@ -31,28 +31,29 @@ export function DatasetCard({ dataset, databaseName, backendType, onClick }: Dat
         }
       }}
     >
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2">
         <div className="flex items-start justify-between">
-          <Database className={cn('size-8', iconColor)} />
-          {dataset.syncStatus !== 'synced' && (
-            <div className="flex items-center gap-1.5">
-              <span className={cn('inline-block size-2 rounded-full', dataset.syncStatus === 'error' ? 'bg-amber-500' : 'bg-gray-400')} />
-              <span className="text-[10px] text-muted-foreground">
-                {dataset.syncStatus === 'error' ? 'Sync Error' : 'Unsynced'}
-              </span>
-            </div>
-          )}
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold truncate">{dataset.name}</p>
+            {dataset.description && (
+              <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
+                {dataset.description}
+              </p>
+            )}
+          </div>
+          <Database className={cn('size-8 shrink-0 ml-3', iconColor)} />
         </div>
-        <div>
-          <p className="text-sm font-medium truncate">{dataset.name}</p>
-          {dataset.description && (
-            <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
-              {dataset.description}
-            </p>
+        <p className="text-xs text-muted-foreground">
+          {databaseName ?? backendType ?? 'Database'}
+          {dataset.syncStatus !== 'synced' && (
+            <span className="text-amber-600 dark:text-amber-400 ml-2">
+              &middot; {dataset.syncStatus === 'error' ? 'Sync Error' : 'Unsynced'}
+            </span>
           )}
-          <p className="text-xs text-muted-foreground mt-1">
-            {databaseName ?? backendType ?? 'Database'} &middot; {dataset.columns.length} columns &middot; {formatDistanceToNow(new Date(dataset.updatedAt), { addSuffix: true })}
-          </p>
+        </p>
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span>{dataset.columns.length} columns</span>
+          <span>{formatDistanceToNow(new Date(dataset.updatedAt), { addSuffix: true })}</span>
         </div>
       </div>
     </Card>
