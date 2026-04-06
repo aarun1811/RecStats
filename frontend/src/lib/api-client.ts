@@ -66,6 +66,10 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     throw new ApiError(res.status, text)
   }
 
+  if (res.status === 204 || res.headers.get('content-length') === '0') {
+    return undefined as T
+  }
+
   const json = await res.json()
   return transformKeys(json, DATA_KEYS) as T
 }
