@@ -149,19 +149,20 @@ Plans:
 - [x] 06-03-PLAN.md -- Chart library list page with card/row toggle, search/filters, detail side panel, delete dialog
 
 ### Phase 7: KPI Library
-**Goal**: Dev team defines reusable KPI templates with SQL and formatting rules; business users pick KPIs from the library with animated, color-coded cards
+**Goal**: Dev team defines reusable KPI templates with dataset references, format rules, trend comparison, and threshold coloring; business users browse the KPI library with animated, color-coded cards
 **Depends on**: Phase 5
 **Requirements**: KPI-01, KPI-02, KPI-03
 **Success Criteria** (what must be TRUE):
-  1. Dev team can define a KPI template with a SQL fragment, format rules (currency/percentage/number), and trend indicator logic (direction + threshold)
-  2. Business users can browse KPI templates and add them to dashboards -- selecting a metric, configuring threshold colors, and setting trend direction
-  3. KPI cards display animated counters (rolling number animation), trend arrows with percentage change, and configurable status colors (green/amber/red)
-**Plans**: TBD
+  1. Dev team can define a KPI template by selecting a dataset, metric column, aggregation, format rules (currency/percentage/number/decimal), trend comparison (previous period or static target), and threshold ranges (green/amber/red)
+  2. Business users can browse KPI templates in a library with card grid/list toggle, search, dataset filter, and detail side panel
+  3. KPI cards display animated counters (0.8s roll-up), trend arrows with subtitle context, and threshold-based status colors (green/amber/red)
+**Plans:** 3 plans
 **UI hint**: yes
 
 Plans:
-- [ ] 07-01: TBD
-- [ ] 07-02: TBD
+- [ ] 07-01-PLAN.md -- Backend CRUD + Alembic migration + types + hooks + KPI utilities + sidebar nav + route stubs + dataset reference wiring
+- [ ] 07-02-PLAN.md -- KPI builder with sectioned form, live preview panel, create and edit page wiring
+- [ ] 07-03-PLAN.md -- KPI library list page with card/row toggle, search/filters, detail side panel, delete dialog
 
 ### Phase 8: Dashboard Builder
 **Goal**: Business users can create, edit, and manage complete dashboards through a visual builder with drag-and-drop layout, chart/KPI/filter placement, and save/publish workflow
@@ -212,6 +213,6 @@ Phases execute in numeric order: 1 -> 2 -> 02.1 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 ->
 | 4. Data Source Connectivity | 3/3 | Complete | 2026-04-05 |
 | 5. Dataset Management | 3/3 | Complete | 2026-04-06 |
 | 6. Chart Library | 3/3 | Complete | 2026-04-06 |
-| 7. KPI Library | 0/0 | Not started | - |
+| 7. KPI Library | 0/3 | Planning complete | - |
 | 8. Dashboard Builder | 0/0 | Not started | - |
 | 9. Sharing and Views | 0/0 | Not started | - |
