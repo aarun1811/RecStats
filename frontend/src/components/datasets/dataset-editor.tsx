@@ -241,7 +241,7 @@ export function DatasetEditor({ mode, dataset, isLoading }: DatasetEditorProps) 
             onClick={() => navigate({ to: '/datasets' })}
           >
             <ArrowLeft className="mr-1.5 size-3.5" />
-            Back to Datasets
+            Back
           </Button>
           <div className="flex items-center gap-2">
             {mode === 'edit' && dataset && (
