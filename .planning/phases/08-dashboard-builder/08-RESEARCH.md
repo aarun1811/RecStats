@@ -143,6 +143,7 @@ frontend/src/
       builder-canvas.tsx       # react-grid-layout canvas wrapper
       builder-toolbar.tsx      # Top toolbar ([+ Add], Undo, Redo, Save, etc.)
       builder-panel.tsx        # Individual panel wrapper (drag handle, edit/remove)
+      builder-panel-content.tsx # Live WYSIWYG rendering (ChartFactory, KpiPreviewCard, grid preview)
       panel-config-popover.tsx # Per-panel config popover (title, cross-filter, drill)
       add-content-dialog.tsx   # Type picker dialog (Chart, KPI, Data Grid, Filter)
       chart-picker-dialog.tsx  # Browse chart library dialog
@@ -150,7 +151,7 @@ frontend/src/
       dataset-picker-dialog.tsx # Dataset picker for data grids
       filter-config-dialog.tsx # Dataset column picker for filters
       filter-column-mapper.tsx # Per-chart filter column mapping override
-      drill-hierarchy-editor.tsx # Drill hierarchy ordered list editor
+      drill-hierarchy-editor.tsx # Drill hierarchy column picker with [+ Add Level]
       dashboard-empty-state.tsx # Empty canvas state
       dashboard-metadata-editor.tsx # Inline title/description editing
       save-as-dialog.tsx       # Save As dialog (name + description)
@@ -728,17 +729,17 @@ export function useBuilderKeyboardShortcuts(
 
 ## Open Questions
 
-1. **react-grid-layout v2 Exact API Surface**
+1. **react-grid-layout v2 Exact API Surface (RESOLVED)**
    - What we know: v2 uses hooks API with `useContainerWidth`, config objects (`gridConfig`, `dragConfig`, etc.), and pluggable compactors. Documentation is on GitHub.
    - What's unclear: Exact prop names and types may have changed between 2.0.0 and 2.2.3. The GitHub README and changelog are the source of truth.
    - Recommendation: Install the library first, inspect `dist/index.d.ts` for exact exported types, then implement. If any v2 API differences from research, the legacy wrapper is a guaranteed fallback.
 
-2. **CSS Conflict Between react-grid-layout Styles and Tailwind**
+2. **CSS Conflict Between react-grid-layout Styles and Tailwind (RESOLVED)**
    - What we know: RGL requires importing two CSS files. Tailwind may override some RGL styles.
    - What's unclear: Whether RGL's CSS classes conflict with Tailwind utility classes.
    - Recommendation: Import RGL CSS files early (in the builder canvas component). Override specific RGL classes with Tailwind if needed. The dashed grid background and panel borders are custom CSS, not RGL.
 
-3. **Dashboard Config Evolution**
+3. **Dashboard Config Evolution (RESOLVED)**
    - What we know: The existing `DashboardConfig` type is used by both the renderer and dev-built JSON configs. The builder will produce this same shape.
    - What's unclear: Whether any new fields are needed for builder-specific features (e.g., `createdBy`, `createdAt` at the config level vs. DB column level).
    - Recommendation: Keep the config shape unchanged. Use the DB model's `created_at`/`updated_at` columns for metadata. Add `created_by` as a new DB column (not in the config JSON) when auth is implemented (Phase 9+). For now, the list page shows DB-level metadata.
