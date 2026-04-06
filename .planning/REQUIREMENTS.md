@@ -43,7 +43,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **BLDR-01**: User can create a new dashboard with title and description
 - [x] **BLDR-02**: Grid-based layout editor — drag, drop, and resize chart panels, KPI cards, and filter bars on a 12-column grid
 - [x] **BLDR-03**: User can add charts to a dashboard by either building a new chart or picking from the chart library
-- [ ] **BLDR-04**: User can add/remove/configure filters on the dashboard from available dataset columns
+- [x] **BLDR-04**: User can add/remove/configure filters on the dashboard from available dataset columns
 - [x] **BLDR-05**: User can add KPI cards from the KPI library to the dashboard
 - [x] **BLDR-06**: View mode vs edit mode toggle — view mode is the consumer experience, edit mode enables drag/resize/configure
 - [x] **BLDR-07**: Dashboards persist to database with save, "Save As" (clone), and delete
@@ -165,7 +165,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BLDR-01 | Phase 8: Dashboard Builder | Complete |
 | BLDR-02 | Phase 8: Dashboard Builder | Complete |
 | BLDR-03 | Phase 8: Dashboard Builder | Complete |
-| BLDR-04 | Phase 8: Dashboard Builder | Pending |
+| BLDR-04 | Phase 8: Dashboard Builder | Complete |
 | BLDR-05 | Phase 8: Dashboard Builder | Complete |
 | BLDR-06 | Phase 8: Dashboard Builder | Complete |
 | BLDR-07 | Phase 8: Dashboard Builder | Complete |
