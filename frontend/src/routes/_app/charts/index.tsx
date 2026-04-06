@@ -1,6 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { motion } from 'motion/react'
 
+import { ChartLibraryList } from '@/components/charts/chart-library-list'
+
 export const Route = createFileRoute('/_app/charts/')({
   component: ChartsPage,
 })
@@ -14,7 +16,7 @@ function ChartsPage() {
       transition={{ duration: 0.2, ease: 'easeOut' }}
     >
       <h1 className="mb-6 text-2xl font-semibold tracking-tight">Charts</h1>
-      <div className="text-sm text-muted-foreground">Charts list coming soon</div>
+      <ChartLibraryList />
     </motion.div>
   )
 }
