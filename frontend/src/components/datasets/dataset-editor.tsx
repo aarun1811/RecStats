@@ -258,7 +258,7 @@ export function DatasetEditor({ mode, dataset, isLoading }: DatasetEditorProps) 
             <Button
               size="sm"
               onClick={handleSave}
-              disabled={hasUnsavedSqlChanges || isSaving}
+              disabled={hasUnsavedSqlChanges || isSaving || !name.trim() || !databaseId || !lastRunSql}
             >
               {isSaving ? (
                 <Loader2 className="mr-1.5 size-3.5 animate-spin" />
