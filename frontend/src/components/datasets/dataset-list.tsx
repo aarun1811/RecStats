@@ -2,13 +2,6 @@ import { useState, useMemo } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { Table2 } from 'lucide-react'
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
@@ -68,15 +61,11 @@ export function DatasetList() {
     navigate({ to: '/datasets/$datasetId/edit', params: { datasetId } })
   }
 
+  const isEmpty = !isLoading && datasets.length === 0 && !searchQuery && databaseFilter === 'all'
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Configured Datasets</CardTitle>
-        <CardDescription>
-          Manage SQL datasets for dashboard charts
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <div className="space-y-4">
+      {!isEmpty && (
         <DatasetListToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -86,78 +75,78 @@ export function DatasetList() {
           onDatabaseFilterChange={setDatabaseFilter}
           databases={databases}
         />
+      )}
 
-        {isLoading ? (
-          viewMode === 'grid' ? (
-            <div className="grid grid-cols-3 gap-4">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <Skeleton key={i} className="h-[140px] rounded-lg" />
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <Skeleton key={i} className="h-[56px] rounded-lg" />
-              ))}
-            </div>
-          )
-        ) : filtered.length === 0 && !searchQuery && databaseFilter === 'all' ? (
-          <Empty className="border">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <Table2 />
-              </EmptyMedia>
-              <EmptyTitle>No datasets yet</EmptyTitle>
-              <EmptyDescription>
-                Create your first dataset to start building charts. Write SQL,
-                configure column metadata, and publish.
-              </EmptyDescription>
-            </EmptyHeader>
-            <EmptyContent>
-              <Button
-                size="sm"
-                onClick={() => navigate({ to: '/datasets/new' })}
-              >
-                Create Dataset
-              </Button>
-            </EmptyContent>
-          </Empty>
-        ) : filtered.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">
-            No datasets matching &ldquo;{searchQuery}&rdquo;
-          </p>
-        ) : viewMode === 'grid' ? (
+      {isLoading ? (
+        viewMode === 'grid' ? (
           <div className="grid grid-cols-3 gap-4">
-            {filtered.map((ds) => {
-              const db = databaseMap.get(ds.databaseId)
-              return (
-                <DatasetCard
-                  key={ds.id}
-                  dataset={ds}
-                  databaseName={db?.name}
-                  backendType={db?.backend}
-                  onClick={() => handleNavigate(ds.id)}
-                />
-              )
-            })}
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-[140px] rounded-lg" />
+            ))}
           </div>
         ) : (
           <div className="space-y-2">
-            {filtered.map((ds) => {
-              const db = databaseMap.get(ds.databaseId)
-              return (
-                <DatasetRow
-                  key={ds.id}
-                  dataset={ds}
-                  databaseName={db?.name}
-                  backendType={db?.backend}
-                  onClick={() => handleNavigate(ds.id)}
-                />
-              )
-            })}
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-[56px] rounded-lg" />
+            ))}
           </div>
-        )}
-      </CardContent>
-    </Card>
+        )
+      ) : isEmpty ? (
+        <Empty className="border rounded-lg">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <Table2 />
+            </EmptyMedia>
+            <EmptyTitle>No datasets yet</EmptyTitle>
+            <EmptyDescription>
+              Create your first dataset to start building charts. Write SQL,
+              configure column metadata, and publish.
+            </EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            <Button
+              size="sm"
+              onClick={() => navigate({ to: '/datasets/new' })}
+            >
+              Create Dataset
+            </Button>
+          </EmptyContent>
+        </Empty>
+      ) : filtered.length === 0 ? (
+        <p className="py-8 text-center text-sm text-muted-foreground">
+          No datasets matching &ldquo;{searchQuery}&rdquo;
+        </p>
+      ) : viewMode === 'grid' ? (
+        <div className="grid grid-cols-3 gap-4">
+          {filtered.map((ds) => {
+            const db = databaseMap.get(ds.databaseId)
+            return (
+              <DatasetCard
+                key={ds.id}
+                dataset={ds}
+                databaseName={db?.name}
+                backendType={db?.backend}
+                onClick={() => handleNavigate(ds.id)}
+              />
+            )
+          })}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {filtered.map((ds) => {
+            const db = databaseMap.get(ds.databaseId)
+            return (
+              <DatasetRow
+                key={ds.id}
+                dataset={ds}
+                databaseName={db?.name}
+                backendType={db?.backend}
+                onClick={() => handleNavigate(ds.id)}
+              />
+            )
+          })}
+        </div>
+      )}
+    </div>
   )
 }
