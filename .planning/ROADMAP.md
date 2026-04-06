@@ -179,7 +179,7 @@ Plans:
 **UI hint**: yes
 
 Plans:
-- [ ] 08-01-PLAN.md -- Backend CRUD API + Pydantic schemas + frontend types + TanStack Query hooks for managed dashboards
+- [x] 08-01-PLAN.md -- Backend CRUD API + Pydantic schemas + frontend types + TanStack Query hooks for managed dashboards
 - [ ] 08-02-PLAN.md -- Builder types, Zustand stores (builder state + undo/redo), route stubs for /new and /:id/edit
 - [ ] 08-03-PLAN.md -- Install react-grid-layout, BuilderCanvas component with 12-column grid, wire into route pages
 - [ ] 08-04-PLAN.md -- BuilderPanel grid item wrapper (drag handle, edit/remove buttons) and empty canvas state
