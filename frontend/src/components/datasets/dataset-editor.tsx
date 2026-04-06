@@ -298,7 +298,7 @@ export function DatasetEditor({ mode, dataset, isLoading }: DatasetEditorProps) 
           value={sql}
           onChange={setSql}
           onRun={handleRunQuery}
-          isRunning={sqlExecute.isPending || !databaseId}
+          isRunning={sqlExecute.isPending}
         />
       </div>
 
