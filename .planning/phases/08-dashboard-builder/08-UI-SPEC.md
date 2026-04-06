@@ -55,6 +55,8 @@ Exceptions:
 | Body / Labels | 14px | 400 (regular) | 1.5 | `text-sm` |
 | Caption / Metadata | 12px | 400 (regular) | 1.5 | `text-xs text-muted-foreground` |
 
+**3-weight exception:** This phase uses 3 font weights (400, 500, 600) which exceeds the standard 2-weight limit. This is an intentional project-level override aligned with CLAUDE.md conventions established across all prior phases: `font-semibold` (600) for page titles and primary headings, `font-medium` (500) for section headers, panel titles, and toolbar button labels, and `font-normal` (400) for body text, descriptions, and captions. Reducing to 2 weights would break consistency with the existing codebase typography hierarchy.
+
 Notes:
 - Dashboard title on canvas: `text-2xl font-semibold tracking-tight` (inline-editable in edit mode, static in view mode).
 - Dashboard description: `text-sm text-muted-foreground` (inline-editable in edit mode).
@@ -73,7 +75,7 @@ Notes:
 | Destructive | `var(--destructive)` / oklch(0.577 0.245 27.325) | Delete Dashboard button, Remove panel button |
 
 Accent reserved for:
-- **Save button** (primary variant) in edit toolbar
+- **Save Dashboard button** (primary variant) in edit toolbar
 - **[+ Add] button** (primary variant) in edit toolbar
 - **Selected panel outline** (blue ring: `ring-2 ring-primary/50`) during edit mode hover
 - **Active drag placeholder** outline (dashed `border-primary/40`)
@@ -95,7 +97,7 @@ All colors reference Shadcn CSS variables exclusively. No hardcoded hex/rgb/hsl.
 | Component | File | Description |
 |-----------|------|-------------|
 | `DashboardBuilderCanvas` | `components/dashboard/builder/builder-canvas.tsx` | Full-page WYSIWYG editor wrapping react-grid-layout with 12-column grid |
-| `BuilderToolbar` | `components/dashboard/builder/builder-toolbar.tsx` | Top toolbar: [+ Add], Undo, Redo, Save, Save As, Cancel |
+| `BuilderToolbar` | `components/dashboard/builder/builder-toolbar.tsx` | Top toolbar: [+ Add], Undo, Redo, Save Dashboard, Save As, Exit Builder |
 | `BuilderPanel` | `components/dashboard/builder/builder-panel.tsx` | Wrapper around each grid item with drag handle, edit button, remove button |
 | `AddContentMenu` | `components/dashboard/builder/add-content-menu.tsx` | Dropdown menu from [+ Add]: Chart, KPI, Data Grid, Filter |
 | `ChartPickerDialog` | `components/dashboard/builder/chart-picker-dialog.tsx` | Dialog to browse/search chart library and pick a chart |
@@ -138,6 +140,8 @@ No new shadcn components needed for this phase.
 
 ### Dashboard List Page (`/dashboards`)
 
+**Focal Point:** The [+ Create Dashboard] primary button anchored top-right of the toolbar. On empty state, the focal point shifts to the centered [+ Create Dashboard] button inside the Empty component.
+
 ```
 +------------------------------------------------------------------+
 | Page Title: "Dashboards"                    [Search] [Filters] [Toggle] [+ Create Dashboard] |
@@ -162,9 +166,11 @@ No new shadcn components needed for this phase.
 
 ### Edit Mode (`/dashboards/:id/edit` or `/dashboards/new`)
 
+**Focal Point:** The canvas area with its dashed grid background. When the canvas is empty, the focal point is the centered Empty component with the "+ Add Content" CTA. When panels are present, the focal point is the panel content area. The [+ Add] button in the toolbar is the secondary focal point for continuing to build.
+
 ```
 +------------------------------------------------------------------+
-| BuilderToolbar: [+ Add v] | [Undo] [Redo] | [Save] [Save As] [Cancel] |
+| BuilderToolbar: [+ Add v] | [Undo] [Redo] | [Save Dashboard] [Save As] [Exit Builder] |
 +------------------------------------------------------------------+
 | Dashboard Title (inline editable)                                 |
 | Dashboard Description (inline editable)                           |
@@ -186,11 +192,15 @@ No new shadcn components needed for this phase.
 - Full-page width, no side panel (D-10)
 - Toolbar: sticky at top, `bg-background border-b`, `px-6 py-2`, `flex items-center justify-between`
 - Toolbar left: [+ Add] dropdown (primary button, `size="sm"`), separator, Undo/Redo icon buttons (ghost variant, `size="sm"`)
-- Toolbar right: [Save] (primary, `size="sm"`), [Save As] (outline, `size="sm"`), [Cancel] (ghost, `size="sm"`)
+- Toolbar right: [Save Dashboard] (primary, `size="sm"`), [Save As] (outline, `size="sm"`), [Exit Builder] (ghost, `size="sm"`)
 - Canvas background: repeating dashed grid pattern via CSS background-image (12-column visual guide, `border-dashed border-border/40`)
 - Canvas padding: `p-0` (react-grid-layout handles internal spacing via margin config)
 - Inline title: `text-2xl font-semibold tracking-tight`, input with `border-transparent hover:border-input focus:border-input` styling
 - Inline description: `text-sm text-muted-foreground`, input with same transparent border pattern
+
+### Empty Canvas
+
+**Focal Point:** The centered Empty component, specifically the "+ Add Content" primary CTA button. The dashed grid background provides a subtle visual cue that this is a drop zone.
 
 ### View Mode (`/dashboards/:id`)
 
@@ -223,6 +233,11 @@ No new shadcn components needed for this phase.
 - Hover state: `ring-2 ring-primary/20` outline
 - Active drag state: `opacity-80 shadow-xl ring-2 ring-primary/50`
 - Content area: padding matches existing CardContent (`px-3 pb-2`)
+
+**Tooltip declarations:**
+- GripVertical icon: no tooltip (drag affordance is self-evident from cursor change)
+- Pencil icon button: `Tooltip` with content "Edit Panel Settings", `side="bottom"`, delay 300ms
+- X icon button: `Tooltip` with content "Remove from Dashboard", `side="bottom"`, delay 300ms
 
 ### PanelConfigPopover
 
@@ -272,7 +287,7 @@ No new shadcn components needed for this phase.
 - Uses Shadcn `Dialog` with `DialogContent` at `max-w-md`
 - Fields: Name (`Input`, required), Description (`Textarea`, optional)
 - Default name: "Copy of [original name]"
-- Footer: [Cancel] (outline), [Save] (primary)
+- Footer: [Discard] (outline), [Save Dashboard] (primary)
 - Matches existing chart/KPI delete dialog width and pattern
 
 ### DeleteDashboardDialog
@@ -290,7 +305,8 @@ No new shadcn components needed for this phase.
 | Element | Copy |
 |---------|------|
 | Primary CTA (list page) | "Create Dashboard" |
-| Primary CTA (edit toolbar) | "Save" |
+| Primary CTA (edit toolbar) | "Save Dashboard" |
+| Exit edit mode button | "Exit Builder" |
 | Add content button | "+ Add" |
 | Empty state heading (list) | "No dashboards yet" |
 | Empty state body (list) | "Create your first dashboard to start visualizing reconciliation data. Add charts, KPIs, and filters from your libraries." |
@@ -304,8 +320,10 @@ No new shadcn components needed for this phase.
 | Destructive: Remove panel | No dialog -- immediate removal with Undo/Redo available (D-07) |
 | Save As dialog title | "Save Dashboard As" |
 | Save As name default | "Copy of [original name]" |
-| Unsaved changes warning | "You have unsaved changes. Leave without saving?" Confirm: "Leave" Cancel: "Stay" |
+| Unsaved changes warning | "You have unsaved changes. Leave without saving?" Confirm: "Leave Without Saving" Cancel: "Keep Editing" |
 | Undo/Redo tooltips | "Undo (Ctrl+Z)" / "Redo (Ctrl+Shift+Z)" |
+| Panel edit tooltip | "Edit Panel Settings" |
+| Panel remove tooltip | "Remove from Dashboard" |
 | No search results (list) | `No dashboards matching "[query]"` |
 | No search results (picker) | "No charts found" / "No KPIs found" / "No datasets found" |
 | Picker dialog [+ Create New] | "+ Create New Chart" / "+ Create New KPI" |
@@ -339,14 +357,16 @@ No new shadcn components needed for this phase.
 ### Mode Transitions
 
 - View to Edit: click [Edit] button in view mode header, navigates to `/dashboards/:id/edit`
-- Edit to View: [Cancel] returns to `/dashboards/:id`, or [Save] saves then navigates to `/dashboards/:id`
+- Edit to View: [Exit Builder] returns to `/dashboards/:id` (with unsaved changes warning if dirty), or [Save Dashboard] saves then navigates to `/dashboards/:id`
 - New dashboard: `/dashboards/new` enters edit mode immediately with empty canvas
 - Page transition animation: `motion.div` with `opacity: 0 -> 1`, `duration: 0.2`, `ease: easeOut` (matches existing chart/KPI page pattern)
 
 ### Unsaved Changes
 
 - Track dirty state: compare current layout/config JSON against last saved version
-- On navigate away (Cancel, browser back, sidebar link): show `Dialog` with unsaved changes warning
+- On navigate away (Exit Builder, browser back, sidebar link): show `Dialog` with unsaved changes warning
+- Dialog copy: "You have unsaved changes. Leave without saving?"
+- Dialog actions: [Keep Editing] (outline) and [Leave Without Saving] (destructive variant)
 - On browser tab close: `beforeunload` event with standard browser warning
 - No auto-save (too complex for v1, user expectation is explicit Save)
 
