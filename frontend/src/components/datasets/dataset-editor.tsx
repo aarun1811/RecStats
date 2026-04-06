@@ -199,13 +199,38 @@ export function DatasetEditor({ mode, dataset, isLoading }: DatasetEditorProps) 
   // Results preview column defs
   const resultColumnDefs = useMemo<ColDef[]>(() => {
     if (!queryResult?.columns) return []
-    return queryResult.columns.map((col) => ({
-      field: col.column_name ?? col.name,
-      headerName: col.column_name ?? col.name,
-      flex: 1,
-      minWidth: 100,
-    }))
-  }, [queryResult?.columns])
+    return queryResult.columns.map((col) => {
+      const colName = col.column_name ?? col.name
+      const meta = columns.find((c) => c.name === colName)
+      const def: ColDef = {
+        field: colName,
+        headerName: colName,
+        flex: 1,
+        minWidth: 100,
+      }
+      if (showFormatted && meta?.formatPreset && meta.formatPreset !== 'none') {
+        def.valueFormatter = (params) => {
+          if (params.value == null) return ''
+          switch (meta.formatPreset) {
+            case 'number':
+              return Number(params.value).toLocaleString('en-US')
+            case 'currency':
+              return Number(params.value).toLocaleString('en-US', { style: 'currency', currency: 'USD' })
+            case 'percentage':
+              return `${Number(params.value).toFixed(1)}%`
+            case 'decimal2':
+              return Number(params.value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+            case 'date':
+            case 'datetime':
+              return String(params.value)
+            default:
+              return String(params.value)
+          }
+        }
+      }
+      return def
+    })
+  }, [queryResult?.columns, showFormatted, columns])
 
   const resultRowData = useMemo(
     () => queryResult?.data ?? [],
