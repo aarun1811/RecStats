@@ -161,7 +161,7 @@ Plans:
 
 Plans:
 - [x] 07-01-PLAN.md -- Backend CRUD + Alembic migration + types + hooks + KPI utilities + sidebar nav + route stubs + dataset reference wiring
-- [ ] 07-02-PLAN.md -- KPI builder with sectioned form, live preview panel, create and edit page wiring
+- [x] 07-02-PLAN.md -- KPI builder with sectioned form, live preview panel, create and edit page wiring
 - [ ] 07-03-PLAN.md -- KPI library list page with card/row toggle, search/filters, detail side panel, delete dialog
 
 ### Phase 8: Dashboard Builder
