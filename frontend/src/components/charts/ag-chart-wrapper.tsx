@@ -176,6 +176,26 @@ export function buildSeries(
         },
       ]
 
+    case 'bullet':
+      return metricKeys.map((key) => ({
+        type: 'bar' as const,
+        xKey: categoryKey,
+        yKey: key,
+        yName: key,
+        cornerRadius: 2,
+        ...(styler ? { itemStyler: styler } : {}),
+      }))
+
+    case 'box-plot':
+      return [{
+        type: 'bar' as const,
+        xKey: categoryKey,
+        yKey: metricKeys[0] ?? 'value',
+        yName: metricKeys[0] ?? 'value',
+        cornerRadius: 2,
+        ...(styler ? { itemStyler: styler } : {}),
+      }]
+
     case 'combo':
       return [
         ...(metricKeys[0]

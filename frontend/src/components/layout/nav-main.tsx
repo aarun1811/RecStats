@@ -4,6 +4,7 @@ import {
   Database,
   FileBarChart,
   LayoutDashboard,
+  PieChart,
   Settings,
   Table2,
   type LucideIcon,
@@ -62,6 +63,11 @@ export const navItems: NavGroup[] = [
         title: 'Datasets',
         href: '/datasets',
         icon: Table2,
+      },
+      {
+        title: 'Charts',
+        href: '/charts',
+        icon: PieChart,
       },
       {
         title: 'Data Explorer',

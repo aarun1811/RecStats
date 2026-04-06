@@ -38,6 +38,8 @@ const SUPPORTED_AG_TYPES = new Set([
   'waterfall',
   'combo',
   'histogram',
+  'bullet',
+  'box-plot',
 ])
 
 /**
