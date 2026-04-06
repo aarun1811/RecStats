@@ -26,9 +26,6 @@ interface StepFormatProps {
 export function StepFormat({ format, onChange }: StepFormatProps) {
   return (
     <div>
-      <h3 className="text-sm font-medium text-muted-foreground mb-3">
-        3. Format
-      </h3>
       <div className="space-y-4">
         <div className="space-y-2">
           <Label className="text-sm">Format Type</Label>

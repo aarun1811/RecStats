@@ -51,9 +51,6 @@ export function StepColumn({
 
   return (
     <div>
-      <h3 className="text-sm font-medium text-muted-foreground mb-3">
-        2. Metric & Aggregation
-      </h3>
       {disabled ? (
         <p className="text-sm text-muted-foreground">
           Select a dataset first

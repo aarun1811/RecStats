@@ -33,9 +33,6 @@ export function StepDataset({ datasetId, onSelect }: StepDatasetProps) {
 
   return (
     <div>
-      <h3 className="text-sm font-medium text-muted-foreground mb-3">
-        1. Dataset
-      </h3>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button

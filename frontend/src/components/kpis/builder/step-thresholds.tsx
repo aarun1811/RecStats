@@ -1,16 +1,15 @@
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { Textarea } from '@/components/ui/textarea'
 import type { ThresholdConfig } from '@/types/managed-kpi'
 
 interface StepThresholdsProps {
   thresholds: ThresholdConfig | null
-  name: string
-  description: string
+  name?: string
+  description?: string
   onThresholdsChange: (t: ThresholdConfig | null) => void
-  onNameChange: (name: string) => void
-  onDescriptionChange: (desc: string) => void
+  onNameChange?: (name: string) => void
+  onDescriptionChange?: (desc: string) => void
 }
 
 const DEFAULT_THRESHOLDS: ThresholdConfig = {
@@ -38,9 +37,6 @@ export function StepThresholds({
 
   return (
     <div>
-      <h3 className="text-sm font-medium text-muted-foreground mb-3">
-        5. Thresholds & Details
-      </h3>
       <div className="space-y-4">
         {/* Thresholds toggle */}
         <div className="flex items-center justify-between">
@@ -108,29 +104,6 @@ export function StepThresholds({
           </>
         )}
 
-        {/* Name */}
-        <div className="space-y-2">
-          <Label className="text-sm">
-            Name <span className="text-destructive">*</span>
-          </Label>
-          <Input
-            placeholder="KPI name"
-            maxLength={256}
-            value={name}
-            onChange={(e) => onNameChange(e.target.value)}
-          />
-        </div>
-
-        {/* Description */}
-        <div className="space-y-2">
-          <Label className="text-sm">Description</Label>
-          <Textarea
-            placeholder="Optional description..."
-            maxLength={1024}
-            value={description}
-            onChange={(e) => onDescriptionChange(e.target.value)}
-          />
-        </div>
       </div>
     </div>
   )

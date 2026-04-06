@@ -89,9 +89,6 @@ export function StepTrend({
 
   return (
     <div>
-      <h3 className="text-sm font-medium text-muted-foreground mb-3">
-        4. Trend Comparison
-      </h3>
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <Label htmlFor="trend-toggle" className="text-sm">
