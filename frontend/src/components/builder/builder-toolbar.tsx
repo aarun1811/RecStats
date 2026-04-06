@@ -17,6 +17,7 @@ interface BuilderToolbarProps {
   onSaveAs: () => void
   onExit: () => void
   isSaving: boolean
+  renderAddButton?: React.ReactNode
 }
 
 export function BuilderToolbar({
@@ -25,6 +26,7 @@ export function BuilderToolbar({
   onSaveAs,
   onExit,
   isSaving,
+  renderAddButton,
 }: BuilderToolbarProps) {
   const isDirty = useBuilderStore((s) => s.isDirty)
   const updateLayouts = useBuilderStore((s) => s.updateLayouts)
@@ -62,10 +64,12 @@ export function BuilderToolbar({
     <TooltipProvider delayDuration={300}>
       <div className="sticky top-0 z-30 flex items-center justify-between border-b bg-background px-6 py-2">
         <div className="flex items-center gap-2">
-          <Button size="sm" onClick={onAddClick}>
-            <Plus className="mr-1.5 size-4" />
-            Add
-          </Button>
+          {renderAddButton ?? (
+            <Button size="sm" onClick={onAddClick}>
+              <Plus className="mr-1.5 size-4" />
+              Add
+            </Button>
+          )}
           <Separator orientation="vertical" className="mx-1 h-6" />
           <Tooltip>
             <TooltipTrigger asChild>

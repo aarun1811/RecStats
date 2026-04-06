@@ -1,14 +1,21 @@
 import { useCallback, useState } from 'react'
 
 import { useNavigate } from '@tanstack/react-router'
-import { BarChart3, Gauge, Table } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { AnimatePresence } from 'motion/react'
 import { toast } from 'sonner'
 
+import { AddContentMenu } from '@/components/builder/add-content-menu'
 import { BuilderCanvas } from '@/components/builder/builder-canvas'
 import { BuilderEmptyState } from '@/components/builder/builder-empty-state'
 import { BuilderPanel } from '@/components/builder/builder-panel'
+import { BuilderPanelContent } from '@/components/builder/builder-panel-content'
 import { BuilderToolbar } from '@/components/builder/builder-toolbar'
+import { ChartPickerDialog } from '@/components/builder/chart-picker-dialog'
+import { DatasetPickerDialog } from '@/components/builder/dataset-picker-dialog'
+import { KpiPickerDialog } from '@/components/builder/kpi-picker-dialog'
+import { PanelConfigPopover } from '@/components/builder/panel-config-popover'
+import { Button } from '@/components/ui/button'
 import { useBuilderKeyboardShortcuts } from '@/hooks/use-builder-keyboard-shortcuts'
 import {
   useCreateDashboard,
@@ -16,7 +23,11 @@ import {
 } from '@/hooks/use-managed-dashboards'
 import { useBuilderStore } from '@/stores/builder-store'
 import { useLayoutHistoryStore } from '@/stores/layout-history-store'
+import type { BuilderItem } from '@/types/builder'
 import type { DashboardConfig } from '@/types/dashboard-config'
+import type { RecvizChart } from '@/types/managed-chart'
+import type { RecvizDataset } from '@/types/managed-dataset'
+import type { RecvizKpi } from '@/types/managed-kpi'
 
 interface BuilderPageProps {
   mode: 'create' | 'edit'
@@ -60,23 +71,6 @@ function buildConfigFromStore(): DashboardConfig {
   }
 }
 
-function PanelContentPlaceholder({
-  type,
-  title,
-}: {
-  type: 'chart' | 'kpi' | 'grid'
-  title: string
-}) {
-  const Icon = type === 'chart' ? BarChart3 : type === 'kpi' ? Gauge : Table
-
-  return (
-    <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
-      <Icon className="size-8 opacity-30" />
-      <span className="text-xs">{title}</span>
-    </div>
-  )
-}
-
 export function BuilderPage({ mode }: BuilderPageProps) {
   const navigate = useNavigate()
 
@@ -87,6 +81,7 @@ export function BuilderPage({ mode }: BuilderPageProps) {
   const isDirty = useBuilderStore((s) => s.isDirty)
   const updateName = useBuilderStore((s) => s.updateName)
   const updateDescription = useBuilderStore((s) => s.updateDescription)
+  const addItem = useBuilderStore((s) => s.addItem)
   const removeItem = useBuilderStore((s) => s.removeItem)
   const markClean = useBuilderStore((s) => s.markClean)
   const updateLayouts = useBuilderStore((s) => s.updateLayouts)
@@ -99,6 +94,12 @@ export function BuilderPage({ mode }: BuilderPageProps) {
   const updateDashboard = useUpdateDashboard()
 
   const [isSaving, setIsSaving] = useState(false)
+
+  // Dialog visibility state
+  const [chartPickerOpen, setChartPickerOpen] = useState(false)
+  const [kpiPickerOpen, setKpiPickerOpen] = useState(false)
+  const [gridPickerOpen, setGridPickerOpen] = useState(false)
+  const [editingPanelId, setEditingPanelId] = useState<string | null>(null)
 
   const handleUndo = useCallback(() => {
     const layouts = undo()
@@ -177,12 +178,70 @@ export function BuilderPage({ mode }: BuilderPageProps) {
     }
   }, [isDirty, dashboardId, navigate])
 
-  const handleAddClick = useCallback(() => {
-    // Will be wired to AddContentMenu in Plan 06
-  }, [])
+  // Picker handlers -- create BuilderItems from selected library items
+  const handleChartSelected = useCallback(
+    (chart: RecvizChart) => {
+      const item: BuilderItem = {
+        id: crypto.randomUUID(),
+        type: 'chart',
+        layout: { col: 0, row: Infinity, width: 6, height: 4 },
+        chart: {
+          chartId: chart.id,
+          chartType: chart.chartType,
+          datasetId: chart.datasetId,
+          title: chart.name,
+          crossFilter: true,
+          drillHierarchy: [],
+          drillDetailDataSourceId: null,
+          refreshInterval: null,
+        },
+      }
+      addItem(item)
+      setChartPickerOpen(false)
+    },
+    [addItem],
+  )
 
-  const handleEditPanel = useCallback((_itemId: string) => {
-    // Will be wired to PanelConfigPopover in Plan 07
+  const handleKpiSelected = useCallback(
+    (kpi: RecvizKpi) => {
+      const item: BuilderItem = {
+        id: crypto.randomUUID(),
+        type: 'kpi',
+        layout: { col: 0, row: Infinity, width: 3, height: 2 },
+        kpi: {
+          kpiId: kpi.id,
+          title: kpi.name,
+        },
+      }
+      addItem(item)
+      setKpiPickerOpen(false)
+    },
+    [addItem],
+  )
+
+  const handleGridSelected = useCallback(
+    (dataset: RecvizDataset) => {
+      const item: BuilderItem = {
+        id: crypto.randomUUID(),
+        type: 'grid',
+        layout: { col: 0, row: Infinity, width: 12, height: 6 },
+        grid: {
+          datasetId: dataset.id,
+          title: dataset.name,
+          visibleColumns: null,
+          defaultSortColumn: null,
+          defaultSortDirection: 'asc',
+          rowLimit: 100,
+        },
+      }
+      addItem(item)
+      setGridPickerOpen(false)
+    },
+    [addItem],
+  )
+
+  const handleEditPanel = useCallback((itemId: string) => {
+    setEditingPanelId(itemId)
   }, [])
 
   const handleRemovePanel = useCallback(
@@ -191,6 +250,10 @@ export function BuilderPage({ mode }: BuilderPageProps) {
     },
     [removeItem],
   )
+
+  const handleAddClick = useCallback(() => {
+    // No-op: AddContentMenu is now wired directly as a dropdown trigger
+  }, [])
 
   useBuilderKeyboardShortcuts({
     onUndo: handleUndo,
@@ -207,6 +270,21 @@ export function BuilderPage({ mode }: BuilderPageProps) {
         onSaveAs={handleSaveAs}
         onExit={handleExit}
         isSaving={isSaving}
+        renderAddButton={
+          <AddContentMenu
+            onSelectChart={() => setChartPickerOpen(true)}
+            onSelectKpi={() => setKpiPickerOpen(true)}
+            onSelectGrid={() => setGridPickerOpen(true)}
+            onSelectFilter={() => {
+              // Filter dialog wired in Plan 08
+            }}
+          >
+            <Button size="sm">
+              <Plus className="mr-1.5 size-4" />
+              Add
+            </Button>
+          </AddContentMenu>
+        }
       />
 
       <div className="flex-1 overflow-auto px-6 pb-6">
@@ -244,22 +322,42 @@ export function BuilderPage({ mode }: BuilderPageProps) {
                   item={item}
                   onEdit={handleEditPanel}
                   onRemove={handleRemovePanel}
+                  editButtonWrapper={(editButton) => (
+                    <PanelConfigPopover
+                      item={item}
+                      open={editingPanelId === item.id}
+                      onOpenChange={(open) =>
+                        setEditingPanelId(open ? item.id : null)
+                      }
+                    >
+                      {editButton}
+                    </PanelConfigPopover>
+                  )}
                 >
-                  <PanelContentPlaceholder
-                    type={item.type}
-                    title={
-                      item.chart?.title ??
-                      item.kpi?.title ??
-                      item.grid?.title ??
-                      'Untitled'
-                    }
-                  />
+                  <BuilderPanelContent item={item} />
                 </BuilderPanel>
               </div>
             ))}
           </BuilderCanvas>
         )}
       </div>
+
+      {/* Picker dialogs */}
+      <ChartPickerDialog
+        open={chartPickerOpen}
+        onOpenChange={setChartPickerOpen}
+        onSelectChart={handleChartSelected}
+      />
+      <KpiPickerDialog
+        open={kpiPickerOpen}
+        onOpenChange={setKpiPickerOpen}
+        onSelectKpi={handleKpiSelected}
+      />
+      <DatasetPickerDialog
+        open={gridPickerOpen}
+        onOpenChange={setGridPickerOpen}
+        onSelectDataset={handleGridSelected}
+      />
     </div>
   )
 }

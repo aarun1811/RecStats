@@ -14,9 +14,11 @@ interface BuilderPanelProps {
   onEdit: (itemId: string) => void
   onRemove: (itemId: string) => void
   children: React.ReactNode
+  /** Optional wrapper for the edit button (e.g. PanelConfigPopover trigger) */
+  editButtonWrapper?: (button: React.ReactNode) => React.ReactNode
 }
 
-export function BuilderPanel({ item, onEdit, onRemove, children }: BuilderPanelProps) {
+export function BuilderPanel({ item, onEdit, onRemove, children, editButtonWrapper }: BuilderPanelProps) {
   const title =
     item.chart?.title ?? item.kpi?.title ?? item.grid?.title ?? 'Untitled'
 
@@ -31,24 +33,47 @@ export function BuilderPanel({ item, onEdit, onRemove, children }: BuilderPanelP
             </span>
           </div>
           <div className="flex items-center gap-1">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onEdit(item.id)
-                  }}
-                >
-                  <Pencil className="size-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" sideOffset={4}>
-                Edit Panel Settings
-              </TooltipContent>
-            </Tooltip>
+            {editButtonWrapper ? (
+              editButtonWrapper(
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onEdit(item.id)
+                      }}
+                    >
+                      <Pencil className="size-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" sideOffset={4}>
+                    Edit Panel Settings
+                  </TooltipContent>
+                </Tooltip>,
+              )
+            ) : (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onEdit(item.id)
+                    }}
+                  >
+                    <Pencil className="size-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" sideOffset={4}>
+                  Edit Panel Settings
+                </TooltipContent>
+              </Tooltip>
+            )}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
