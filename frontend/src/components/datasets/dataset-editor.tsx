@@ -323,7 +323,7 @@ export function DatasetEditor({ mode, dataset, isLoading }: DatasetEditorProps) 
       {/* Results + Column Metadata split */}
       <div className="flex gap-4 flex-1 min-h-0 px-6 pb-4">
         {/* Left: Results preview */}
-        <div className="flex-1 min-w-0 rounded-lg border bg-card overflow-hidden flex flex-col">
+        <div className={`flex-1 min-w-0 rounded-lg border overflow-hidden flex flex-col ${resultThemeClass}`}>
           <div className="flex items-center justify-between px-3 h-9 border-b bg-muted/30 shrink-0">
             <span className="text-sm font-semibold tracking-tight">Preview</span>
             {queryResult?.status === 'success' && (
@@ -349,7 +349,7 @@ export function DatasetEditor({ mode, dataset, isLoading }: DatasetEditorProps) 
               </pre>
             </div>
           ) : queryResult?.status === 'success' ? (
-            <div className={`flex-1 min-h-0 ${resultThemeClass}`}>
+            <div className="flex-1 min-h-0">
               <AgGridReact
                 rowData={resultRowData}
                 columnDefs={resultColumnDefs}

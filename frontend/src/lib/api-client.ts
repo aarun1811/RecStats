@@ -52,7 +52,7 @@ function transformKeys(obj: unknown, skipKeys = new Set<string>()): unknown {
   return obj
 }
 
-const DATA_KEYS = new Set(['rows', 'columns'])
+const DATA_KEYS = new Set(['rows', 'columns', 'data'])
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
