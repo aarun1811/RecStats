@@ -18,7 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 3: Chart and Grid Interactions** - Add fullscreen view, chart/grid export, manual refresh, and configurable auto-refresh to dashboard panels
 - [x] **Phase 4: Data Source Connectivity** - Integrate Oracle, Hive, and Elasticsearch via Superset with a connection management UI for the dev team (completed 2026-04-05)
 - [x] **Phase 5: Dataset Management** - Dev team can create, edit, and manage datasets with SQL queries, column metadata, and roles
-- [ ] **Phase 6: Chart Library** - Users can create, save, and reuse charts from datasets with a visual chart type selector and library browser
+- [x] **Phase 6: Chart Library** - Users can create, save, and reuse charts from datasets with a visual chart type selector and library browser (completed 2026-04-06)
 - [ ] **Phase 7: KPI Library** - Dev team defines reusable KPI templates; business users pick and configure KPIs for dashboards
 - [ ] **Phase 8: Dashboard Builder** - Business users create dashboards with a grid-based layout editor, adding charts, KPIs, and filters from libraries
 - [ ] **Phase 9: Sharing and Views** - Save filter/layout bookmarks, share via URL, embed dashboards in portals, and search everything with Cmd+K
@@ -211,7 +211,7 @@ Phases execute in numeric order: 1 -> 2 -> 02.1 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 ->
 | 3. Chart and Grid Interactions | 0/3 | Planning complete | - |
 | 4. Data Source Connectivity | 3/3 | Complete | 2026-04-05 |
 | 5. Dataset Management | 3/3 | Complete | 2026-04-06 |
-| 6. Chart Library | 0/3 | Planning complete | - |
+| 6. Chart Library | 3/3 | Complete | 2026-04-06 |
 | 7. KPI Library | 0/0 | Not started | - |
 | 8. Dashboard Builder | 0/0 | Not started | - |
 | 9. Sharing and Views | 0/0 | Not started | - |
