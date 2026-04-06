@@ -1,0 +1,125 @@
+import { useState, useMemo } from 'react'
+import { useNavigate } from '@tanstack/react-router'
+import { LayoutDashboard, Plus } from 'lucide-react'
+
+import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '@/components/ui/empty'
+import { useManagedDashboards } from '@/hooks/use-managed-dashboards'
+import { DashboardListToolbar } from './dashboard-list-toolbar'
+import { DashboardListCard } from './dashboard-list-card'
+import { DashboardListRow } from './dashboard-list-row'
+
+type ViewMode = 'grid' | 'list'
+
+export function DashboardList() {
+  const { data: dashboards = [], isLoading } = useManagedDashboards()
+  const navigate = useNavigate()
+
+  const [viewMode, setViewMode] = useState<ViewMode>('grid')
+  const [searchQuery, setSearchQuery] = useState('')
+
+  const filtered = useMemo(() => {
+    if (!searchQuery.trim()) return dashboards
+    const q = searchQuery.toLowerCase()
+    return dashboards.filter(
+      (d) =>
+        d.name.toLowerCase().includes(q) ||
+        d.description.toLowerCase().includes(q),
+    )
+  }, [dashboards, searchQuery])
+
+  const isEmpty = !isLoading && dashboards.length === 0 && !searchQuery
+
+  return (
+    <div className="space-y-4">
+      {!isEmpty && (
+        <DashboardListToolbar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+        />
+      )}
+
+      {isLoading ? (
+        viewMode === 'grid' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-[140px] rounded-lg" />
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-[56px] rounded-lg" />
+            ))}
+          </div>
+        )
+      ) : isEmpty ? (
+        <Empty className="border rounded-lg">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <LayoutDashboard />
+            </EmptyMedia>
+            <EmptyTitle>No dashboards yet</EmptyTitle>
+            <EmptyDescription>
+              Create your first dashboard to start visualizing reconciliation
+              data. Add charts, KPIs, and filters from your libraries.
+            </EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            <Button
+              size="sm"
+              onClick={() => navigate({ to: '/dashboards/new' })}
+            >
+              <Plus className="mr-1.5 size-3.5" />
+              Create Dashboard
+            </Button>
+          </EmptyContent>
+        </Empty>
+      ) : filtered.length === 0 ? (
+        <p className="py-8 text-center text-sm text-muted-foreground">
+          No dashboards matching &ldquo;{searchQuery}&rdquo;
+        </p>
+      ) : viewMode === 'grid' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {filtered.map((dashboard) => (
+            <DashboardListCard
+              key={dashboard.id}
+              dashboard={dashboard}
+              onClick={() =>
+                navigate({
+                  to: '/dashboards/$dashboardId',
+                  params: { dashboardId: dashboard.id },
+                })
+              }
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {filtered.map((dashboard) => (
+            <DashboardListRow
+              key={dashboard.id}
+              dashboard={dashboard}
+              onClick={() =>
+                navigate({
+                  to: '/dashboards/$dashboardId',
+                  params: { dashboardId: dashboard.id },
+                })
+              }
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
