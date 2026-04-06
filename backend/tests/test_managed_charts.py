@@ -255,7 +255,7 @@ def test_dataset_references_returns_referencing_charts():
 
     session = AsyncMock()
 
-    # First execute call: dataset lookup, second: chart reference query
+    # First execute: dataset lookup, second: chart reference query, third: KPI reference query
     ds_result = MagicMock()
     ds_result.scalar_one_or_none = MagicMock(return_value=ds_row)
 
@@ -264,7 +264,12 @@ def test_dataset_references_returns_referencing_charts():
         return_value=MagicMock(all=MagicMock(return_value=[chart_row]))
     )
 
-    session.execute = AsyncMock(side_effect=[ds_result, chart_result])
+    kpi_result = MagicMock()
+    kpi_result.scalars = MagicMock(
+        return_value=MagicMock(all=MagicMock(return_value=[]))
+    )
+
+    session.execute = AsyncMock(side_effect=[ds_result, chart_result, kpi_result])
 
     sync_service = MagicMock(spec=DatasetSyncService)
 
@@ -310,7 +315,7 @@ def test_dataset_delete_blocked_when_charts_reference():
 
     session = AsyncMock()
 
-    # First execute: dataset lookup, second: chart reference query
+    # First execute: dataset lookup, second: chart reference query, third: KPI reference query
     ds_result = MagicMock()
     ds_result.scalar_one_or_none = MagicMock(return_value=ds_row)
 
@@ -319,7 +324,12 @@ def test_dataset_delete_blocked_when_charts_reference():
         return_value=MagicMock(all=MagicMock(return_value=[chart_row]))
     )
 
-    session.execute = AsyncMock(side_effect=[ds_result, chart_result])
+    kpi_result = MagicMock()
+    kpi_result.scalars = MagicMock(
+        return_value=MagicMock(all=MagicMock(return_value=[]))
+    )
+
+    session.execute = AsyncMock(side_effect=[ds_result, chart_result, kpi_result])
     session.delete = AsyncMock()
 
     sync_service = MagicMock(spec=DatasetSyncService)

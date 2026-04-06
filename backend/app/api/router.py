@@ -5,6 +5,7 @@ from fastapi import APIRouter
 from app.api.charts import router as charts_router
 from app.api.custom import router as custom_router
 from app.api.managed_charts import router as managed_charts_router
+from app.api.managed_kpis import router as managed_kpis_router
 from app.api.dashboards import router as dashboards_router
 from app.api.data_sources import router as data_sources_router
 from app.api.databases import router as databases_router
@@ -20,6 +21,7 @@ api_router = APIRouter()
 api_router.include_router(dashboards_router)
 api_router.include_router(data_sources_router)
 api_router.include_router(databases_router)
+api_router.include_router(managed_kpis_router)
 api_router.include_router(managed_charts_router)
 api_router.include_router(charts_router)
 api_router.include_router(managed_datasets_router)

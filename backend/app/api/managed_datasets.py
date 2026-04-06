@@ -167,13 +167,23 @@ async def delete_managed_dataset(
     chart_result = await session.execute(chart_stmt)
     referencing_charts_list = chart_result.scalars().all()
     referencing_charts = [{"id": c.id, "name": c.name} for c in referencing_charts_list]
-    if referencing_charts:
+
+    # Check for referencing KPIs
+    from app.db.models.kpi import RecvizKpi
+
+    kpi_stmt = select(RecvizKpi).where(RecvizKpi.dataset_id == dataset_id)
+    kpi_result = await session.execute(kpi_stmt)
+    referencing_kpis_list = kpi_result.scalars().all()
+    referencing_kpis = [{"id": k.id, "name": k.name} for k in referencing_kpis_list]
+
+    if referencing_charts or referencing_kpis:
         raise HTTPException(
             status_code=409,
             detail={
                 "error": "dataset_in_use",
-                "message": "Cannot delete dataset referenced by charts",
+                "message": "Cannot delete dataset referenced by charts or KPIs",
                 "referencing_charts": referencing_charts,
+                "referencing_kpis": referencing_kpis,
             },
         )
 
@@ -198,10 +208,23 @@ async def get_dataset_references(dataset_id: str, session: DbSessionDep):
 
     # Check for referencing charts
     from app.db.models.chart import RecvizChart
-    from app.models.managed_dataset import ReferencingChart
+    from app.models.managed_dataset import ReferencingChart, ReferencingKpi
 
     chart_stmt = select(RecvizChart).where(RecvizChart.dataset_id == dataset_id)
     chart_result = await session.execute(chart_stmt)
     referencing_charts_list = chart_result.scalars().all()
-    refs = [ReferencingChart(id=c.id, name=c.name) for c in referencing_charts_list]
-    return DatasetDeleteCheck(can_delete=len(refs) == 0, referencing_charts=refs)
+    chart_refs = [ReferencingChart(id=c.id, name=c.name) for c in referencing_charts_list]
+
+    # Check for referencing KPIs
+    from app.db.models.kpi import RecvizKpi
+
+    kpi_stmt = select(RecvizKpi).where(RecvizKpi.dataset_id == dataset_id)
+    kpi_result = await session.execute(kpi_stmt)
+    referencing_kpis_list = kpi_result.scalars().all()
+    kpi_refs = [ReferencingKpi(id=k.id, name=k.name) for k in referencing_kpis_list]
+
+    return DatasetDeleteCheck(
+        can_delete=len(chart_refs) == 0 and len(kpi_refs) == 0,
+        referencing_charts=chart_refs,
+        referencing_kpis=kpi_refs,
+    )

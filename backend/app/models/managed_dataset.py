@@ -56,6 +56,12 @@ class ReferencingChart(CamelModel):
     name: str
 
 
+class ReferencingKpi(CamelModel):
+    id: str
+    name: str
+
+
 class DatasetDeleteCheck(CamelModel):
     can_delete: bool
     referencing_charts: list[ReferencingChart] = []
+    referencing_kpis: list[ReferencingKpi] = []
