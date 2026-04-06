@@ -1,158 +1,144 @@
 # Technology Stack
 
-**Analysis Date:** 2026-04-05
+**Analysis Date:** 2026-04-06
 
 ## Languages
 
 **Primary:**
-- TypeScript ~5.9.3 - Frontend SPA (`frontend/src/`)
+- TypeScript 5.9 (strict mode) - Frontend SPA (`frontend/src/`)
 - Python 3.12+ - Backend API (`backend/app/`)
 
 **Secondary:**
-- SQL - Data source query templates (`backend/app/config/data_sources/*.json`), seed scripts (`scripts/seed-postgres.py`)
-- CSS (Tailwind v4 + oklch color functions) - Theming (`frontend/src/index.css`)
-- Bash - Superset entrypoint, setup scripts (`superset/superset-entrypoint.sh`, `scripts/setup-superset-local.sh`)
+- SQL - Dashboard data source queries, Alembic migrations
+- Bash - Docker entrypoints, dev scripts (`scripts/`, `superset/superset-entrypoint.sh`)
 
 ## Runtime
 
-**Frontend Environment:**
-- Node.js v24.x (detected v24.13.0 on dev machine)
-- Browser target: ES2022 (`frontend/tsconfig.app.json` line 5)
+**Frontend:**
+- Node.js (no `.nvmrc` or `.node-version` pinned)
+- Vite 7.3 dev server on `http://localhost:5173`
 
-**Backend Environment:**
-- Python 3.12+ (detected 3.12.12)
-- ASGI server: Uvicorn 0.40.0
+**Backend:**
+- Python 3.12 (specified in `superset/Dockerfile`)
+- Uvicorn ASGI server on `http://localhost:8000`
 
 **Package Managers:**
-- pnpm (frontend) - Lockfile present: `frontend/pnpm-lock.yaml`
-- pip (backend) - Requirements: `backend/requirements.txt` (no lockfile, pinned versions)
+- pnpm (frontend) - Lockfile: `frontend/pnpm-lock.yaml` present
+- pip (backend) - Dependencies in `backend/requirements.txt`, no lockfile
 
 ## Frameworks
 
 **Core:**
-- React 19.2+ - Frontend UI framework (`frontend/package.json`)
-- FastAPI 0.128.6 - Backend API framework (`backend/requirements.txt`)
-- Apache Superset (latest) - Headless query engine, runs in Docker (`superset/Dockerfile`)
+- React 19.2 - Frontend UI framework (`frontend/src/`)
+- FastAPI 0.128 - Backend API framework (`backend/app/main.py`)
+- Apache Superset (Docker container) - Headless query engine (`superset/Dockerfile`)
 
 **Testing:**
-- Vitest 4.1.2 - Unit tests, config at `frontend/vitest.config.ts`
-- Playwright 1.59.1 - E2E tests, config at `frontend/playwright.config.ts`
-- Testing Library (React) 16.3.2 - Component test utilities
-- Testing Library (jest-dom) 6.9.1 - DOM assertion matchers
+- Vitest 4.1 - Unit/integration test runner (`frontend/vitest.config.ts`)
+- Playwright 1.59 - E2E browser tests (`frontend/playwright.config.ts`, `frontend/e2e/`)
+- Testing Library (React) 16.3 - Component test utilities
+- jest-dom 6.9 - DOM assertion matchers
 
 **Build/Dev:**
-- Vite 7.3.1 - Frontend bundler/dev server (`frontend/vite.config.ts`)
-- ESLint 9.39.1 + typescript-eslint 8.48.0 - Linting (`frontend/eslint.config.js`)
-- Tailwind CSS 4.1.18 (via `@tailwindcss/vite` plugin) - Utility CSS
-- TanStack Router Plugin 1.159.5 - File-based route code generation
+- Vite 7.3 - Frontend build tool (`frontend/vite.config.ts`)
+- `@vitejs/plugin-react` 5.1 - React Fast Refresh + JSX transform
+- `@tailwindcss/vite` 4.1 - Tailwind CSS Vite plugin
+- `@tanstack/router-plugin` 1.159 - File-based route generation
+- ESLint 9.39 - Linting (`frontend/eslint.config.js`)
+- typescript-eslint 8.48 - TypeScript-specific lint rules
 
 ## Key Dependencies
 
-### Frontend — Critical
+### Frontend Critical
 
-| Package | Version | Purpose |
-|---------|---------|---------|
-| `@tanstack/react-router` | ^1.159.5 | File-based routing with type-safe params |
-| `@tanstack/react-query` | ^5.90.20 | Server state management, caching, background refetching |
-| `zustand` | ^5.0.11 | Client state (filter store, drill store) |
-| `ag-grid-enterprise` | ^35.0.1 | Data grid with grouping, pivoting, enterprise features |
-| `ag-charts-enterprise` | ^13.0.1 | Primary charting (bar, line, area, pie, heatmap, treemap, waterfall) |
-| `echarts` | ^6.0.0 | Exotic charts only (Sankey, radar, gauge, funnel) |
-| `@monaco-editor/react` | ^4.7.0 | SQL editor in Data Explorer |
+- **AG Grid Enterprise 35** - Data grid with enterprise features (`ag-grid-enterprise`, `ag-grid-react`)
+- **AG Charts Enterprise 13** - Primary charting library (`ag-charts-enterprise`, `ag-charts-react`)
+- **TanStack Router 1.159** - File-based routing (`@tanstack/react-router`)
+- **TanStack Query 5.90** - Server state management (`@tanstack/react-query`)
+- **Zustand 5.0** - Client state management (filter store, drill store)
+- **Shadcn/ui** - UI component library (copy-pasted into `frontend/src/components/ui/`, not a runtime dependency). Style: `new-york`, base color: `neutral`.
+- **Radix UI 1.4** - Underlying primitives for Shadcn components (`radix-ui`)
 
-### Frontend — UI/UX
+### Frontend Infrastructure
 
-| Package | Version | Purpose |
-|---------|---------|---------|
-| `radix-ui` | ^1.4.3 | Accessible UI primitives (via Shadcn/ui) |
-| `class-variance-authority` | ^0.7.1 | Variant-based component styling |
-| `tailwind-merge` | ^3.4.0 | Intelligent Tailwind class merging (`cn()` utility) |
-| `clsx` | ^2.1.1 | Conditional className composition |
-| `cmdk` | ^1.1.1 | Command palette (Cmd+K) |
-| `sonner` | ^2.0.7 | Toast notifications |
-| `motion` | ^12.34.0 | Animations (import from `motion/react`, NOT `framer-motion`) |
-| `lucide-react` | ^0.563.0 | Icon library |
-| `react-resizable-panels` | ^4.6.2 | Resizable split pane layouts |
-| `react-day-picker` | ^9.13.2 | Date picker in filter bar |
-| `date-fns` | ^4.1.0 | Date formatting/manipulation |
-| `next-themes` | ^0.4.6 | Dark/light mode toggle (works with non-Next.js React) |
-| `shadcn` | ^3.8.4 | CLI for adding Shadcn/ui components (dev dependency) |
-| `tw-animate-css` | ^1.4.0 | Animation utilities for Tailwind |
+- **Tailwind CSS 4.1** - Utility-first CSS (`@tailwindcss/vite`)
+- **tw-animate-css 1.4** - Animation utilities for Tailwind
+- **Motion 12.34** - Animation library (imported as `motion/react`, NOT `framer-motion`)
+- **ECharts 6.0** + `echarts-for-react` 3.0 - Exotic chart types only (Sankey, sunburst, radar, network, gauge, parallel coords, funnel)
+- **Monaco Editor** (`@monaco-editor/react` 4.7) - SQL editor in Data Explorer
+- **Sonner 2.0** - Toast notifications
+- **cmdk 1.1** - Command palette (`Cmd+K`)
+- **Lucide React 0.563** - Icon library
+- **date-fns 4.1** - Date utilities
+- **react-resizable-panels 4.6** - Split panel layouts
+- **react-day-picker 9.13** - Date picker component
+- **next-themes 0.4** - Theme switching (light/dark)
+- **class-variance-authority 0.7** + `clsx 2.1` + `tailwind-merge 3.4` - Class utility chain for Shadcn
 
-### Backend — Critical
+### Backend Critical
 
-| Package | Version | Purpose |
-|---------|---------|---------|
-| `fastapi` | 0.128.6 | API framework |
-| `uvicorn` | 0.40.0 | ASGI server |
-| `httpx` | 0.28.1 | Async HTTP client for Superset proxy calls |
-| `pydantic` | 2.12.5 | Request/response validation |
-| `pydantic-settings` | 2.12.0 | Environment-based config (`backend/app/config.py`) |
-| `sqlalchemy[asyncio]` | 2.0.49 | Async ORM for RecViz config tables |
-| `asyncpg` | 0.31.0 | PostgreSQL async driver |
-| `alembic` | 1.18.4 | Database migrations (`backend/app/migrations/`) |
-| `psycopg2-binary` | 2.9.11 | Sync PostgreSQL driver (seed scripts, Superset) |
-| `redis` | 4.6.0 | Listed in requirements but not yet imported in app code |
-| `python-dotenv` | 1.2.1 | `.env` file loading |
-| `requests` | 2.32.5 | Sync HTTP (seed/registration scripts only) |
+- **httpx 0.28** - Async HTTP client for Superset API proxy
+- **Pydantic 2.12** + `pydantic-settings 2.12` - Request/response validation, env config
+- **SQLAlchemy 2.0 (async)** + `asyncpg 0.31` - Async ORM for RecViz metadata tables
+- **Alembic 1.18** - Database migrations (uses `recviz_alembic_version` table to avoid Superset conflicts)
+- **psycopg2-binary 2.9** - PostgreSQL driver (sync, used by Superset registrations)
+- **redis 4.6** - Redis client (Superset cache config, not directly used by FastAPI yet)
+- **python-dotenv 1.2** - `.env` file loading
+- **requests 2.32** - Sync HTTP (minimal usage, scripts)
 
-### Not Yet Implemented (Listed in CLAUDE.md but not in requirements.txt)
+### Superset Container
 
-| Package | Planned Purpose |
-|---------|----------------|
-| `elasticsearch-py` | Elasticsearch client for search/realtime data |
-| `celery` | Async task queue for exports, heavy queries |
-| `weasyprint` or `playwright` | PDF export |
-| `openpyxl` | Excel export |
+- **apache-superset** (latest pip) - Query engine (pinned reference: 6.0.0)
+- **oracledb** (thin mode) - Oracle database driver (aliased as `cx_Oracle` for SQLAlchemy 1.4 compat)
+- **pyhive** + **thrift** - Hive database driver
+- **psycopg2-binary** - PostgreSQL driver
+- **redis** + **cachelib** - Query result caching
 
 ## Configuration
 
-**Frontend Environment:**
-- `VITE_API_BASE_URL` - Backend API URL (defaults to `http://localhost:8000` in `frontend/src/lib/api-client.ts`)
-- No `.env` file present in frontend; uses Vite defaults
+**Environment:**
+- Backend config via `pydantic-settings` (`backend/app/config.py`) reading from `backend/.env`
+- Key settings: `superset_url`, `superset_username`, `superset_password`, `redis_url`, `recon_db_url`, `recviz_db_url`, `databases_config_path`
+- Frontend config via Vite env vars: `VITE_API_BASE_URL` (defaults to `http://localhost:8000`)
+- `.env` file exists at `backend/.env` (contains environment configuration)
 
-**Backend Environment (.env file present):**
-- `superset_url` - Superset base URL (default: `http://localhost:8088`)
-- `superset_username` / `superset_password` - Superset auth credentials
-- `redis_url` - Redis connection (default: `redis://localhost:6379/0`)
-- `recon_db_url` - Reconciliation data PostgreSQL URI
-- `recviz_db_url` - RecViz metadata PostgreSQL URI (async, uses `asyncpg`)
-- `databases_config_path` - Path to `databases.json` config file
-- Config class: `backend/app/config.py` using `pydantic-settings.BaseSettings`
+**Build:**
+- `frontend/vite.config.ts` - Vite build config with React, Tailwind, TanStack Router plugins
+- `frontend/tsconfig.json` - TypeScript project references (app, node, e2e configs)
+- `frontend/tsconfig.app.json` - Strict mode, ES2022 target, bundler module resolution, `@/` path alias
+- `frontend/vitest.config.ts` - Vitest with node environment, excludes `e2e/`
+- `frontend/eslint.config.js` - Flat config with recommended + react-hooks + react-refresh
+- `frontend/playwright.config.ts` - Chromium only, single worker, auto-starts Vite dev server
+- `frontend/components.json` - Shadcn CLI config (new-york style, neutral base, Lucide icons)
+- `backend/app/migrations/alembic.ini` - Alembic config targeting `postgresql+asyncpg`
+- `backend/app/config/databases.json` - Database registry (logical name -> SQLAlchemy URI mapping)
 
-**Build Configuration:**
-- `frontend/vite.config.ts` - Vite plugins: TanStack Router, React, Tailwind CSS v4
-- `frontend/tsconfig.app.json` - Strict TypeScript, ES2022 target, bundler module resolution
-- `frontend/eslint.config.js` - Flat ESLint config with typescript-eslint + react-hooks + react-refresh
-- Path alias: `@/*` maps to `./src/*` (both in tsconfig and Vite)
-
-**Superset Configuration:**
-- `superset/superset_config.py` - Metadata DB, Redis cache config, Celery broker, CORS
-- `superset/superset_config_local.py` - Local dev overrides (if any)
-
-**Database Configuration:**
-- `backend/app/config/databases.json` - Logical database definitions with SQLAlchemy URIs, dialects, schemas
-- `backend/app/migrations/alembic.ini` - Alembic migration config (uses custom `recviz_alembic_version` table)
+**Superset:**
+- `superset/superset_config.py` - Docker Superset config (PostgreSQL metadata, Redis cache, Celery, Oracle shim)
+- `superset/superset_config_local.py` - Local dev Superset config (SQLite metadata, SimpleCache, no Redis/Celery)
 
 ## Platform Requirements
 
 **Development:**
-- Docker Desktop (for PostgreSQL 16 + Redis 7 + Superset containers)
-- Node.js 24.x + pnpm
-- Python 3.12+ with venv
-- Docker Compose stack: `docker-compose.yml` runs postgres, redis, superset
+- Docker Desktop (for PostgreSQL 16, Redis 7, Superset container)
+- Node.js + pnpm (frontend)
+- Python 3.12+ with venv (backend)
+- Superset must be running before backend starts (backend authenticates on startup)
+- Docker `init-db.sql` creates `recon_data` database alongside `superset_meta`
 
-**Startup Order:**
+**Production (target):**
+- On-premises deployment (corporate environment, no cloud services)
+- All dependencies must be self-hostable
+- Data sources: Oracle (primary recon data), Hive (historical/batch), Elasticsearch (search/realtime)
+- PostgreSQL for Superset metadata (swappable to Oracle)
+- Redis for query cache + Celery broker
+
+**Local Dev Startup Order:**
 1. `docker compose up -d` (PostgreSQL + Redis + Superset)
-2. `python scripts/seed-postgres.py` (seed recon data + dashboard configs)
-3. `cd backend && uvicorn app.main:app --reload` (FastAPI on port 8000)
-4. `cd frontend && pnpm dev` (Vite dev server on port 5173)
-
-**Production Target:**
-- On-premises deployment (corporate Citi environment)
-- No cloud services; all dependencies must be self-hostable
-- Data sources in production: Oracle (primary), Hive (historical), Elasticsearch (search/realtime)
+2. Wait for Superset health check (`http://localhost:8088/health`)
+3. `cd backend && uvicorn app.main:app --reload` (authenticates to Superset on startup)
+4. `cd frontend && pnpm dev`
 
 ---
 
-*Stack analysis: 2026-04-05*
+*Stack analysis: 2026-04-06*

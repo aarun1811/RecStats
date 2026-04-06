@@ -1,6 +1,6 @@
 # Testing Patterns
 
-**Analysis Date:** 2026-04-05
+**Analysis Date:** 2026-04-06
 
 ## Test Frameworks
 
@@ -9,142 +9,151 @@
 **Runner:**
 - Vitest 4.1.2
 - Config: `frontend/vitest.config.ts`
-- Default environment: `node` (override per-file with `// @vitest-environment jsdom`)
 
 **Assertion Library:**
 - Vitest built-in (`expect`, `describe`, `it`)
-- `@testing-library/jest-dom` 6.9.1 (for DOM assertions)
-- `@testing-library/react` 16.3.2 (for component rendering)
+- `@testing-library/jest-dom` for DOM matchers (available but used sparingly)
+
+**DOM Testing:**
+- `@testing-library/react` (v16.3.2) for component rendering
+- `jsdom` (v29.0.1) for browser environment simulation
+- Environment set per-file via `// @vitest-environment jsdom` comment directive (default is `node`)
 
 **Run Commands:**
 ```bash
-cd frontend && npx vitest          # Run all tests (watch mode)
-cd frontend && npx vitest run      # Run all tests once
-cd frontend && npx vitest run --coverage  # With coverage (if configured)
+cd frontend
+npx vitest                  # Run all tests (watch mode by default)
+npx vitest run              # Run all tests once
+npx vitest run --reporter=verbose   # Verbose output
 ```
-
-Note: No `test` script defined in `package.json`. Run vitest directly via npx.
 
 ### Frontend E2E Tests
 
 **Runner:**
 - Playwright 1.59.1
 - Config: `frontend/playwright.config.ts`
-- Test directory: `frontend/e2e/`
 
 **Run Commands:**
 ```bash
-cd frontend && npx playwright test --reporter=list   # Run all E2E tests
-cd frontend && npx playwright test --ui               # Interactive mode
+cd frontend
+npx playwright test                     # Run all E2E tests
+npx playwright test --reporter=list     # List reporter
+npx playwright test --ui                # Interactive UI mode
 ```
 
-**Prerequisites:** Full stack must be running (Docker Compose + Superset + FastAPI + Frontend dev server).
+**Prerequisites:** Full stack must be running (Docker Compose, Superset, FastAPI backend, Frontend dev server). Playwright auto-starts the frontend dev server via `webServer` config if not already running.
 
-### Backend Tests
+**Configuration:**
+- Test directory: `frontend/e2e/`
+- Single worker (`workers: 1`), not fully parallel (`fullyParallel: false`)
+- Chromium only (`Desktop Chrome`)
+- Base URL: `http://localhost:5173`
+- Timeout: 30s per test, 10s per assertion
+- Screenshots: only on failure
+- Trace: on first retry
+
+### Backend Unit Tests
 
 **Runner:**
-- pytest (from `requirements.txt`)
-- pytest-asyncio (for async test functions)
-- No config file detected (no `pytest.ini`, `pyproject.toml`, `conftest.py`)
+- pytest (installed in venv, not in `requirements.txt` -- dev dependency)
+- pytest-asyncio for async test functions
 
 **Run Commands:**
 ```bash
-cd backend && python -m pytest tests/ -v    # Run all backend tests
-cd backend && python -m pytest tests/test_query_engine.py -v  # Run specific file
+cd backend
+python -m pytest tests/                 # Run all backend tests
+python -m pytest tests/ -v              # Verbose output
+python -m pytest tests/test_query_engine.py  # Single file
 ```
+
+**No pytest config file** (no `pytest.ini`, `pyproject.toml`, or `setup.cfg`). Uses default pytest discovery.
 
 ## Test File Organization
 
-### Frontend Unit Tests
+**Frontend Unit Tests - Co-located:**
+- Tests live alongside their source files
+- Naming: `{source-name}.test.ts` or `{source-name}.test.tsx`
+- Excluded from Vitest: `e2e/**` and `node_modules/**` via `vitest.config.ts`
 
-**Location:** Co-located with source files (test file sits next to the module it tests).
-
-**Naming:** `{module-name}.test.ts` or `{component-name}.test.tsx`
-
-**Structure:**
 ```
 frontend/src/
 ├── lib/
 │   ├── formatters.ts
-│   ├── formatters.test.ts          # Tests for formatters
+│   ├── formatters.test.ts          # Unit test for formatters
 │   ├── cross-filter.ts
-│   ├── cross-filter.test.ts        # Tests for cross-filter logic
+│   ├── cross-filter.test.ts        # Unit test for cross-filter logic
 │   ├── kpi-aggregator.ts
-│   ├── kpi-aggregator.test.ts      # Tests for KPI aggregation
+│   ├── kpi-aggregator.test.ts
 │   ├── chart-export.ts
-│   └── chart-export.test.ts        # Tests for export utilities
+│   ├── chart-export.test.ts
+│   ├── column-detection.ts
+│   ├── column-detection.test.ts
+│   ├── column-merge.ts
+│   ├── column-merge.test.ts
+│   ├── chart-compatibility.ts
+│   └── chart-compatibility.test.ts
 ├── stores/
 │   ├── filter-store.ts
-│   ├── filter-store.test.ts        # Tests for filter store
+│   ├── filter-store.test.ts
 │   ├── drill-store.ts
-│   └── drill-store.test.ts         # Tests for drill store
+│   └── drill-store.test.ts
 ├── hooks/
 │   ├── use-auto-refresh.ts
-│   └── use-auto-refresh.test.ts    # Tests for auto-refresh hook
+│   └── use-auto-refresh.test.ts
 └── components/
-    ├── charts/
-    │   ├── ag-chart-wrapper.tsx
-    │   ├── ag-chart-wrapper.test.ts  # Tests for buildSeries logic
-    │   ├── chart-factory.tsx
-    │   └── chart-factory.test.tsx    # Tests for chart routing
-    └── dashboard/
-        ├── grid-toolbar.tsx
-        └── grid-toolbar.test.tsx     # Tests for toolbar UI
+    ├── dashboard/
+    │   ├── grid-toolbar.tsx
+    │   └── grid-toolbar.test.tsx
+    └── charts/
+        ├── chart-factory.tsx
+        ├── chart-factory.test.tsx
+        ├── ag-chart-wrapper.tsx
+        └── ag-chart-wrapper.test.ts
 ```
 
-### Frontend E2E Tests
+**Frontend E2E Tests - Separate directory:**
+```
+frontend/e2e/
+├── chart-showcase.spec.ts      # Chart rendering + cross-filter + drill-down
+└── tlm-stats-regression.spec.ts  # Regression tests for production dashboard
+```
 
-**Location:** Separate `frontend/e2e/` directory.
-
-**Naming:** `{feature-name}.spec.ts`
-
-**Files:**
-- `frontend/e2e/chart-showcase.spec.ts` -- Chart rendering validation, cross-filter, drill-down
-- `frontend/e2e/tlm-stats-regression.spec.ts` -- Regression tests for production dashboard
-
-### Backend Tests
-
-**Location:** Separate `backend/tests/` directory.
-
-**Naming:** `test_{module}.py`
-
-**Files:**
-- `backend/tests/test_config_store.py` -- Config store CRUD
-- `backend/tests/test_database_registrar.py` -- Database sync/resolve
-- `backend/tests/test_merge_engine.py` -- Data merging logic
-- `backend/tests/test_query_engine.py` -- SQL building, dialect handling, filter injection
+**Backend Tests - Separate `tests/` directory:**
+```
+backend/tests/
+├── __init__.py
+├── test_config_store.py
+├── test_database_registrar.py
+├── test_merge_engine.py
+├── test_query_engine.py
+├── test_uri_builder.py
+├── test_connection_status.py
+├── test_dataset_sync.py
+├── test_managed_datasets.py
+└── test_managed_charts.py
+```
 
 ## Test Structure
 
-### Vitest Unit Test Pattern
+### Frontend Unit Test Pattern
 
-**Pure logic tests (no DOM):**
+**Pure function tests (most common):**
 ```typescript
 import { describe, it, expect } from 'vitest'
-import { applyCrossFilters, rowPassesCrossFilters } from './cross-filter'
-import type { CrossFilter } from '@/types/filter'
-import type { ChartDataResponse } from '@/types/chart'
+import { formatValue, formatValueFull } from './formatters'
 
-describe('applyCrossFilters', () => {
-  // Helper factory at top of describe block
-  const makeData = (rows: Record<string, unknown>[]): ChartDataResponse => ({
-    chartId: 'test',
-    columns: Object.keys(rows[0] ?? {}),
-    data: rows,
-    rowCount: rows.length,
+describe('formatValue', () => {
+  describe('null/undefined handling', () => {
+    it('returns empty string for null', () => {
+      expect(formatValue(null, { type: 'number' })).toBe('')
+    })
   })
 
-  it('filters rows where column matches', () => {
-    const data = makeData([
-      { region: 'APAC', count: 10 },
-      { region: 'EMEA', count: 20 },
-    ])
-    const filters: CrossFilter[] = [
-      { sourceChartId: 'chart-a', column: 'region', value: 'APAC' },
-    ]
-    const result = applyCrossFilters(data, filters, 'chart-b')
-    expect(result?.data).toHaveLength(1)
-    expect(result?.data.every((r) => r.region === 'APAC')).toBe(true)
+  describe('number formatting', () => {
+    it('formats with abbreviation (compact notation)', () => {
+      const result = formatValue(1234567, { type: 'number', abbreviate: true })
+      expect(result).toMatch(/1\.2M/i)
+    })
   })
 })
 ```
@@ -165,48 +174,43 @@ describe('filter-store crossFilters', () => {
     })
   })
 
-  describe('addCrossFilter', () => {
-    it('toggles: same sourceChartId+column+value removes the filter', () => {
-      const { addCrossFilter } = useFilterStore.getState()
-      addCrossFilter({ sourceChartId: 'chart-a', column: 'region', value: 'APAC' })
-      expect(useFilterStore.getState().crossFilters).toHaveLength(1)
-      // Same filter again -- toggles off
-      addCrossFilter({ sourceChartId: 'chart-a', column: 'region', value: 'APAC' })
-      expect(useFilterStore.getState().crossFilters).toHaveLength(0)
-    })
+  it('toggles: same sourceChartId+column+value removes the filter', () => {
+    const { addCrossFilter } = useFilterStore.getState()
+    addCrossFilter({ sourceChartId: 'chart-a', column: 'region', value: 'APAC' })
+    expect(useFilterStore.getState().crossFilters).toHaveLength(1)
+
+    addCrossFilter({ sourceChartId: 'chart-a', column: 'region', value: 'APAC' })
+    expect(useFilterStore.getState().crossFilters).toHaveLength(0)
   })
 })
 ```
 
-**Key pattern:** Zustand stores are tested without React rendering. Use `useStore.getState()` to call actions and `useStore.setState()` to reset state.
-
-**Component tests (jsdom required):**
+**Component tests (jsdom environment):**
 ```typescript
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import React from 'react'
 
-import { ChartFactory } from './chart-factory'
+import { GridToolbar } from './grid-toolbar'
 
-// Mock dependencies
-vi.mock('./ag-chart-wrapper', () => ({
-  AgChartWrapper: (props: { config?: { vizType?: string } }) => (
-    React.createElement('div', { 'data-testid': 'ag-chart' })
-  ),
+vi.mock('sonner', () => ({
+  toast: { success: vi.fn(), error: vi.fn() },
 }))
 
-describe('ChartFactory', () => {
-  it('routes bar to AgChartWrapper', () => {
-    const { getByTestId } = render(
-      <ChartFactory chartId="test-1" config={{ ...baseConfig, vizType: 'bar' }} />,
-    )
-    expect(getByTestId('ag-chart')).toBeDefined()
+describe('GridToolbar', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('renders search input with placeholder', () => {
+    render(<GridToolbar {...defaultProps} />)
+    expect(screen.getByPlaceholderText('Quick filter...')).toBeDefined()
   })
 })
 ```
 
-**Hook tests (jsdom required):**
+**Hook tests (jsdom environment):**
 ```typescript
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -227,10 +231,15 @@ describe('useAutoRefresh', () => {
 })
 ```
 
-### Playwright E2E Pattern
+### Frontend E2E Test Pattern
 
 ```typescript
 import { test, expect, type Page } from '@playwright/test'
+
+async function waitForDashboardLoad(page: Page): Promise<void> {
+  await page.locator('text=Bar Chart').waitFor({ state: 'visible', timeout: 15_000 })
+  await expect(page.locator('[data-slot="skeleton"]')).toHaveCount(0, { timeout: 15_000 })
+}
 
 test.describe('Chart Showcase - Rendering', () => {
   test.beforeEach(async ({ page }) => {
@@ -238,165 +247,171 @@ test.describe('Chart Showcase - Rendering', () => {
     await waitForDashboardLoad(page)
   })
 
-  test('Bar Chart renders without error', async ({ page }) => {
-    const titleEl = page.locator('text="Bar Chart"').first()
-    await expect(titleEl).toBeVisible()
-    // Navigate to card, check no error messages
-    await expect(content.locator('text=Column mapping error')).toHaveCount(0)
-    // Assert chart canvas exists
-    const hasCanvas = await content.locator('canvas').count()
-    expect(hasCanvas).toBeGreaterThan(0)
-  })
+  // Parameterized: iterate over chart types
+  for (const chartTitle of chartTypes) {
+    test(`${chartTitle} renders without error`, async ({ page }) => {
+      const titleEl = page.locator(`text="${chartTitle}"`).first()
+      await expect(titleEl).toBeVisible()
+      // Assert no error panels
+      await expect(content.locator('text=Column mapping error')).toHaveCount(0)
+    })
+  }
 })
 ```
 
-**Playwright config highlights:**
-- `fullyParallel: false`, `workers: 1` -- sequential execution
-- `timeout: 30_000` per test, `expect.timeout: 10_000`
-- `trace: 'on-first-retry'`, `screenshot: 'only-on-failure'`
-- Single project: Chromium desktop
-- `webServer` config auto-starts `pnpm dev` and reuses existing server
+### Backend Unit Test Pattern
 
-### Backend Test Pattern (pytest)
-
-**Synchronous tests:**
+**Pure function tests:**
 ```python
+from app.services.merge_engine import MergeEngine
+
 def test_outer_join():
     left = {"columns": ["k", "v1"], "rows": [...], "row_count": 2}
     right = {"columns": ["k", "v2"], "rows": [...], "row_count": 1}
     result = MergeEngine.merge([left, right], merge_on=["k"], merge_type="outer_join")
-    assert result["row_count"] == 1
+    assert result["row_count"] == 3
 ```
 
-**Async tests:**
+**Async service tests:**
 ```python
 import pytest
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 @pytest.mark.asyncio
 async def test_sync_creates_missing_databases():
-    superset = _make_superset_mock(existing_dbs=[])
+    superset = AsyncMock()
+    superset.list_databases = AsyncMock(return_value=[])
+    superset.create_database = AsyncMock(side_effect=lambda payload: {"id": 99})
     registrar = DatabaseRegistrar(superset_client=superset, config_path=None)
     registrar._entries = _make_entries()
     await registrar.sync()
     assert superset.create_database.call_count == 2
 ```
 
-**Fixtures:**
+**FastAPI endpoint tests (TestClient):**
 ```python
-@pytest.fixture
-def mock_registrar():
-    registrar = MagicMock()
-    registrar.get_dialect.return_value = "oracle"
-    registrar.get_schema.return_value = ""
-    return registrar
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
-@pytest.fixture
-def engine(mock_registrar):
-    return QueryEngine(
-        config_store=ConfigStore(),
-        superset_client=MagicMock(),
-        database_registrar=mock_registrar,
-    )
+def _create_test_app(session_mock, sync_mock):
+    test_app = FastAPI()
+    test_app.include_router(router)
+    test_app.state.dataset_sync = sync_mock
+
+    async def override_db():
+        yield session_mock
+    test_app.dependency_overrides[get_db_session] = override_db
+    return test_app
+
+def test_create_managed_dataset_returns_201():
+    session = AsyncMock()
+    sync_service = MagicMock(spec=DatasetSyncService)
+    sync_service.sync_dataset = AsyncMock(return_value=42)
+    app = _create_test_app(session, sync_service)
+    client = TestClient(app)
+    resp = client.post("/api/datasets/managed", json=VALID_CREATE_BODY)
+    assert resp.status_code == 201
 ```
 
 ## Mocking
 
-### Frontend (Vitest)
+### Frontend Mocking
 
-**Framework:** `vi` from Vitest (compatible with Jest API)
+**Framework:** `vi.mock()` and `vi.fn()` from Vitest
 
-**Module mocking:**
+**Module mocking pattern:**
 ```typescript
-// Mock entire modules
-vi.mock('./ag-chart-wrapper', () => ({
-  AgChartWrapper: (props) => React.createElement('div', { 'data-testid': 'ag-chart' }),
-}))
-
-// Mock external packages
+// Mock external dependencies
 vi.mock('sonner', () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }))
 
-// Mock internal utilities
+// Mock internal modules
 vi.mock('@/lib/chart-export', () => ({
   sanitizeFilename: (name: string) => name.toLowerCase().replace(/\s+/g, '-'),
 }))
+
+// Mock chart wrappers to avoid browser dependencies
+vi.mock('./ag-chart-wrapper', () => ({
+  AgChartWrapper: (props: { config?: { vizType?: string } }) =>
+    React.createElement('div', { 'data-testid': 'ag-chart', 'data-viztype': props.config?.vizType }),
+}))
 ```
 
-**Function mocking:**
+**API mock pattern:** Mock the AG Grid API object with `vi.fn()` methods:
 ```typescript
-const onRefresh = vi.fn()
-const mockClick = vi.fn()
-const mockCreateObjectURL = vi.fn().mockReturnValue('blob:test-url')
+function mockGridApi() {
+  return {
+    exportDataAsCsv: vi.fn(),
+    exportDataAsExcel: vi.fn(),
+    getColumns: vi.fn(() => [
+      { getColId: () => 'name', getColDef: () => ({ headerName: 'Name' }), isVisible: () => true },
+    ]),
+    autoSizeAllColumns: vi.fn(),
+  }
+}
 ```
 
-**Timer mocking (for auto-refresh, intervals):**
-```typescript
-beforeEach(() => { vi.useFakeTimers() })
-afterEach(() => { vi.useRealTimers() })
+**Timer mocking:** `vi.useFakeTimers()` / `vi.useRealTimers()` with `vi.advanceTimersByTime()`.
 
-vi.setSystemTime(new Date('2026-04-05T12:00:00Z'))
-vi.advanceTimersByTime(61_000)
+**What to mock:**
+- External services (sonner toast, chart libraries)
+- Browser APIs (clipboard, DOM creation, URL.createObjectURL)
+- Timer-dependent code
+
+**What NOT to mock:**
+- Pure utility functions under test
+- Zustand stores (test directly via `getState()` / `setState()`)
+- Type imports
+
+### Backend Mocking
+
+**Framework:** `unittest.mock` (`AsyncMock`, `MagicMock`, `patch`)
+
+**Async mock pattern:**
+```python
+superset = AsyncMock()
+superset.create_dataset = AsyncMock(return_value={"id": 55})
+superset.list_databases = AsyncMock(return_value=[{"id": 5, "database_name": "db_one"}])
 ```
 
-**Spy pattern:**
-```typescript
-const mockCreateElement = vi.spyOn(document, 'createElement').mockReturnValue({...})
-// ...
-mockCreateElement.mockRestore()
+**FastAPI dependency override:**
+```python
+async def override_db():
+    yield session_mock
+test_app.dependency_overrides[get_db_session] = override_db
+```
+
+**SQLAlchemy result mocking:**
+```python
+mock_result = MagicMock()
+mock_result.scalars = MagicMock(return_value=MagicMock(all=MagicMock(return_value=[row])))
+session.execute = AsyncMock(return_value=mock_result)
 ```
 
 **What to mock:**
-- External chart libraries (AG Charts, ECharts) -- avoid browser canvas dependencies in unit tests
-- Toast notifications (`sonner`)
-- Browser APIs (`navigator.clipboard`, `URL.createObjectURL`, `document.createElement`)
-- Time-dependent logic (`vi.useFakeTimers`)
+- Superset HTTP client (`AsyncMock`)
+- Database sessions (`AsyncMock` + `MagicMock` result chains)
+- External services
+- Internal private state for edge cases (e.g., `registrar._cache.clear()`, `registrar._last_refresh = 0.0`)
 
 **What NOT to mock:**
-- Zustand stores -- test with real store via `getState()`/`setState()`
-- Pure utility functions (formatters, cross-filter logic, CSV builders)
-- Type definitions
-
-### Backend (pytest)
-
-**Framework:** `unittest.mock` (`MagicMock`, `AsyncMock`)
-
-**Patterns:**
-```python
-from unittest.mock import MagicMock, AsyncMock
-
-# Sync mocks
-registrar = MagicMock()
-registrar.get_dialect.return_value = "oracle"
-
-# Async mocks for Superset client
-mock = AsyncMock()
-mock.list_databases = AsyncMock(return_value=[])
-mock.create_database = AsyncMock(
-    side_effect=lambda payload: {"id": 99, "result": {"id": 99}}
-)
-```
-
-**What to mock in backend tests:**
-- Superset client (external HTTP calls)
-- Database registrar (when testing QueryEngine)
-- Never mock Pydantic models or pure business logic (MergeEngine, ConfigStore)
+- `ConfigStore` (tested against real JSON config files on disk)
+- Pure logic like `MergeEngine`, `uri_builder`, `ConnectionStatusTracker`
+- Pydantic model validation
 
 ## Fixtures and Factories
 
-### Frontend Test Data
+### Frontend Test Data Factories
 
-**Factory functions** defined at top of test files:
 ```typescript
-function makeData(rows: Record<string, unknown>[]): ChartDataResponse {
-  return {
-    chartId: 'test',
-    columns: Object.keys(rows[0] ?? {}),
-    data: rows,
-    rowCount: rows.length,
-  }
-}
+// Inline factory function pattern
+const makeData = (rows: Record<string, unknown>[]): ChartDataResponse => ({
+  chartId: 'test',
+  columns: Object.keys(rows[0] ?? {}),
+  data: rows,
+  rowCount: rows.length,
+})
 
 function makeKpiConfig(overrides: Partial<KpiConfig> & { id: string }): KpiConfig {
   return {
@@ -409,189 +424,168 @@ function makeKpiConfig(overrides: Partial<KpiConfig> & { id: string }): KpiConfi
 }
 ```
 
-**Pattern:** Each test file defines its own minimal factory functions. No shared fixture directory.
+**Location:** Inline within each test file. No shared fixture files.
 
-**Grid API mock factory** (for AG Grid component tests):
-```typescript
-function mockGridApi() {
-  return {
-    exportDataAsCsv: vi.fn(),
-    exportDataAsExcel: vi.fn(),
-    getColumns: vi.fn(() => [...]),
-    setColumnsVisible: vi.fn(),
-    autoSizeAllColumns: vi.fn(),
-  }
-}
-```
+### Backend Test Data Factories
 
-### Backend Fixtures
-
-**Factory functions** at module level (prefixed with `_make_`):
 ```python
+def _make_dataset_row(*, dataset_id="test-uuid-1", name="Test Dataset", ...):
+    """Create a mock RecvizDataset row."""
+    row = MagicMock()
+    row.id = dataset_id
+    row.name = name
+    # ...
+    return row
+
 def _make_entries() -> list[DatabaseEntry]:
     return [
-        DatabaseEntry(name="db_one", display_name="DB One", ...),
-        DatabaseEntry(name="db_two", display_name="DB Two", ...),
+        DatabaseEntry(name="db_one", display_name="DB One", sqlalchemy_uri="sqlite:///test.db", ...),
     ]
-
-def _make_superset_mock(existing_dbs=None) -> AsyncMock:
-    mock = AsyncMock()
-    mock.list_databases = AsyncMock(return_value=existing_dbs or [])
-    return mock
 ```
 
-**pytest fixtures** for reusable setup:
+**Pattern:** Private `_make_*` factory functions at module top. Use `MagicMock` for ORM rows, real Pydantic models for config objects.
+
+**pytest fixtures:**
 ```python
 @pytest.fixture
 def store():
     return ConfigStore()
 
 @pytest.fixture
-def engine(mock_registrar):
-    return QueryEngine(config_store=ConfigStore(), ...)
-```
+def mock_registrar():
+    registrar = MagicMock()
+    registrar.get_dialect.return_value = "oracle"
+    return registrar
 
-**Location:** Fixtures defined in each test file. No shared `conftest.py`.
+@pytest.fixture
+def engine(mock_registrar):
+    return QueryEngine(config_store=ConfigStore(), superset_client=MagicMock(), database_registrar=mock_registrar)
+```
 
 ## Coverage
 
 **Requirements:** Not enforced. No coverage thresholds configured.
 
-**Current coverage profile:**
-- Pure logic utilities: Well-tested (`formatters`, `cross-filter`, `kpi-aggregator`, `chart-export`)
-- Zustand stores: Well-tested (`filter-store`, `drill-store`)
-- Chart components: Partially tested (`buildSeries` function, `ChartFactory` routing)
-- UI components: Minimal (only `grid-toolbar.test.tsx`)
-- Hooks: Minimal (only `use-auto-refresh.test.ts`)
-- Backend services: Moderate (query engine, database registrar, merge engine, config store)
-- Backend API routes: Not tested
-- E2E: 2 spec files covering chart showcase and TLM stats regression
+**View Coverage (Frontend):**
+```bash
+cd frontend
+npx vitest run --coverage
+```
+
+**View Coverage (Backend):**
+```bash
+cd backend
+python -m pytest tests/ --cov=app --cov-report=html
+```
+(Requires `pytest-cov` to be installed.)
 
 ## Test Types
 
-**Unit Tests (Vitest):**
-- Scope: Individual functions, stores, hooks, component routing logic
-- 10 test files, co-located with source
-- Tests for: formatters, cross-filter logic, KPI aggregation, chart series building, chart factory routing, store state management, auto-refresh hook, grid toolbar UI, chart export utilities
+### Unit Tests (Frontend - 13 test files)
 
-**Integration Tests:**
-- Backend `test_config_store.py` reads real JSON config files from disk
-- Backend `test_query_engine.py` tests SQL building with real config data
+**Scope:** Pure logic, store state management, component rendering, hook behavior.
 
-**E2E Tests (Playwright):**
-- Scope: Full stack (frontend + backend + Superset + databases)
-- 2 spec files: chart showcase rendering (12 chart types), TLM stats dashboard regression
-- Validates: chart rendering, cross-filter badge bar, drill-down breadcrumb, error-free loading
+**Tested areas:**
+- `frontend/src/lib/formatters.test.ts` -- Number/currency/percentage formatting
+- `frontend/src/lib/cross-filter.test.ts` -- Cross-filter application logic
+- `frontend/src/lib/kpi-aggregator.test.ts` -- KPI recomputation with cross-filters
+- `frontend/src/lib/chart-export.test.ts` -- CSV/TSV generation, file download, clipboard
+- `frontend/src/lib/column-detection.test.ts` -- Auto-detection of column types from data
+- `frontend/src/lib/column-merge.test.ts` -- Column schema merge (unchanged/new/missing)
+- `frontend/src/lib/chart-compatibility.test.ts` -- Chart type vs dataset shape validation
+- `frontend/src/stores/filter-store.test.ts` -- Cross-filter toggle/replace/clear
+- `frontend/src/stores/drill-store.test.ts` -- Drill-down state per chart
+- `frontend/src/hooks/use-auto-refresh.test.ts` -- Timer-based auto-refresh hook
+- `frontend/src/components/dashboard/grid-toolbar.test.tsx` -- Grid toolbar rendering and actions
+- `frontend/src/components/charts/chart-factory.test.tsx` -- Chart type routing (AG vs ECharts)
+- `frontend/src/components/charts/ag-chart-wrapper.test.ts` -- Series builder config mapping
+
+### E2E Tests (Frontend - 2 test files)
+
+**Scope:** Full-stack rendering validation against real backend data.
+
+**Tested areas:**
+- `frontend/e2e/chart-showcase.spec.ts` -- 12 chart types render without error, cross-filter activation, drill-down navigation
+- `frontend/e2e/tlm-stats-regression.spec.ts` -- Production dashboard regression (column mapping refactor)
+
+### Unit Tests (Backend - 9 test files)
+
+**Scope:** Service logic, API endpoints, data transformations.
+
+**Tested areas:**
+- `backend/tests/test_config_store.py` -- Dashboard/data-source JSON config loading
+- `backend/tests/test_database_registrar.py` -- Superset database sync, resolve, cache
+- `backend/tests/test_merge_engine.py` -- Multi-source data merge (outer/inner join)
+- `backend/tests/test_query_engine.py` -- SQL building, dialect handling, filter injection, SQL injection prevention
+- `backend/tests/test_uri_builder.py` -- SQLAlchemy URI construction for Oracle/Hive/PostgreSQL
+- `backend/tests/test_connection_status.py` -- In-memory connection status tracking
+- `backend/tests/test_dataset_sync.py` -- Superset dataset CRUD sync, reconciliation
+- `backend/tests/test_managed_datasets.py` -- Dataset API CRUD endpoints (201, 404, 422, 204, 409)
+- `backend/tests/test_managed_charts.py` -- Chart API CRUD endpoints + reference checks
 
 ## Common Patterns
 
-**Async Testing (hooks):**
-```typescript
-// @vitest-environment jsdom
-import { renderHook, act } from '@testing-library/react'
-
-const { result, rerender } = renderHook(
-  ({ interval }) => useAutoRefresh(interval, onRefresh),
-  { initialProps: { interval: 60_000 } },
-)
-
-act(() => { vi.advanceTimersByTime(30_000) })
-expect(result.current.remainingMs).toBeLessThanOrEqual(59_000)
-
-rerender({ interval: 300_000 })
-expect(result.current.remainingMs).toBe(300_000)
-```
-
-**Error Testing:**
-```typescript
-it('does not crash when currencyCode is undefined', () => {
-  expect(() =>
-    formatValue(1234.56, { type: 'currency', currencyCode: undefined }),
-  ).not.toThrow()
-})
-```
+### Async Testing (Backend)
 
 ```python
-def test_resolve_database_dynamic_missing_filter(engine):
-    with pytest.raises(ValueError, match="required filter"):
-        engine._resolve_database(data_source_id="tlm_breaks", filters={})
+@pytest.mark.asyncio
+async def test_sync_creates_missing_databases():
+    superset = AsyncMock()
+    registrar = DatabaseRegistrar(superset_client=superset, config_path=None)
+    await registrar.sync()
+    assert superset.create_database.call_count == 2
 ```
 
-**Boundary/Edge Case Testing:**
+### Error Testing
+
+**Frontend:**
 ```typescript
-it('returns original data when no cross-filters', () => {
-  const result = applyCrossFilters(data, [], 'chart-a')
-  expect(result).toBe(data)  // same reference -- no unnecessary copy
-})
-
-it('returns undefined data as-is', () => {
-  const result = applyCrossFilters(undefined, [...], 'b')
-  expect(result).toBeUndefined()
+it('does not crash when currencyCode is undefined', () => {
+  expect(() => formatValue(1234.56, { type: 'currency', currencyCode: undefined })).not.toThrow()
 })
 ```
 
-**Environment Override Pattern:**
+**Backend:**
+```python
+def test_resolve_unknown_raises():
+    with pytest.raises(ValueError, match="not registered"):
+        await registrar.resolve("nonexistent")
+
+def test_create_managed_dataset_empty_name_returns_422():
+    resp = client.post("/api/datasets/managed", json=body)
+    assert resp.status_code == 422
+```
+
+### Environment Directive Pattern (Frontend)
+
+Tests that need browser APIs use a per-file directive instead of global config:
 ```typescript
 // @vitest-environment jsdom
 ```
-Use the `// @vitest-environment jsdom` comment at file top for tests requiring DOM (component rendering, clipboard API, document manipulation). Default environment is `node` for pure logic tests.
-
-## Vitest Configuration Reference
-
-`frontend/vitest.config.ts`:
+This keeps the default environment as `node` (faster) and only uses `jsdom` where needed. This is configured in `frontend/vitest.config.ts`:
 ```typescript
-import { defineConfig } from 'vitest/config'
-import path from 'path'
-
-export default defineConfig({
-  test: {
-    globals: true,
-    environment: 'node',
-  },
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-    },
-  },
-})
+test: {
+  globals: true,
+  environment: 'node',
+  exclude: ['e2e/**', 'node_modules/**'],
+}
 ```
 
-- `globals: true` -- `describe`, `it`, `expect` available globally (though tests still import them explicitly)
-- `environment: 'node'` -- default; override with `// @vitest-environment jsdom` per file
-- Path alias `@` mirrors Vite config for consistent import resolution in tests
+### Test Data Conventions
 
-## Adding New Tests
+- Use realistic domain data (regions: 'APAC'/'EMEA', desks: 'FX'/'EQ', columns: 'break_count', 'amount')
+- Test edge cases: `null`, `undefined`, empty arrays, empty Maps
+- Test both positive and negative paths for every function
+- Verify same-reference returns when no filtering needed (performance optimization tests)
 
-**For a new utility function:**
-1. Create `{name}.test.ts` next to the source file
-2. Import from vitest: `import { describe, it, expect } from 'vitest'`
-3. Write factory helpers at top of file for test data
-4. Group related tests in nested `describe` blocks
+### Vitest Globals
 
-**For a new React component:**
-1. Create `{name}.test.tsx` next to the component
-2. Add `// @vitest-environment jsdom` at top
-3. Mock heavy dependencies (chart libraries, external packages)
-4. Use `render()` from `@testing-library/react` and `screen` for queries
-
-**For a new hook:**
-1. Create `use-{name}.test.ts` next to the hook
-2. Add `// @vitest-environment jsdom` at top
-3. Use `renderHook()` and `act()` from `@testing-library/react`
-4. Use `vi.useFakeTimers()` for time-dependent hooks
-
-**For a new backend service:**
-1. Create `test_{module}.py` in `backend/tests/`
-2. Use `pytest.fixture` for service setup with mocked dependencies
-3. Use `@pytest.mark.asyncio` and `AsyncMock` for async services
-4. Test public methods; use `_private_method` access for unit-testing internal logic
-
-**For a new E2E scenario:**
-1. Create `{feature}.spec.ts` in `frontend/e2e/`
-2. Use `test.describe` / `test.beforeEach` structure
-3. Wait for data loading with `waitFor` + skeleton disappearance checks
-4. Assert error-free rendering before checking positive conditions
+`globals: true` in `vitest.config.ts` means `describe`, `it`, `expect`, `vi`, `beforeEach`, `afterEach` are globally available. However, the codebase explicitly imports them:
+```typescript
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+```
+This is the preferred pattern -- always import explicitly for clarity.
 
 ---
 
-*Testing analysis: 2026-04-05*
+*Testing analysis: 2026-04-06*

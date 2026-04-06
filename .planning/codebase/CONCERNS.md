@@ -1,254 +1,238 @@
 # Codebase Concerns
 
-**Analysis Date:** 2026-04-05
+**Analysis Date:** 2026-04-06
 
 ## Tech Debt
 
-**Legacy hooks reference non-existent store property `globalFilters`:**
-- Issue: Three hooks (`use-kpi-data.ts`, `use-chart-data.ts`, `use-breaks-data.ts`) reference `useFilterStore((s) => s.globalFilters)` but the current `filter-store.ts` has no `globalFilters` property. The store was refactored to use `values`/`applied`/`locked` but these hooks were never updated. They are dead code from the pre-config-driven system.
-- Files: `frontend/src/hooks/use-kpi-data.ts`, `frontend/src/hooks/use-chart-data.ts`, `frontend/src/hooks/use-breaks-data.ts`
-- Impact: These hooks would crash at runtime if invoked. They are currently unused by the active config-driven dashboard system but remain importable. Any developer referencing them will hit an immediate runtime error.
-- Fix approach: Delete all three files. The config-driven system uses `use-data-source-query.ts` and `use-dashboard-kpis.ts` instead.
+**Legacy hooks reference non-existent store property:**
+- Issue: Three hooks (`use-chart-data.ts`, `use-kpi-data.ts`, `use-breaks-data.ts`) read `s.globalFilters` from the filter store, but the store interface defines `values`, `locked`, and `applied` -- there is no `globalFilters` property. These hooks would crash at runtime with `undefined` returned for every selector read.
+- Files: `frontend/src/hooks/use-chart-data.ts`, `frontend/src/hooks/use-kpi-data.ts`, `frontend/src/hooks/use-breaks-data.ts`
+- Impact: These hooks are dead code from the legacy dashboard system. They cannot be safely called. Any component importing them will get `undefined` filters, causing queries to fire with no filter context.
+- Fix approach: Delete these three hooks. The active config-driven system uses `useDataSourceQuery` (`frontend/src/hooks/use-data-source-query.ts`) and `useDashboardKpis` (`frontend/src/hooks/use-dashboard-kpis.ts`) with the `applied` filter snapshot.
 
-**Legacy prefetch hook targets defunct chart IDs:**
-- Issue: `use-prefetch.ts` hardcodes chart IDs like `break-trend`, `breaks-by-category` from the old Superset-direct chart system and calls `/api/custom/kpi` and `/api/charts/{id}/data`. These endpoints still exist but are part of the legacy system, not the active config-driven dashboards.
-- Files: `frontend/src/hooks/use-prefetch.ts`
-- Impact: Wastes network calls on mount to endpoints the active dashboards do not use. Does not prefetch the actual data needed by config-driven dashboards.
-- Fix approach: Either delete the hook or rewrite it to prefetch config-driven dashboard data (dashboard configs + data source queries for the default dashboard).
+**Legacy prefetch hook targets dead API routes:**
+- Issue: `usePrefetch` hardcodes chart IDs (`break-trend`, `breaks-by-category`, etc.) and hits `/api/charts/{chartId}/data` and `/api/custom/kpi`. These are the old Superset-datasource-mapped endpoints from `backend/app/api/charts.py` (the `CHART_DATASOURCE_MAP` and `CHART_QUERIES` dictionaries). The active system uses `/api/data-sources/{id}/query` and `/api/dashboards/{id}/kpis`.
+- Files: `frontend/src/hooks/use-prefetch.ts`, `backend/app/api/charts.py`
+- Impact: If called, prefetch would fire 7 network requests to the old API that depend on hardcoded Superset dataset IDs (3, 4, 5, 6). These IDs may not exist in a fresh deployment. Wasted bandwidth and potential 404/500 errors on startup.
+- Fix approach: Delete `use-prefetch.ts`. If prefetching is desired, implement it in `dashboard-renderer.tsx` using the config-driven data source IDs from the dashboard config.
 
-**Hardcoded Superset datasource IDs in legacy chart endpoint:**
-- Issue: `backend/app/api/charts.py` contains `CHART_DATASOURCE_MAP` and `CHART_QUERIES` with hardcoded Superset datasource IDs (3, 4, 5, 6). The config-driven system uses `backend/app/api/data_sources.py` instead and resolves databases dynamically. The `charts.py` endpoints are vestigial.
-- Files: `backend/app/api/charts.py`
-- Impact: Confusing to maintain two parallel data paths. The legacy endpoints bypass the `QueryEngine` and `DatabaseRegistrar` entirely, going straight to Superset chart data API with hardcoded IDs. If datasets are re-created in Superset, these IDs break.
-- Fix approach: Deprecate and remove `charts.py`. All chart data should flow through `data_sources.py` > `QueryEngine`.
+**Hardcoded Superset dataset IDs in legacy charts API:**
+- Issue: `backend/app/api/charts.py` contains `CHART_DATASOURCE_MAP` mapping chart slugs to Superset dataset IDs (`5`, `4`, `6`, `3`). These are fragile numeric IDs assigned during seed setup. They differ per environment.
+- Files: `backend/app/api/charts.py` (lines 18-29), `backend/app/api/custom.py` (lines 110, 124, 135, 149, 211)
+- Impact: The old charts API and the KPI endpoint (`/api/custom/kpi`) both hardcode dataset IDs. In any non-dev environment, or after re-seeding, these IDs will be wrong, causing silent data mismatches or 404s from Superset.
+- Fix approach: The config-driven system already solves this via named databases in `databases.json` resolved through `DatabaseRegistrar`. Migrate the remaining `/api/custom/kpi` endpoint to use config-driven data sources, then delete the old charts router entirely.
 
-**Hardcoded Superset datasource IDs in legacy custom/KPI endpoint:**
-- Issue: `backend/app/api/custom.py` hardcodes datasource IDs 5 and 6 for KPI queries, and datasource ID 3 for counterparties. Same problem as `charts.py`.
-- Files: `backend/app/api/custom.py`
-- Impact: KPIs from the legacy system are computed via 4 separate Superset queries with hardcoded IDs. The config-driven system uses `backend/app/api/dashboards.py` KPI endpoint instead.
-- Fix approach: Remove or mark as deprecated. All KPI computation should flow through config-driven `dashboards/{id}/kpis`.
+**Duplicate `_handle_httpx_error` / `_superset_unavailable` helper functions:**
+- Issue: Identical error-handling helper functions are copy-pasted across three API modules: `custom.py`, `databases.py`, and inline in `charts.py` / `sql.py` (expanded into per-exception try/catch blocks with the same pattern).
+- Files: `backend/app/api/custom.py` (lines 60-91), `backend/app/api/databases.py` (lines 45-76), `backend/app/api/charts.py` (lines 159-182, 195-223, 267-290), `backend/app/api/sql.py` (lines 63-98, 119-142)
+- Impact: Any improvement to error handling (e.g., adding retry headers, changing status codes, adding structured logging) must be replicated in 4+ locations. High risk of inconsistency.
+- Fix approach: Move `_handle_httpx_error` and `_superset_unavailable` to `backend/app/core/errors.py` as shared functions. Replace all per-module copies. Consider a FastAPI exception handler middleware that catches `httpx.*` exceptions globally.
 
-**Hardcoded dataset column definitions:**
-- Issue: `backend/app/api/datasets.py` contains `DATASET_COLUMNS` dict mapping dataset ID 5 to a fixed list of 20 column names. This is brittle and specific to one demo dataset.
-- Files: `backend/app/api/datasets.py`
-- Impact: Only dataset ID 5 returns row-level data. All other dataset IDs return 404. The endpoint is unused by the config-driven system.
-- Fix approach: Remove or refactor. Config-driven data sources define columns in their JSON configs.
+**Export system is entirely stubbed:**
+- Issue: Both `/api/export/pdf` and `/api/export/excel` endpoints immediately return `{"status": "pending"}` and store the job in an in-memory dict. No actual PDF or Excel generation ever occurs. The job status never transitions from `pending`.
+- Files: `backend/app/api/export.py`
+- Impact: The frontend export buttons (chart toolbar, grid toolbar) create jobs that will never complete. Users see "pending" forever.
+- Fix approach: Implement Celery task workers with WeasyPrint (PDF) and openpyxl (Excel) as specified in the tech stack. Replace the in-memory `_jobs` dict with Redis-backed job tracking.
 
-**Backend tests use old `ConfigStore()` constructor (pre-DB migration):**
-- Issue: `test_config_store.py` and `test_query_engine.py` instantiate `ConfigStore()` with no arguments. The current `ConfigStore.__init__` requires an `AsyncSession` argument (DB-backed). These tests will fail.
-- Files: `backend/tests/test_config_store.py`, `backend/tests/test_query_engine.py`
-- Impact: Backend tests are broken. Cannot run `pytest` successfully.
-- Fix approach: Rewrite tests to use async fixtures with a test database session, or mock the session.
+**In-memory stores lose data on restart:**
+- Issue: Three backend services use module-level in-memory dicts/lists that reset on every server restart:
+  1. `_query_history` in `sql.py` -- SQL query history (list, capped at 50)
+  2. `_jobs` in `export.py` -- export job tracking (dict)
+  3. `_views` in `views.py` -- saved views (dict)
+- Files: `backend/app/api/sql.py` (line 18), `backend/app/api/export.py` (line 12), `backend/app/api/views.py` (line 13)
+- Impact: Users lose all SQL history, pending exports, and saved views on every backend restart. Multi-worker deployments (uvicorn with multiple workers) will have inconsistent state across workers.
+- Fix approach: Move saved views to the PostgreSQL database (add SQLAlchemy model + migration). Move query history to Redis with TTL. Move export jobs to Celery result backend (Redis).
 
-**Duplicated error handling boilerplate across API endpoints:**
-- Issue: Every endpoint in `charts.py`, `datasets.py`, `sql.py` repeats the same `try/except httpx.ConnectError... httpx.TimeoutException... httpx.HTTPStatusError...` pattern with near-identical error formatting. `custom.py` and `databases.py` partially consolidate via `_handle_httpx_error()` helper but the pattern is inconsistent.
-- Files: `backend/app/api/charts.py`, `backend/app/api/datasets.py`, `backend/app/api/sql.py`, `backend/app/api/databases.py`, `backend/app/api/custom.py`
-- Impact: ~40 lines of boilerplate per endpoint. Each new endpoint copies the same pattern. Risk of inconsistent error formatting.
-- Fix approach: Create a FastAPI exception handler middleware that catches httpx exceptions globally, or use a decorator. Apply `_handle_httpx_error()` pattern from `custom.py`/`databases.py` across all modules.
+**Types barrel export violates convention:**
+- Issue: `frontend/src/types/index.ts` re-exports all type modules via `export type *`. The project convention explicitly says "No barrel exports (no index.ts re-exporting everything from a folder)."
+- Files: `frontend/src/types/index.ts`
+- Impact: Low immediate impact since no component appears to import from `@/types` (all import from specific type files like `@/types/chart`). However, the file's existence invites future barrel imports that slow builds and create circular dependency risks.
+- Fix approach: Delete `frontend/src/types/index.ts`.
 
-**`data-source-sheet.tsx` is 769 lines with excessive prop drilling:**
-- Issue: The `DataSourceSheet` component passes 20+ individual props to `FormView` and 16 to `DetailView`. Each form field has its own `useState` instead of using a form library or single state object.
-- Files: `frontend/src/components/settings/data-source-sheet.tsx`
-- Impact: Difficult to add new fields, easy to introduce bugs. Each new form field requires adding useState + prop + handler in 3 places.
-- Fix approach: Extract form state into a single object or use `react-hook-form`. Consider splitting `DetailView` and `FormView` into separate files.
+**React Rules of Hooks violation in AgChartWrapper:**
+- Issue: In `ag-chart-wrapper.tsx`, `useRef` (line 367) and `useState` (line 368) are called after conditional early returns (lines 338-364 for missingColumns, isLoading, error, and empty data checks). React hooks must always be called unconditionally and in the same order.
+- Files: `frontend/src/components/charts/ag-chart-wrapper.tsx` (lines 367-368)
+- Impact: React may produce unpredictable behavior or crash in development mode. The issue is masked because the early return paths are less common, but it is a correctness violation.
+- Fix approach: Move the `containerRef` and `containerSize` state declarations to the top of the component, before any early returns (alongside the other `useRef`/`useState` calls on lines 230-231, 246).
 
 ## Known Bugs
 
-**In-memory stores lose data on backend restart:**
-- Symptoms: SQL query history, saved views, and export job statuses disappear after every `uvicorn` restart.
-- Files: `backend/app/api/sql.py` (line 18: `_query_history`), `backend/app/api/views.py` (line 13: `_views`), `backend/app/api/export.py` (line 12: `_jobs`)
-- Trigger: Any backend restart (code change with `--reload`, deployment, crash recovery).
-- Workaround: None. Data is silently lost.
+**`useBreaksData` references nonexistent API endpoint:**
+- Symptoms: Calling `useBreaksData` would POST to `/api/datasets/5/data?page=1&page_size=1000`, which does not exist in the router. The actual datasets endpoint is `/api/datasets/managed/{id}` (GET only, no data endpoint). This hook also reads `s.globalFilters` from the store (which does not exist).
+- Files: `frontend/src/hooks/use-breaks-data.ts`
+- Trigger: Any component importing and calling `useBreaksData()`
+- Workaround: Hook is not imported by any active component. It is dead code.
 
-**Export endpoints are entirely stubbed:**
-- Symptoms: `/api/export/pdf` and `/api/export/excel` accept requests and return a `job_id` with status `"pending"`, but no actual export processing ever occurs. The job status never transitions to `"complete"` or `"failed"`.
-- Files: `backend/app/api/export.py`
-- Trigger: Any user attempting to export a dashboard or chart.
-- Workaround: None. Feature is not implemented.
-
-**SQL query history has unbounded growth:**
-- Symptoms: `_query_history` list grows without bound during a server session. Every SQL execution inserts a record.
-- Files: `backend/app/api/sql.py` (line 18)
-- Trigger: Heavy SQL explorer usage during a single server session.
-- Workaround: The `get_history` endpoint only returns 50 entries, but memory usage still grows.
+**Reports page shows placeholder only:**
+- Symptoms: Navigating to `/reports` shows a static placeholder message ("coming soon") with no actual functionality.
+- Files: `frontend/src/routes/_app/reports/index.tsx`
+- Trigger: Clicking "Reports" in sidebar navigation
+- Workaround: None -- feature not implemented.
 
 ## Security Considerations
 
-**No authentication or authorization on any endpoint:**
-- Risk: Every API endpoint is publicly accessible. Any user with network access can execute arbitrary SQL, delete databases, view all dashboards, and access all data.
-- Files: `backend/app/main.py` (no auth middleware), all route files in `backend/app/api/`
-- Current mitigation: None. CORS limits origins to localhost ports only, but that only protects browser-based cross-origin requests, not direct API calls.
-- Recommendations: Implement authentication middleware (SSO/SAML/OIDC as noted in CLAUDE.md). Add authorization checks per endpoint. The `config.py` notes auth is TBD.
+**No authentication on any endpoint:**
+- Risk: Every API endpoint is publicly accessible. Any user with network access to the backend can execute arbitrary SQL, read all dashboard data, create/delete databases, and view all reconciliation data.
+- Files: `backend/app/main.py` (no auth middleware), `backend/app/api/sql.py` (raw SQL execution), `backend/app/api/databases.py` (database CRUD)
+- Current mitigation: Application is on internal network only. CORS restricts browser origins to localhost ports.
+- Recommendations: Implement SSO/SAML/OIDC authentication middleware as noted in `CLAUDE.md` ("Auth strategy TBD"). Add role-based access control -- at minimum, separate read-only (dashboard viewer) from write (SQL executor, database admin) roles. The SQL Lab endpoint is especially dangerous without auth.
 
-**SQL injection risk in QueryEngine template rendering:**
-- Risk: `QueryEngine._build_sql()` constructs SQL strings via template variable replacement (e.g., `{{values}}`, `{{value}}`, `{{column}}`). Filter values are escaped with single-quote doubling (`str(val).replace("'", "''")`), but column names validated against a whitelist. However, the escaping is minimal -- no parameterized queries.
-- Files: `backend/app/services/query_engine.py` (lines 97-131)
-- Current mitigation: Column names are validated against `ds.columns` (line 87-93). Single quotes in values are escaped (line 109, 115). The `{{column}}` placeholder validates against allowed columns.
-- Recommendations: While the current escaping prevents basic injection, consider moving to parameterized queries via Superset's native filter mechanism instead of string substitution. Add explicit SQL injection tests for edge cases (backslash sequences, unicode, multi-line values).
-
-**Superset credentials in plaintext defaults:**
-- Risk: `backend/app/config.py` defaults `superset_username` and `superset_password` to `"admin"/"admin"`. Database connection strings default to `recviz:recviz_dev`.
-- Files: `backend/app/config.py`
-- Current mitigation: Values can be overridden via `.env` file or environment variables.
-- Recommendations: Remove default passwords from code. Require them to be set via environment variables in production. Add startup validation that rejects default credentials.
+**Unrestricted SQL execution endpoint:**
+- Risk: `/api/sql/execute` accepts arbitrary SQL strings and forwards them directly to Superset's SQL Lab API. No input validation, no query allowlisting, no statement type restriction (SELECT only). An attacker could execute DDL (DROP TABLE), DML (DELETE/UPDATE), or exfiltrate data.
+- Files: `backend/app/api/sql.py` (lines 28-98), `backend/app/services/superset_client.py` (lines 157-174)
+- Current mitigation: Superset may have its own query restrictions depending on database permissions. The Superset user is `admin` which typically has full access.
+- Recommendations: Add SQL statement validation (allow SELECT only, reject DDL/DML). Implement query timeout limits. Add per-user query audit logging. Consider a query allowlist for production.
 
 **CORS allows wildcard methods and headers:**
-- Risk: `allow_methods=["*"]` and `allow_headers=["*"]` in CORS config is overly permissive.
-- Files: `backend/app/main.py` (lines 65-71)
-- Current mitigation: `allow_origins` is limited to three localhost addresses.
-- Recommendations: Restrict to actually used methods (`GET`, `POST`, `PUT`, `DELETE`) and specific required headers.
+- Risk: `allow_methods=["*"]` and `allow_headers=["*"]` is overly permissive. Combined with `allow_credentials=True`, this could enable CSRF-like attacks from whitelisted origins.
+- Files: `backend/app/main.py` (lines 85-91)
+- Current mitigation: Only localhost origins are allowed. No authentication cookies exist yet.
+- Recommendations: Restrict to specific HTTP methods (`GET`, `POST`, `PUT`, `DELETE`) and required headers (`Content-Type`, `Authorization`) once auth is added.
 
 **X-Frame-Options set to ALLOWALL:**
-- Risk: Any origin can embed the application in an iframe, enabling potential clickjacking attacks.
-- Files: `backend/app/main.py` (lines 74-79, `XFrameOptionsMiddleware`)
-- Current mitigation: None. Comment says "internal tool, no auth."
-- Recommendations: When auth is added, restrict to `SAMEORIGIN` or specific allowed origins. The embed route (`/embed/dashboards/$dashboardId`) needs iframe support but should be scoped.
+- Risk: Any external page can embed the RecViz backend in an iframe, enabling clickjacking attacks.
+- Files: `backend/app/main.py` (lines 94-99)
+- Current mitigation: Internal tool with no sensitive actions exposed via UI clicks.
+- Recommendations: Switch to `SAMEORIGIN` or use `Content-Security-Policy: frame-ancestors 'self'` to restrict framing to trusted origins only. The embed route (`frontend/src/routes/embed/`) can be whitelisted separately.
 
-**Database connection URIs visible in API responses:**
-- Risk: The `sanitize_detail()` function in `core/errors.py` redacts connection strings from error messages, but only for `postgresql://`, `oracle://`, and `hive://`. Other URI schemes (e.g., `sqlite://`, `mysql://`) are not redacted.
-- Files: `backend/app/core/errors.py`
-- Current mitigation: Partial redaction of three URI schemes.
-- Recommendations: Add a generic URI pattern redaction (`\w+://[^\s]+`).
+**Default credentials in config:**
+- Risk: `backend/app/config.py` contains default Superset credentials (`admin`/`admin`) and database connection strings with plaintext passwords. While overridden by `.env` in practice, the defaults are committed to source control.
+- Files: `backend/app/config.py` (lines 7-9, 11-12)
+- Current mitigation: `.env` file is gitignored. These are only dev defaults.
+- Recommendations: Remove default password values. Require explicit env var configuration. Fail fast on startup if critical secrets are missing.
+
+**Credential sanitization is incomplete:**
+- Risk: `sanitize_detail()` in `backend/app/core/errors.py` only redacts `postgresql://`, `oracle://`, and `hive://` URI patterns. SQLite, MySQL, MSSQL, and other connection strings would be exposed in error responses.
+- Files: `backend/app/core/errors.py` (lines 18-23)
+- Current mitigation: PostgreSQL is the only dev database; Oracle/Hive in production.
+- Recommendations: Use a generic regex pattern like `\w+://[^\s]+` to redact all URI-format strings.
 
 ## Performance Bottlenecks
 
-**N+1 query pattern in KPI endpoint:**
-- Problem: `backend/app/api/dashboards.py` `get_dashboard_kpis` iterates over each KPI config and each source, executing a separate Superset query for every source. A dashboard with 4 KPIs x 2 sources = 8 sequential Superset queries.
-- Files: `backend/app/api/dashboards.py` (lines 53-69)
-- Cause: Sequential `for kpi in config.kpis: for source in kpi.sources: await query_engine.execute(...)` with no parallelism.
-- Improvement path: Use `asyncio.gather()` to execute all KPI queries concurrently. Group queries by data source ID to deduplicate (multiple KPIs may share the same data source).
+**Search endpoint fetches all charts and datasets from Superset:**
+- Problem: `/api/search` calls `superset.list_charts()` and `superset.list_datasets()` on every search request, then filters client-side with `q in name.lower()`. No pagination, no Superset-side filtering, no caching.
+- Files: `backend/app/api/search.py` (lines 34-51, 54-71)
+- Cause: Superset's list API returns all records. For a deployment with hundreds of datasets, this is slow and wasteful.
+- Improvement path: Use Superset's `q` filter parameter to push search to the server. Cache the full list with a short TTL (30s) if Superset-side search is insufficient. Consider indexing searchable entities in Redis or the sidecar DB.
 
-**Search endpoint fetches all charts and datasets:**
-- Problem: `backend/app/api/search.py` calls `superset.list_charts()` and `superset.list_datasets()` on every search request, then filters client-side by string matching.
-- Files: `backend/app/api/search.py` (lines 38-51, 54-68)
-- Cause: Superset list endpoints return all items. No server-side filtering or pagination.
-- Improvement path: Pass `q` parameter to Superset API for server-side filtering, or cache the chart/dataset lists with a short TTL.
+**Database datasets endpoint loads ALL datasets then filters:**
+- Problem: `/api/databases/{db_id}/datasets` calls `superset.list_datasets()` to fetch every dataset in Superset, then filters by `database_id` in Python. With many datasets across many databases, most fetched data is discarded.
+- Files: `backend/app/api/databases.py` (lines 136-168)
+- Cause: Using Superset's bulk list API without filter parameters.
+- Improvement path: Use Superset's query parameter API to filter by `database_id` server-side: `/api/v1/dataset/?q=(filters:!((col:database_id,opr:eq,value:{db_id})))`.
 
-**Database datasets pagination fetches all datasets:**
-- Problem: `backend/app/api/databases.py` `list_database_datasets` calls `superset.list_datasets()` (fetching ALL datasets), filters by database ID, then paginates in Python.
-- Files: `backend/app/api/databases.py` (lines 114-146)
-- Cause: Superset API does not support filtering datasets by database ID directly.
-- Improvement path: Cache the full dataset list per database with a short TTL, or pass Superset API query params for filtering.
+**Cross-filter and drill-down operate on full dataset in memory:**
+- Problem: Cross-filtering and drill-down work by filtering the full query response array client-side. For large datasets (10,000+ rows), `applyCrossFilters` and `applyDrillFilters` iterate all rows on every filter change.
+- Files: `frontend/src/lib/cross-filter.ts`, `frontend/src/hooks/use-drill-down.ts` (lines 66-140)
+- Cause: Design choice to avoid network calls for interactivity. Works well up to ~10K rows.
+- Improvement path: For now, this is acceptable per design doc (cross-filters are client-side by spec). If datasets grow beyond 50K rows, add server-side drill-down via the QueryEngine or add Web Worker offloading.
 
-**No staleTime/gcTime configuration in data source queries:**
-- Problem: `use-data-source-query.ts` uses TanStack Query defaults (0ms staleTime) instead of the project convention of 5-minute staleTime. Every re-render or filter application triggers a refetch even for unchanged filter combinations.
-- Files: `frontend/src/hooks/use-data-source-query.ts`
-- Cause: Missing `staleTime` and `gcTime` configuration.
-- Improvement path: Add `staleTime: 5 * 60 * 1000` and `gcTime: 30 * 60 * 1000` per project conventions in CLAUDE.md.
+**No query result pagination on config-driven data sources:**
+- Problem: `QueryEngine.execute()` fetches up to `DEFAULT_MAX_ROWS = 10_000` rows in a single response. There is no cursor-based pagination for the config-driven data source query API.
+- Files: `backend/app/services/query_engine.py` (line 14, lines 199-237), `backend/app/api/data_sources.py` (lines 23-33)
+- Cause: Single-query design suitable for aggregated dashboard data. Detail-level drill-down grids may exceed 10K rows.
+- Improvement path: Add offset/limit parameters to the query endpoint. The frontend `ConfigDataGrid` already supports client-side pagination (`PAGE_SIZE = 50` in `config-data-grid.tsx`), but server-side pagination would reduce payload size.
 
 ## Fragile Areas
 
-**`config-chart-grid.tsx` (550 lines) -- complex state orchestration:**
-- Files: `frontend/src/components/dashboard/config-chart-grid.tsx`
-- Why fragile: `QueryChartItemWithDrill` manages 6+ concerns in a single component: data fetching, cross-filtering, drill-down state, fullscreen mode, chart export refs, hover state. It references 3 stores (filter, drill, queryClient) and 5 hooks.
-- Safe modification: Extract the data flow logic (fetching + filtering + drilling) into a custom hook `useChartWithDrillData(chart, options)`. Keep the JSX render function thin.
-- Test coverage: No unit tests. Only E2E tests via `chart-showcase.spec.ts` with approximate canvas click coordinates.
+**Config-driven dashboard system depends on exact JSON schema:**
+- Files: `backend/app/services/config_store.py`, `backend/app/services/config_migrator.py`, `backend/app/models/dashboard_config.py`, `backend/app/models/data_source_config.py`
+- Why fragile: Dashboard and data source configs are stored as JSON blobs in PostgreSQL. The `ConfigStore` validates them against Pydantic models on every read. Any schema change that is not backward-compatible will break all existing dashboards. The migration system (`config_migrator.py`) exists but has no registered migrations yet (`CURRENT_SCHEMA_VERSION = 1`).
+- Safe modification: Always register a migration in `config_migrator.py` when changing `DashboardConfig` or `DataSourceConfig` Pydantic models. Test migrations against existing JSON configs in seed data.
+- Test coverage: `backend/tests/test_config_store.py` exists but does not test schema migration paths.
 
-**AG Chart `buildSeries()` function -- chart type switch exhaustion:**
-- Files: `frontend/src/components/charts/ag-chart-wrapper.tsx` (lines 44-193)
-- Why fragile: A single switch statement handles 12 chart types. Each branch has subtly different column resolution logic. Adding a new chart type requires understanding all branches. Returns `null` for unsupported types.
-- Safe modification: Test any new chart type against the `chart-showcase` dashboard. Verify column resolution with real data, not just unit tests. The `chart-factory.test.tsx` covers type routing but not data mapping.
-- Test coverage: `ag-chart-wrapper.test.ts` covers `buildSeries` for some types. Missing coverage for heatmap, treemap, waterfall, scatter, combo.
+**AgChartWrapper `buildSeries` function:**
+- Files: `frontend/src/components/charts/ag-chart-wrapper.tsx` (lines 44-212)
+- Why fragile: Single function mapping 14 chart types to AG Charts series configs. Each branch has different key resolution logic (some use `metricColumns`, some use positional `columns[]`). The fallback chain (`categoryColumn ?? first non-metric ?? columns[0] ?? 'category'`) can produce incorrect mappings if data schema changes.
+- Safe modification: Add new chart types as new `case` branches. Always test with real data from the target data source. Run `ag-chart-wrapper.test.ts` after changes.
+- Test coverage: `frontend/src/components/charts/ag-chart-wrapper.test.ts` covers `buildSeries` for most types but not edge cases with missing or renamed columns.
 
-**ECharts wrapper `buildEChartsOption()` -- parallel structure to AG Charts:**
-- Files: `frontend/src/components/charts/echart-wrapper.tsx` (lines 50-226)
-- Why fragile: Another switch statement handling 7 ECharts types with subtly different column resolution. Must stay synchronized with AG Charts wrapper conventions for config-driven resolution. No shared abstraction.
-- Safe modification: Changes to ECharts wrapper should mirror any convention changes in AG Charts wrapper (category/metric resolution, column validation).
-- Test coverage: No unit tests for `buildEChartsOption`.
+**Filter store `applied` snapshot mechanism:**
+- Files: `frontend/src/stores/filter-store.ts` (lines 49-53), `frontend/src/components/dashboard/dashboard-renderer.tsx` (lines 86-94)
+- Why fragile: The filter system uses a two-phase pattern: `values` (staging) and `applied` (committed). The `DashboardRenderer` has special auto-apply logic (lines 87-94) that triggers once when filters auto-fill. If this auto-apply fires at the wrong time (before filter options load), charts may fetch with incomplete filters.
+- Safe modification: Test filter initialization flow with dependent filters (where filter B's options depend on filter A's value). Verify the `hasAutoApplied` ref prevents double-apply.
+- Test coverage: `frontend/src/stores/filter-store.test.ts` tests basic store operations but not the auto-apply timing in `DashboardRenderer`.
 
-**Filter store apply/reset lifecycle:**
-- Files: `frontend/src/stores/filter-store.ts`, `frontend/src/components/dashboard/dashboard-renderer.tsx`
-- Why fragile: The `DashboardRenderer` orchestrates filter initialization, auto-apply, cross-filter clearing, and drill reset across multiple `useEffect` hooks with `hasAutoApplied` ref. The ordering between `initializeFilters`, `applyFilters`, and the auto-apply effect is sequence-sensitive. Changing the dependency arrays or adding a new effect can break the initialization flow.
-- Safe modification: Test with dashboards that have default filter values, dashboards with no filters, and embed mode with locked URL filters. Verify the filter bar state after navigation between dashboards.
-- Test coverage: `filter-store.test.ts` covers store operations but not the orchestration in `DashboardRenderer`.
-
-**QueryEngine SQL template rendering:**
-- Files: `backend/app/services/query_engine.py` (lines 75-133)
-- Why fragile: Regex-based template replacement (`{{filters}}`, `{{values}}`, `{{column}}`) is order-dependent. The leftover template cleanup (`re.sub(r"\{\{[^}]+\}\}", "", sql)`) silently removes unmatched placeholders, which can mask configuration errors. Schema prefix stripping uses regex on known schemas which can match unintended table names.
-- Safe modification: Always add a corresponding test in `test_query_engine.py` for new filter mappings or template patterns. Verify schema stripping does not affect table names that coincidentally contain schema prefixes.
-- Test coverage: `test_query_engine.py` has 9 tests covering SQL building, dialect handling, escaping, and schema stripping. Tests are broken due to `ConfigStore` constructor change (see Tech Debt section).
+**QueryEngine SQL template expansion:**
+- Files: `backend/app/services/query_engine.py` (lines 105-163)
+- Why fragile: Builds SQL from template strings with `{{filters}}`, `{{values}}`, `{{column}}` placeholders. Uses regex cleanup (`re.sub(r"\{\{[^}]+\}\}", "", sql)`) to strip unmatched templates. A typo in the template (e.g., `{{filtes}}`) would silently produce a query with extra template text.
+- Safe modification: Add validation that no `{{...}}` markers remain after expansion. Log the final SQL at debug level. Run `backend/tests/test_query_engine.py` which covers template expansion.
+- Test coverage: `backend/tests/test_query_engine.py` covers basic template expansion but does not test malformed templates or the regex cleanup path.
 
 ## Scaling Limits
 
-**In-memory SQL query history:**
-- Current capacity: Unbounded list in `_query_history` within a single process.
-- Limit: With `--workers N`, each Uvicorn worker has its own history. Heavy usage causes memory growth.
-- Scaling path: Move to database-backed storage or Redis. Apply TTL-based cleanup.
-
 **Single Superset auth token shared across all requests:**
-- Current capacity: One `SupersetClient` instance with one access token, refreshed every 25 minutes.
-- Limit: All concurrent requests share the same token. If re-authentication takes time, concurrent requests may fail with 401. The `_request` method retries on 401 but is not thread-safe against simultaneous re-auth attempts.
-- Scaling path: Add token refresh locking (asyncio.Lock is present in `DatabaseRegistrar` but not in `SupersetClient`) or use a token refresh background task.
+- Current capacity: All backend requests share one `SupersetClient` instance with one JWT token. Token refresh happens when the token is >25 minutes old.
+- Limit: Under high concurrency, multiple requests may simultaneously detect an expired token and race to re-authenticate. The `ensure_authenticated` method has no lock, so multiple concurrent requests could trigger redundant auth calls.
+- Scaling path: Add an asyncio lock around token refresh. Consider a background task that refreshes the token proactively before expiry.
 
-**Client-side cross-filter re-aggregation:**
-- Current capacity: Works well for dashboard datasets under ~10K rows.
-- Limit: Cross-filter data layer (`use-cross-filter-data.ts`) fetches full dataset rows client-side and recomputes KPIs in JavaScript. With datasets over 50K rows, this will cause UI lag.
-- Scaling path: Move cross-filter recomputation to the backend with filtered queries, or use Web Workers for client-side aggregation.
+**In-memory query history unbounded under concurrent use:**
+- Current capacity: `_query_history` list grows unbounded (only capped at 50 on read via `[:50]`). Each entry is appended at position 0 (`insert(0, record)`).
+- Limit: Under sustained SQL Lab usage, memory grows linearly. `list.insert(0, ...)` is O(n) for large lists.
+- Scaling path: Use `collections.deque(maxlen=50)` for bounded in-memory history, or move to Redis/PostgreSQL.
 
 ## Dependencies at Risk
 
-**AG Grid/Charts Enterprise licensing:**
-- Risk: AG Grid Enterprise 33 and AG Charts Enterprise 11 are commercial libraries requiring valid licenses. No license keys are configured in the codebase. Development watermarks may appear.
-- Impact: Legal risk in production. Watermark overlays on charts and grids.
-- Migration plan: Ensure license keys are properly configured before production deployment.
+**AG Grid / AG Charts Enterprise license:**
+- Risk: AG Grid Enterprise 33 and AG Charts Enterprise 11 are commercial products requiring per-developer licenses. The codebase imports `ag-charts-enterprise` and `ag-grid-enterprise` without visible license key configuration.
+- Impact: Charts and grids may show watermarks or restrict features in production without valid license keys.
+- Migration plan: Ensure enterprise license keys are configured via environment variables. AG Grid Community is a fallback for grid-only features but loses advanced filtering, Excel export, and row grouping.
 
-**ECharts `echarts-for-react` wrapper:**
-- Risk: `echarts-for-react` is a community wrapper with infrequent updates. The codebase imports `ReactEChartsCore` from `echarts-for-react/lib/core` which is an internal path.
-- Impact: May break on ECharts major version updates.
-- Migration plan: Use ECharts directly with a thin custom wrapper (the `EChartWrapper` component already handles most of the integration logic).
+**Apache Superset as headless engine:**
+- Risk: Superset is used purely as a query engine but is a full-featured BI platform with its own release cadence, breaking API changes, and dependency conflicts. The `SupersetClient` relies on undocumented API behavior (e.g., the `/api/v1/chart/data` payload shape).
+- Impact: Superset version upgrades may break the query pipeline silently. The REST API is not versioned with stability guarantees.
+- Migration plan: Pin Superset version in Docker. Add integration tests that verify query payload/response shapes against the actual Superset instance. Consider abstracting query execution behind an interface that could swap Superset for direct SQLAlchemy.
 
 ## Missing Critical Features
 
-**No authentication system:**
-- Problem: No user authentication, session management, or authorization exists anywhere in the stack.
-- Blocks: Cannot deploy to production. Cannot implement user-specific saved views, audit logging, or role-based dashboard access.
+**No authentication or authorization:**
+- Problem: No user identity, no session management, no role-based access control.
+- Blocks: Production deployment, audit logging, per-user saved views, dashboard ownership.
 
-**Export functionality entirely unimplemented:**
-- Problem: PDF and Excel export endpoints exist but do nothing. The frontend "Reports" page is a placeholder. Chart-level export (PNG/SVG) works client-side but dashboard-level export does not.
-- Blocks: Users cannot generate offline reports, share data snapshots, or meet compliance requirements for data export.
+**No PDF/Excel export:**
+- Problem: Export endpoints are stubs that never produce files.
+- Blocks: Scheduled reporting, on-demand data export, compliance report generation.
 
-**No rate limiting or request throttling:**
-- Problem: No rate limiting on SQL execution, data source queries, or any other endpoint.
-- Blocks: A single user executing rapid queries could overwhelm Superset. No protection against accidental or malicious query floods.
+**No Elasticsearch integration:**
+- Problem: The architecture specifies Elasticsearch for search/realtime data, but no ES client, service, or endpoint exists.
+- Blocks: Real-time break monitoring, full-text search across reconciliation records.
+
+**No Celery task infrastructure:**
+- Problem: Celery is in the tech stack but not configured. No `celery_app.py`, no worker entrypoint, no task definitions.
+- Blocks: Background export jobs, scheduled report generation, async query execution for large datasets.
 
 ## Test Coverage Gaps
 
-**No integration tests for API endpoints:**
-- What's not tested: None of the FastAPI route handlers have test coverage. All backend tests are unit tests for individual services (`ConfigStore`, `QueryEngine`, `DatabaseRegistrar`, `MergeEngine`).
-- Files: `backend/app/api/*.py` (all route files)
-- Risk: API contract changes (request/response shape) go undetected. Middleware interactions (CORS, error handling) are untested.
-- Priority: High
+**No tests for API route handlers:**
+- What's not tested: All FastAPI route handlers (`backend/app/api/*.py`) -- 12 router modules with ~50 endpoints total. No integration or unit tests for request validation, error responses, or response shapes.
+- Files: `backend/app/api/charts.py`, `backend/app/api/custom.py`, `backend/app/api/dashboards.py`, `backend/app/api/databases.py`, `backend/app/api/data_sources.py`, `backend/app/api/export.py`, `backend/app/api/search.py`, `backend/app/api/sql.py`, `backend/app/api/views.py`, `backend/app/api/managed_charts.py`, `backend/app/api/managed_datasets.py`
+- Risk: API contract changes (response shapes, status codes, error formats) go undetected. The frontend depends on exact response shapes via `api-client.ts` key transformation.
+- Priority: High -- API contract stability is critical for frontend/backend decoupling.
 
-**Backend tests are broken (ConfigStore constructor mismatch):**
-- What's not tested: `test_config_store.py` and `test_query_engine.py` cannot run because they use the old `ConfigStore()` constructor (no args) but the class now requires `AsyncSession`.
-- Files: `backend/tests/test_config_store.py`, `backend/tests/test_query_engine.py`
-- Risk: Regressions in config loading and SQL building go undetected.
-- Priority: High
+**No tests for dashboard or chart rendering components:**
+- What's not tested: `config-chart-grid.tsx` (550 lines), `dashboard-renderer.tsx`, `config-filter-bar.tsx`, `config-kpi-row.tsx`, `config-data-grid.tsx` -- the entire dashboard rendering pipeline.
+- Files: All `frontend/src/components/dashboard/*.tsx` except `grid-toolbar.test.tsx`
+- Risk: Cross-filter integration, drill-down behavior, KPI re-aggregation, and conditional grid visibility could regress silently.
+- Priority: High -- these components contain the core user-facing logic.
 
-**No tests for chart wrappers' data mapping:**
-- What's not tested: `buildEChartsOption()` in `echart-wrapper.tsx` has zero test coverage. `buildSeries()` in `ag-chart-wrapper.tsx` has partial coverage (missing heatmap, treemap, waterfall, scatter, combo).
-- Files: `frontend/src/components/charts/echart-wrapper.tsx`, `frontend/src/components/charts/ag-chart-wrapper.tsx`
-- Risk: Chart rendering silently breaks for specific viz types when column names change. The chart-showcase E2E test validates rendering but not data correctness.
-- Priority: Medium
+**No tests for EChartWrapper or exotic chart types:**
+- What's not tested: `echart-wrapper.tsx` (389 lines) including `buildEChartsOption` for all 7 EChart types (sankey, radar, sunburst, gauge, funnel, graph, parallel).
+- Files: `frontend/src/components/charts/echart-wrapper.tsx`
+- Risk: EChart option generation could produce invalid configs for edge-case data shapes (empty arrays, missing columns, numeric category keys).
+- Priority: Medium -- ECharts are used for exotic chart types only, lower usage frequency.
 
-**No tests for DashboardRenderer orchestration:**
-- What's not tested: The interaction between filter initialization, auto-apply, cross-filter clearing, and drill reset in `DashboardRenderer`.
-- Files: `frontend/src/components/dashboard/dashboard-renderer.tsx`
-- Risk: Race conditions or state ordering bugs when navigating between dashboards or applying filters.
-- Priority: Medium
+**No E2E tests:**
+- What's not tested: Full user flows (load dashboard, apply filters, see charts update, drill down, export).
+- Files: No Playwright or Cypress test files exist outside of the Vitest config exclusion pattern.
+- Risk: Integration issues between frontend, backend, and Superset are only caught manually.
+- Priority: Medium -- the project has Playwright available but no test suite.
 
-**No tests for API client key transformation:**
-- What's not tested: `api-client.ts` transforms snake_case response keys to camelCase, with skip logic for `rows` and `columns` keys. No test validates this transformation.
-- Files: `frontend/src/lib/api-client.ts`
-- Risk: Key transformation bugs cause silent data corruption. The `use-chart-data.ts` `syncColumns` function exists specifically as a workaround for a key transformation edge case.
-- Priority: Medium
-
-**E2E tests depend on approximate canvas coordinates:**
-- What's not tested: Cross-filter and drill-down E2E tests click on approximate canvas coordinates. If chart data or layout changes, clicks may miss data points entirely.
-- Files: `frontend/e2e/chart-showcase.spec.ts` (lines 97-101, 145-147)
-- Risk: Tests pass even when interactions fail (the tests check `isVisible` and skip assertions if false). False-passing tests.
-- Priority: Low (acceptable for E2E, per test comments)
+**Backend services tested in isolation only:**
+- What's not tested: The interaction between `QueryEngine`, `DatabaseRegistrar`, `ConfigStore`, and `SupersetClient` under realistic conditions. Tests use mocks exclusively.
+- Files: `backend/tests/test_query_engine.py`, `backend/tests/test_database_registrar.py`, `backend/tests/test_config_store.py`
+- Risk: Mocking can mask real API behavior (e.g., Superset returning unexpected shapes, database registrar cache inconsistencies).
+- Priority: Low for now (unit tests cover business logic), but integration tests needed before production.
 
 ---
 
-*Concerns audit: 2026-04-05*
+*Concerns audit: 2026-04-06*
