@@ -1,3 +1,4 @@
+import React from 'react'
 import { useLocation } from '@tanstack/react-router'
 import { BellIcon, PanelLeftIcon } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
@@ -44,10 +45,12 @@ export function Header() {
         <Breadcrumb className="hidden sm:flex">
           <BreadcrumbList>
             {breadcrumbs.map((crumb, i) => (
-              <BreadcrumbItem key={i}>
+              <React.Fragment key={i}>
                 {i > 0 && <BreadcrumbSeparator />}
-                <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
-              </BreadcrumbItem>
+                <BreadcrumbItem>
+                  <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
+                </BreadcrumbItem>
+              </React.Fragment>
             ))}
           </BreadcrumbList>
         </Breadcrumb>
