@@ -175,13 +175,20 @@ Plans:
   4. User can add, remove, and configure dashboard filters from available dataset columns
   5. View mode (consumer experience) and edit mode (builder experience) are visually distinct and toggle cleanly
   6. Dashboards persist to database with Save, Save As (clone), and Delete -- the dashboard list page shows all dashboards with search, title, description, last modified, and creator
-**Plans**: TBD
+**Plans:** 10 plans
 **UI hint**: yes
 
 Plans:
-- [ ] 08-01: TBD
-- [ ] 08-02: TBD
-- [ ] 08-03: TBD
+- [ ] 08-01-PLAN.md -- Backend CRUD API + Pydantic schemas + frontend types + TanStack Query hooks for managed dashboards
+- [ ] 08-02-PLAN.md -- Builder types, Zustand stores (builder state + undo/redo), route stubs for /new and /:id/edit
+- [ ] 08-03-PLAN.md -- Install react-grid-layout, BuilderCanvas component with 12-column grid, wire into route pages
+- [ ] 08-04-PLAN.md -- BuilderPanel grid item wrapper (drag handle, edit/remove buttons) and empty canvas state
+- [ ] 08-05-PLAN.md -- BuilderToolbar (+ Add, Undo, Redo, Save, Save As, Exit), keyboard shortcuts, BuilderPage composition
+- [ ] 08-06-PLAN.md -- AddContentMenu dropdown and chart/KPI/dataset picker dialogs
+- [ ] 08-07-PLAN.md -- PanelConfigPopover (cross-filter, drill, refresh) and wiring AddContentMenu + pickers into BuilderPage
+- [ ] 08-08-PLAN.md -- FilterConfigDialog (dataset column picker) and BuilderFilterBar with reorder/remove
+- [ ] 08-09-PLAN.md -- Dashboard list page upgrade (card/row toggle, search, toolbar) and delete dialog
+- [ ] 08-10-PLAN.md -- SaveDashboardDialog, unsaved changes guard, view mode Edit button, end-to-end checkpoint
 
 ### Phase 9: Sharing and Views
 **Goal**: Users can save personalized views, share exact dashboard states via URL, embed dashboards in internal portals, and find anything through a command palette
@@ -214,5 +221,5 @@ Phases execute in numeric order: 1 -> 2 -> 02.1 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 ->
 | 5. Dataset Management | 3/3 | Complete | 2026-04-06 |
 | 6. Chart Library | 3/3 | Complete | 2026-04-06 |
 | 7. KPI Library | 0/3 | Planning complete | - |
-| 8. Dashboard Builder | 0/0 | Not started | - |
+| 8. Dashboard Builder | 0/10 | Planning complete | - |
 | 9. Sharing and Views | 0/0 | Not started | - |
