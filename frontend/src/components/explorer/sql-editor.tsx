@@ -16,24 +16,26 @@ interface SqlEditorProps {
 
 export function SqlEditor({ value, onChange, onRun, isRunning }: SqlEditorProps) {
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null)
+  const onRunRef = useRef(onRun)
+  onRunRef.current = onRun
   const { resolvedTheme } = useTheme()
 
   const handleMount: OnMount = useCallback(
     (ed, monaco) => {
       editorRef.current = ed
 
-      // Cmd+Enter → Run query
+      // Cmd+Enter → Run query (use ref to always call latest onRun)
       ed.addAction({
         id: 'run-query',
         label: 'Run Query',
         keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter],
-        run: () => onRun(),
+        run: () => onRunRef.current(),
       })
 
       // Focus editor on mount
       ed.focus()
     },
-    [onRun],
+    [],
   )
 
   return (
