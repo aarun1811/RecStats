@@ -229,67 +229,76 @@ export function DatasetEditor({ mode, dataset, isLoading }: DatasetEditorProps) 
 
   return (
     <div className="flex flex-col h-[calc(100vh-3.5rem)]">
-      {/* Header row */}
-      <div className="flex items-center gap-3 px-6 pt-4 pb-2 shrink-0">
-        <Button
-          variant="ghost"
-          size="sm"
-          aria-label="Back to datasets"
-          onClick={() => navigate({ to: '/datasets' })}
-        >
-          <ArrowLeft className="size-4" />
-        </Button>
-        <Input
-          className="text-lg font-semibold flex-1"
+      {/* Header */}
+      <div className="px-6 pt-4 pb-4 shrink-0 space-y-3">
+        {/* Top bar: back link + actions */}
+        <div className="flex items-center justify-between">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground -ml-2"
+            aria-label="Back to datasets"
+            onClick={() => navigate({ to: '/datasets' })}
+          >
+            <ArrowLeft className="mr-1.5 size-3.5" />
+            Back to Datasets
+          </Button>
+          <div className="flex items-center gap-2">
+            {mode === 'edit' && dataset && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-destructive"
+                onClick={() => setDeleteDialogOpen(true)}
+              >
+                <Trash2 className="mr-1.5 size-3.5" />
+                Delete Dataset
+              </Button>
+            )}
+            <Button
+              size="sm"
+              onClick={handleSave}
+              disabled={hasUnsavedSqlChanges || isSaving}
+            >
+              {isSaving ? (
+                <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+              ) : (
+                <Save className="mr-1.5 size-3.5" />
+              )}
+              {mode === 'create' ? 'Save Dataset' : 'Save Changes'}
+            </Button>
+          </div>
+        </div>
+
+        {/* Dataset name as editable heading */}
+        <input
+          className="text-2xl font-semibold tracking-tight bg-transparent border-none outline-none w-full placeholder:text-muted-foreground/50"
           placeholder="Untitled Dataset"
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
-        {mode === 'edit' && dataset && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-destructive"
-            onClick={() => setDeleteDialogOpen(true)}
-          >
-            <Trash2 className="mr-1.5 size-3.5" />
-            Delete Dataset
-          </Button>
-        )}
-        <Button
-          size="sm"
-          onClick={handleSave}
-          disabled={hasUnsavedSqlChanges || isSaving}
-        >
-          {isSaving ? (
-            <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-          ) : (
-            <Save className="mr-1.5 size-3.5" />
-          )}
-          {mode === 'create' ? 'Save Dataset' : 'Save Changes'}
-        </Button>
-      </div>
 
-      {/* Metadata row */}
-      <div className="flex items-center gap-4 px-6 pb-4 shrink-0">
-        <Select value={databaseId} onValueChange={setDatabaseId}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Select database" />
-          </SelectTrigger>
-          <SelectContent>
-            {databases.map((db) => (
-              <SelectItem key={db.id} value={String(db.id)}>
-                {db.databaseName}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Input
-          className="flex-1"
-          placeholder="Add a description..."
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-        />
+        {/* Metadata row */}
+        <div className="flex items-center gap-4">
+          <Select value={databaseId} onValueChange={setDatabaseId}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Select database" />
+            </SelectTrigger>
+            <SelectContent>
+              {databases.map((db) => (
+                <SelectItem key={db.id} value={String(db.id)}>
+                  {db.databaseName}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Input
+            className="flex-1"
+            placeholder="Add a description..."
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+        </div>
       </div>
 
       {/* SQL Editor panel */}
