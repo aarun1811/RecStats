@@ -41,7 +41,7 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Dashboard Builder
 
 - [x] **BLDR-01**: User can create a new dashboard with title and description
-- [ ] **BLDR-02**: Grid-based layout editor — drag, drop, and resize chart panels, KPI cards, and filter bars on a 12-column grid
+- [x] **BLDR-02**: Grid-based layout editor — drag, drop, and resize chart panels, KPI cards, and filter bars on a 12-column grid
 - [ ] **BLDR-03**: User can add charts to a dashboard by either building a new chart or picking from the chart library
 - [ ] **BLDR-04**: User can add/remove/configure filters on the dashboard from available dataset columns
 - [ ] **BLDR-05**: User can add KPI cards from the KPI library to the dashboard
@@ -163,7 +163,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | KPI-02 | Phase 7: KPI Library | Complete |
 | KPI-03 | Phase 7: KPI Library | Complete |
 | BLDR-01 | Phase 8: Dashboard Builder | Complete |
-| BLDR-02 | Phase 8: Dashboard Builder | Pending |
+| BLDR-02 | Phase 8: Dashboard Builder | Complete |
 | BLDR-03 | Phase 8: Dashboard Builder | Pending |
 | BLDR-04 | Phase 8: Dashboard Builder | Pending |
 | BLDR-05 | Phase 8: Dashboard Builder | Pending |
