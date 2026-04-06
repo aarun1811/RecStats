@@ -1,15 +1,17 @@
-import { ChevronRight, LayoutDashboard } from 'lucide-react'
+import { ChevronRight, LayoutDashboard, Trash2 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 
 import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
 import type { ManagedDashboard } from '@/types/managed-dashboard'
 
 interface DashboardListRowProps {
   dashboard: ManagedDashboard
   onClick: () => void
+  onDelete?: () => void
 }
 
-export function DashboardListRow({ dashboard, onClick }: DashboardListRowProps) {
+export function DashboardListRow({ dashboard, onClick, onDelete }: DashboardListRowProps) {
   const timeAgo = formatDistanceToNow(new Date(dashboard.updatedAt), {
     addSuffix: true,
   })
@@ -47,6 +49,18 @@ export function DashboardListRow({ dashboard, onClick }: DashboardListRowProps) 
       <div className="shrink-0 w-28 text-right">
         <p className="text-xs text-muted-foreground">{timeAgo}</p>
       </div>
+
+      {onDelete && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-7 opacity-0 group-hover:opacity-100 transition-opacity hover:text-destructive shrink-0"
+          onClick={(e) => { e.stopPropagation(); onDelete() }}
+          title="Delete dashboard"
+        >
+          <Trash2 className="size-3.5" />
+        </Button>
+      )}
 
       <ChevronRight
         size={14}

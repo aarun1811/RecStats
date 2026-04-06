@@ -1,5 +1,5 @@
 import { formatDistanceToNow } from 'date-fns'
-import { LayoutDashboard } from 'lucide-react'
+import { LayoutDashboard, Trash2 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 import {
@@ -9,14 +9,16 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import type { ManagedDashboard } from '@/types/managed-dashboard'
 
 interface DashboardListCardProps {
   dashboard: ManagedDashboard
   onClick: () => void
+  onDelete?: () => void
 }
 
-export function DashboardListCard({ dashboard, onClick }: DashboardListCardProps) {
+export function DashboardListCard({ dashboard, onClick, onDelete }: DashboardListCardProps) {
   const timeAgo = formatDistanceToNow(new Date(dashboard.updatedAt), {
     addSuffix: true,
   })
@@ -24,7 +26,7 @@ export function DashboardListCard({ dashboard, onClick }: DashboardListCardProps
   return (
     <Card
       className={cn(
-        'cursor-pointer transition-all duration-200',
+        'group cursor-pointer transition-all duration-200',
         'hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/5',
         'hover:border-primary/20',
       )}
@@ -51,8 +53,19 @@ export function DashboardListCard({ dashboard, onClick }: DashboardListCardProps
           </div>
         </div>
       </CardHeader>
-      <CardContent className="pt-0">
+      <CardContent className="pt-0 flex items-center justify-between">
         <p className="text-xs text-muted-foreground">Updated {timeAgo}</p>
+        {onDelete && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-7 opacity-0 group-hover:opacity-100 transition-opacity hover:text-destructive"
+            onClick={(e) => { e.stopPropagation(); onDelete() }}
+            title="Delete dashboard"
+          >
+            <Trash2 className="size-3.5" />
+          </Button>
+        )}
       </CardContent>
     </Card>
   )

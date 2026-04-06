@@ -13,9 +13,11 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty'
 import { useManagedDashboards } from '@/hooks/use-managed-dashboards'
+import { DeleteDashboardDialog } from '@/components/builder/delete-dashboard-dialog'
 import { DashboardListToolbar } from './dashboard-list-toolbar'
 import { DashboardListCard } from './dashboard-list-card'
 import { DashboardListRow } from './dashboard-list-row'
+import type { ManagedDashboard } from '@/types/managed-dashboard'
 
 type ViewMode = 'grid' | 'list'
 
@@ -25,6 +27,7 @@ export function DashboardList() {
 
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const [searchQuery, setSearchQuery] = useState('')
+  const [deleteTarget, setDeleteTarget] = useState<ManagedDashboard | null>(null)
 
   const filtered = useMemo(() => {
     if (!searchQuery.trim()) return dashboards
@@ -101,6 +104,7 @@ export function DashboardList() {
                   params: { dashboardId: dashboard.id },
                 })
               }
+              onDelete={() => setDeleteTarget(dashboard)}
             />
           ))}
         </div>
@@ -116,10 +120,17 @@ export function DashboardList() {
                   params: { dashboardId: dashboard.id },
                 })
               }
+              onDelete={() => setDeleteTarget(dashboard)}
             />
           ))}
         </div>
       )}
+
+      <DeleteDashboardDialog
+        dashboard={deleteTarget}
+        open={deleteTarget !== null}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}
+      />
     </div>
   )
 }
