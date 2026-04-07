@@ -182,72 +182,38 @@ export function DashboardMiniMap({ config, className }: DashboardMiniMapProps) {
             1,
             Math.min(totalRows - safeRow + 1, compressedHeight),
           )
+          // Deterministic pseudo-random per panel for visual variety
+          const seed = (safeCol * 31 + safeRow * 17 + panel.width * 7) % 100
           return (
             <div
               key={panel.key}
               className={cn(
                 'relative flex items-center justify-center rounded-[2px] overflow-hidden',
                 panel.kind === 'chart' &&
-                  'bg-primary/15 border border-primary/45 ring-1 ring-inset ring-primary/20',
+                  'bg-primary/10 border border-primary/50',
                 panel.kind === 'kpi' &&
-                  'bg-primary/55 border border-primary/80',
+                  'bg-primary border-primary shadow-[0_0_8px_theme(colors.primary/.25)]',
                 panel.kind === 'grid' &&
-                  'bg-foreground/5 border border-foreground/30',
+                  'bg-foreground/[0.04] border border-foreground/25',
               )}
               style={{
                 gridColumn: `${safeCol} / span ${safeWidth}`,
                 gridRow: `${safeRow} / span ${safeHeight}`,
               }}
             >
-              {/* Chart visual: diagonal gradient shimmer */}
+              {/* Chart visual: tiny sparkline bars — recognizable even at very small sizes */}
               {panel.kind === 'chart' && (
-                <>
-                  <div className="absolute inset-0 bg-gradient-to-br from-primary/30 via-primary/5 to-transparent" />
-                  {/* Subtle upward trend line */}
-                  {safeWidth >= 3 && safeHeight >= 2 && (
-                    <svg
-                      className="absolute inset-0 h-full w-full text-primary/60"
-                      viewBox="0 0 100 100"
-                      preserveAspectRatio="none"
-                    >
-                      <polyline
-                        points="5,75 25,55 45,60 65,35 85,25 95,20"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  )}
-                </>
+                <MiniChartGlyph seed={seed} />
               )}
 
-              {/* Grid visual: horizontal stripes */}
+              {/* Grid visual: clean table rows — just 2-3 horizontal separator lines */}
               {panel.kind === 'grid' && (
-                <div
-                  className="absolute inset-0 text-foreground/40"
-                  style={{
-                    backgroundImage:
-                      'repeating-linear-gradient(0deg, transparent 0px, transparent 2px, currentColor 2px, currentColor 3px)',
-                  }}
-                />
+                <MiniGridGlyph />
               )}
 
-              {/* KPI visual: filled accent (pure color) */}
-
-              {/* Label — only when panel is large enough to be readable */}
-              {safeWidth >= 4 && safeHeight >= 2 && (
-                <span
-                  className={cn(
-                    'relative z-10 font-mono uppercase tracking-widest text-[7px]',
-                    panel.kind === 'chart' && 'text-primary',
-                    panel.kind === 'kpi' && 'text-primary-foreground',
-                    panel.kind === 'grid' && 'text-foreground/60',
-                  )}
-                >
-                  {panel.label}
-                </span>
+              {/* KPI visual: tiny numeric indicator line */}
+              {panel.kind === 'kpi' && safeWidth >= 2 && (
+                <div className="absolute inset-x-1.5 bottom-1 h-px bg-primary-foreground/30" />
               )}
             </div>
           )
@@ -277,6 +243,78 @@ function BlueprintGridBackdrop({ density }: BlueprintGridBackdropProps) {
         </pattern>
       </defs>
       <rect width="100%" height="100%" fill={`url(#dot-grid-${density})`} />
+    </svg>
+  )
+}
+
+/**
+ * Tiny chart glyph — sparkline bars of varying heights.
+ * Shape is seed-based for visual variety across panels.
+ */
+function MiniChartGlyph({ seed }: { seed: number }) {
+  // Build 6 bars with deterministic heights from the seed
+  const bars = Array.from({ length: 6 }, (_, i) => {
+    const n = (seed + i * 13) % 100
+    return 30 + (n % 70) // 30-100% height
+  })
+  return (
+    <svg
+      className="absolute inset-0 h-full w-full text-primary"
+      viewBox="0 0 100 100"
+      preserveAspectRatio="none"
+    >
+      {bars.map((h, i) => {
+        const x = 8 + i * 14
+        const y = 100 - h
+        return (
+          <rect
+            key={i}
+            x={x}
+            y={y}
+            width="10"
+            height={h}
+            rx="1"
+            fill="currentColor"
+            fillOpacity="0.75"
+          />
+        )
+      })}
+      {/* Baseline */}
+      <line x1="4" y1="98" x2="96" y2="98" stroke="currentColor" strokeOpacity="0.3" strokeWidth="1" />
+    </svg>
+  )
+}
+
+/** Tiny grid glyph — clean table rows rather than dense stripes. */
+function MiniGridGlyph() {
+  return (
+    <svg
+      className="absolute inset-0 h-full w-full text-foreground"
+      viewBox="0 0 100 100"
+      preserveAspectRatio="none"
+    >
+      {/* Header row fill — brighter */}
+      <rect x="4" y="4" width="92" height="12" fill="currentColor" fillOpacity="0.3" rx="1" />
+      {/* Header bottom border */}
+      <line x1="4" y1="17" x2="96" y2="17" stroke="currentColor" strokeWidth="1" strokeOpacity="0.6" />
+      {/* Row separators — evenly spaced */}
+      <line x1="4" y1="33" x2="96" y2="33" stroke="currentColor" strokeWidth="0.75" strokeOpacity="0.4" />
+      <line x1="4" y1="49" x2="96" y2="49" stroke="currentColor" strokeWidth="0.75" strokeOpacity="0.4" />
+      <line x1="4" y1="65" x2="96" y2="65" stroke="currentColor" strokeWidth="0.75" strokeOpacity="0.4" />
+      <line x1="4" y1="81" x2="96" y2="81" stroke="currentColor" strokeWidth="0.75" strokeOpacity="0.4" />
+      {/* Column separators — subtle */}
+      <line x1="34" y1="4" x2="34" y2="96" stroke="currentColor" strokeWidth="0.5" strokeOpacity="0.3" />
+      <line x1="64" y1="4" x2="64" y2="96" stroke="currentColor" strokeWidth="0.5" strokeOpacity="0.3" />
+      {/* Data cell hints — small filled rectangles to suggest content */}
+      <rect x="8" y="24" width="18" height="3" rx="0.5" fill="currentColor" fillOpacity="0.35" />
+      <rect x="38" y="24" width="14" height="3" rx="0.5" fill="currentColor" fillOpacity="0.35" />
+      <rect x="68" y="24" width="20" height="3" rx="0.5" fill="currentColor" fillOpacity="0.35" />
+      <rect x="8" y="40" width="22" height="3" rx="0.5" fill="currentColor" fillOpacity="0.35" />
+      <rect x="38" y="40" width="18" height="3" rx="0.5" fill="currentColor" fillOpacity="0.35" />
+      <rect x="68" y="40" width="14" height="3" rx="0.5" fill="currentColor" fillOpacity="0.35" />
+      <rect x="8" y="56" width="15" height="3" rx="0.5" fill="currentColor" fillOpacity="0.35" />
+      <rect x="38" y="56" width="20" height="3" rx="0.5" fill="currentColor" fillOpacity="0.35" />
+      <rect x="68" y="56" width="16" height="3" rx="0.5" fill="currentColor" fillOpacity="0.35" />
     </svg>
   )
 }
