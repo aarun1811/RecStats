@@ -1,5 +1,6 @@
-import { Loader2, Plus, Redo2, Undo2 } from 'lucide-react'
+import { Loader2, Redo2, Undo2 } from 'lucide-react'
 
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import {
@@ -21,7 +22,6 @@ interface BuilderToolbarProps {
 }
 
 export function BuilderToolbar({
-  onAddClick,
   onSave,
   onSaveAs,
   onExit,
@@ -62,56 +62,89 @@ export function BuilderToolbar({
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="sticky top-0 z-30 flex items-center justify-between border-b bg-background px-6 py-2">
-        <div className="flex items-center gap-2">
-          {renderAddButton ?? (
-            <Button size="sm" onClick={onAddClick}>
-              <Plus className="mr-1.5 size-4" />
-              Add
+      <div className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/70">
+        {/* Architectural accent line on the top edge */}
+        <div className="h-px w-full bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
+
+        <div className="flex items-center justify-between px-6 py-2">
+          {/* LEFT — Mode badge + Add + History */}
+          <div className="flex items-center gap-3">
+            {/* Mode indicator */}
+            <div className="flex items-center gap-2">
+              <span
+                className={cn(
+                  'inline-flex h-1.5 w-1.5 rounded-full transition-colors',
+                  isDirty ? 'bg-amber-500 shadow-[0_0_8px_theme(colors.amber.500)]' : 'bg-primary/60',
+                )}
+              />
+              <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                {isDirty ? 'unsaved edits' : 'edit mode'}
+              </span>
+            </div>
+
+            <Separator orientation="vertical" className="h-5" />
+
+            {/* Add button (dropdown wrapper) */}
+            {renderAddButton}
+
+            <Separator orientation="vertical" className="h-5" />
+
+            {/* Undo / Redo */}
+            <div className="flex items-center gap-0.5">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={handleUndo}
+                    disabled={!canUndo}
+                  >
+                    <Undo2 className="size-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Undo (⌘Z)</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={handleRedo}
+                    disabled={!canRedo}
+                  >
+                    <Redo2 className="size-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Redo (⌘⇧Z)</TooltipContent>
+              </Tooltip>
+            </div>
+          </div>
+
+          {/* RIGHT — Actions */}
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onExit}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              Exit Builder
             </Button>
-          )}
-          <Separator orientation="vertical" className="mx-1 h-6" />
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleUndo}
-                disabled={!canUndo}
-              >
-                <Undo2 className="size-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Undo (Ctrl+Z)</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleRedo}
-                disabled={!canRedo}
-              >
-                <Redo2 className="size-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Redo (Ctrl+Shift+Z)</TooltipContent>
-          </Tooltip>
-          {isDirty && <span className="size-2.5 rounded-full bg-amber-500" />}
-        </div>
-        <div className="flex items-center gap-2">
-          <Button size="sm" onClick={onSave} disabled={isSaving}>
-            {isSaving ? (
-              <Loader2 className="mr-1.5 size-4 animate-spin" />
-            ) : null}
-            Save Dashboard
-          </Button>
-          <Button variant="outline" size="sm" onClick={onSaveAs}>
-            Save As
-          </Button>
-          <Button variant="ghost" size="sm" onClick={onExit}>
-            Exit Builder
-          </Button>
+            <Button variant="outline" size="sm" onClick={onSaveAs}>
+              Save As
+            </Button>
+            <Button
+              size="sm"
+              onClick={onSave}
+              disabled={isSaving}
+              className="shadow-sm shadow-primary/20"
+            >
+              {isSaving && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
+              Save Dashboard
+            </Button>
+          </div>
         </div>
       </div>
     </TooltipProvider>

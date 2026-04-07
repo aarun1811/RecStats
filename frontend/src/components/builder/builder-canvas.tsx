@@ -138,13 +138,77 @@ export function BuilderCanvas({ children }: BuilderCanvasProps) {
   return (
     <div
       ref={containerRef}
-      className="relative min-h-[400px] rounded-lg border-2 border-dashed border-muted-foreground/20"
+      className="relative min-h-[400px] rounded-lg border border-primary/15 bg-gradient-to-br from-background via-background to-primary/[0.015]"
       style={{
         backgroundImage:
-          'radial-gradient(circle, hsl(var(--muted-foreground) / 0.15) 1px, transparent 1px)',
-        backgroundSize: '20px 20px',
+          'radial-gradient(circle, hsl(var(--primary) / 0.12) 1px, transparent 1px)',
+        backgroundSize: '24px 24px',
       }}
     >
+      {/* Architectural corner ticks */}
+      <svg
+        className="pointer-events-none absolute inset-0 h-full w-full text-primary/40"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <line x1="12" y1="12" x2="28" y2="12" stroke="currentColor" strokeWidth="1" />
+        <line x1="12" y1="12" x2="12" y2="28" stroke="currentColor" strokeWidth="1" />
+        <line
+          x1="calc(100% - 12px)"
+          y1="12"
+          x2="calc(100% - 28px)"
+          y2="12"
+          stroke="currentColor"
+          strokeWidth="1"
+        />
+        <line
+          x1="calc(100% - 12px)"
+          y1="12"
+          x2="calc(100% - 12px)"
+          y2="28"
+          stroke="currentColor"
+          strokeWidth="1"
+        />
+        <line
+          x1="12"
+          y1="calc(100% - 12px)"
+          x2="28"
+          y2="calc(100% - 12px)"
+          stroke="currentColor"
+          strokeWidth="1"
+        />
+        <line
+          x1="12"
+          y1="calc(100% - 12px)"
+          x2="12"
+          y2="calc(100% - 28px)"
+          stroke="currentColor"
+          strokeWidth="1"
+        />
+        <line
+          x1="calc(100% - 12px)"
+          y1="calc(100% - 12px)"
+          x2="calc(100% - 28px)"
+          y2="calc(100% - 12px)"
+          stroke="currentColor"
+          strokeWidth="1"
+        />
+        <line
+          x1="calc(100% - 12px)"
+          y1="calc(100% - 12px)"
+          x2="calc(100% - 12px)"
+          y2="calc(100% - 28px)"
+          stroke="currentColor"
+          strokeWidth="1"
+        />
+      </svg>
+
+      {/* Canvas label — only show when empty to avoid overlapping panels */}
+      {items.length === 0 && (
+        <div className="pointer-events-none absolute top-3 left-12 z-[1] font-mono text-[9px] uppercase tracking-[0.18em] text-primary/40">
+          12-COL GRID
+        </div>
+      )}
+
       {mounted && (
         <ReactGridLayout
           layout={layout}
@@ -180,9 +244,9 @@ export function BuilderCanvas({ children }: BuilderCanvasProps) {
       )}
 
       {items.length === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <p className="text-sm text-muted-foreground">
-            No panels yet. Click + Add to get started.
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-primary/40">
+            empty canvas
           </p>
         </div>
       )}

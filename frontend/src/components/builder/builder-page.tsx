@@ -440,28 +440,34 @@ export function BuilderPage({ mode }: BuilderPageProps) {
       )}
 
       <div className="flex-1 overflow-auto px-6 pb-6">
-        <div className="py-4">
+        <div className="relative py-5">
+          {/* Architectural doc-ID label */}
+          <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.2em] text-primary/50">
+            DSH / {mode === 'create' ? 'NEW' : (dashboardId?.slice(0, 8).toUpperCase() ?? '...')}
+          </p>
           <input
             type="text"
             value={name}
             onChange={(e) => updateName(e.target.value)}
             placeholder="Untitled Dashboard"
-            className="w-full max-w-md rounded-md border border-transparent bg-transparent px-2 py-1 text-2xl font-semibold tracking-tight hover:border-input focus:border-input focus:outline-none"
+            className="w-full max-w-2xl bg-transparent text-3xl font-semibold tracking-tight outline-none transition-colors placeholder:text-muted-foreground/40 focus:text-foreground"
           />
           <input
             type="text"
             value={description}
             onChange={(e) => updateDescription(e.target.value)}
-            placeholder="Add a description..."
-            className="mt-1 w-full max-w-lg rounded-md border border-transparent bg-transparent px-2 py-1 text-sm text-muted-foreground hover:border-input focus:border-input focus:outline-none"
+            placeholder="Describe what this dashboard tracks…"
+            className="mt-1 w-full max-w-2xl bg-transparent text-sm text-muted-foreground outline-none placeholder:text-muted-foreground/40"
           />
+          {/* Subtle underline rule — architectural divider */}
+          <div className="mt-4 h-px w-full bg-gradient-to-r from-primary/20 via-border to-transparent" />
         </div>
 
         <AnimatePresence mode="wait">
           {items.length === 0 ? (
             <BuilderEmptyState
               key="empty-state"
-              onAddContent={handleAddClick}
+              onAddContent={() => setChartPickerOpen(true)}
             />
           ) : null}
         </AnimatePresence>
