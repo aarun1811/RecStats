@@ -1,16 +1,10 @@
 import { useMemo } from 'react'
 import { formatDistanceToNow } from 'date-fns'
-import {
-  BarChart3,
-  Filter as FilterIcon,
-  Gauge,
-  Table2,
-  Trash2,
-} from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { DashboardMiniMap } from './dashboard-mini-map'
+import { DashboardSignature } from './dashboard-signature'
 import type { ManagedDashboard } from '@/types/managed-dashboard'
 
 interface DashboardListCardProps {
@@ -19,22 +13,11 @@ interface DashboardListCardProps {
   onDelete?: () => void
 }
 
-interface PanelStats {
-  charts: number
-  kpis: number
-  grids: number
-  filters: number
-}
-
-function countPanels(config: unknown): PanelStats {
+function countTotalPanels(config: unknown): number {
   const cfg = (config ?? {}) as Record<string, unknown>
-  const arr = (key: string) => (Array.isArray(cfg[key]) ? (cfg[key] as unknown[]).length : 0)
-  return {
-    charts: arr('charts'),
-    kpis: arr('kpis'),
-    grids: arr('grids'),
-    filters: arr('filters'),
-  }
+  const len = (key: string) =>
+    Array.isArray(cfg[key]) ? (cfg[key] as unknown[]).length : 0
+  return len('charts') + len('kpis') + len('grids')
 }
 
 export function DashboardListCard({
@@ -46,15 +29,18 @@ export function DashboardListCard({
     addSuffix: true,
   })
 
-  const stats = useMemo(() => countPanels(dashboard.config), [dashboard.config])
-  const totalPanels = stats.charts + stats.kpis + stats.grids
+  const totalPanels = useMemo(
+    () => countTotalPanels(dashboard.config),
+    [dashboard.config],
+  )
 
   return (
     <div
       className={cn(
-        'group relative flex flex-col overflow-hidden rounded-lg border bg-card',
-        'cursor-pointer transition-all duration-200',
-        'hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5',
+        'group relative flex flex-col overflow-hidden rounded-xl border bg-card',
+        'cursor-pointer transition-all duration-300 ease-out',
+        'hover:-translate-y-1 hover:border-primary/30',
+        'hover:shadow-[0_20px_50px_-20px_hsl(var(--primary)/0.2)]',
       )}
       onClick={onClick}
       tabIndex={0}
@@ -66,78 +52,35 @@ export function DashboardListCard({
         }
       }}
     >
-      {/* Blueprint hero — mini-map preview */}
-      <div className="relative h-[180px] overflow-hidden bg-gradient-to-br from-background via-card to-muted/20">
-        {/* Corner ticks — architectural blueprint marks */}
-        <svg
-          className="absolute inset-0 z-[1] h-full w-full text-primary/30"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          {/* top-left */}
-          <line x1="8" y1="8" x2="18" y2="8" stroke="currentColor" strokeWidth="1" />
-          <line x1="8" y1="8" x2="8" y2="18" stroke="currentColor" strokeWidth="1" />
-          {/* top-right */}
-          <line x1="calc(100% - 8px)" y1="8" x2="calc(100% - 18px)" y2="8" stroke="currentColor" strokeWidth="1" />
-          <line x1="calc(100% - 8px)" y1="8" x2="calc(100% - 8px)" y2="18" stroke="currentColor" strokeWidth="1" />
-          {/* bottom-left */}
-          <line x1="8" y1="calc(100% - 8px)" x2="18" y2="calc(100% - 8px)" stroke="currentColor" strokeWidth="1" />
-          <line x1="8" y1="calc(100% - 8px)" x2="8" y2="calc(100% - 18px)" stroke="currentColor" strokeWidth="1" />
-          {/* bottom-right */}
-          <line
-            x1="calc(100% - 8px)"
-            y1="calc(100% - 8px)"
-            x2="calc(100% - 18px)"
-            y2="calc(100% - 8px)"
-            stroke="currentColor"
-            strokeWidth="1"
-          />
-          <line
-            x1="calc(100% - 8px)"
-            y1="calc(100% - 8px)"
-            x2="calc(100% - 8px)"
-            y2="calc(100% - 18px)"
-            stroke="currentColor"
-            strokeWidth="1"
-          />
-        </svg>
+      {/* Hero — flowing signature art, unique per dashboard */}
+      <div className="relative h-[180px] overflow-hidden bg-gradient-to-br from-background via-card to-background">
+        <DashboardSignature id={dashboard.id} />
 
-        {/* Mini-map fills the hero */}
-        <div className="absolute inset-4">
-          <DashboardMiniMap config={dashboard.config} />
+        {/* Bottom fade — subtle, only the last 8 pixels */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-card to-transparent" />
+
+        {/* Panel count — minimal top-right */}
+        <div className="absolute top-4 right-4 z-10 flex items-baseline gap-1 text-muted-foreground">
+          <span className="text-[12px] font-semibold tabular-nums tracking-tight text-foreground">
+            {totalPanels}
+          </span>
+          <span className="text-[10px] font-medium lowercase tracking-wide">
+            {totalPanels === 1 ? 'panel' : 'panels'}
+          </span>
         </div>
-
-        {/* Top-right panel count pill */}
-        <div className="absolute top-2.5 right-2.5 z-10 flex items-center gap-1 rounded-full bg-background/80 px-2 py-0.5 text-[10px] font-medium text-muted-foreground backdrop-blur-sm border border-border/50">
-          <span className="font-mono tabular-nums">{totalPanels}</span>
-          <span>{totalPanels === 1 ? 'panel' : 'panels'}</span>
-        </div>
-
-        {/* Top-left "DSH" architectural label */}
-        <div className="absolute top-2.5 left-2.5 z-10 font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground/60">
-          DSH / {dashboard.id.slice(0, 6).toUpperCase()}
-        </div>
-
-        {/* Bottom fade — connects blueprint to metadata */}
-        <div className="absolute inset-x-0 bottom-0 h-8 z-[2] bg-gradient-to-t from-card via-card/60 to-transparent" />
       </div>
 
-      {/* Metadata section */}
-      <div className="relative flex flex-col gap-2 px-3.5 py-3">
-        {/* Title + description */}
-        <div className="flex items-start justify-between gap-2 min-w-0">
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold truncate leading-snug">
-              {dashboard.name}
-            </p>
-            <p className="text-[11px] text-muted-foreground truncate mt-0.5">
-              {dashboard.description || 'No description'}
-            </p>
-          </div>
+      {/* Metadata — generous spacing, refined typography */}
+      <div className="relative flex flex-col gap-1.5 px-5 pb-5 pt-1">
+        <div className="flex items-start justify-between gap-3">
+          <h3 className="flex-1 text-[15px] font-semibold tracking-tight text-foreground truncate leading-tight">
+            {dashboard.name}
+          </h3>
           {onDelete && (
             <Button
               variant="ghost"
               size="icon"
-              className="size-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity hover:text-destructive hover:bg-destructive/10"
+              className="size-7 shrink-0 -mr-1.5 opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
               onClick={(e) => {
                 e.stopPropagation()
                 onDelete()
@@ -149,40 +92,24 @@ export function DashboardListCard({
           )}
         </div>
 
-        {/* Stats row + time */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2.5 text-[10px] text-muted-foreground/80">
-            <StatPill icon={BarChart3} count={stats.charts} label="charts" />
-            <StatPill icon={Gauge} count={stats.kpis} label="KPIs" />
-            <StatPill icon={Table2} count={stats.grids} label="grids" />
-            <StatPill icon={FilterIcon} count={stats.filters} label="filters" />
-          </div>
-          <p className="text-[10px] text-muted-foreground/70 shrink-0">
+        <p className="text-[12px] text-muted-foreground/80 line-clamp-2 leading-relaxed min-h-[32px]">
+          {dashboard.description || (
+            <span className="italic text-muted-foreground/40">
+              No description
+            </span>
+          )}
+        </p>
+
+        {/* Footer — divider + timestamp */}
+        <div className="mt-2 flex items-center justify-between border-t border-border/40 pt-2.5">
+          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/50">
+            updated
+          </p>
+          <p className="text-[11px] text-muted-foreground/80">
             {timeAgo}
           </p>
         </div>
       </div>
     </div>
-  )
-}
-
-interface StatPillProps {
-  icon: React.ComponentType<{ className?: string }>
-  count: number
-  label: string
-}
-
-function StatPill({ icon: Icon, count, label }: StatPillProps) {
-  return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-1 font-mono tabular-nums',
-        count > 0 ? 'text-foreground/70' : 'text-muted-foreground/30',
-      )}
-      title={`${count} ${label}`}
-    >
-      <Icon className="size-2.5" />
-      {count}
-    </span>
   )
 }
