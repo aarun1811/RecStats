@@ -4,7 +4,7 @@ import { Pencil } from 'lucide-react'
 import { DashboardRenderer } from '@/components/dashboard/dashboard-renderer'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useManagedDashboard } from '@/hooks/use-managed-dashboards'
+import { useDashboardConfig } from '@/hooks/use-dashboard-config'
 
 export const Route = createFileRoute('/_app/dashboards/$dashboardId')({
   component: DashboardPage,
@@ -13,7 +13,7 @@ export const Route = createFileRoute('/_app/dashboards/$dashboardId')({
 function DashboardPage() {
   const { dashboardId } = Route.useParams()
   const navigate = useNavigate()
-  const { data: dashboard, isLoading } = useManagedDashboard(dashboardId)
+  const { data: config, isLoading } = useDashboardConfig(dashboardId)
 
   if (isLoading) {
     return (
@@ -29,11 +29,9 @@ function DashboardPage() {
     )
   }
 
-  if (!dashboard) {
+  if (!config) {
     return <div className="p-6 text-muted-foreground">Dashboard not found</div>
   }
-
-  const config = dashboard.config
 
   return (
     <div className="p-6 space-y-6">

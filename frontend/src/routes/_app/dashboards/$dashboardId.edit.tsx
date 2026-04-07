@@ -4,7 +4,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { Loader2 } from 'lucide-react'
 
 import { BuilderPage } from '@/components/builder/builder-page'
-import { useManagedDashboard } from '@/hooks/use-managed-dashboards'
+import { useDashboardConfig } from '@/hooks/use-dashboard-config'
 import { useBuilderStore } from '@/stores/builder-store'
 
 export const Route = createFileRoute('/_app/dashboards/$dashboardId/edit')({
@@ -13,16 +13,16 @@ export const Route = createFileRoute('/_app/dashboards/$dashboardId/edit')({
 
 function EditDashboardPage() {
   const { dashboardId } = Route.useParams()
-  const { data: dashboard, isLoading, isError } = useManagedDashboard(dashboardId)
+  const { data: config, isLoading, isError } = useDashboardConfig(dashboardId)
 
   const initFromConfig = useBuilderStore((s) => s.initFromConfig)
   const storeId = useBuilderStore((s) => s.dashboardId)
 
   useEffect(() => {
-    if (dashboard && storeId !== dashboardId) {
-      initFromConfig(dashboardId, dashboard.config)
+    if (config && storeId !== dashboardId) {
+      initFromConfig(dashboardId, config)
     }
-  }, [dashboard, dashboardId, storeId, initFromConfig])
+  }, [config, dashboardId, storeId, initFromConfig])
 
   if (isLoading) {
     return (
@@ -32,7 +32,7 @@ function EditDashboardPage() {
     )
   }
 
-  if (isError || !dashboard) {
+  if (isError || !config) {
     return (
       <div className="flex h-[calc(100vh-var(--header-height,56px))] items-center justify-center">
         <div className="text-center">
