@@ -112,16 +112,20 @@ export function DashboardListCard({
         )}
       </div>
 
-      {/* Metadata — matches chart/KPI library cards */}
+      {/* Metadata — matches chart/KPI library cards.
+          Subtitle row uses flex so the description shrinks/truncates first
+          while the dot+timestamp stay pinned to the right. */}
       <div className="flex flex-col gap-0.5 px-3.5 py-3">
         <p className="text-sm font-semibold truncate leading-snug">{dashboard.name}</p>
-        <p className="text-[11px] text-muted-foreground truncate">
-          {dashboard.description || (
-            <span className="italic text-muted-foreground/50">No description</span>
-          )}
-          <span className="mx-1.5 opacity-40">&middot;</span>
-          {timeAgo}
-        </p>
+        <div className="flex items-center text-[11px] text-muted-foreground min-w-0">
+          <p className="truncate min-w-0">
+            {dashboard.description || (
+              <span className="italic text-muted-foreground/50">No description</span>
+            )}
+          </p>
+          <span className="mx-1.5 opacity-40 shrink-0">&middot;</span>
+          <span className="shrink-0">{timeAgo}</span>
+        </div>
       </div>
     </div>
   )

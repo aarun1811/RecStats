@@ -137,7 +137,7 @@ export function DashboardMiniMap({ config, className }: DashboardMiniMapProps) {
   }
 
   return (
-    <div className={cn('h-full w-full p-5', className)}>
+    <div className={cn('h-full w-full px-3 py-1', className)}>
       <div
         className="grid h-full w-full"
         style={{
