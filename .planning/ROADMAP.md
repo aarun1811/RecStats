@@ -191,14 +191,14 @@ Plans:
 - [x] 08-10-PLAN.md -- SaveDashboardDialog, unsaved changes guard, view mode Edit button, end-to-end checkpoint
 
 ### Phase 9: Sharing and Views
-**Goal**: Users can save personalized views, share exact dashboard states via URL, embed dashboards in internal portals, and find anything through a command palette
+**Goal**: Users can share exact dashboard states via URL, embed dashboards in internal portals, and find anything through a Cmd+K command palette backed by the managed entity tables
 **Depends on**: Phase 8
-**Requirements**: SHAR-01, SHAR-02, SHAR-03, SHAR-04
+**Requirements**: SHAR-02, SHAR-03, SHAR-04 (SHAR-01 Saved Views deferred to next milestone -- see 09-CONTEXT.md)
 **Success Criteria** (what must be TRUE):
-  1. User can save current filter state and layout tweaks as a named bookmark, and restore it later
-  2. Sharing a dashboard URL preserves all filter selections -- the recipient opens the exact same view
-  3. Dashboards can be embedded in iframes with URL-param filters, locked filters, theme override, and chromeless mode
-  4. Cmd+K command palette searches across dashboards, datasets, charts, and saved views -- results navigate directly to the selected item
+  1. Sharing a dashboard URL preserves all filter selections -- the recipient opens the exact same view (filters only; drill/cross-filter state not encoded)
+  2. Embed route loads dashboards from the Phase 8 managed_dashboards table (not the legacy V1 hook), supports `?theme`, `?filter.X`, `?filter.lock`, and a new `?hide=filter-bar,title,toolbar` granular hide param
+  3. Embed mode preserves full interactivity (cross-filter, drill, fullscreen, manual/auto refresh) with `EmbedTopbar` chrome retained
+  4. Cmd+K command palette searches across dashboards, charts, datasets, and KPIs from the managed tables (not Superset) -- results grouped by type, navigate directly to the selected item
 **Plans**: TBD
 **UI hint**: yes
 

@@ -186,6 +186,7 @@ Recent decisions affecting current work:
 
 - Phase 02.1 inserted after Phase 2: Chart Rendering Foundation (URGENT) — fix pre-existing chart wrapper issues preventing proper rendering of bar, line, area, pie, donut, scatter chart types from query data. Includes Phase 2 cross-filter/drill-down visual validation as final step.
 - Phase 10 added: Comprehensive Testing with Advanced Seed Data — thoroughly test everything end-to-end against realistic recon data volumes and edge cases.
+- Phase 9 scope reduced (2026-04-08): SHAR-01 Saved Views dropped from Phase 9 and deferred to next milestone alongside reports/exports work. Phase 9 now covers SHAR-02 (URL sync), SHAR-03 (embed hardening), SHAR-04 (command palette rewrite to managed tables) only. Existing saved-view scaffold (use-saved-views.ts, views.py in-memory store) left untouched. Decision logged in 09-CONTEXT.md and 09-DISCUSSION-LOG.md.
 
 ### Pending Todos
 

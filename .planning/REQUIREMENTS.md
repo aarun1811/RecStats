@@ -170,7 +170,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BLDR-06 | Phase 8: Dashboard Builder | Complete |
 | BLDR-07 | Phase 8: Dashboard Builder | Complete |
 | BLDR-08 | Phase 8: Dashboard Builder | Complete |
-| SHAR-01 | Phase 9: Sharing and Views | Pending |
+| SHAR-01 | Deferred to next milestone | Pending |
 | SHAR-02 | Phase 9: Sharing and Views | Pending |
 | SHAR-03 | Phase 9: Sharing and Views | Pending |
 | SHAR-04 | Phase 9: Sharing and Views | Pending |
