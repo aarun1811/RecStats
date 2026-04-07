@@ -1,15 +1,55 @@
 import { useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 
 import { Skeleton } from '@/components/ui/skeleton'
 import { ChartFactory } from '@/components/charts/chart-factory'
 import { KpiPreviewCard } from '@/components/kpis/kpi-preview-card'
-import { useDataSourceQuery } from '@/hooks/use-data-source-query'
+import { api } from '@/lib/api-client'
+import { useManagedChart } from '@/hooks/use-managed-charts'
+import { useManagedDataset } from '@/hooks/use-managed-datasets'
 import { useManagedKpi } from '@/hooks/use-managed-kpis'
 import type { BuilderChartRef, BuilderGridRef, BuilderItem, BuilderKpiRef } from '@/types/builder'
 import type { ChartConfig, ChartDataResponse } from '@/types/chart'
 
 interface BuilderPanelContentProps {
   item: BuilderItem
+}
+
+interface SqlExecuteResult {
+  columns: unknown[]
+  data: Record<string, unknown>[]
+}
+
+/** Hook that fetches a managed dataset's SQL and executes it. */
+function useDatasetPreview(datasetId: string | null, limit = 1000) {
+  const { data: dataset } = useManagedDataset(datasetId)
+  const query = useQuery({
+    queryKey: ['builder-dataset-preview', datasetId, limit],
+    queryFn: () =>
+      api.post<SqlExecuteResult>('/api/sql/execute', {
+        database_id: dataset?.databaseId,
+        sql: dataset?.sql,
+        limit,
+      }),
+    enabled: dataset !== undefined,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+  })
+  return { dataset, ...query }
+}
+
+/** Normalize column names returned by /api/sql/execute (may be strings or {column_name, name}). */
+function normalizeColumns(columns: unknown[], fallback?: Record<string, unknown>): string[] {
+  if (columns.length === 0 && fallback) {
+    return Object.keys(fallback)
+  }
+  return columns.map((col) =>
+    typeof col === 'string'
+      ? col
+      : ((col as Record<string, string>).name ??
+        (col as Record<string, string>).column_name ??
+        String(col)),
+  )
 }
 
 export function BuilderPanelContent({ item }: BuilderPanelContentProps) {
@@ -33,42 +73,43 @@ function BuilderChartContent({
   chartRef: BuilderChartRef
   itemId: string
 }) {
+  // 1. Fetch the managed chart to get columnMapping + chartType
+  const { data: chart, isLoading: chartLoading } = useManagedChart(chartRef.chartId)
+  // 2. Fetch dataset + execute SQL
   const {
-    data: queryResponse,
-    isLoading,
+    data: rawResult,
+    isLoading: dataLoading,
     isError,
     error,
-  } = useDataSourceQuery(chartRef.datasetId, {}, true)
+  } = useDatasetPreview(chart?.datasetId ?? null, 1000)
 
-  const chartConfig: ChartConfig = useMemo(
-    () => ({
+  const isLoading = chartLoading || dataLoading
+
+  const chartConfig = useMemo<ChartConfig | null>(() => {
+    if (!chart) return null
+    return {
       id: itemId,
       name: chartRef.title,
-      vizType: chartRef.chartType,
+      vizType: chart.chartType,
       datasourceId: 0,
-      metricColumns: [],
-    }),
-    [itemId, chartRef.title, chartRef.chartType],
-  )
+      metricColumns: chart.config.columnMapping.metricColumns,
+      categoryColumn: chart.config.columnMapping.categoryColumn ?? undefined,
+      appearance: { showLegend: true },
+    }
+  }, [chart, itemId, chartRef.title])
 
-  const chartData: ChartDataResponse | undefined = useMemo(() => {
-    if (!queryResponse) return undefined
-    // Normalize columns: can be objects ({column_name, name, type}) or strings
-    const columns = queryResponse.columns.map((c: unknown) =>
-      typeof c === 'string'
-        ? c
-        : ((c as Record<string, string>).name ??
-          (c as Record<string, string>).column_name),
-    )
+  const chartData = useMemo<ChartDataResponse | undefined>(() => {
+    if (!rawResult?.data?.length) return undefined
+    const columns = normalizeColumns(rawResult.columns ?? [], rawResult.data[0])
     return {
       chartId: itemId,
       columns,
-      data: queryResponse.rows,
-      rowCount: queryResponse.rowCount,
+      data: rawResult.data,
+      rowCount: rawResult.data.length,
     }
-  }, [queryResponse, itemId])
+  }, [rawResult, itemId])
 
-  if (isLoading) {
+  if (isLoading || !chartConfig) {
     return <Skeleton className="h-full w-full" />
   }
 
@@ -87,21 +128,20 @@ function BuilderChartContent({
 /** Renders a live KPI preview in the builder via KpiPreviewCard. */
 function BuilderKpiContent({ kpiRef }: { kpiRef: BuilderKpiRef }) {
   const { data: kpi, isLoading: kpiLoading } = useManagedKpi(kpiRef.kpiId)
-  const { data: queryResponse, isLoading: dataLoading } = useDataSourceQuery(
-    kpi?.datasetId ?? '',
-    {},
-    !!kpi,
+  const { data: rawResult, isLoading: dataLoading } = useDatasetPreview(
+    kpi?.datasetId ?? null,
+    100,
   )
 
   const isLoading = kpiLoading || dataLoading
 
   // Compute the metric value from query data
   const computedValue = useMemo(() => {
-    if (!kpi || !queryResponse || queryResponse.rows.length === 0) return 0
-    const firstRow = queryResponse.rows[0]
+    if (!kpi || !rawResult?.data?.length) return 0
+    const firstRow = rawResult.data[0]
     const rawValue = firstRow[kpi.metricColumn]
     return typeof rawValue === 'number' ? rawValue : Number(rawValue) || 0
-  }, [kpi, queryResponse])
+  }, [kpi, rawResult])
 
   if (!kpi) {
     return (
@@ -132,31 +172,26 @@ function BuilderKpiContent({ kpiRef }: { kpiRef: BuilderKpiRef }) {
 
 /** Renders a lightweight data grid preview in the builder. */
 function BuilderGridContent({ gridRef }: { gridRef: BuilderGridRef }) {
-  const { data: queryResponse, isLoading } = useDataSourceQuery(
+  const { data: rawResult, isLoading } = useDatasetPreview(
     gridRef.datasetId,
-    {},
-    true,
+    Math.max(gridRef.rowLimit, 50),
   )
 
   if (isLoading) {
     return <Skeleton className="h-full w-full" />
   }
 
-  if (!queryResponse) {
-    return null
+  if (!rawResult?.data?.length) {
+    return (
+      <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
+        No data
+      </div>
+    )
   }
 
-  // Normalize columns
-  const columns = queryResponse.columns.map((c: unknown) =>
-    typeof c === 'string'
-      ? c
-      : ((c as Record<string, string>).name ??
-        (c as Record<string, string>).column_name),
-  )
-
+  const columns = normalizeColumns(rawResult.columns ?? [], rawResult.data[0])
   const displayCols = columns.slice(0, 6)
-  const displayRows = queryResponse.rows
-    .slice(0, Math.min(gridRef.rowLimit, 10))
+  const displayRows = rawResult.data.slice(0, Math.min(gridRef.rowLimit, 10))
 
   return (
     <div className="h-full w-full overflow-auto">
@@ -180,9 +215,9 @@ function BuilderGridContent({ gridRef }: { gridRef: BuilderGridRef }) {
             ))}
           </div>
         ))}
-        {queryResponse.rowCount > 10 && (
+        {rawResult.data.length > 10 && (
           <div className="px-2 py-1 text-muted-foreground">
-            {queryResponse.rowCount} total rows
+            {rawResult.data.length} total rows
           </div>
         )}
       </div>
