@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useRef } from 'react'
 
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import {
+  createFileRoute,
+  Outlet,
+  useMatchRoute,
+  useNavigate,
+} from '@tanstack/react-router'
 import { Pencil } from 'lucide-react'
 
 import { DashboardRenderer } from '@/components/dashboard/dashboard-renderer'
@@ -26,8 +31,23 @@ function DashboardPage() {
   const { dashboardId } = Route.useParams()
   const search = Route.useSearch()
   const navigate = useNavigate({ from: Route.fullPath })
+  const matchRoute = useMatchRoute()
   const { data: dashboard, isLoading } = useManagedDashboard(dashboardId)
   const config = dashboard?.config
+
+  // The edit route ($dashboardId.edit.tsx) is a CHILD of this route per
+  // TanStack Router's dot-notation file-based routing. When the URL is
+  // /dashboards/:id/edit, this parent component still mounts and must
+  // delegate rendering to the child via <Outlet />, NOT render its own
+  // view UI on top of the BuilderPage.
+  //
+  // Rule 3 (auto-fix blocking): without this guard, navigating to /edit
+  // shows the view route instead of BuilderPage. Discovered by the
+  // dashboard-edit-regression e2e test created in Wave 0.
+  const isEditChildActive = !!matchRoute({
+    to: '/dashboards/$dashboardId/edit',
+    params: { dashboardId },
+  })
 
   // Parse URL → initial filters once on mount. The memo provides referential
   // stability so DashboardRenderer's [config.id] effect does not re-run on
@@ -36,10 +56,13 @@ function DashboardPage() {
   const initialFilters = useMemo(() => parseFilterParams(search), [search])
 
   // Bidirectional URL writer: store → URL on `applied` change.
+  // Disabled when the edit child route is active so the builder is not
+  // polluted with filter params from a previous view-route session.
   const applied = useFilterStore((s) => s.applied)
   const hasInitializedRef = useRef(false)
 
   useEffect(() => {
+    if (isEditChildActive) return
     // Skip the first run — the URL just hydrated the store, no need to write
     // it back (would be a no-op but the function-form spread can churn).
     if (!hasInitializedRef.current) {
@@ -60,7 +83,14 @@ function DashboardPage() {
       })
     }, 300)
     return () => clearTimeout(handle)
-  }, [applied, navigate])
+  }, [applied, navigate, isEditChildActive])
+
+  // When the edit child route is matched, render ONLY the Outlet — let the
+  // BuilderPage own the screen. Skip the view-mode skeleton, header, and
+  // DashboardRenderer entirely.
+  if (isEditChildActive) {
+    return <Outlet />
+  }
 
   if (isLoading) {
     return (
