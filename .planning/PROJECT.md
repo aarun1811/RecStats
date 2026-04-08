@@ -1,5 +1,15 @@
 # RecViz
 
+## Current State
+
+**Shipped:** v1.0 (2026-04-08) — 11 phases, 42 plans, ~6 months of work. Full archived roadmap at `.planning/milestones/v1.0-ROADMAP.md`. v1.0 ships the complete BI platform: foundation hardening, cross-filter + drill-down, chart/grid interactions, Oracle/Hive connectivity, dataset/chart/KPI/dashboard libraries, dashboard builder, sharing/embed/Cmd+K palette, comprehensive seed at 100k tier with 5 curated GRU-realistic dashboards.
+
+**Documented exceptions:** SHAR-01 Saved Views and DATA-03 Elasticsearch deferred to next milestone. Phase 10 closeout (`10-CLOSEOUT.md`) tracks open visual bugs (donut, combo) and deferred plans (10-02 autonomous walk, 10-03 UAT runbook handoff).
+
+**Next milestone:** Run `/gsd-new-milestone` to start the next cycle. Candidates listed in `.planning/ROADMAP.md` Next-milestone candidates section.
+
+---
+
 ## What This Is
 
 RecViz is an internal BI and visualization platform replacing Tableau and Qlik View for Citi's Global Reconciliation Unit (GRU). It provides a dashboard builder where the dev team creates datasets (SQL queries against Oracle/Hive/ES) and business users build, view, and customize dashboards from those datasets. Apache Superset serves as the headless query engine; a custom React frontend delivers the premium UI and builder experience.
