@@ -39,23 +39,43 @@ interface BuilderStore {
 function buildItemsFromConfig(config: DashboardConfig): BuilderItem[] {
   const items: BuilderItem[] = []
 
-  for (const kpi of config.kpis) {
+  // KPI row reservation: KPIs occupy row 0 (height 2), charts shift down
+  // by KPI_ROW_HEIGHT so they don't collide with the KPI strip. Without
+  // this offset, RGL collision avoidance interleaves KPI cards and chart
+  // panels in unpredictable ways.
+  const KPI_ROW_HEIGHT = 2
+  const KPI_COL_WIDTH = 4 // 3 KPIs across a 12-col grid
+  const KPIS_PER_ROW = 12 / KPI_COL_WIDTH
+
+  config.kpis.forEach((kpi, idx) => {
     items.push({
       id: kpi.id,
       type: 'kpi',
-      layout: { col: 0, row: 0, width: 3, height: 2 },
+      layout: {
+        col: (idx % KPIS_PER_ROW) * KPI_COL_WIDTH,
+        row: Math.floor(idx / KPIS_PER_ROW) * KPI_ROW_HEIGHT,
+        width: KPI_COL_WIDTH,
+        height: KPI_ROW_HEIGHT,
+      },
       kpi: {
         kpiId: kpi.id,
         title: kpi.label,
       },
     })
-  }
+  })
+
+  // Number of KPI rows the chart strip needs to clear
+  const kpiRowCount = Math.ceil(config.kpis.length / KPIS_PER_ROW)
+  const chartRowOffset = kpiRowCount * KPI_ROW_HEIGHT
 
   for (const chart of config.charts) {
     items.push({
       id: chart.id,
       type: 'chart',
-      layout: { ...chart.layout },
+      layout: {
+        ...chart.layout,
+        row: chart.layout.row + chartRowOffset,
+      },
       chart: {
         chartId: chart.id,
         chartType: chart.type,
@@ -73,7 +93,10 @@ function buildItemsFromConfig(config: DashboardConfig): BuilderItem[] {
     items.push({
       id: grid.id,
       type: 'grid',
-      layout: { ...grid.layout },
+      layout: {
+        ...grid.layout,
+        row: grid.layout.row + chartRowOffset,
+      },
       grid: {
         datasetId: grid.dataSourceId ?? grid.sources?.[0]?.dataSourceId ?? '',
         title: grid.title,
