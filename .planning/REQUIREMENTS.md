@@ -64,7 +64,7 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Sharing & Views
 
 - [ ] **SHAR-01**: Saved views — save current filter state + layout tweaks as a named bookmark
-- [ ] **SHAR-02**: Shareable URLs — filter state encoded in URL params, recipient opens exact same view
+- [x] **SHAR-02**: Shareable URLs — filter state encoded in URL params, recipient opens exact same view
 - [ ] **SHAR-03**: Embeddable dashboards — iframe embedding with URL param filters, locked filters, theme override, chromeless mode
 - [ ] **SHAR-04**: Command palette (Cmd+K) — search across dashboards, datasets, charts, saved views
 
@@ -171,7 +171,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BLDR-07 | Phase 8: Dashboard Builder | Complete |
 | BLDR-08 | Phase 8: Dashboard Builder | Complete |
 | SHAR-01 | Deferred to next milestone | Pending |
-| SHAR-02 | Phase 9: Sharing and Views | Pending |
+| SHAR-02 | Phase 9: Sharing and Views | Complete |
 | SHAR-03 | Phase 9: Sharing and Views | Pending |
 | SHAR-04 | Phase 9: Sharing and Views | Pending |
 
