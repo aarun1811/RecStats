@@ -199,12 +199,13 @@ Plans:
   2. Embed route loads dashboards from the Phase 8 managed_dashboards table (not the legacy V1 hook), supports `?theme`, `?filter.X`, `?filter.lock`, and a new `?hide=filter-bar,title,toolbar` granular hide param
   3. Embed mode preserves full interactivity (cross-filter, drill, fullscreen, manual/auto refresh) with `EmbedTopbar` chrome retained
   4. Cmd+K command palette searches across dashboards, charts, datasets, and KPIs from the managed tables (not Superset) -- results grouped by type, navigate directly to the selected item
-**Plans**: TBD
+**Plans:** 3 plans
 **UI hint**: yes
 
 Plans:
-- [ ] 09-01: TBD
-- [ ] 09-02: TBD
+- [ ] 09-01-PLAN.md -- Hook upgrade to useManagedDashboard + URL filter state sync + Share button (SHAR-02)
+- [ ] 09-02-PLAN.md -- Embed route hardening: managed hook + ?hide= tokens + EmbedTopbar/Renderer props (SHAR-03)
+- [ ] 09-03-PLAN.md -- Backend search rewrite to managed tables + command palette KPI integration + route fixes (SHAR-04)
 
 ## Progress
 
@@ -222,7 +223,7 @@ Phases execute in numeric order: 1 -> 2 -> 02.1 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 ->
 | 6. Chart Library | 3/3 | Complete | 2026-04-06 |
 | 7. KPI Library | 0/3 | Planning complete | - |
 | 8. Dashboard Builder | 0/10 | Planning complete | - |
-| 9. Sharing and Views | 0/0 | Not started | - |
+| 9. Sharing and Views | 0/3 | Planning complete | - |
 
 ### Phase 10: Comprehensive Testing with Advanced Seed Data
 
