@@ -1942,7 +1942,16 @@ _GLOBAL_FILTERS = [
 ]
 
 
-def _layout(col: int, row: int, width: int, height: int = 1) -> dict:
+def _layout(col: int, row: int, width: int, height: int = 3) -> dict:
+    """Grid cell spec. Defaults to height=3 (~240px with rowHeight=80).
+
+    A height of 1 (~80px) is too short for any chart to render visibly —
+    the panel chrome alone takes ~40px, leaving almost no room for the
+    chart body. Use 3 for most charts and 4+ for grids/large visuals.
+    The builder's min heights (3 for chart, 4 for grid, 2 for kpi) should
+    also clamp any smaller values, but this default avoids relying on
+    that safety net.
+    """
     return {"col": col, "row": row, "width": width, "height": height}
 
 
@@ -2056,7 +2065,7 @@ CURATED_DASHBOARDS: list[dict] = [
                     "Status by Region",
                     "stacked-bar",
                     "ds-recon-transactions-by-region",
-                    _layout(0, 1, 6),
+                    _layout(0, 3, 6),
                     cross_filter=True,
                     drill_hierarchy=["region", "status"],
                     drill_detail_data_source_id="ds-recon-transaction-detail",
@@ -2066,21 +2075,21 @@ CURATED_DASHBOARDS: list[dict] = [
                     "Aging Waterfall",
                     "waterfall",
                     "ds-recon-breaks-aging",
-                    _layout(6, 1, 6),
+                    _layout(6, 3, 6),
                 ),
                 _dash_chart_ref(
                     "chart-match-rate-gauge",
                     "Match Rate Gauge",
                     "gauge",
                     "ds-recon-match-rate-daily",
-                    _layout(0, 2, 6),
+                    _layout(0, 6, 6),
                 ),
                 _dash_chart_ref(
                     "chart-kpi-radar",
                     "KPI Scorecard",
                     "radar",
                     "ds-recon-kpi-scorecard",
-                    _layout(6, 2, 6),
+                    _layout(6, 6, 6),
                 ),
             ],
             "grids": [
@@ -2095,7 +2104,7 @@ CURATED_DASHBOARDS: list[dict] = [
                         {"field": "region", "header": "Region", "type": "string"},
                         {"field": "amount_usd", "header": "Amount USD", "type": "number"},
                     ],
-                    "layout": _layout(0, 3, 12, 2),
+                    "layout": _layout(0, 9, 12, 4),
                 }
             ],
             "layout": {"type": "flow", "sections": ["filters", "kpis", "charts", "grids"]},
@@ -2140,7 +2149,7 @@ CURATED_DASHBOARDS: list[dict] = [
                     "Breaks by Type",
                     "bar",
                     "ds-recon-breaks-summary",
-                    _layout(0, 1, 6),
+                    _layout(0, 3, 6),
                     cross_filter=True,
                 ),
                 _dash_chart_ref(
@@ -2148,7 +2157,7 @@ CURATED_DASHBOARDS: list[dict] = [
                     "Break Flow",
                     "sankey",
                     "ds-recon-break-flow-sankey",
-                    _layout(0, 2, 12),
+                    _layout(0, 6, 12),
                 ),
             ],
             "grids": [],
@@ -2187,14 +2196,14 @@ CURATED_DASHBOARDS: list[dict] = [
                     "Match Type Funnel",
                     "funnel",
                     "ds-recon-match-events-by-type",
-                    _layout(0, 1, 6),
+                    _layout(0, 3, 6),
                 ),
                 _dash_chart_ref(
                     "chart-txn-status-donut",
                     "Match Status",
                     "donut",
                     "ds-recon-transactions-by-status",
-                    _layout(6, 1, 6),
+                    _layout(6, 3, 6),
                     cross_filter=True,
                 ),
                 _dash_chart_ref(
@@ -2202,7 +2211,7 @@ CURATED_DASHBOARDS: list[dict] = [
                     "Volume & Amount Combo",
                     "combo",
                     "ds-recon-transactions-daily",
-                    _layout(0, 2, 12),
+                    _layout(0, 6, 12),
                 ),
             ],
             "grids": [],
@@ -2243,7 +2252,7 @@ CURATED_DASHBOARDS: list[dict] = [
                     "Transactions by Region",
                     "bar",
                     "ds-recon-transactions-by-region",
-                    _layout(0, 1, 6),
+                    _layout(0, 3, 6),
                     cross_filter=True,
                 ),
                 _dash_chart_ref(
@@ -2251,7 +2260,7 @@ CURATED_DASHBOARDS: list[dict] = [
                     "Currency Distribution",
                     "pie",
                     "ds-recon-currency-distribution",
-                    _layout(6, 1, 6),
+                    _layout(6, 3, 6),
                 ),
                 # Row 3: 6c + 6c
                 _dash_chart_ref(
@@ -2259,14 +2268,14 @@ CURATED_DASHBOARDS: list[dict] = [
                     "Top 20 Counterparties",
                     "bar",
                     "ds-recon-counterparty-top",
-                    _layout(0, 2, 6),
+                    _layout(0, 6, 6),
                 ),
                 _dash_chart_ref(
                     "chart-txn-scatter",
                     "Amount vs Fee",
                     "scatter",
                     "ds-recon-transactions-scatter",
-                    _layout(6, 2, 6),
+                    _layout(6, 6, 6),
                 ),
                 # Row 4: 6c chart-txn-trend-area (Q-3b RESOLVED placement)
                 _dash_chart_ref(
@@ -2274,7 +2283,7 @@ CURATED_DASHBOARDS: list[dict] = [
                     "Transaction Amount — Daily",
                     "area",
                     "ds-recon-transactions-daily",
-                    _layout(0, 3, 6),
+                    _layout(0, 9, 6),
                 ),
                 # Row 5: 12c parallel
                 _dash_chart_ref(
@@ -2282,7 +2291,7 @@ CURATED_DASHBOARDS: list[dict] = [
                     "Transaction Parallel Coords",
                     "parallel",
                     "ds-recon-transactions-scatter",
-                    _layout(0, 4, 12),
+                    _layout(0, 12, 12),
                 ),
             ],
             "grids": [],
@@ -2330,14 +2339,14 @@ CURATED_DASHBOARDS: list[dict] = [
                     "Break Amount Distribution",
                     "histogram",
                     "ds-recon-transactions-scatter",
-                    _layout(0, 1, 6),
+                    _layout(0, 3, 6),
                 ),
                 _dash_chart_ref(
                     "chart-recon-graph",
                     "Recon Graph Network",
                     "graph",
                     "ds-recon-break-flow-sankey",
-                    _layout(0, 2, 12),
+                    _layout(0, 6, 12),
                 ),
             ],
             "grids": [],
