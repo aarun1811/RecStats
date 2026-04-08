@@ -1102,7 +1102,7 @@ CURATED_DATASETS: list[dict] = [
         "description": "Daily transaction count + USD volume across the 2-year window.",
         "sql_template": (
             "SELECT trade_date, COUNT(*) AS txn_count, SUM(amount_usd) AS total_usd "
-            "FROM recon_transactions {{filters}} "
+            "FROM recon_transactions WHERE 1=1 {{filters}} "
             "GROUP BY trade_date ORDER BY trade_date"
         ),
         "columns": [
@@ -1120,7 +1120,7 @@ CURATED_DATASETS: list[dict] = [
             "SELECT r.code AS region, r.name AS region_name, "
             "COUNT(*) AS txn_count, SUM(t.amount_usd) AS total_usd "
             "FROM recon_transactions t "
-            "JOIN regions r ON t.region_id = r.id {{filters}} "
+            "JOIN regions r ON t.region_id = r.id WHERE 1=1 {{filters}} "
             "GROUP BY r.code, r.name ORDER BY txn_count DESC"
         ),
         "columns": [
@@ -1139,7 +1139,7 @@ CURATED_DATASETS: list[dict] = [
             "SELECT s.code AS status, s.name AS status_name, s.category, "
             "COUNT(*) AS txn_count "
             "FROM recon_transactions t "
-            "JOIN statuses s ON t.status_id = s.id {{filters}} "
+            "JOIN statuses s ON t.status_id = s.id WHERE 1=1 {{filters}} "
             "GROUP BY s.code, s.name, s.category ORDER BY txn_count DESC"
         ),
         "columns": [
@@ -1159,7 +1159,7 @@ CURATED_DATASETS: list[dict] = [
             "COUNT(*) AS break_count, "
             "SUM(b.break_amount_usd) AS total_break_usd, "
             "AVG(b.aging_days)::numeric(10,2) AS avg_aging "
-            "FROM recon_breaks b {{filters}} "
+            "FROM recon_breaks b WHERE 1=1 {{filters}} "
             "GROUP BY b.break_type, b.resolution ORDER BY break_count DESC"
         ),
         "columns": [
@@ -1180,7 +1180,7 @@ CURATED_DATASETS: list[dict] = [
             "COUNT(b.id) AS break_count, "
             "SUM(b.break_amount_usd) AS total_usd "
             "FROM recon_breaks b "
-            "JOIN aging_buckets ab ON b.aging_bucket_id = ab.id {{filters}} "
+            "JOIN aging_buckets ab ON b.aging_bucket_id = ab.id WHERE 1=1 {{filters}} "
             "GROUP BY ab.code, ab.label, ab.sort_order, ab.severity "
             "ORDER BY ab.sort_order"
         ),
@@ -1204,7 +1204,7 @@ CURATED_DATASETS: list[dict] = [
             "/ NULLIF(COUNT(*), 0)) * 100 AS match_rate, "
             "COUNT(*) AS txn_count "
             "FROM recon_transactions t "
-            "JOIN statuses s ON t.status_id = s.id {{filters}} "
+            "JOIN statuses s ON t.status_id = s.id WHERE 1=1 {{filters}} "
             "GROUP BY t.trade_date ORDER BY t.trade_date"
         ),
         "columns": [
@@ -1225,7 +1225,7 @@ CURATED_DATASETS: list[dict] = [
             "(SUM(CASE WHEN breach THEN 1 ELSE 0 END)::float "
             "/ NULLIF(COUNT(*), 0)) * 100 AS breach_rate "
             "FROM sla_events s "
-            "JOIN regions r ON s.region_id = r.id {{filters}} "
+            "JOIN regions r ON s.region_id = r.id WHERE 1=1 {{filters}} "
             "GROUP BY sla_type, r.code ORDER BY breach_count DESC"
         ),
         "columns": [
@@ -1246,7 +1246,7 @@ CURATED_DATASETS: list[dict] = [
             "COUNT(*) AS txn_count, SUM(t.amount_usd) AS total_usd, "
             "AVG(t.amount_usd)::numeric(18,2) AS avg_usd "
             "FROM recon_transactions t "
-            "JOIN desks d ON t.desk_id = d.id {{filters}} "
+            "JOIN desks d ON t.desk_id = d.id WHERE 1=1 {{filters}} "
             "GROUP BY d.asset_class, d.code, d.name ORDER BY total_usd DESC"
         ),
         "columns": [
@@ -1266,7 +1266,7 @@ CURATED_DATASETS: list[dict] = [
         "sql_template": (
             "SELECT id, amount_usd, COALESCE(fee, 0) AS fee, currency_id "
             "FROM recon_transactions "
-            "WHERE amount_usd BETWEEN 0 AND 100000 {{filters}} LIMIT 5000"
+            "WHERE 1=1 AND amount_usd BETWEEN 0 AND 100000 {{filters}} LIMIT 5000"
         ),
         "columns": [
             _col("id", "Id", "number", "dimension"),
@@ -1284,7 +1284,7 @@ CURATED_DATASETS: list[dict] = [
             "SELECT c.code AS currency, c.name, "
             "COUNT(*) AS txn_count, SUM(t.amount_usd) AS total_usd "
             "FROM recon_transactions t "
-            "JOIN currencies c ON t.currency_id = c.id {{filters}} "
+            "JOIN currencies c ON t.currency_id = c.id WHERE 1=1 {{filters}} "
             "GROUP BY c.code, c.name ORDER BY total_usd DESC LIMIT 15"
         ),
         "columns": [
@@ -1302,7 +1302,7 @@ CURATED_DATASETS: list[dict] = [
         "sql_template": (
             "SELECT match_type, COUNT(*) AS event_count, "
             "AVG(confidence_score)::numeric(5,2) AS avg_confidence "
-            "FROM recon_match_events {{filters}} "
+            "FROM recon_match_events WHERE 1=1 {{filters}} "
             "GROUP BY match_type ORDER BY event_count DESC"
         ),
         "columns": [
@@ -1321,7 +1321,7 @@ CURATED_DATASETS: list[dict] = [
             "COUNT(*) AS txn_count, SUM(t.amount_usd) AS total_usd "
             "FROM recon_transactions t "
             "JOIN counterparties cp ON t.counterparty_id = cp.id "
-            "WHERE t.counterparty_id IS NOT NULL {{filters}} "
+            "WHERE 1=1 AND t.counterparty_id IS NOT NULL {{filters}} "
             "GROUP BY cp.short_name, cp.country_code, cp.tier "
             "ORDER BY total_usd DESC LIMIT 20"
         ),
@@ -1378,7 +1378,7 @@ CURATED_DATASETS: list[dict] = [
             "r.code AS region, c.code AS currency, a.opened_date, a.is_active "
             "FROM accounts a "
             "JOIN regions r ON a.region_id = r.id "
-            "JOIN currencies c ON a.currency_id = c.id {{filters}} "
+            "JOIN currencies c ON a.currency_id = c.id WHERE 1=1 {{filters}} "
             "ORDER BY a.account_number"
         ),
         "columns": [
@@ -1406,7 +1406,7 @@ CURATED_DATASETS: list[dict] = [
             "JOIN desks d ON t.desk_id = d.id "
             "JOIN currencies c ON t.currency_id = c.id "
             "LEFT JOIN counterparties cp ON t.counterparty_id = cp.id "
-            "{{filters}} ORDER BY t.trade_date DESC LIMIT 1000"
+            "WHERE 1=1 {{filters}} ORDER BY t.trade_date DESC LIMIT 1000"
         ),
         "columns": [
             _col("external_ref", "External Ref", "string", "dimension"),
