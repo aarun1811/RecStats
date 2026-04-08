@@ -21,12 +21,28 @@ interface DashboardRendererProps {
   config: DashboardConfig
   initialFilters?: Record<string, FilterValue>
   lockedFilters?: string[]
+  /**
+   * When true, omit the `ConfigFilterBar` from the rendered dashboard.
+   * Used by embed mode with `?hide=filter-bar`. Non-embed usages leave this
+   * undefined and the filter bar renders normally.
+   */
+  hideFilterBar?: boolean
+  /**
+   * When true, omit the `DashboardToolbar` (refresh + auto-refresh controls)
+   * AND disable the auto-refresh interval by passing 0 to `useAutoRefresh`.
+   * Without the UI control there is no way for the user to see or adjust
+   * the interval; the host portal is responsible for any external refresh
+   * orchestration in this mode. Used by embed mode with `?hide=toolbar`.
+   */
+  hideToolbar?: boolean
 }
 
 export function DashboardRenderer({
   config,
   initialFilters,
   lockedFilters,
+  hideFilterBar,
+  hideToolbar,
 }: DashboardRendererProps) {
   const initializeFilters = useFilterStore((s) => s.initializeFilters)
   const applyFilters = useFilterStore((s) => s.applyFilters)
@@ -63,9 +79,13 @@ export function DashboardRenderer({
     }
   }, [queryClient]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-refresh hook wired to the same refresh handler
+  // Auto-refresh hook wired to the same refresh handler.
+  // When the toolbar is hidden (embed mode `?hide=toolbar`), pass 0 so the
+  // hook returns `isActive: false` and does not start the countdown interval.
+  // `useAutoRefresh` treats `intervalMs <= 0` as disabled.
+  const autoRefreshIntervalEffective = hideToolbar ? 0 : autoRefreshInterval
   const { remainingMs, isActive, reset } = useAutoRefresh(
-    autoRefreshInterval,
+    autoRefreshIntervalEffective,
     handleRefresh,
   )
 
@@ -127,15 +147,17 @@ export function DashboardRenderer({
 
   return (
     <div className="flex flex-col gap-4">
-      <DashboardToolbar
-        onRefresh={handleRefresh}
-        isRefreshing={isRefreshing}
-        autoRefreshIntervalMs={autoRefreshInterval}
-        onAutoRefreshIntervalChange={setAutoRefreshInterval}
-        autoRefreshRemainingMs={remainingMs}
-        autoRefreshIsActive={isActive}
-      />
-      <ConfigFilterBar filters={config.filters} />
+      {!hideToolbar && (
+        <DashboardToolbar
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+          autoRefreshIntervalMs={autoRefreshInterval}
+          onAutoRefreshIntervalChange={setAutoRefreshInterval}
+          autoRefreshRemainingMs={remainingMs}
+          autoRefreshIsActive={isActive}
+        />
+      )}
+      {!hideFilterBar && <ConfigFilterBar filters={config.filters} />}
       {crossFilterEnabled && <CrossFilterBar columnLabels={columnLabels} />}
       <ConfigKpiRow
         dashboardId={config.id}
