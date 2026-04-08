@@ -21,7 +21,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 6: Chart Library** - Users can create, save, and reuse charts from datasets with a visual chart type selector and library browser (completed 2026-04-06)
 - [ ] **Phase 7: KPI Library** - Dev team defines reusable KPI templates; business users pick and configure KPIs for dashboards
 - [ ] **Phase 8: Dashboard Builder** - Business users create dashboards with a grid-based layout editor, adding charts, KPIs, and filters from libraries
-- [ ] **Phase 9: Sharing and Views** - Save filter/layout bookmarks, share via URL, embed dashboards in portals, and search everything with Cmd+K
+- [x] **Phase 9: Sharing and Views** - Save filter/layout bookmarks, share via URL, embed dashboards in portals, and search everything with Cmd+K (completed 2026-04-08)
 
 ## Phase Details
 
@@ -199,7 +199,7 @@ Plans:
   2. Embed route loads dashboards from the Phase 8 managed_dashboards table (not the legacy V1 hook), supports `?theme`, `?filter.X`, `?filter.lock`, and a new `?hide=filter-bar,title,toolbar` granular hide param
   3. Embed mode preserves full interactivity (cross-filter, drill, fullscreen, manual/auto refresh) with `EmbedTopbar` chrome retained
   4. Cmd+K command palette searches across dashboards, charts, datasets, and KPIs from the managed tables (not Superset) -- results grouped by type, navigate directly to the selected item
-**Plans:** 3 plans
+**Plans:** 3/3 plans complete
 **UI hint**: yes
 
 Plans:
@@ -223,7 +223,7 @@ Phases execute in numeric order: 1 -> 2 -> 02.1 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 ->
 | 6. Chart Library | 3/3 | Complete | 2026-04-06 |
 | 7. KPI Library | 0/3 | Planning complete | - |
 | 8. Dashboard Builder | 0/10 | Planning complete | - |
-| 9. Sharing and Views | 0/3 | Planning complete | - |
+| 9. Sharing and Views | 3/3 | Complete    | 2026-04-08 |
 
 ### Phase 10: Comprehensive Testing with Advanced Seed Data
 
