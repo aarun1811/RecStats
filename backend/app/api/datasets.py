@@ -1,51 +1,125 @@
 from __future__ import annotations
 
+import logging
 from typing import Any
 
-from fastapi import APIRouter
+import httpx
+from fastapi import APIRouter, HTTPException
 
 from app.core.dependencies import SupersetDep
-from app.mock_data import MOCK_DATASETS
+from app.core.errors import sanitize_detail
 from app.models.filters import GlobalFilters
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/datasets", tags=["datasets"])
 
 
 @router.get("")
 async def list_datasets(superset: SupersetDep):
-    # Always return mock datasets with full column info for schema browser
-    # In production, this would merge Superset metadata with our column definitions
-    return MOCK_DATASETS
+    if not superset:
+        raise HTTPException(
+            status_code=503,
+            detail={"error": "superset_unavailable", "message": "Query engine is not connected", "detail": None, "retry_after": 30},
+        )
+    try:
+        raw = await superset.list_datasets()
+        return [
+            {
+                "id": ds.get("id"),
+                "name": ds.get("table_name", ""),
+                "table_name": ds.get("table_name", ""),
+                "database_id": ds.get("database", {}).get("id") if isinstance(ds.get("database"), dict) else ds.get("database_id"),
+                "columns": [
+                    {
+                        "name": c.get("column_name", ""),
+                        "type": c.get("type", "VARCHAR"),
+                        "is_dimension": c.get("groupby", True),
+                        "is_metric": c.get("is_dttm", False),
+                        "filterable": c.get("filterable", True),
+                    }
+                    for c in ds.get("columns", [])
+                ],
+                "row_count": ds.get("row_count"),
+            }
+            for ds in raw
+        ]
+    except httpx.ConnectError as e:
+        logger.warning("Superset connection failed: %s", e)
+        raise HTTPException(
+            status_code=503,
+            detail={"error": "superset_unavailable", "message": "Query engine is temporarily unavailable", "detail": sanitize_detail(e), "retry_after": 15},
+        )
+    except httpx.TimeoutException as e:
+        logger.warning("Superset query timed out: %s", e)
+        raise HTTPException(
+            status_code=504,
+            detail={"error": "query_timeout", "message": "Query timed out", "detail": sanitize_detail(e)},
+        )
+    except httpx.HTTPStatusError as e:
+        logger.error("Superset returned error %s: %s", e.response.status_code, e)
+        raise HTTPException(
+            status_code=502,
+            detail={"error": "superset_error", "message": f"Query engine returned error: {e.response.status_code}", "detail": sanitize_detail(e)},
+        )
+    except Exception as e:
+        logger.exception("Unexpected error listing datasets")
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "internal_error", "message": "An unexpected error occurred", "detail": sanitize_detail(e)},
+        )
 
 
 @router.get("/{dataset_id}")
 async def get_dataset(dataset_id: int, superset: SupersetDep):
-    if superset:
-        try:
-            raw = await superset.get_dataset(dataset_id)
-            columns = [
-                {
-                    "name": c.get("column_name", ""),
-                    "type": c.get("type", "VARCHAR"),
-                    "is_dimension": c.get("groupby", True),
-                    "is_metric": c.get("is_dttm", False),
-                    "filterable": c.get("filterable", True),
-                }
-                for c in raw.get("columns", [])
-            ]
-            return {
-                "id": raw.get("id"),
-                "name": raw.get("table_name", ""),
-                "table_name": raw.get("table_name", ""),
-                "database_id": raw.get("database", {}).get("id") if isinstance(raw.get("database"), dict) else None,
-                "columns": columns,
+    if not superset:
+        raise HTTPException(
+            status_code=503,
+            detail={"error": "superset_unavailable", "message": "Query engine is not connected", "detail": None, "retry_after": 30},
+        )
+    try:
+        raw = await superset.get_dataset(dataset_id)
+        columns = [
+            {
+                "name": c.get("column_name", ""),
+                "type": c.get("type", "VARCHAR"),
+                "is_dimension": c.get("groupby", True),
+                "is_metric": c.get("is_dttm", False),
+                "filterable": c.get("filterable", True),
             }
-        except Exception:
-            pass
-    for ds in MOCK_DATASETS:
-        if ds["id"] == dataset_id:
-            return ds
-    return {"error": "dataset not found"}
+            for c in raw.get("columns", [])
+        ]
+        return {
+            "id": raw.get("id"),
+            "name": raw.get("table_name", ""),
+            "table_name": raw.get("table_name", ""),
+            "database_id": raw.get("database", {}).get("id") if isinstance(raw.get("database"), dict) else None,
+            "columns": columns,
+        }
+    except httpx.ConnectError as e:
+        logger.warning("Superset connection failed: %s", e)
+        raise HTTPException(
+            status_code=503,
+            detail={"error": "superset_unavailable", "message": "Query engine is temporarily unavailable", "detail": sanitize_detail(e), "retry_after": 15},
+        )
+    except httpx.TimeoutException as e:
+        logger.warning("Superset query timed out: %s", e)
+        raise HTTPException(
+            status_code=504,
+            detail={"error": "query_timeout", "message": "Query timed out", "detail": sanitize_detail(e)},
+        )
+    except httpx.HTTPStatusError as e:
+        logger.error("Superset returned error %s: %s", e.response.status_code, e)
+        raise HTTPException(
+            status_code=502,
+            detail={"error": "superset_error", "message": f"Query engine returned error: {e.response.status_code}", "detail": sanitize_detail(e)},
+        )
+    except Exception as e:
+        logger.exception("Unexpected error fetching dataset %s", dataset_id)
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "internal_error", "message": "An unexpected error occurred", "detail": sanitize_detail(e)},
+        )
 
 
 # All columns to fetch for each dataset (raw row data)
@@ -100,31 +174,60 @@ async def get_dataset_data(
 ):
     columns = DATASET_COLUMNS.get(dataset_id)
 
-    if superset and columns:
-        try:
-            query: dict[str, Any] = {
-                "columns": columns,
-                "row_limit": page_size,
-                "row_offset": (page - 1) * page_size,
-            }
+    if not superset:
+        raise HTTPException(
+            status_code=503,
+            detail={"error": "superset_unavailable", "message": "Query engine is not connected", "detail": None, "retry_after": 30},
+        )
+    if not columns:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "dataset_not_found", "message": f"No column definition for dataset: {dataset_id}", "detail": None},
+        )
 
-            adhoc = _build_adhoc_filters(filters, dataset_id)
-            if adhoc:
-                query["filters"] = adhoc
+    try:
+        query: dict[str, Any] = {
+            "columns": columns,
+            "row_limit": page_size,
+            "row_offset": (page - 1) * page_size,
+        }
 
-            if sort_by:
-                query["orderby"] = [[sort_by, not sort_desc]]
+        adhoc = _build_adhoc_filters(filters, dataset_id)
+        if adhoc:
+            query["filters"] = adhoc
 
-            result = await superset.get_chart_data(dataset_id, [query])
-            chart_result = result.get("result", [{}])[0]
-            return {
-                "data": chart_result.get("data", []),
-                "row_count": chart_result.get("rowcount", 0),
-                "page": page,
-                "page_size": page_size,
-            }
-        except Exception:
-            import traceback
-            traceback.print_exc()
+        if sort_by:
+            query["orderby"] = [[sort_by, not sort_desc]]
 
-    return {"data": [], "row_count": 0, "page": page, "page_size": page_size}
+        result = await superset.get_chart_data(dataset_id, [query])
+        chart_result = result.get("result", [{}])[0]
+        return {
+            "data": chart_result.get("data", []),
+            "row_count": chart_result.get("rowcount", 0),
+            "page": page,
+            "page_size": page_size,
+        }
+    except httpx.ConnectError as e:
+        logger.warning("Superset connection failed: %s", e)
+        raise HTTPException(
+            status_code=503,
+            detail={"error": "superset_unavailable", "message": "Query engine is temporarily unavailable", "detail": sanitize_detail(e), "retry_after": 15},
+        )
+    except httpx.TimeoutException as e:
+        logger.warning("Superset query timed out: %s", e)
+        raise HTTPException(
+            status_code=504,
+            detail={"error": "query_timeout", "message": "Query timed out", "detail": sanitize_detail(e)},
+        )
+    except httpx.HTTPStatusError as e:
+        logger.error("Superset returned error %s: %s", e.response.status_code, e)
+        raise HTTPException(
+            status_code=502,
+            detail={"error": "superset_error", "message": f"Query engine returned error: {e.response.status_code}", "detail": sanitize_detail(e)},
+        )
+    except Exception as e:
+        logger.exception("Unexpected error fetching dataset data for %s", dataset_id)
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "internal_error", "message": "An unexpected error occurred", "detail": sanitize_detail(e)},
+        )

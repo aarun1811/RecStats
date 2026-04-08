@@ -16,21 +16,16 @@ export interface CrossFilter {
   value: string | number
 }
 
-export interface CrossFilterRule {
-  sourceChart: string
-  targetCharts: string[]
-  column: string
-}
-
 export interface DrillLevel {
-  level: number
   column: string
   value: string
+  label?: string
 }
 
-export interface DrillState {
-  chartId: string
+export interface ChartDrillState {
   levels: DrillLevel[]
+  hierarchy: string[]
+  detailDataSourceId?: string
 }
 
 export type FilterValue = string | string[] | number

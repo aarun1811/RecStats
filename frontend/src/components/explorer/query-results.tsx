@@ -5,7 +5,7 @@ import { useTheme } from '@/components/layout/theme-provider'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Download, Copy, BarChart3, CheckCircle2, XCircle, Clock } from 'lucide-react'
+import { Download, Copy, BarChart3, CheckCircle2, XCircle, Clock, Save } from 'lucide-react'
 import { toast } from 'sonner'
 import type { SqlResult } from '@/types/api'
 
@@ -14,6 +14,7 @@ interface QueryResultsProps {
   isLoading: boolean
   executionTime: number | null
   onChartIt: () => void
+  onSaveAsDataset?: () => void
 }
 
 const DEFAULT_COL_DEF: ColDef = {
@@ -23,22 +24,27 @@ const DEFAULT_COL_DEF: ColDef = {
   minWidth: 80,
 }
 
-export function QueryResults({ result, isLoading, executionTime, onChartIt }: QueryResultsProps) {
+export function QueryResults({ result, isLoading, executionTime, onChartIt, onSaveAsDataset }: QueryResultsProps) {
   const gridRef = useRef<AgGridReact>(null)
   const [gridApi, setGridApi] = useState<GridApi | null>(null)
   const { resolvedTheme } = useTheme()
 
   const themeClass = resolvedTheme === 'dark' ? 'ag-theme-quartz-dark' : 'ag-theme-quartz'
 
+  const columnNames = useMemo(
+    () => result?.columns?.map((col) => typeof col === 'string' ? col : col.column_name ?? col.name) ?? [],
+    [result?.columns],
+  )
+
   const columnDefs = useMemo<ColDef[]>(() => {
-    if (!result?.columns) return []
-    return result.columns.map((col) => ({
-      field: col,
-      headerName: col,
+    if (!columnNames.length) return []
+    return columnNames.map((name) => ({
+      field: name,
+      headerName: name,
       flex: 1,
       minWidth: 100,
     }))
-  }, [result?.columns])
+  }, [columnNames])
 
   const rowData = useMemo(() => result?.data ?? [], [result?.data])
 
@@ -53,9 +59,9 @@ export function QueryResults({ result, isLoading, executionTime, onChartIt }: Qu
 
   const handleCopy = () => {
     if (!result?.data?.length) return
-    const header = result.columns.join('\t')
+    const header = columnNames.join('\t')
     const rows = result.data.map((row) =>
-      result.columns.map((col) => String(row[col] ?? '')).join('\t'),
+      columnNames.map((col) => String(row[col] ?? '')).join('\t'),
     )
     const tsv = [header, ...rows].join('\n')
     navigator.clipboard.writeText(tsv)
@@ -132,6 +138,12 @@ export function QueryResults({ result, isLoading, executionTime, onChartIt }: Qu
             <Download className="mr-1 size-3" />
             CSV
           </Button>
+          {onSaveAsDataset && (
+            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={onSaveAsDataset}>
+              <Save className="mr-1 size-3" />
+              Save as Dataset
+            </Button>
+          )}
         </div>
       </div>
       {/* Results grid */}

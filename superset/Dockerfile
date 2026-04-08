@@ -6,11 +6,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# System deps for psycopg2, pg_isready, and Superset native extensions
+# System deps for psycopg2, pg_isready, Superset native extensions, and Hive SASL
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
     postgresql-client \
+    libsasl2-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Superset + drivers
@@ -18,7 +19,10 @@ RUN pip install --no-cache-dir \
     apache-superset \
     psycopg2-binary \
     redis \
-    cachelib
+    cachelib \
+    oracledb \
+    pyhive \
+    thrift
 
 # Copy config and entrypoint
 COPY superset_config.py /app/superset_config.py

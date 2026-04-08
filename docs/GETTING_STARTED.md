@@ -1,57 +1,160 @@
-# RecViz — Getting Started
+<!-- generated-by: gsd-doc-writer -->
+# Getting Started
 
-## Architecture
-
-```
-Frontend (React)  →  FastAPI Backend  →  Superset (SQL Engine)  →  Database (SQLite local / Oracle prod)
-   :5173               :8000               :8088
-```
+This guide walks you through setting up RecViz for local development from a fresh clone to a running application.
 
 ---
 
-## Local Development Setup
+## Prerequisites
 
-### Prerequisites
+| Tool | Version | Check |
+|------|---------|-------|
+| **Node.js** | 20+ | `node --version` |
+| **pnpm** | 10+ | `pnpm --version` |
+| **Python** | 3.12+ | `python3 --version` |
+| **Docker** | 24+ (Docker Compose v2 included) | `docker --version` |
+| **Git** | 2.30+ | `git --version` |
 
-- Python 3.12+ (via pyenv)
-- Node.js 20+ / pnpm
-- The `.venv` at `recviz/.venv` with `apache-superset` installed
+RecViz has three layers that all run locally: a React frontend (pnpm), a FastAPI backend (Python), and Apache Superset as a headless query engine (Python, installed in a virtualenv). Docker is used for PostgreSQL 16 and Redis 7 supporting services.
 
-### 1. One-time Superset Setup
+### Installing prerequisites (macOS)
 
 ```bash
-cd recviz
+brew install node python@3.12 git
+npm install -g pnpm
+```
+
+Docker Desktop for Mac provides both `docker` and `docker compose`.
+
+---
+
+## Installation Steps
+
+### 1. Clone the repository
+
+```bash
+git clone <repository-url>
+cd RecViz
+```
+
+### 2. Start Docker services (PostgreSQL + Redis)
+
+```bash
+docker compose up -d
+```
+
+This starts:
+
+| Service | Container | Port |
+|---------|-----------|------|
+| PostgreSQL 16 | `recviz-postgres` | 5432 |
+| Redis 7 | `recviz-redis` | 6379 |
+
+PostgreSQL is initialized with two databases: `superset_meta` (Superset metadata and RecViz managed tables) and `recon_data` (reconciliation data for queries). The init script at `docker/init-db.sql` creates the `recon_data` database automatically.
+
+Wait for both services to be healthy:
+
+```bash
+docker compose ps
+```
+
+Both containers should show `healthy` status.
+
+### 3. Set up the Python virtual environment
+
+There are two virtualenvs in the project. The **root-level** `.venv` is for Superset (which has heavy dependencies and must be isolated). The **backend/** `venv` is for the FastAPI backend.
+
+#### Superset virtualenv (root `.venv`)
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install apache-superset oracledb psycopg2-binary
+deactivate
+```
+
+#### Backend virtualenv (`backend/venv`)
+
+```bash
+cd backend
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+deactivate
+cd ..
+```
+
+### 4. Initialize Superset (one-time setup)
+
+```bash
 ./scripts/setup-superset-local.sh
 ```
 
-This initializes Superset with SQLite metadata, creates an admin user (`admin/admin`), and installs the `oracledb` driver.
+This script:
+- Activates the root `.venv`
+- Runs `superset db upgrade` to create Superset's metadata tables
+- Creates an admin user (`admin` / `admin`)
+- Runs `superset init`
 
-### 2. Generate Seed Database
+Superset metadata is stored in SQLite at `~/.superset/superset_local.db` for local development (no PostgreSQL dependency for Superset metadata in this mode).
+
+### 5. Generate the seed database
 
 ```bash
 python scripts/generate-seed-db.py
 ```
 
-Creates `backend/app/config/seed/seed.db` (~12K rows across 6 tables) and auto-updates `databases.json` with the correct path.
+This creates a SQLite seed database at `backend/app/config/seed/seed.db` with sample reconciliation data across multiple TLM instances. The seed database is used by Superset as a data source in local development.
 
-### 3. Start Superset
+For a more production-like setup using PostgreSQL as the data source:
 
 ```bash
+source backend/venv/bin/activate
+python scripts/seed-postgres.py
+deactivate
+```
+
+This populates the `recon_data` PostgreSQL database with ~1M transactions, ~150K breaks, and supporting reference data.
+
+### 6. Install frontend dependencies
+
+```bash
+cd frontend
+pnpm install
+cd ..
+```
+
+---
+
+## First Run
+
+You need three terminals, one for each service. **Start them in this order** -- the backend requires Superset to be running first.
+
+### Terminal 1: Superset
+
+```bash
+cd RecViz
 SUPERSET_CONFIG_PATH=superset/superset_config_local.py .venv/bin/superset run -p 8088
 ```
 
-Wait until you see `Running on http://127.0.0.1:8088`. Verify: `curl http://localhost:8088/health` should return `OK`.
-
-### 4. Start FastAPI Backend
-
-In a new terminal:
+Wait until you see `Running on http://127.0.0.1:8088`. Verify:
 
 ```bash
-cd recviz/backend
+curl http://localhost:8088/health
+```
+
+Should return `OK`.
+
+### Terminal 2: FastAPI backend
+
+```bash
+cd RecViz/backend
+source venv/bin/activate
 uvicorn app.main:app --reload --port 8000
 ```
 
-On startup you should see:
+On successful startup you should see:
+
 ```
 Superset client ready
 Registered database 'superset_db_TCOSPRD' in Superset (id=1)
@@ -59,187 +162,149 @@ Registered database 'superset_db_TFINPRD' in Superset (id=2)
 Registered database 'superset_db_TWMPRD' in Superset (id=3)
 Registered database 'superset_db_reconmgmt' in Superset (id=4)
 DatabaseRegistrar synced
+ConnectionStatusTracker initialized
 QueryEngine initialized — ready to serve
+DatasetSyncService initialized
+Dataset reconciliation complete
 ```
 
-Verify: `curl http://localhost:8000/health` should return `{"status":"ok","superset":true}`.
-
-### 5. Start Frontend
-
-In a new terminal:
+Verify:
 
 ```bash
-cd recviz/frontend
+curl http://localhost:8000/health
+```
+
+Should return `{"status":"ok","superset":true}`.
+
+### Terminal 3: Frontend
+
+```bash
+cd RecViz/frontend
 pnpm dev
 ```
 
-Open `http://localhost:5173/dashboards/tlm-stats`.
+Output:
 
-### Quick Verification
+```
+VITE vX.X.X  ready in xxx ms
 
-```bash
-# Filter options (should return real data from seed DB)
-curl -s http://localhost:8000/api/data-sources/reconmgmt_recon_bank/distinct/recon_engine_env
-# Expected: {"values":["TLMP_CONSUMER","TLMP_FINANCE","TLMP_WEALTH"]}
-
-# Data query
-curl -s http://localhost:8000/api/data-sources/tlm_breaks/query \
-  -X POST -H "Content-Type: application/json" \
-  -d '{"filters":{"tlm_instance":"TLMP_CONSUMER","date_range":1}}' | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'{d[\"row_count\"]} rows')"
-# Expected: ~240 rows
+  ➜  Local:   http://localhost:5173/
 ```
 
-### Local Dev Limitation
-
-SQLite through Superset has concurrency issues with multiple simultaneous queries. The KPI endpoint (which fires 4+ sequential queries) may timeout or error. Individual data source queries work fine. This does not happen with Oracle.
+Open **http://localhost:5173** in your browser. Navigate to `/dashboards/tlm-stats` to see the TLM Statistics Dashboard with KPI cards, charts, filter bar, and data grid.
 
 ---
 
-## Production Setup (Oracle)
+## Common Setup Issues
 
-### 1. Edit `databases.json`
+### Superset fails to start: "No module named 'superset'"
 
-Update `backend/app/config/databases.json`. Replace SQLite entries with Oracle connection strings:
-
-```json
-{
-  "databases": [
-    {
-      "name": "superset_db_TCOSPRD",
-      "display_name": "TLM Consumer (TCOSPRD)",
-      "sqlalchemy_uri": "oracle+oracledb://username:password@hostname:1521/?service_name=TCOSPRD",
-      "dialect": "oracle",
-      "type": "tlm"
-    },
-    {
-      "name": "superset_db_TFINPRD",
-      "display_name": "TLM Finance (TFINPRD)",
-      "sqlalchemy_uri": "oracle+oracledb://username:password@hostname:1521/?service_name=TFINPRD",
-      "dialect": "oracle",
-      "type": "tlm"
-    },
-    {
-      "name": "superset_db_TWMPRD",
-      "display_name": "TLM Wealth (TWMPRD)",
-      "sqlalchemy_uri": "oracle+oracledb://username:password@hostname:1521/?service_name=TWMPRD",
-      "dialect": "oracle",
-      "type": "tlm"
-    },
-    {
-      "name": "superset_db_reconmgmt",
-      "display_name": "ReconMgmt",
-      "sqlalchemy_uri": "oracle+oracledb://username:password@hostname:1521/?service_name=RECONMGMT",
-      "dialect": "oracle",
-      "schema": "reconmgmt",
-      "type": "reconmgmt"
-    }
-  ]
-}
-```
-
-Key fields:
-- `sqlalchemy_uri` — Oracle connection string using `oracledb` driver (thin mode, no Instant Client needed)
-- `dialect` — set to `"oracle"` (enables Oracle-specific date functions like `SYSDATE`, `TRUNC`)
-- `schema` — set for databases where SQL uses schema-qualified table names (e.g., `reconmgmt.table_name`)
-
-### 2. Update SQL Templates (if needed)
-
-The SQL templates in `backend/app/config/data_sources/*.json` contain simplified queries. If the real Oracle schema has different table/column names, update the `query` field in each JSON file.
-
-Rules for SQL templates:
-- Use `{{filters}}` placeholder where WHERE clauses should be injected
-- Use `{{date_range_clause}}` in filter mappings for date range filters
-- Use `{{values}}` for multi-value IN clauses
-- Use `{{value}}` for single-value filters
-- Prefer ANSI SQL (`COALESCE` over `NVL`, standard `CAST` over `TO_CHAR`)
-
-### 3. Install Oracle Driver
+You are not using the correct virtualenv. Superset is installed in the root-level `.venv`, not in `backend/venv`:
 
 ```bash
-pip install oracledb
-```
-
-The `oracledb` package works in thin mode (pure Python) — no Oracle Instant Client required.
-
-### 4. Configure Superset for Production
-
-For production, use the Docker setup or configure Superset with PostgreSQL metadata + Redis cache:
-
-```bash
-# Use the production config (requires PostgreSQL + Redis)
-SUPERSET_CONFIG_PATH=superset/superset_config.py superset run -p 8088
-```
-
-Or for a quick test with SQLite metadata (same as local dev):
-
-```bash
-SUPERSET_CONFIG_PATH=superset/superset_config_local.py superset run -p 8088
-```
-
-### 5. Start Services
-
-```bash
-# Terminal 1: Superset
+# Use the root .venv, NOT backend/venv
 SUPERSET_CONFIG_PATH=superset/superset_config_local.py .venv/bin/superset run -p 8088
-
-# Terminal 2: FastAPI
-cd backend && uvicorn app.main:app --port 8000
-
-# Terminal 3: Frontend
-cd frontend && pnpm dev
 ```
 
-On FastAPI startup, `DatabaseRegistrar` will automatically register all Oracle databases in Superset.
+### Backend fails to start: "Superset unavailable"
 
----
+The backend requires Superset to be running and authenticated before it can start. Ensure Superset is running on port 8088 and responding to health checks before starting the backend:
 
-## Embed Mode
-
-To embed a dashboard in another application (e.g., autosys-job-explorer):
-
-```
-http://localhost:5173/embed/dashboards/tlm-stats?filter.tlm_instance=TLMP_CONSUMER&filter.lock=tlm_instance&theme=dark
+```bash
+curl http://localhost:8088/health
+# Must return: OK
 ```
 
-URL parameters:
-| Param | Description | Example |
-|-------|-------------|---------|
-| `filter.<id>` | Set a filter value | `filter.tlm_instance=TLMP_CONSUMER` |
-| `filter.lock` | Lock filters (comma-separated) | `filter.lock=tlm_instance,recon` |
-| `theme` | Force theme | `theme=dark` or `theme=light` |
+### Backend migration errors: "recviz_alembic_version"
 
----
-
-## Adding a New Dashboard
-
-No code changes needed. Just add config files:
-
-1. Create `backend/app/config/dashboards/my-dashboard.json` — defines filters, KPIs, charts, grids
-2. Create `backend/app/config/data_sources/my_source.json` — defines SQL template, DB routing, filter mappings
-3. Add database entries to `databases.json` if new Oracle DBs are needed
-4. Restart FastAPI
-
-The new dashboard appears at `http://localhost:5173/dashboards/my-dashboard`.
-
----
-
-## Running Tests
+RecViz uses a separate Alembic version table (`recviz_alembic_version`) to avoid conflicting with Superset's own migrations in the same `superset_meta` database. If you get migration errors, run Alembic explicitly:
 
 ```bash
 cd backend
-python -m pytest tests/ -v
+source venv/bin/activate
+cd app/migrations
+alembic upgrade head
 ```
 
-All 29 tests should pass. Tests use mock registrar — no Superset/database needed.
+### SQLite dialect error: "SQLiteDialect cannot be used as a data source"
+
+This happens when Superset blocks SQLite connections by default. The local config (`superset/superset_config_local.py`) sets `PREVENT_UNSAFE_DB_CONNECTIONS = False` to allow it. Make sure you are passing the local config:
+
+```bash
+SUPERSET_CONFIG_PATH=superset/superset_config_local.py .venv/bin/superset run -p 8088
+```
+
+### Port already in use
+
+Kill the process occupying the port:
+
+```bash
+lsof -ti:8088 | xargs kill -9   # Superset
+lsof -ti:8000 | xargs kill -9   # Backend
+lsof -ti:5173 | xargs kill -9   # Frontend
+```
+
+### `pnpm install` fails with peer dependency errors
+
+Make sure you are using pnpm 10+:
+
+```bash
+pnpm --version
+```
+
+If outdated, update with `npm install -g pnpm`.
+
+### Docker containers not starting
+
+Ensure Docker Desktop is running and ports 5432/6379 are free:
+
+```bash
+docker compose down
+docker compose up -d
+docker compose ps   # Both should show "healthy"
+```
 
 ---
 
-## Troubleshooting
+## Service Ports
 
-| Issue | Cause | Fix |
-|-------|-------|-----|
-| `Superset unavailable at startup` | Superset not running on :8088 | Start Superset first |
-| `Failed to register database` | Seed DB missing or bad URI | Run `python scripts/generate-seed-db.py` |
-| `required filter 'tlm_instance'` | TLM Instance not selected | Select a value from the dropdown |
-| KPI cards show skeleton forever | SQLite concurrency timeout | Local dev limitation — try clicking Apply again, or use Oracle |
-| `SQLiteDialect cannot be used as a data source` | Superset blocks SQLite by default | Use `superset_config_local.py` which sets `PREVENT_UNSAFE_DB_CONNECTIONS = False` |
+| Service | Port | URL |
+|---------|------|-----|
+| Frontend (Vite dev server) | 5173 | http://localhost:5173 |
+| FastAPI backend | 8000 | http://localhost:8000 |
+| Apache Superset | 8088 | http://localhost:8088 |
+| PostgreSQL | 5432 | -- |
+| Redis | 6379 | -- |
+
+---
+
+## Quick Verification
+
+After all three services are running, verify the full data pipeline:
+
+```bash
+# 1. Health checks
+curl http://localhost:8088/health          # OK
+curl http://localhost:8000/health          # {"status":"ok","superset":true}
+
+# 2. Filter options (should return real data from seed DB)
+curl -s http://localhost:8000/api/data-sources/reconmgmt_recon_bank/distinct/recon_engine_env
+# Expected: {"values":["TLMP_CONSUMER","TLMP_FINANCE","TLMP_WEALTH"]}
+
+# 3. Open the dashboard
+open http://localhost:5173/dashboards/tlm-stats
+```
+
+On the TLM Statistics Dashboard you should see:
+- **Filter bar** at the top with TLM Instance and Recon dropdowns
+- **KPI cards** showing break counts, match rates, and trends
+- **Charts** (bar, pie, line) rendered by AG Charts
+- **Data grid** at the bottom powered by AG Grid
+
+---
+
+## Next Steps
+
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** -- Understand the three-layer architecture, component diagram, and data flow
+- **[CONFIGURATION.md](CONFIGURATION.md)** -- Full reference for environment variables, database config, and data source definitions
+- **[CODEBASE_GUIDE.md](CODEBASE_GUIDE.md)** -- File-level reference of the entire codebase, including the two parallel dashboard systems

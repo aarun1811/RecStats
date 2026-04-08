@@ -14,9 +14,10 @@ from starlette.responses import Response
 
 from app.api.router import api_router
 from app.config import settings
-from app.services.config_store import ConfigStore
-from app.services.query_engine import QueryEngine
+from app.db.engine import engine
+from app.services.connection_status import ConnectionStatusTracker
 from app.services.database_registrar import DatabaseRegistrar
+from app.services.query_engine import QueryEngine
 from app.services.superset_client import SupersetClient
 
 logging.basicConfig(level=logging.INFO)
@@ -36,11 +37,7 @@ async def lifespan(app: FastAPI):
 
     app.state.http = http
 
-    # 2. Load configs
-    config_store = ConfigStore()
-    app.state.config_store = config_store
-
-    # 3. Sync databases into Superset
+    # 2. Sync databases into Superset
     registrar = DatabaseRegistrar(
         superset_client=superset,
         config_path=settings.databases_config_path,
@@ -49,17 +46,37 @@ async def lifespan(app: FastAPI):
     app.state.database_registrar = registrar
     logger.info("DatabaseRegistrar synced")
 
-    # 4. Create QueryEngine
+    # 3. Create connection status tracker (in-memory, resets on restart)
+    status_tracker = ConnectionStatusTracker()
+    app.state.connection_status = status_tracker
+    logger.info("ConnectionStatusTracker initialized")
+
+    # 4. Create QueryEngine (no longer needs ConfigStore — data sources
+    #    are resolved per-request via ResolvedDataSourceDep)
     app.state.query_engine = QueryEngine(
-        config_store=config_store,
         superset_client=superset,
         database_registrar=registrar,
+        status_tracker=status_tracker,
     )
     logger.info("QueryEngine initialized — ready to serve")
 
+    # 5. Create DatasetSyncService and reconcile unsynced datasets
+    from app.db.engine import async_session_factory
+    from app.services.dataset_sync import DatasetSyncService
+
+    dataset_sync = DatasetSyncService(superset=superset)
+    app.state.dataset_sync = dataset_sync
+    logger.info("DatasetSyncService initialized")
+
+    async with async_session_factory() as session:
+        await dataset_sync.reconcile(session)
+        await session.commit()
+    logger.info("Dataset reconciliation complete")
+
     yield
 
-    # Shutdown
+    # Shutdown: dispose async engine and close HTTP client
+    await engine.dispose()
     await http.aclose()
 
 

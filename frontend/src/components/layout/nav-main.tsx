@@ -3,8 +3,11 @@ import {
   ChevronRight,
   Database,
   FileBarChart,
+  Gauge,
   LayoutDashboard,
+  PieChart,
   Settings,
+  Table2,
   type LucideIcon,
 } from 'lucide-react'
 import {
@@ -56,6 +59,21 @@ export const navItems: NavGroup[] = [
         title: 'Dashboards',
         href: '/dashboards',
         icon: LayoutDashboard,
+      },
+      {
+        title: 'Charts',
+        href: '/charts',
+        icon: PieChart,
+      },
+      {
+        title: 'KPIs',
+        href: '/kpis',
+        icon: Gauge,
+      },
+      {
+        title: 'Datasets',
+        href: '/datasets',
+        icon: Table2,
       },
       {
         title: 'Data Explorer',

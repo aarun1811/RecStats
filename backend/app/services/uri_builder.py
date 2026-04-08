@@ -37,7 +37,7 @@ def build_sqlalchemy_uri(
 
     if backend == "oracle":
         db_part = database or "ORCL"
-        return f"oracle+cx_oracle://{user_part}{host}:{port}/?service_name={db_part}"
+        return f"oracle://{user_part}{host}:{port}/?service_name={db_part}"
 
     if backend == "postgresql":
         db_part = database or "postgres"

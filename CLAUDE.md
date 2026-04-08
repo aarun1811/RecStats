@@ -339,3 +339,50 @@ There are TWO dashboard systems in the codebase:
 - Build plan: `RECVIZ_V2_BUILD_PLAN.md`
 - Reference UI kit: `_references/shadcn-ui-kit-dashboard/`
 - V1 lessons: `02-RecViz-Old/LESSONS_FOR_NEXT_BUILD.md`
+
+<!-- GSD:project-start source:PROJECT.md -->
+## Project
+
+**RecViz**
+
+RecViz is an internal BI and visualization platform replacing Tableau and Qlik View for Citi's Global Reconciliation Unit (GRU). It provides a dashboard builder where the dev team creates datasets (SQL queries against Oracle/Hive/ES) and business users build, view, and customize dashboards from those datasets. Apache Superset serves as the headless query engine; a custom React frontend delivers the premium UI and builder experience.
+
+**Core Value:** Business users can view, interact with, and customize dashboards over reconciliation data without depending on another team for every change.
+
+### Constraints
+
+- **Tech stack**: React 19 + Vite 6 + TypeScript 5 + Shadcn/ui + AG Grid/Charts Enterprise + FastAPI + Superset — established in existing codebase
+- **Desktop only**: Optimize for large screens and data density. No mobile/tablet.
+- **Superset as engine**: Keep Superset as headless query engine — best free option for multi-source query, caching, dataset management
+- **No direct Superset UI**: Frontend never exposes Superset's UI to users. All queries proxied through FastAPI.
+- **Data volume**: Millions of rows — aggregation-first, caching critical (Redis via Superset + TanStack Query client-side)
+- **Corporate environment**: On-prem deployment, no cloud services. All dependencies must be self-hostable.
+<!-- GSD:project-end -->
+
+<!-- GSD:stack-start source:codebase/STACK.md -->
+<!-- Stack, conventions, and architecture details are in the hand-written sections above (Tech Stack Reference, Coding Conventions, Architecture). Full auto-generated details available in .planning/codebase/*.md files. -->
+<!-- GSD:stack-end -->
+<!-- GSD:conventions-start source:codebase/CONVENTIONS.md -->
+<!-- GSD:conventions-end -->
+<!-- GSD:architecture-start source:codebase/ARCHITECTURE.md -->
+<!-- GSD:architecture-end -->
+
+<!-- GSD:workflow-start source:GSD defaults -->
+## GSD Workflow Enforcement
+
+Before using Edit, Write, or other file-changing tools, start work through a GSD command so planning artifacts and execution context stay in sync.
+
+Use these entry points:
+- `/gsd:quick` for small fixes, doc updates, and ad-hoc tasks
+- `/gsd:debug` for investigation and bug fixing
+- `/gsd:execute-phase` for planned phase work
+
+Do not make direct repo edits outside a GSD workflow unless the user explicitly asks to bypass it.
+<!-- GSD:workflow-end -->
+
+<!-- GSD:profile-start -->
+## Developer Profile
+
+> Profile not yet configured. Run `/gsd:profile-user` to generate your developer profile.
+> This section is managed by `generate-claude-profile` -- do not edit manually.
+<!-- GSD:profile-end -->

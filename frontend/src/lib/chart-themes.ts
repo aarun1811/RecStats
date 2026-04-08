@@ -29,12 +29,31 @@ function hslToHex(hsl: string): string {
   return `#${f(0)}${f(8)}${f(4)}`
 }
 
+function cssColorToHex(color: string): string {
+  // Use a temporary element to let the browser resolve any CSS color (oklch, hsl, etc.) to rgb
+  const el = document.createElement('div')
+  el.style.color = color
+  document.body.appendChild(el)
+  const computed = getComputedStyle(el).color
+  document.body.removeChild(el)
+  // computed is typically "rgb(r, g, b)" or "rgba(r, g, b, a)"
+  const match = computed.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/)
+  if (match) {
+    const [, r, g, b] = match
+    return `#${Number(r).toString(16).padStart(2, '0')}${Number(g).toString(16).padStart(2, '0')}${Number(b).toString(16).padStart(2, '0')}`
+  }
+  return '#888888'
+}
+
 function resolveColor(cssVar: string): string {
   const raw = getCssVar(cssVar)
   if (!raw) return '#888888'
-  if (raw.startsWith('#') || raw.startsWith('rgb') || raw.startsWith('oklch')) {
-    return raw
+  if (raw.startsWith('#')) return raw
+  if (raw.startsWith('rgb')) return raw
+  if (raw.startsWith('oklch') || raw.startsWith('hsl') || raw.startsWith('lch') || raw.startsWith('lab')) {
+    return cssColorToHex(raw)
   }
+  // Legacy: bare "H S% L%" values from older Shadcn setups
   return hslToHex(raw)
 }
 
@@ -142,6 +161,38 @@ export function getAgChartsTheme() {
           strokeWidth: 1,
           calloutLabel: { color: p.mutedForeground, fontSize: 11 },
           innerRadiusRatio: 0.6,
+        },
+      },
+      heatmap: {
+        series: {
+          colorRange: [p.series[1], p.series[3], p.series[4]],
+          label: { enabled: false },
+          stroke: p.background,
+          strokeWidth: 2,
+        },
+      },
+      treemap: {
+        series: {
+          colorRange: ['#43A047', '#FF5722'],
+          tile: {
+            label: { fontSize: 12, minimumFontSize: 9, color: p.foreground },
+            padding: 6,
+            gap: 2,
+          },
+          group: {
+            label: { fontSize: 14, color: p.foreground },
+            padding: 8,
+            gap: 4,
+          },
+        },
+      },
+      waterfall: {
+        series: {
+          item: {
+            positive: { name: 'Increase' },
+            negative: { name: 'Decrease' },
+          },
+          line: { strokeWidth: 2 },
         },
       },
     },

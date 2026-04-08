@@ -37,6 +37,7 @@ class DatabaseInfo(CamelModel):
     expose_in_sqllab: bool = True
     dataset_count: int = 0
     status: str = "untested"
+    last_tested: str | None = None
 
 
 class TestConnectionRequest(CamelModel):
@@ -47,6 +48,7 @@ class TestConnectionRequest(CamelModel):
     database: str | None = None
     username: str | None = None
     password: str | None = None
+    database_id: int | None = None  # Superset ID for status tracking on existing DBs
 
 
 class TestConnectionResponse(CamelModel):

@@ -137,7 +137,12 @@ function SidebarProvider({
             } as React.CSSProperties
           }
           className={cn(
-            "group/sidebar-wrapper has-data-[variant=inset]:bg-sidebar flex min-h-svh w-full",
+            // h-svh (NOT min-h-svh) so the inner SidebarInset gets a constrained
+            // height — required for the page-content `overflow-auto` div in
+            // _app.tsx to actually become a scroll container. With min-h-svh
+            // the wrapper grows with content and the document scrolls instead,
+            // breaking the sticky-header layout.
+            "group/sidebar-wrapper has-data-[variant=inset]:bg-sidebar flex h-svh w-full",
             className
           )}
           {...props}
@@ -307,7 +312,11 @@ function SidebarInset({ className, ...props }: React.ComponentProps<"main">) {
     <main
       data-slot="sidebar-inset"
       className={cn(
-        "bg-background relative flex w-full flex-1 flex-col",
+        // min-h-0 lets this flex column shrink below its content size, which is
+        // a prerequisite for any descendant `overflow-auto` element to become
+        // a real scroll container. Without min-h-0, the inset grows to fit
+        // content and pushes the overflow-auto div past the viewport.
+        "bg-background relative flex w-full min-h-0 flex-1 flex-col",
         "md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow-sm md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-2",
         className
       )}

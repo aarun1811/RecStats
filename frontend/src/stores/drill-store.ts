@@ -1,45 +1,69 @@
 import { create } from 'zustand'
 import type { DrillLevel } from '@/types/filter'
 
-interface DrillStore {
-  /** Which chart initiated the drill. */
-  sourceChartId: string | null
-  /** The breadcrumb stack of drill levels. */
+interface PerChartDrill {
   levels: DrillLevel[]
+}
 
+interface DrillStore {
+  drills: Map<string, PerChartDrill>
   drillDown: (chartId: string, level: DrillLevel) => void
-  drillUp: () => void
-  drillToLevel: (level: number) => void
-  resetDrill: () => void
+  drillUp: (chartId: string) => void
+  drillToLevel: (chartId: string, levelIndex: number) => void
+  resetDrill: (chartId: string) => void
+  resetAllDrills: () => void
 }
 
 export const useDrillStore = create<DrillStore>((set) => ({
-  sourceChartId: null,
-  levels: [],
+  drills: new Map(),
 
   drillDown: (chartId, level) =>
-    set((s) => ({
-      sourceChartId: s.sourceChartId ?? chartId,
-      levels: [...s.levels, level],
-    })),
-
-  drillUp: () =>
     set((s) => {
-      const newLevels = s.levels.slice(0, -1)
-      return {
-        levels: newLevels,
-        sourceChartId: newLevels.length === 0 ? null : s.sourceChartId,
+      const next = new Map(s.drills)
+      const existing = next.get(chartId)
+      if (existing) {
+        next.set(chartId, { levels: [...existing.levels, level] })
+      } else {
+        next.set(chartId, { levels: [level] })
       }
+      return { drills: next }
     }),
 
-  drillToLevel: (level) =>
+  drillUp: (chartId) =>
     set((s) => {
-      const newLevels = s.levels.slice(0, level)
-      return {
-        levels: newLevels,
-        sourceChartId: newLevels.length === 0 ? null : s.sourceChartId,
+      const next = new Map(s.drills)
+      const existing = next.get(chartId)
+      if (!existing) return s
+      const newLevels = existing.levels.slice(0, -1)
+      if (newLevels.length === 0) {
+        next.delete(chartId)
+      } else {
+        next.set(chartId, { levels: newLevels })
       }
+      return { drills: next }
     }),
 
-  resetDrill: () => set({ sourceChartId: null, levels: [] }),
+  drillToLevel: (chartId, levelIndex) =>
+    set((s) => {
+      const next = new Map(s.drills)
+      if (levelIndex <= 0) {
+        next.delete(chartId)
+      } else {
+        const existing = next.get(chartId)
+        if (existing) {
+          next.set(chartId, { levels: existing.levels.slice(0, levelIndex) })
+        }
+      }
+      return { drills: next }
+    }),
+
+  resetDrill: (chartId) =>
+    set((s) => {
+      const next = new Map(s.drills)
+      next.delete(chartId)
+      return { drills: next }
+    }),
+
+  resetAllDrills: () =>
+    set({ drills: new Map() }),
 }))

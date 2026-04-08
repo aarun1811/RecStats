@@ -65,6 +65,11 @@ export interface DashboardChartConfig {
   sources?: ChartSource[]
   kpiSegments?: KpiSegment[]
   layout: ChartLayout
+  crossFilter?: boolean
+  drillHierarchy?: string[]
+  drillDetailDataSourceId?: string
+  /** Per-chart refresh interval override in milliseconds. undefined = use dashboard default. */
+  refreshInterval?: number
 }
 
 export interface GridColumn {
@@ -93,6 +98,7 @@ export interface GridConfig {
   columns: GridColumn[]
   visibleWhen?: VisibleWhen
   layout: ChartLayout
+  crossFilterColumn?: string
 }
 
 export interface DashboardFeatures {
@@ -115,6 +121,8 @@ export interface DashboardConfig {
   charts: DashboardChartConfig[]
   grids: GridConfig[]
   layout: DashboardLayoutConfig
+  /** Auto-refresh interval in milliseconds. 0 = disabled. Default: 600000 (10 min). */
+  autoRefreshInterval?: number
 }
 
 export interface KpiResult {

@@ -66,3 +66,13 @@ build/
 # Docker auto-generated data
 docker/**/data/
 docker/**/pgdata/
+
+# AI Agents and IDE Configs
+.agent/
+.codex/
+.cursor/
+.gemini/
+.github/
+.opencode/
+.windsurf/
+

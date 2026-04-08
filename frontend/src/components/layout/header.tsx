@@ -1,3 +1,4 @@
+import React from 'react'
 import { useLocation } from '@tanstack/react-router'
 import { BellIcon, PanelLeftIcon } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
@@ -13,13 +14,17 @@ import { useSidebar } from '@/components/ui/sidebar'
 import { CommandPalette } from './command-palette'
 import { ThemeSwitch } from './theme-switch'
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 function useBreadcrumbs() {
   const { pathname } = useLocation()
   const segments = pathname.split('/').filter(Boolean)
 
-  return segments.map((seg) => ({
-    label: seg.charAt(0).toUpperCase() + seg.slice(1).replace(/-/g, ' '),
-  }))
+  return segments
+    .filter((seg) => !UUID_RE.test(seg))
+    .map((seg) => ({
+      label: seg.charAt(0).toUpperCase() + seg.slice(1).replace(/-/g, ' '),
+    }))
 }
 
 export function Header() {
@@ -40,10 +45,12 @@ export function Header() {
         <Breadcrumb className="hidden sm:flex">
           <BreadcrumbList>
             {breadcrumbs.map((crumb, i) => (
-              <BreadcrumbItem key={i}>
+              <React.Fragment key={i}>
                 {i > 0 && <BreadcrumbSeparator />}
-                <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
-              </BreadcrumbItem>
+                <BreadcrumbItem>
+                  <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
+                </BreadcrumbItem>
+              </React.Fragment>
             ))}
           </BreadcrumbList>
         </Breadcrumb>
