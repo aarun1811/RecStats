@@ -1,41 +1,54 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 
-import { useDashboardConfig } from '@/hooks/use-dashboard-config'
-import { useTheme } from '@/components/layout/theme-provider'
 import { DashboardRenderer } from '@/components/dashboard/dashboard-renderer'
 import { EmbedTopbar } from '@/components/embed/embed-topbar'
+import { useTheme } from '@/components/layout/theme-provider'
 import { Skeleton } from '@/components/ui/skeleton'
-import type { FilterValue } from '@/types/filter'
+import { useManagedDashboard } from '@/hooks/use-managed-dashboards'
+import {
+  parseFilterParams,
+  parseHideTokens,
+  parseLockedFilters,
+} from '@/lib/dashboard-url-state'
 
 export const Route = createFileRoute('/embed/dashboards/$dashboardId')({
   component: EmbedDashboardPage,
+  // Permissive validateSearch — per-key parsing lives in
+  // `lib/dashboard-url-state.ts`. Matches the view route convention.
   validateSearch: (search: Record<string, unknown>) => search,
 })
 
 function EmbedDashboardPage() {
   const { dashboardId } = Route.useParams()
   const search = Route.useSearch()
-  const { data: config, isLoading } = useDashboardConfig(dashboardId)
+  const { data: dashboard, isLoading } = useManagedDashboard(dashboardId)
+  const config = dashboard?.config
 
-  // Parse filter.* params and lock param from URL
-  const initialFilters: Record<string, FilterValue> = {}
-  const filterParams: string[] = []
-  for (const [key, val] of Object.entries(search)) {
-    if (key.startsWith('filter.') && typeof val === 'string') {
-      const filterId = key.replace('filter.', '')
-      // Comma-separated values become arrays
-      initialFilters[filterId] = val.includes(',') ? val.split(',') : val
-      filterParams.push(`${encodeURIComponent(key)}=${encodeURIComponent(val)}`)
+  // URL → derived state. Memoize the parser outputs so the renderer's
+  // [config.id] effect does not re-run on unrelated search-param churn.
+  const initialFilters = useMemo(() => parseFilterParams(search), [search])
+  const lockedFilters = useMemo(() => parseLockedFilters(search), [search])
+  const hideTokens = useMemo(() => parseHideTokens(search), [search])
+
+  // Build the `filterParams` query string for the "Open in RecViz" link in
+  // the EmbedTopbar. Preserve every `filter.*` key (including the reserved
+  // `filter.lock`) so the recipient lands in the regular view route with
+  // the exact same applied + locked state. The `hide` and `theme` params
+  // are deliberately NOT forwarded — those only make sense in embed mode.
+  const filterParams = useMemo(() => {
+    const entries: string[] = []
+    for (const [key, val] of Object.entries(search)) {
+      if (key.startsWith('filter.') && typeof val === 'string') {
+        entries.push(
+          `${encodeURIComponent(key)}=${encodeURIComponent(val)}`,
+        )
+      }
     }
-  }
+    return entries.join('&')
+  }, [search])
 
-  const rawLock = search['filter.lock']
-  const lockParam = typeof rawLock === 'string' ? rawLock : ''
-  const lockedFilters = lockParam ? lockParam.split(',') : []
-  if (lockParam) filterParams.push(`filter.lock=${lockParam}`)
-
-  // Apply theme from URL via ThemeProvider
+  // Apply `?theme=` via the ThemeProvider (preserved pre-existing behavior).
   const { setTheme: applyTheme } = useTheme()
   const themeParam = typeof search.theme === 'string' ? search.theme : undefined
   useEffect(() => {
@@ -60,22 +73,25 @@ function EmbedDashboardPage() {
     )
   }
 
-  if (!config) {
+  if (!dashboard || !config) {
     return <div className="p-6">Dashboard not found</div>
   }
 
   return (
     <div className="h-screen flex flex-col">
       <EmbedTopbar
-        title={config.name}
+        title={dashboard.name}
         dashboardId={dashboardId}
-        filterParams={filterParams.join('&')}
+        filterParams={filterParams}
+        hideTitle={hideTokens.has('title')}
       />
       <div className="p-6 flex-1 overflow-auto space-y-6">
         <DashboardRenderer
           config={config}
           initialFilters={initialFilters}
           lockedFilters={lockedFilters}
+          hideFilterBar={hideTokens.has('filter-bar')}
+          hideToolbar={hideTokens.has('toolbar')}
         />
       </div>
     </div>

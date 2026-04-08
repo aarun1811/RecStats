@@ -255,6 +255,9 @@ describe('Embed route — Phase 9 hook upgrade + hide tokens', () => {
     const EmbedPage = await importEmbedPage()
     render(<EmbedPage />)
 
-    expect(screen.getByText('Dashboard not found')).toBeInTheDocument()
+    // `getByText` throws if the element is not found, so this assertion is
+    // sufficient — we don't need `toBeInTheDocument()` from jest-dom (which
+    // is not wired as a global matcher in this project's vitest config).
+    expect(screen.getByText('Dashboard not found')).toBeTruthy()
   })
 })
