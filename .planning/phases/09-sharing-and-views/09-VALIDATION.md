@@ -114,7 +114,6 @@ Sourced from `09-RESEARCH.md` §"Phase Requirements → Test Map".
 These test files do not exist yet — Wave 0 of the first plan must create them as scaffolding (failing tests OK at Wave 0; they go green as tasks land in subsequent waves).
 
 - [ ] `frontend/src/lib/dashboard-url-state.test.ts` — covers SHAR-02 parser/serializer/round-trip
-- [ ] `frontend/src/routes/_app/dashboards/$dashboardId.test.tsx` — view route URL→store hydration
 - [ ] `frontend/src/routes/embed/dashboards/$dashboardId.test.tsx` — embed route hook upgrade
 - [ ] `frontend/e2e/share-link.spec.ts` — Playwright E2E for SHAR-02 (URL sync + Copy link)
 - [ ] `frontend/e2e/embed.spec.ts` — Playwright E2E for SHAR-03 (theme, filter, lock, hide tokens, interactivity)
@@ -122,6 +121,8 @@ These test files do not exist yet — Wave 0 of the first plan must create them 
 - [ ] `frontend/e2e/dashboard-view-regression.spec.ts` — regression: Phase 8 dashboards still load (view)
 - [ ] `frontend/e2e/dashboard-edit-regression.spec.ts` — regression: Phase 8 dashboards still load (edit)
 - [ ] `backend/tests/test_search.py` — covers SHAR-04 (4 managed table queries, ranking, type filter, no-Superset assertion)
+
+**Consolidation note:** The view-route URL→store hydration test (originally listed as a separate vitest component test at `frontend/src/routes/_app/dashboards/$dashboardId.test.tsx`) is consolidated into `e2e/share-link.spec.ts` Test 2 (navigates with `?filter.region=APAC` and asserts the filter shows applied on mount) plus the Playwright MCP visual verification in Plan 09-01 Task 5. Rationale: per project memory `feedback_playwright_thoroughness.md` and `feedback_no_mock_shortcuts.md`, real-API Playwright verification is preferred over mock-heavy component tests when both are available. The consolidated test exercises the same URL→store hydration code path with higher fidelity (real renderer, real filter store, real router) than a vitest component test would.
 
 **Playwright clipboard permission setup** (for `share-link.spec.ts`):
 ```ts

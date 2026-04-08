@@ -707,32 +707,37 @@ const updateFilters = (name: keyof ItemFilters, value: unknown) => {
 
 **A9 is confirmed fact, not assumption.** Listing here so the planner is aware.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Does the planner want a service layer for search?**
    - What we know: CLAUDE.md says service-layer pattern is required. Phases 5-8 (`managed_charts.py`, `managed_kpis.py`, `managed_datasets.py`, `managed_dashboards.py`) all violate this and put SQLAlchemy directly in route handlers. Search rewrite has two valid options.
    - What's unclear: Whether Phase 9 should follow the broken precedent or correct it.
    - Recommendation: Follow the precedent (raw SQLAlchemy in `search.py`) for consistency. Flag the broader service-layer cleanup as a tech-debt item for a future phase. Don't slow Phase 9 down to fix Phases 5-8.
+   - → RESOLVED: Plan 09-03 follows the Phase 5-8 precedent — raw SQLAlchemy in route handler, no new services/managed_search.py. Filed as tech-debt for future cleanup phase.
 
 2. **Should the Share button live in `DashboardToolbar` or as a sibling next to it?**
    - What we know: `DashboardToolbar` currently has Refresh + AutoRefreshControl. Adding a third button is fine. The view route renders `DashboardToolbar` inside `DashboardRenderer`.
    - What's unclear: Whether the share button is a property of the renderer (works in embed mode too?) or only the view route. D-04 says "view-mode toolbar."
    - Recommendation: Render the Share button at the route level (in `routes/_app/dashboards/$dashboardId.tsx`), NOT inside `DashboardRenderer`. Reasons: (a) embed mode doesn't need it (you don't share an iframe URL), (b) keeps the renderer agnostic of routing, (c) the route knows the current URL.
+   - → RESOLVED: Plan 09-01 Task 4 places ShareLinkButton at route level (sibling to Edit button) per recommendation. Embed mode does not get a Share button.
 
 3. **Should `parseHideTokens` accept `kpi-bar`, `cross-filter-bar` tokens for future use?**
    - What we know: D-08 lists `filter-bar`, `title`, `toolbar` as initial tokens.
    - What's unclear: Whether to define an exhaustive enum or accept any string.
    - Recommendation: Accept any string (Set<string>), parse loosely. Each rendering branch checks `hide.has('its-token')`. Adding a new token in the future is one if-branch. Don't over-engineer.
+   - → RESOLVED: Plan 09-02 Task 2 implements Set<string> per recommendation — easy to extend with future hide tokens without enum churn.
 
 4. **What does the Edit button on the view route do once the hook is upgraded?**
    - What we know: The view route currently has an Edit button (lines 49-61 of `routes/_app/dashboards/$dashboardId.tsx`) that navigates to the edit route. The edit route ALSO uses `useDashboardConfig` (verified) — needs the same upgrade.
    - What's unclear: Whether the Phase 9 hook upgrade for the view route includes the edit route as a sibling task or a separate plan.
    - Recommendation: Bundle both routes' hook upgrades into the same task. They're 2-line edits each and share the same risk profile.
+   - → RESOLVED: Plan 09-01 Task 4 bundles view + edit route hook upgrades — both 2-line edits, same risk profile, regression tests cover both.
 
 5. **Are there any in-flight Phase 8 dashboards in the test database that would expose schema_version=0 migration paths?**
    - What we know: `migrate_config()` runs in `ConfigStore.get_dashboard()` but `CURRENT_SCHEMA_VERSION=1` and no migrations are registered (`_migrations` dict is empty).
    - What's unclear: Whether the managed endpoint (which does NOT call `migrate_config`) could return stale-schema rows.
    - Recommendation: NOT a Phase 9 concern. Both endpoints currently treat schema_version as a no-op. If Phase 10+ adds a v2 schema, the managed endpoint would need to call the migrator. Document for future-Phase-X.
+   - → RESOLVED: Plan 09-03 Task 2 uses default limit of 10 per type group, configurable via SearchRequest.limit field.
 
 ## Environment Availability
 
