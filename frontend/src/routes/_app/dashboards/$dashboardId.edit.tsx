@@ -4,7 +4,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { Loader2 } from 'lucide-react'
 
 import { BuilderPage } from '@/components/builder/builder-page'
-import { useDashboardConfig } from '@/hooks/use-dashboard-config'
+import { useManagedDashboard } from '@/hooks/use-managed-dashboards'
 import { useBuilderStore } from '@/stores/builder-store'
 
 export const Route = createFileRoute('/_app/dashboards/$dashboardId/edit')({
@@ -13,7 +13,8 @@ export const Route = createFileRoute('/_app/dashboards/$dashboardId/edit')({
 
 function EditDashboardPage() {
   const { dashboardId } = Route.useParams()
-  const { data: config, isLoading, isError } = useDashboardConfig(dashboardId)
+  const { data: dashboard, isLoading, isError } = useManagedDashboard(dashboardId)
+  const config = dashboard?.config
 
   const initFromConfig = useBuilderStore((s) => s.initFromConfig)
   const storeId = useBuilderStore((s) => s.dashboardId)
@@ -32,7 +33,7 @@ function EditDashboardPage() {
     )
   }
 
-  if (isError || !config) {
+  if (isError || !dashboard || !config) {
     return (
       <div className="flex h-[calc(100vh-var(--header-height,56px))] items-center justify-center">
         <div className="text-center">
