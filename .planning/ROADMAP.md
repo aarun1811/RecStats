@@ -227,10 +227,21 @@ Phases execute in numeric order: 1 -> 2 -> 02.1 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 ->
 
 ### Phase 10: Comprehensive Testing with Advanced Seed Data
 
-**Goal:** [To be planned]
-**Requirements**: TBD
-**Depends on:** Phase 9
-**Plans:** 0 plans
+**Goal**: v1 RecViz ships clean against realistic GRU-domain reconciliation data. A 100k-row advanced seed + curated catalog (16 datasets, 24 charts, 12 KPIs, 5 recon-domain dashboards) replaces the legacy showcase data. Claude runs an autonomous Playwright MCP pre-flight walkthrough against every page and flow, fixes everything fixable (inline or via decimal sub-phases), then hands off to the user for manual regression UAT. Phase ships when the user ticks the runbook clean with zero mock/fallback paths rendering anywhere.
+**Depends on**: Phase 9
+**Requirements**: Revalidates ALL v1 requirements end-to-end — INFR-01..06, INTR-01..09, DSET-01..05, CHRT-01..07, KPI-01..03, BLDR-01..08, SHAR-02..04 (SHAR-01 and DATA-03 remain deferred)
+**Success Criteria** (what must be TRUE):
+  1. Every `10-UAT-RUNBOOK.md` checkbox is ticked by the user (`[x]`) after manual regression
+  2. Playwright MCP smoke pass walks all 5 curated dashboards green
+  3. Zero mock/fallback paths render anywhere in the frontend — `scripts/mock-audit.sh` exits 0
+  4. All P0 and P1 findings are fixed before close; P2/P3 deferred with explicit log entries
+  5. Perf observations captured at 100k tier in `10-PERF-OBSERVATIONS.md` for Phase 11 input
+**Plans:** 5 plans
+**UI hint**: yes (autonomous Playwright MCP walkthrough in Plan 10-02)
 
 Plans:
-- [ ] TBD (run /gsd-plan-phase 10 to break down)
+- [ ] 10-01a-PLAN.md — Wave 0 test infrastructure + mock cleanup + schema/catalog approval gate (mock-audit.sh, _fixtures.ts with DASHBOARD_NAMES M-3 pinning, test_seed_script.py scaffold, dead code removal, RoH fix, legacy router/config deletion)
+- [ ] 10-01b-PLAN.md — Seed script rewrite + validation (schema DDL + 100k facts + 16 datasets + 24 charts + 12 KPIs + 5 dashboards with Phase 10 · naming + A10 dual-row guard + inverted-KPI thresholds + dashboard names snapshot for M-3 cross-check)
+- [ ] 10-01c-PLAN.md — E2E spec rewrite + UAT runbook draft + full-stack verification checkpoint
+- [ ] 10-02-PLAN.md — Autonomous Playwright MCP walkthrough: 57 checkpoints across dashboards/charts/KPIs/datasets/explorer/settings/embed/palette/share-link/interactions, inline fixes + decimal sub-phases, UAT runbook [Claude-checked] tagging
+- [ ] 10-03-PLAN.md — UAT runbook finalization, perf observations, READY-FOR-UAT handoff post, STATE.md transition to awaiting-user-uat

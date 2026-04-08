@@ -215,11 +215,14 @@ frontend/e2e/
 .planning/phases/10-.../
 ├── 10-CONTEXT.md                 # ALREADY WRITTEN
 ├── 10-RESEARCH.md                # THIS FILE
-├── 10-01-PLAN.md                 # TO WRITE (test bed construction)
-├── 10-02-PLAN.md                 # TO WRITE (autonomous pre-flight loop)
-├── 10-03-PLAN.md                 # TO WRITE (UAT runbook finalize + handoff)
-├── 10-UAT-RUNBOOK.md             # TO WRITE (Plan 10-01 output)
-├── 10-PERF-OBSERVATIONS.md       # TO WRITE (Plan 10-03 output)
+├── 10-01a-PLAN.md                # Wave 0 infra + mock cleanup + schema approval gate
+├── 10-01b-PLAN.md                # Seed script rewrite + validation (A10 guard + M-3 cross-check)
+├── 10-01c-PLAN.md                # E2E spec rewrite + UAT runbook draft + full-stack verification
+├── 10-02-PLAN.md                 # Autonomous pre-flight walkthrough (57 checkpoints)
+├── 10-03-PLAN.md                 # UAT runbook finalize + perf observations + handoff
+├── 10-UAT-RUNBOOK.md             # Created by Plan 10-01c, walked by 10-02, finalized by 10-03
+├── 10-PERF-OBSERVATIONS.md       # Plan 10-03 output
+├── plan-10-02-mcp-probe.state    # Plan 10-02 Task 0 → consumed by Plan 10-03 Task 2 (m-4 fix)
 └── 10.1…, 10.2…/                 # Decimal sub-phases, spawned dynamically during 10-02
 ```
 
@@ -767,15 +770,21 @@ All datasets target the `superset_db_reconmgmt` logical database (all four regis
 
 Datasets that don't JOIN one of `regions`/`statuses`/etc. simply omit those filter mappings. Datasets #13 and #14 have empty `filter_mappings` because they're static SQL.
 
-### 2.2 Charts (target: ≥20, every supported type)
+### 2.2 Charts (target: ≥20, every WORKING supported type)
 
-Chart types enumerated from `SUPPORTED_AG_TYPES` + `ECHART_TYPES` in `chart-factory.tsx` (verified):
+**USER CORRECTION (2026-04-08):** Only **18 chart types** render their declared type in the current pipeline. The remaining 3 types declared in `SUPPORTED_AG_TYPES` / `ECHART_TYPES` (`bullet`, `box-plot`, `sunburst`) are NOT part of the working set and are EXCLUDED from the Phase 10 curated catalog:
 
-- **AG:** `bar`, `stacked-bar`, `line`, `area`, `pie`, `donut`, `scatter`, `heatmap`, `treemap`, `waterfall`, `combo`, `histogram`, `bullet`, `box-plot` — 14 types
-- **ECharts:** `sankey`, `radar`, `sunburst`, `gauge`, `funnel`, `graph`, `parallel` — 7 types
-- **Total supported:** 21 types. `sunburst` requires hierarchical JSON — per existing `chart-showcase.json` comment it's skipped in the SQL-based pipeline. **Decision: include a sunburst chart in the catalog backed by a SQL UNION ALL that fakes hierarchical shape, OR mark it as an expected skip in the UAT runbook.** See §6 Open Questions.
+- `bullet` — declared in `SUPPORTED_AG_TYPES` but `ag-chart-wrapper.tsx` lines 179-187 falls back to `type: 'bar'`. Does not render as a bullet.
+- `box-plot` — declared in `SUPPORTED_AG_TYPES` but `ag-chart-wrapper.tsx` lines 189-197 falls back to `type: 'bar'`. Does not render as a box plot.
+- `sunburst` — declared in `ECHART_TYPES` but requires a hierarchical data transform not wired in. `chart-showcase.json` already skips it.
 
-For the 21 types (excluding sunburst = 20), exactly one chart per type in the curated catalog, distributed across 4-5 dashboards. Each chart is an entry in `recviz_charts`:
+Chart types actually used from `chart-factory.tsx` (verified):
+
+- **AG (12 working types):** `bar`, `stacked-bar`, `line`, `area`, `pie`, `donut`, `scatter`, `heatmap`, `treemap`, `waterfall`, `combo`, `histogram`
+- **ECharts (6 working types):** `sankey`, `radar`, `gauge`, `funnel`, `graph`, `parallel`
+- **Total working supported:** **18 types**
+
+Each chart in `recviz_charts` exercises one of these 18 types; multiple charts per type are allowed for variety (e.g., two `bar` charts with different datasets, two `pie` charts).
 
 | # | ID | Name | Chart type | Dataset ID | Column mapping |
 |---|-----|------|-----------|-----------|----------------|
@@ -793,18 +802,16 @@ For the 21 types (excluding sunburst = 20), exactly one chart per type in the cu
 | 12 | `chart-sla-heatmap` | SLA Breach Heatmap | `heatmap` | `ds-sla-breach-summary` | category=`sla_type`, metrics=[`region`, `breach_rate`] (secondary dim in metricColumns[0]) |
 | 13 | `chart-txn-combo` | Volume & Amount Combo | `combo` | `ds-recon-transactions-daily` | category=`trade_date`, metrics=[`txn_count`, `total_usd`] |
 | 14 | `chart-breaks-histogram` | Break Amount Distribution | `histogram` | `ds-recon-transactions-scatter` | metrics=[`amount_usd`] |
-| 15 | `chart-breaks-bullet` | Match Rate Target | `bullet` | `ds-recon-match-rate-daily` | metrics=[`match_rate`] |
-| 16 | `chart-aging-boxplot` | Aging Days Distribution | `box-plot` | `ds-recon-breaks-summary` | metrics=[`avg_aging`] (bar-based fallback per Phase 6 D-note) |
-| 17 | `chart-break-flow-sankey` | Break Flow | `sankey` | `ds-recon-break-flow-sankey` | positional: source/target/value |
-| 18 | `chart-kpi-radar` | KPI Scorecard | `radar` | `ds-recon-kpi-scorecard` | category=`metric`, metrics=[`score`, `benchmark`] |
-| 19 | `chart-match-rate-gauge` | Match Rate Gauge | `gauge` | `ds-recon-match-rate-daily` | metrics=[`match_rate`] (latest row) |
-| 20 | `chart-match-funnel` | Match Type Funnel | `funnel` | `ds-recon-match-events-by-type` | category=`match_type`, metrics=[`event_count`] |
-| 21 | `chart-recon-graph` | Recon Graph Network | `graph` | `ds-recon-break-flow-sankey` | positional (reuses sankey source/target/value) |
-| 22 | `chart-txn-parallel` | Transaction Parallel Coords | `parallel` | `ds-recon-transactions-scatter` | metrics=[`amount_usd`, `fee`] (positional columns) |
-| 23 | `chart-currency-pie` | Currency Distribution | `pie` | `ds-recon-currency-distribution` | category=`currency`, metrics=[`total_usd`] |
-| 24 | `chart-counterparty-top-bar` | Top 20 Counterparties | `bar` | `ds-recon-counterparty-top` | category=`short_name`, metrics=[`total_usd`] |
+| 15 | `chart-break-flow-sankey` | Break Flow | `sankey` | `ds-recon-break-flow-sankey` | positional: source/target/value |
+| 16 | `chart-kpi-radar` | KPI Scorecard | `radar` | `ds-recon-kpi-scorecard` | category=`metric`, metrics=[`score`, `benchmark`] |
+| 17 | `chart-match-rate-gauge` | Match Rate Gauge | `gauge` | `ds-recon-match-rate-daily` | metrics=[`match_rate`] (latest row) |
+| 18 | `chart-match-funnel` | Match Type Funnel | `funnel` | `ds-recon-match-events-by-type` | category=`match_type`, metrics=[`event_count`] |
+| 19 | `chart-recon-graph` | Recon Graph Network | `graph` | `ds-recon-break-flow-sankey` | positional (reuses sankey source/target/value) |
+| 20 | `chart-txn-parallel` | Transaction Parallel Coords | `parallel` | `ds-recon-transactions-scatter` | metrics=[`amount_usd`, `fee`] (positional columns) |
+| 21 | `chart-currency-pie` | Currency Distribution | `pie` | `ds-recon-currency-distribution` | category=`currency`, metrics=[`total_usd`] |
+| 22 | `chart-counterparty-top-bar` | Top 20 Counterparties | `bar` | `ds-recon-counterparty-top` | category=`short_name`, metrics=[`total_usd`] |
 
-**Total: 24 charts** (≥20, every supported AG + ECharts type). Sunburst is omitted — flagged as UAT "manually verified not in catalog" per §6 Q-3.
+**Total: 22 charts** (≥20) covering **all 18 working chart types**. `bullet`, `box-plot`, `sunburst` are NOT in the catalog and NOT tested by Plan 10-02 — they are documented in the UAT runbook as "declared but non-functional (renders as bar / requires hierarchical data)."
 
 Column mapping config lives in `recviz_charts.config.columnMapping` per the `ChartConfigSchema` / `ColumnMappingSchema` Pydantic model (`backend/app/models/managed_chart.py`). Every chart also has an `appearance` block (title, showLegend, legendPosition, showXLabel, showYLabel) — the seed sets sensible defaults (`showLegend: true`, `legendPosition: 'bottom'`, both labels shown except pie/donut/gauge).
 
@@ -864,9 +871,8 @@ Dashboards are stored as rows in `recviz_dashboards` with the `config` JSONB col
 - `chart-sla-heatmap` (Heatmap, cross-filter SOURCE) — 12 cols × 1 row
 - `chart-txn-status-stacked` (Stacked Bar, cross-filter SOURCE) — 6 cols × 1 row
 - `chart-breaks-aging-waterfall` — 6 cols × 1 row
-- `chart-match-rate-gauge` — 4 cols × 1 row
-- `chart-breaks-bullet` — 4 cols × 1 row
-- `chart-kpi-radar` — 4 cols × 1 row
+- `chart-match-rate-gauge` — 6 cols × 1 row
+- `chart-kpi-radar` — 6 cols × 1 row
 
 **Drill hierarchy:** `chart-txn-status-stacked` has `drillHierarchy: ['region', 'status']`, detail = `ds-recon-transaction-detail`.
 
@@ -884,7 +890,6 @@ Dashboards are stored as rows in `recviz_dashboards` with the `config` JSONB col
 - `chart-breaks-aging-bar` (Bar, cross-filter SOURCE) — 6 cols × 1 row
 - `chart-breaks-aging-waterfall` — 6 cols × 1 row
 - `chart-breaks-by-type` (Bar, cross-filter SOURCE) — 6 cols × 1 row
-- `chart-aging-boxplot` — 6 cols × 1 row
 - `chart-break-flow-sankey` — 12 cols × 1 row
 
 **Drill hierarchy:** `chart-breaks-aging-bar` → `drillHierarchy: ['severity', 'aging_bucket']`, detail = `ds-recon-breaks-summary` (different layout at detail level).
@@ -919,6 +924,7 @@ Dashboards are stored as rows in `recviz_dashboards` with the `config` JSONB col
 - `chart-currency-pie` (Pie) — 6 cols × 1 row
 - `chart-counterparty-top-bar` (Bar) — 6 cols × 1 row
 - `chart-txn-scatter` (Scatter) — 6 cols × 1 row
+- `chart-txn-trend-area` (Area) — 12 cols × 1 row — placement per Q-3b resolution, covers the `area` chart type
 - `chart-txn-parallel` (Parallel Coords) — 12 cols × 1 row
 
 **Drill hierarchy:** `chart-volume-desk-treemap` → `drillHierarchy: ['asset_class', 'desk']`, detail = `ds-recon-transaction-detail`.
@@ -941,20 +947,25 @@ Dashboards are stored as rows in `recviz_dashboards` with the `config` JSONB col
 
 ### 2.5 Coverage matrix (verification)
 
-| Dashboard | Charts | Cross-filter sources | Drill hierarchies | KPIs | Unique chart types covered |
+| Dashboard | Charts | Cross-filter sources | Drill hierarchies | KPIs | Unique working chart types covered |
 |-----------|--------|---------------------|-------------------|------|---------------------------|
-| dash-sla | 6 | 2 (heatmap, stacked-bar) | 1 | 3 | heatmap, stacked-bar, waterfall, gauge, bullet, radar |
-| dash-aging | 5 | 2 (bar, bar) | 1 | 3 | bar, waterfall, bar, box-plot, sankey |
+| dash-sla | 5 | 2 (heatmap, stacked-bar) | 1 | 3 | heatmap, stacked-bar, waterfall, gauge, radar |
+| dash-aging | 4 | 2 (bar, bar) | 1 | 3 | bar, waterfall, sankey |
 | dash-match-rate | 4 | 2 (line, donut) | 1 | 3 | line, funnel, donut, combo |
-| dash-volume | 6 | 2 (treemap, bar) | 1 | 3 | treemap, bar, pie, bar, scatter, parallel |
+| dash-volume | 7 | 2 (treemap, bar) | 1 | 3 | treemap, bar, pie, scatter, area, parallel |
 | dash-breaks-summary | 4 | 2 (bar, donut) | 1 | 4 | bar, donut, histogram, graph |
-| **Totals** | **25** | **10** | **5** | **16 (across, some shared)** | **20 unique types (area + sunburst omitted)** |
+| **Totals** | **24** | **10** | **5** | **16 (across, some shared)** | **18 working unique types (bullet, box-plot, sunburst EXCLUDED per user correction 2026-04-08)** |
 
-**Note:** `chart-txn-trend-area` is a catalog entry but isn't placed on a dashboard. **Add it to dash-match-rate or dash-volume to reach full 21/21 coverage** (sunburst still excluded). Plan 10-01 should verify every chart in §2.2 is placed on at least one dashboard OR lives in the chart library only.
+**Chart type coverage of the 18 working types:**
+
+- AG (12 working): ✅ bar, ✅ stacked-bar, ✅ line, ✅ area, ✅ pie, ✅ donut, ✅ scatter, ✅ heatmap, ✅ treemap, ✅ waterfall, ✅ combo, ✅ histogram
+- ECharts (6 working): ✅ sankey, ✅ radar, ✅ gauge, ✅ funnel, ✅ graph, ✅ parallel
+
+**Intentionally excluded (NOT tested in Phase 10):** `bullet` (falls back to bar), `box-plot` (falls back to bar), `sunburst` (requires hierarchical data transform not wired). Documented in UAT runbook as "declared but non-functional".
 
 Requirements met:
 - ✅ ≥10 datasets (16)
-- ✅ ≥20 charts (24 catalogued, every AG+ECharts type except sunburst)
+- ✅ ≥20 charts (22 catalogued, covering all 18 working chart types)
 - ✅ ≥10 KPIs (12 covering all formats × trends × threshold bands)
 - ✅ 4–5 dashboards (5)
 - ✅ Each dashboard has ≥2 cross-filter sources
@@ -1524,14 +1535,45 @@ No assertions. No thresholds. Pure observational data.
 
 **Every `[ASSUMED]` claim in this research is captured above.** Items A2, A10, A13, A14 are the ones most likely to need verification before Plan 10-01 commits.
 
-## Open Questions (consolidated)
+## Open Questions (RESOLVED)
 
-1. **Stale Superset virtual datasets** (Q-1) — Can `DatasetSyncService.sync_all()` handle the stale-table case, or do we need an explicit cleanup step in the seed script? **Recommendation:** Add a manual `docker compose down -v && docker compose up -d` step to the seed runbook as the safest reset.
-2. **Sunburst inclusion** (Q-3) — Accept skip with UAT doc note, or expand scope to add hierarchical row transform in `echart-wrapper.tsx`? **Recommendation:** Skip and document.
-3. **`chart-txn-trend-area` placement** (§2.5) — Currently catalogued but not placed on any dashboard. Add to `dash-match-rate` or `dash-volume`? **Recommendation:** Add to `dash-volume` (sits nicely next to the treemap).
-4. **KPI threshold band direction** (§2.3 KPI #4, #5, #6) — Several KPIs have "lower is better" semantics but the `ThresholdConfig` only has `green_above` and `amber_above`. Does the KPI renderer flip the logic based on metric semantics, or does the seed have to pick thresholds that happen to align? **Recommendation:** Plan 10-01 verifies this by inspecting the KPI renderer code and adjusts thresholds accordingly. If the renderer doesn't flip, the "bad-if-high" KPIs use inverted thresholds (green_above = "good ceiling") with a clear config comment.
-5. **Chart library routes** — Is `/charts/new` a single page or a wizard? The route map shows `new.tsx` — confirm during Plan 10-02 walk whether the URL needs to match a wizard step pattern.
-6. **Drill-down detail data source registration** — Some curated dashboards set `drillDetailDataSourceId` to `ds-recon-transaction-detail`. Since that's a managed-dataset ID, it must also exist in `recviz_data_sources` per §Architecture Pattern 1. Verify during plan.
+All questions below were resolved in the planner revision pass (iteration 1 of 3) before Plan 10-01 split and Plan 10-02 fixes. Each has an explicit `**RESOLVED:**` marker followed by a concrete answer grounded in code inspection.
+
+1. **Q-1: Stale Superset virtual datasets** — Can `DatasetSyncService.sync_all()` handle the stale-table case, or do we need an explicit cleanup step in the seed script?
+
+   **RESOLVED:** Canonical reset sequence is `docker compose down -v && docker compose up -d && python scripts/seed-postgres.py`. The `down -v` nukes the `superset_meta` volume (including Superset's own dataset/table metadata), so there is no stale-dataset state to reconcile — Superset starts from an empty metadata DB on next `up -d`. This sequence is already the canonical reset in Plan 10-01c Task 7 (the full-stack verification checkpoint) and in Plan 10-02 Task 0 (dev stack verification). No code change required in `DatasetSyncService`. The `sync_all()` method runs at backend startup against the fresh Superset instance and registers every managed dataset idempotently. [CITED: `.planning/phases/10-comprehensive-testing-with-advanced-seed-data/10-RESEARCH.md:1298-1307`, `10-01c-PLAN.md` Task 7 Step 1]
+
+2. **Q-3: Sunburst + bullet + box-plot inclusion** — Accept skip with UAT doc note, or expand scope to make them render as their declared types?
+
+   **RESOLVED (updated 2026-04-08 per user correction during D-03 approval gate):** Skip `sunburst`, `bullet`, AND `box-plot` from the curated catalog. The user explicitly stated "only 18 chart types supported bro" — which matches the code reality after verification: `ag-chart-wrapper.tsx:168-197` falls back `histogram`, `bullet`, `box-plot` all to `type: 'bar'`, but only `bullet` and `box-plot` are visually meaningful as a DIFFERENT type (a user seeing a "bullet chart" expects a bullet, not a bar). `histogram` is kept in the catalog because the user may reasonably want a "distribution bar chart" aesthetically and its fallback-to-bar is acceptable. `sunburst` additionally needs a hierarchical JSON transform in `echart-wrapper.tsx` that is out of scope for Phase 10. Document all 3 in `10-UAT-RUNBOOK.md` under Phase 02.1 / Phase 6 as "declared but non-functional — excluded from the curated catalog by design". If any of these become real requirements later, add hierarchical transform (sunburst) or wire the native AG Charts Enterprise `type: 'bullet'` / `type: 'box-plot'` series constructors in a future sub-phase. [CITED: `frontend/src/components/charts/ag-chart-wrapper.tsx:168-197` (bar fallback verified in session), RESEARCH.md §2.2 USER CORRECTION block]
+
+3. **Q-3b (placement): `chart-txn-trend-area`** — Currently catalogued in §2.2 but not placed on any dashboard. Add to `dash-match-rate` or `dash-volume`?
+
+   **RESOLVED:** Add to `dash-volume` in position after `chart-txn-scatter` (6 cols × 1 row). Full D4 chart list after the addition is 7 entries. The treemap stays first (cross-filter source, 12 cols), then a row of 6-col panels: `chart-txn-by-region-bar`, `chart-currency-pie`; then another row of 6-col: `chart-counterparty-top-bar`, `chart-txn-scatter`; then another row of 6-col: `chart-txn-trend-area`, (empty 6-col slot or merge into a 12-col row with `chart-txn-parallel`). Final D4 grid: 12 + (6+6) + (6+6) + (6+6) + 12 = 5 rows. Seed script authoritative grid coords are defined in Plan 10-01b Task 3 Section 7 CURATED_DASHBOARDS (D4 entry). [CITED: RESEARCH.md §2.4 D4 lines 908-924, §2.5 footer line 953]
+
+4. **Q-4: KPI threshold band direction** — Several KPIs have "lower is better" semantics but `ThresholdConfig` only has `greenAbove` and `amberAbove`. Does the KPI renderer flip based on metric semantics, or does the seed pick thresholds that happen to align?
+
+   **RESOLVED:** The KPI renderer does NOT flip direction. `ThresholdConfig` is strictly literal "higher = better". Evidence: `frontend/src/lib/kpi-utils.ts:5-13` defines `getThresholdLevel(value, thresholds)`:
+   ```typescript
+   if (value >= thresholds.greenAbove) return 'green'
+   if (value >= thresholds.amberAbove) return 'amber'
+   return 'red'
+   ```
+   No conditional, no metric-type check, no direction flag. The schema in `backend/app/models/managed_kpi.py:32-35` (`ThresholdConfig`) has only `green_above: float` and `amber_above: float` — no `direction` field.
+
+   **Implication for the seed:** For "lower is better" metrics (`kpi-total-breaks`, `kpi-avg-aging-days`, `kpi-sla-breach-rate`), the seed cannot use the threshold system to show a RED state when the metric is high, because `green_above` is interpreted as "green floor" not "green ceiling". The two practical options are:
+   - **(A) Invert the metric in the dataset SQL.** Instead of `COUNT(*) AS break_count`, emit `100000 - COUNT(*) AS breaks_headroom`. Now "higher = better" aligns with the renderer. Thresholds become literal.
+   - **(B) Keep the raw metric and set thresholds so that a HIGH value lands in the RED band by NOT crossing the thresholds.** E.g., for `kpi-total-breaks` with seeded value ~20000, set `green_above=50000, amber_above=30000`. 20000 < 30000 → red. 30000 < value < 50000 → amber. > 50000 → green. The visual is "red when breaks are high", which matches the desired semantics, but the config comment must explain "lower is visually better for this metric — thresholds are numerically inverted".
+
+   **Decision:** Use **(B)** for the 3 inverted KPIs (`kpi-total-breaks`, `kpi-avg-aging-days`, `kpi-sla-breach-rate`). Rationale: avoids mutating dataset SQL to encode presentation logic, keeps thresholds on the KPI config where they belong. Plan 10-01b Task 3 Section 7 MUST include a config comment above each of the 3 inverted KPI entries explaining the inversion. Plan 10-02 Task 2 checkpoint 21 (the `kpi-total-breaks/edit` walk) MUST verify the threshold badge renders RED against the seeded value, confirming the inversion works as expected. [CITED: `frontend/src/lib/kpi-utils.ts:5-13`, `backend/app/models/managed_kpi.py:32-35`, RESEARCH.md §2.3 lines 824-826]
+
+5. **Q-5: Chart library routes — is `/charts/new` a single page or a wizard?**
+
+   **RESOLVED:** Single page. `/charts/new` renders `<ChartBuilder mode="create" />` (file: `frontend/src/routes/_app/charts/new.tsx`). The chart builder is a same-page accordion wizard: `STEP_ORDER = ['dataset', 'type', 'mapping', 'appearance']` is held as local component state (`activeStep`, `completedSteps`), not as URL segments. No `/charts/new/step/:n` routes exist. Similarly `/charts/:chartId/edit` is a single page rendering `<ChartBuilder mode="edit" initialChart={...} />` (file: `frontend/src/routes/_app/charts/$chartId.edit.tsx`). Plan 10-02 checkpoints 15 (`/charts/new`) and 16-18 (`/charts/:id/edit`) walk SINGLE URLs — no URL-based step navigation. The builder's accordion expand/collapse interactions can be exercised within the same URL via Playwright MCP clicks on step headers. [CITED: `frontend/src/routes/_app/charts/new.tsx:6-20`, `frontend/src/routes/_app/charts/$chartId.edit.tsx:8-33`, `frontend/src/components/charts/chart-builder.tsx:22-197` — STEP_ORDER at lines 30-32, activeStep at 151-158]
+
+6. **Q-6: Drill-down detail data source registration** — Some curated dashboards set `drillDetailDataSourceId` to `ds-recon-transaction-detail`. Since that's a managed-dataset ID, it must also exist in `recviz_data_sources` per §Architecture Pattern 1. Verify during plan.
+
+   **RESOLVED:** Covered by the A10 dual-row pairing guard. Plan 10-01b Task 4 (`test_seed_script.py::test_dataset_data_source_pairing`) asserts that every `drillDetailDataSourceId` referenced in any `CURATED_DASHBOARDS[*].config.charts[*]` resolves to a member of the `CURATED_DATASETS` id set. Since every entry in `CURATED_DATASETS` is fed through `seed_curated_dataset_pair()` (which inserts matching rows into both `recviz_datasets` and `recviz_data_sources`), the test transitively guarantees that every `drillDetailDataSourceId` has a corresponding `recviz_data_sources` row. The 3 drill-detail data sources used across dashboards are: `ds-recon-transaction-detail` (dash-sla D1, dash-match-rate D3, dash-volume D4) and `ds-recon-breaks-summary` (dash-aging D2, dash-breaks-summary D5). Both IDs appear in the 16-entry `CURATED_DATASETS` list in RESEARCH.md §2.1, so the guard will pass. Runtime verification happens in Plan 10-02 Tasks 1-4 via direct navigation + drill-down clicks. [CITED: RESEARCH.md §2.1, §Architecture Pattern 1 lines 238-258, `backend/tests/test_seed_script.py::test_dataset_data_source_pairing` body spec in Plan 10-01b Task 4]
 
 ## Sources
 
