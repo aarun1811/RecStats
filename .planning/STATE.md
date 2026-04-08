@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 10-01a-PLAN.md
-last_updated: "2026-04-08T04:44:46.566Z"
+stopped_at: Completed 10-01b-PLAN.md
+last_updated: "2026-04-08T05:17:11.273Z"
 last_activity: 2026-04-08
 progress:
   total_phases: 11
   completed_phases: 10
   total_plans: 42
-  completed_plans: 38
-  percent: 90
+  completed_plans: 39
+  percent: 93
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 ## Current Position
 
 Phase: 10 (Comprehensive Testing with Advanced Seed Data) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Next: Phase 07 (kpi-library) — not started
 Status: Ready to execute
 Last activity: 2026-04-08
@@ -95,6 +95,7 @@ Progress: [██████████] 100%
 | Phase 09 P02 | 14min | 5 tasks | 5 files |
 | Phase 09 P03 | 15min | 4 tasks | 5 files |
 | Phase 10 P01a | 35min | 2 tasks | 30 files |
+| Phase 10 P01b | ~15min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -199,6 +200,9 @@ Recent decisions affecting current work:
 - [Phase 10]: AgChartWrapper RoH fix: hoisted containerRef/containerSize/ResizeObserver useEffect/sizedOptions useMemo above all four early returns
 - [Phase 10]: RoH guard test split into separate .test.tsx file with jsdom pragma — vitest config uses node env by default
 - [Phase 10]: DASHBOARD_NAMES canonical constant pinned in frontend/e2e/_fixtures.ts with Phase 10 prefix — seed script (10-01b) must mirror character-for-character
+- [Phase 10]: JSONB dashboard config stored camelCase (not snake_case) because managed dashboards API round-trips via api-client DATA_KEYS skip set
+- [Phase 10]: insert_returning_ids must use fetch=True + page_size=1000; default execute_values semantics silently truncate to last batch
+- [Phase 10]: Forced range-boundary rows (2024-01-01 and 2025-12-31) in recon_transactions so date span test deterministically hits 730 days
 
 ### Roadmap Evolution
 
@@ -218,6 +222,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-08T04:44:28.977Z
-Stopped at: Completed 10-01a-PLAN.md
+Last session: 2026-04-08T05:17:11.270Z
+Stopped at: Completed 10-01b-PLAN.md
 Resume file: None
