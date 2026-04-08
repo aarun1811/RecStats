@@ -236,12 +236,12 @@ Phases execute in numeric order: 1 -> 2 -> 02.1 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 ->
   3. Zero mock/fallback paths render anywhere in the frontend — `scripts/mock-audit.sh` exits 0
   4. All P0 and P1 findings are fixed before close; P2/P3 deferred with explicit log entries
   5. Perf observations captured at 100k tier in `10-PERF-OBSERVATIONS.md` for Phase 11 input
-**Plans:** 2/5 plans executed
+**Plans:** 3/5 plans executed
 **UI hint**: yes (autonomous Playwright MCP walkthrough in Plan 10-02)
 
 Plans:
 - [x] 10-01a-PLAN.md — Wave 0 test infrastructure + mock cleanup + schema/catalog approval gate (mock-audit.sh, _fixtures.ts with DASHBOARD_NAMES M-3 pinning, test_seed_script.py scaffold, dead code removal, RoH fix, legacy router/config deletion)
 - [x] 10-01b-PLAN.md — Seed script rewrite + validation (schema DDL + 100k facts + 16 datasets + 24 charts + 12 KPIs + 5 dashboards with Phase 10 · naming + A10 dual-row guard + inverted-KPI thresholds + dashboard names snapshot for M-3 cross-check)
-- [ ] 10-01c-PLAN.md — E2E spec rewrite + UAT runbook draft + full-stack verification checkpoint
+- [x] 10-01c-PLAN.md — E2E spec rewrite + UAT runbook draft + full-stack verification checkpoint
 - [ ] 10-02-PLAN.md — Autonomous Playwright MCP walkthrough: 57 checkpoints across dashboards/charts/KPIs/datasets/explorer/settings/embed/palette/share-link/interactions, inline fixes + decimal sub-phases, UAT runbook [Claude-checked] tagging
 - [ ] 10-03-PLAN.md — UAT runbook finalization, perf observations, READY-FOR-UAT handoff post, STATE.md transition to awaiting-user-uat

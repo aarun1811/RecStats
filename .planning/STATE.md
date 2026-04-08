@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 10-01b-PLAN.md
-last_updated: "2026-04-08T05:17:11.273Z"
+stopped_at: Completed 10-01c-PLAN.md
+last_updated: "2026-04-08T05:42:47.488Z"
 last_activity: 2026-04-08
 progress:
   total_phases: 11
   completed_phases: 10
   total_plans: 42
-  completed_plans: 39
-  percent: 93
+  completed_plans: 40
+  percent: 95
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 ## Current Position
 
 Phase: 10 (Comprehensive Testing with Advanced Seed Data) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Next: Phase 07 (kpi-library) — not started
 Status: Ready to execute
 Last activity: 2026-04-08
@@ -96,6 +96,7 @@ Progress: [██████████] 100%
 | Phase 09 P03 | 15min | 4 tasks | 5 files |
 | Phase 10 P01a | 35min | 2 tasks | 30 files |
 | Phase 10 P01b | ~15min | 2 tasks | 3 files |
+| Phase 10 P01c | 15min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -203,6 +204,9 @@ Recent decisions affecting current work:
 - [Phase 10]: JSONB dashboard config stored camelCase (not snake_case) because managed dashboards API round-trips via api-client DATA_KEYS skip set
 - [Phase 10]: insert_returning_ids must use fetch=True + page_size=1000; default execute_values semantics silently truncate to last batch
 - [Phase 10]: Forced range-boundary rows (2024-01-01 and 2025-12-31) in recon_transactions so date span test deterministically hits 730 days
+- [Phase 10]: Plan 10-01c: tlm-stats-regression.spec.ts DELETED, not rewritten — no successor in curated catalog per RESEARCH §4 Spec 2 Option A
+- [Phase 10]: Plan 10-01c: tsconfig.e2e.json DOM lib added to fix pre-existing share-link.spec.ts TS errors — Playwright page.evaluate callbacks DO execute in a real browser so DOM types are semantically correct
+- [Phase 10]: Plan 10-01c: UAT runbook embeds pre-known /api/dashboards/:id/kpis Pydantic camelCase bug as a Phase 2 section note so Plan 10-02 walkthrough doesn't treat it as a new regression
 
 ### Roadmap Evolution
 
@@ -222,6 +226,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-08T05:17:11.270Z
-Stopped at: Completed 10-01b-PLAN.md
+Last session: 2026-04-08T05:42:47.485Z
+Stopped at: Completed 10-01c-PLAN.md
 Resume file: None
