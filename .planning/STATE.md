@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 09-01-PLAN.md
-last_updated: "2026-04-08T00:58:35.250Z"
+stopped_at: Completed 09-02-PLAN.md
+last_updated: "2026-04-08T01:18:59.169Z"
 last_activity: 2026-04-08
 progress:
   total_phases: 11
   completed_phases: 9
   total_plans: 37
-  completed_plans: 35
-  percent: 95
+  completed_plans: 36
+  percent: 97
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 ## Current Position
 
 Phase: 9 (Sharing and Views) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Next: Phase 07 (kpi-library) — not started
 Status: Ready to execute
 Last activity: 2026-04-08
@@ -91,6 +91,7 @@ Progress: [██████████] 100%
 | Phase 08 P09 | 2min | 2 tasks | 6 files |
 | Phase 08 P10 | 6min | 3 tasks | 6 files |
 | Phase 09-sharing-and-views P01 | 15min | 5 tasks | 9 files |
+| Phase 09 P02 | 14min | 5 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -186,6 +187,9 @@ Recent decisions affecting current work:
 - [Phase 09]: Stale filter IDs silently ignored — naive parser, renderer drops unknown keys
 - [Phase 09]: ShareLinkButton wraps its own TooltipProvider locally (matches dashboard-toolbar pattern)
 - [Phase 09]: View route renders Outlet via useMatchRoute guard so nested edit child route can mount (Rule 3 fix for pre-existing TanStack Router nesting bug)
+- [Phase 09]: Embed hideToolbar disables auto-refresh by passing 0 to useAutoRefresh (sentinel pattern, no hook refactor needed)
+- [Phase 09]: EmbedTopbar.hideTitle uses justify-end/between flex swap rather than a placeholder span for cleaner DOM
+- [Phase 09]: E2E locator convention for Shadcn Select is [data-slot=select-trigger] — Radix combobox role has no accessible-name link to the sibling label
 
 ### Roadmap Evolution
 
@@ -205,6 +209,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-08T00:58:35.247Z
-Stopped at: Completed 09-01-PLAN.md
+Last session: 2026-04-08T01:18:50.474Z
+Stopped at: Completed 09-02-PLAN.md
 Resume file: None
