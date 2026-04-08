@@ -581,6 +581,10 @@ DST_HOUR_START = datetime(2024, 3, 10, 6, 0, 0, tzinfo=timezone.utc)
 DST_HOUR_END = datetime(2024, 3, 10, 7, 0, 0, tzinfo=timezone.utc)
 YEAR_BOUNDARY_2024 = datetime(2024, 12, 31, 23, 55, 0, tzinfo=timezone.utc)
 YEAR_BOUNDARY_2025 = datetime(2025, 1, 1, 0, 5, 0, tzinfo=timezone.utc)
+# Range boundaries forced so test_date_range_spans_two_years sees a >=730-day
+# span even on unlucky uniform samples.
+RANGE_START_BOUNDARY = datetime(2024, 1, 1, 0, 30, 0, tzinfo=timezone.utc)
+RANGE_END_BOUNDARY = datetime(2025, 12, 31, 23, 30, 0, tzinfo=timezone.utc)
 
 
 def _random_booking_ts(rng: random.Random) -> datetime:
@@ -663,6 +667,16 @@ def gen_recon_transactions(
             # 2025 year-start (20 rows)
             booking_ts = YEAR_BOUNDARY_2025 + timedelta(
                 seconds=rng.randint(0, 240)
+            )
+        elif 230 <= i < 240:
+            # Range-start boundary (10 rows on 2024-01-01)
+            booking_ts = RANGE_START_BOUNDARY + timedelta(
+                minutes=rng.randint(0, 600)
+            )
+        elif 240 <= i < 250:
+            # Range-end boundary (10 rows on 2025-12-31)
+            booking_ts = RANGE_END_BOUNDARY - timedelta(
+                minutes=rng.randint(0, 600)
             )
         else:
             booking_ts = _random_booking_ts(rng)
@@ -974,13 +988,24 @@ def insert_returning_ids(
     columns: list[str],
     rows: list[tuple],
 ) -> list[int]:
-    """Insert rows in one call and return all generated SERIAL ids in order."""
+    """Insert rows in batches and return all generated SERIAL ids in order.
+
+    ``execute_values`` pages the input -- with default ``fetch=False`` only
+    the cursor's LAST page stays queryable via ``fetchall()``. We set
+    ``fetch=True`` and a batch big enough to keep memory bounded.
+    """
     if not rows:
         return []
     cols_sql = ",".join(columns)
     sql = f"INSERT INTO {table} ({cols_sql}) VALUES %s RETURNING id"
-    psycopg2.extras.execute_values(cur, sql, rows)
-    return [row[0] for row in cur.fetchall()]
+    returned = psycopg2.extras.execute_values(
+        cur,
+        sql,
+        rows,
+        page_size=1000,
+        fetch=True,
+    )
+    return [row[0] for row in returned]
 
 
 # --------------------------------------------------------------------------- #
@@ -2390,7 +2415,9 @@ def write_dashboard_names_snapshot() -> None:
     """Write frontend/e2e/_dashboard-names.json from CURATED_DASHBOARDS."""
     snapshot = {d["id"]: d["name"] for d in CURATED_DASHBOARDS}
     DASHBOARD_NAMES_SNAPSHOT.parent.mkdir(parents=True, exist_ok=True)
-    DASHBOARD_NAMES_SNAPSHOT.write_text(json.dumps(snapshot, indent=2) + "\n")
+    DASHBOARD_NAMES_SNAPSHOT.write_text(
+        json.dumps(snapshot, indent=2, ensure_ascii=False) + "\n"
+    )
     print(f"  Wrote dashboard names snapshot: {DASHBOARD_NAMES_SNAPSHOT}")
 
 
