@@ -228,6 +228,10 @@ export const AgChartWrapper = forwardRef<AgChartRef, ChartWrapperProps>(function
 ) {
   const { resolvedTheme } = useTheme()
   const internalChartRef = useRef<AgChartInstance>(null)
+  // Container refs/state MUST be declared before any early return so React
+  // hook call order stays constant across renders (Rules of Hooks).
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [containerSize, setContainerSize] = useState<{ width: number; height: number } | null>(null)
 
   useImperativeHandle(ref, () => ({
     download(fileName: string) {
@@ -248,6 +252,24 @@ export const AgChartWrapper = forwardRef<AgChartRef, ChartWrapperProps>(function
     const frame = requestAnimationFrame(() => setTheme(getAgChartsTheme()))
     return () => cancelAnimationFrame(frame)
   }, [resolvedTheme])
+
+  // ResizeObserver wire-up for containerRef/containerSize. Must run on every
+  // render (moved here so it sits above the early returns below).
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0]
+      if (entry) {
+        const { width, height } = entry.contentRect
+        if (width > 0 && height > 0) {
+          setContainerSize({ width: Math.floor(width), height: Math.floor(height) })
+        }
+      }
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
 
   // Stable click handler refs to avoid re-creating chart options on every render
   const clickHandlerRef = useRef(onChartClick)
@@ -346,6 +368,13 @@ export const AgChartWrapper = forwardRef<AgChartRef, ChartWrapperProps>(function
     } as AgChartOptions
   }, [data, config.vizType, config.metricColumns, config.categoryColumn, config.appearance, theme, chartId, activeSelection])
 
+  // sizedOptions depends on containerSize — must live above the early returns
+  // so hook call order stays constant.
+  const sizedOptions = useMemo(() => {
+    if (!containerSize) return options
+    return { ...options, width: containerSize.width, height: containerSize.height, autoSize: false }
+  }, [options, containerSize])
+
   if (missingColumns.length > 0 && data?.columns) {
     return <ColumnMissingError missing={missingColumns} available={data.columns} />
   }
@@ -374,30 +403,6 @@ export const AgChartWrapper = forwardRef<AgChartRef, ChartWrapperProps>(function
       </div>
     )
   }
-
-  const containerRef = useRef<HTMLDivElement>(null)
-  const [containerSize, setContainerSize] = useState<{ width: number; height: number } | null>(null)
-
-  useEffect(() => {
-    const el = containerRef.current
-    if (!el) return
-    const observer = new ResizeObserver((entries) => {
-      const entry = entries[0]
-      if (entry) {
-        const { width, height } = entry.contentRect
-        if (width > 0 && height > 0) {
-          setContainerSize({ width: Math.floor(width), height: Math.floor(height) })
-        }
-      }
-    })
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [])
-
-  const sizedOptions = useMemo(() => {
-    if (!containerSize) return options
-    return { ...options, width: containerSize.width, height: containerSize.height, autoSize: false }
-  }, [options, containerSize])
 
   return (
     <div ref={containerRef} className={cn('h-[300px] w-full', className)}>
