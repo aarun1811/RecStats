@@ -4,6 +4,7 @@ import {
   CommandIcon,
   Database,
   FileBarChart,
+  Gauge,
   LayoutDashboard,
   SearchIcon,
   Clock,
@@ -58,13 +59,22 @@ const typeIcons: Record<string, React.ElementType> = {
   dashboard: LayoutDashboard,
   chart: FileBarChart,
   dataset: Database,
+  kpi: Gauge,
 }
 
-const typeRoutes: Record<string, (id: string | number) => string> = {
+const typeRoutes: Record<string, (id: string) => string> = {
   dashboard: (id) => `/dashboards/${id}`,
-  chart: (id) => `/dashboards/${id}`,
-  dataset: () => `/explorer`,
+  chart: (id) => `/charts/${id}/edit`,
+  dataset: (id) => `/datasets/${id}/edit`,
+  kpi: (id) => `/kpis/${id}/edit`,
 }
+
+const TYPE_ORDER: ReadonlyArray<'dashboard' | 'chart' | 'dataset' | 'kpi'> = [
+  'dashboard',
+  'chart',
+  'dataset',
+  'kpi',
+]
 
 export function CommandPalette() {
   const [open, setOpen] = useState(false)
@@ -156,6 +166,7 @@ export function CommandPalette() {
     dashboard: 'Dashboards',
     chart: 'Charts',
     dataset: 'Datasets',
+    kpi: 'KPIs',
   }
 
   return (
@@ -184,7 +195,7 @@ export function CommandPalette() {
 
       <CommandDialog open={open} onOpenChange={setOpen} shouldFilter={false}>
         <CommandInput
-          placeholder="Search dashboards, charts, datasets..."
+          placeholder="Search dashboards, charts, datasets, KPIs..."
           value={query}
           onValueChange={setQuery}
         />
@@ -213,27 +224,32 @@ export function CommandPalette() {
 
           {/* API search results (shown when query has results) */}
           {query.trim() &&
-            Object.entries(grouped).map(([type, items]) => (
-              <React.Fragment key={type}>
-                <CommandGroup heading={groupLabels[type] ?? type}>
-                  {items.map((item) => {
-                    const Icon = typeIcons[item.type] ?? FileBarChart
-                    const href =
-                      typeRoutes[item.type]?.(item.id) ?? '/dashboards'
-                    return (
-                      <CommandItem
-                        key={`${item.type}-${item.id}`}
-                        onSelect={() => handleSelect(href, query)}
-                      >
-                        <Icon className="mr-2 size-4" />
-                        <span>{item.name}</span>
-                      </CommandItem>
-                    )
-                  })}
-                </CommandGroup>
-                <CommandSeparator />
-              </React.Fragment>
-            ))}
+            TYPE_ORDER.filter((type) => (grouped[type]?.length ?? 0) > 0).map(
+              (type) => {
+                const items = grouped[type] ?? []
+                return (
+                  <React.Fragment key={type}>
+                    <CommandGroup heading={groupLabels[type] ?? type}>
+                      {items.map((item) => {
+                        const Icon = typeIcons[item.type] ?? FileBarChart
+                        const href =
+                          typeRoutes[item.type]?.(item.id) ?? '/dashboards'
+                        return (
+                          <CommandItem
+                            key={`${item.type}-${item.id}`}
+                            onSelect={() => handleSelect(href, query)}
+                          >
+                            <Icon className="mr-2 size-4" />
+                            <span>{item.name}</span>
+                          </CommandItem>
+                        )
+                      })}
+                    </CommandGroup>
+                    <CommandSeparator />
+                  </React.Fragment>
+                )
+              },
+            )}
 
           {/* Static pages (always shown) */}
           {!query.trim() && (

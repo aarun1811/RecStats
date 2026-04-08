@@ -47,9 +47,10 @@ export interface SqlHistoryItem {
 }
 
 export interface SearchResult {
-  type: 'dashboard' | 'chart' | 'dataset'
-  id: string | number
+  type: 'dashboard' | 'chart' | 'dataset' | 'kpi'
+  id: string
   name: string
+  description?: string
 }
 
 export interface SearchResponse {
