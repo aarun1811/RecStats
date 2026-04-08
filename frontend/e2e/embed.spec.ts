@@ -1,101 +1,49 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
+
+import { CURATED_DASHBOARDS } from './_fixtures'
 
 /**
- * SHAR-03 — Embed mode hardening (Phase 9 Plan 09-02)
+ * SHAR-03 — Embed mode hardening (Phase 9 Plan 09-02), rewritten for Phase 10
+ * Plan 10-01c against the curated test catalog.
  *
  * Verifies the embed route (`/embed/dashboards/:id`) end-to-end against the
- * real backend (no mocks per `feedback_no_mock_shortcuts.md`). Covers:
+ * seeded `dash-volume` dashboard (Phase 10 · Volume Dashboard). Replaces the
+ * old POST/DELETE ephemeral seed pattern with stable curated slugs.
  *
- *   - Test 7/8: Hook upgrade + theme param → dark mode applies
- *   - Test 9:   `?filter.region=APAC` pre-applies the region filter
- *   - Test 10:  `?filter.lock=region` disables the region filter control
- *   - Test 11:  `?hide=filter-bar` removes the ConfigFilterBar from the DOM
- *   - Test 12:  `?hide=title` hides the EmbedTopbar title text but keeps
- *               the bar itself and the "Open in RecViz" link
- *   - Test 13:  `?hide=toolbar` hides the DashboardToolbar refresh button
- *               but keeps EmbedTopbar + ConfigFilterBar
- *   - Test 14:  Combined `?hide=filter-bar,title,toolbar` removes all three
- *               surfaces in one request
+ *   - Test 1: baseline embed loads the seeded managed dashboard
+ *   - Test 2: ?theme=dark applies dark mode
+ *   - Test 3: ?filter.region_code=EMEA pre-applies the region filter
+ *   - Test 4: ?filter.lock=region_code disables the region filter control
+ *   - Test 5: ?hide=filter-bar removes the ConfigFilterBar
+ *   - Test 6: ?hide=title hides the topbar title text but keeps the bar/link
+ *   - Test 7: ?hide=toolbar hides the DashboardToolbar refresh button
+ *   - Test 8: ?hide=filter-bar,title,toolbar removes all three in one request
  *
- * Each test seeds its own dashboard via POST /api/dashboards/managed (with a
- * realistic filter config so `?filter.region=` and `?filter.lock=region`
- * have something to bind to) and deletes it in the finally block.
+ * `dash-volume` is chosen because it exercises both cross-filter source charts
+ * (treemap, bar) and a region-bound filter, making it the densest embed test
+ * target in the curated catalog.
  */
 
-const BACKEND_URL = 'http://localhost:8000'
-
-interface SeededDashboard {
-  id: string
-  name: string
-}
-
-async function seedDashboard(
-  request: import('@playwright/test').APIRequestContext,
-  suffix: string,
-): Promise<SeededDashboard> {
-  const name = `embed-spec-${suffix}-${Date.now()}`
-  const config = {
-    id: 'temp',
-    name,
-    description: 'Phase 9 embed spec seed',
-    features: { crossFilter: false, drillDown: false },
-    filters: [
-      {
-        id: 'region',
-        label: 'Region',
-        type: 'single-select',
-        lockable: true,
-        options: [
-          { label: 'APAC', value: 'APAC' },
-          { label: 'EMEA', value: 'EMEA' },
-        ],
-        defaultValue: 'APAC',
-      },
-    ],
-    kpis: [],
-    charts: [],
-    grids: [],
-    layout: { type: 'stack', sections: [] },
-  }
-  const res = await request.post(`${BACKEND_URL}/api/dashboards/managed`, {
-    data: { name, description: 'Phase 9 embed spec seed', config },
-  })
-  expect(
-    res.status(),
-    `seed dashboard create failed: ${await res.text()}`,
-  ).toBe(201)
-  const body = await res.json()
-  return { id: body.id as string, name }
-}
-
-async function deleteDashboard(
-  request: import('@playwright/test').APIRequestContext,
-  id: string,
-): Promise<void> {
-  await request.delete(`${BACKEND_URL}/api/dashboards/managed/${id}`)
-}
+const { volume } = CURATED_DASHBOARDS
 
 /**
  * Wait until the embed route is "settled" — the EmbedTopbar is visible
- * ("Open in RecViz" link) OR the "Dashboard not found" fallback has rendered.
+ * (the "Open in RecViz" link).
  */
-async function waitForEmbedLoaded(page: import('@playwright/test').Page) {
+async function waitForEmbedLoaded(page: Page): Promise<void> {
   await page.waitForLoadState('domcontentloaded')
   await expect(page.locator('text=Open in RecViz')).toBeVisible({
     timeout: 15_000,
   })
 }
 
-test.describe('SHAR-03 embed mode', () => {
-  test('loads a managed dashboard from /embed/dashboards/:id (hook upgrade)', async ({
+test.describe('SHAR-03 embed mode (curated dash-volume)', () => {
+  test('loads a managed dashboard from /embed/dashboards/:id', async ({
     page,
-    request,
   }) => {
-    const seeded = await seedDashboard(request, 'baseline')
-    // Track only plan-scope console errors. The seeded dashboard has no
-    // KPIs and no wired KPI endpoint, so the pre-existing `useDashboardKpis`
-    // hook fires a POST that 404s regardless of hook upgrade — out of scope
-    // for this plan. Filter those out of the assertion.
+    // Track only plan-scope console errors. Filter out resource load
+    // failures and KPI endpoint noise so this assertion stays focused on
+    // the embed-route itself.
     const consoleErrors: string[] = []
     page.on('console', (msg) => {
       if (msg.type() !== 'error') return
@@ -104,179 +52,123 @@ test.describe('SHAR-03 embed mode', () => {
       if (text.includes('/kpis')) return
       consoleErrors.push(text)
     })
-    try {
-      await page.goto(`/embed/dashboards/${seeded.id}`)
-      await waitForEmbedLoaded(page)
 
-      // EmbedTopbar title should show the managed dashboard name — this is
-      // the direct regression signal that the hook upgrade succeeded
-      // (legacy hook reads a stale table and `dashboard.name` is undefined).
-      await expect(page.locator(`text=${seeded.name}`).first()).toBeVisible({
-        timeout: 10_000,
-      })
-      // "Dashboard not found" fallback MUST NOT be present
-      await expect(page.locator('text=Dashboard not found')).toHaveCount(0)
-      // No plan-scope console errors
-      expect(consoleErrors, consoleErrors.join('\n')).toHaveLength(0)
-    } finally {
-      await deleteDashboard(request, seeded.id)
-    }
+    await page.goto(`/embed/dashboards/${volume.id}`)
+    await waitForEmbedLoaded(page)
+
+    // EmbedTopbar shows the curated dashboard name.
+    await expect(page.locator(`text=${volume.name}`).first()).toBeVisible({
+      timeout: 10_000,
+    })
+    // Fallback string must NOT be present.
+    await expect(page.locator('text=Dashboard not found')).toHaveCount(0)
+    // No plan-scope console errors.
+    expect(consoleErrors, consoleErrors.join('\n')).toHaveLength(0)
   })
 
-  test('?theme=dark applies dark mode', async ({ page, request }) => {
-    const seeded = await seedDashboard(request, 'theme-dark')
-    try {
-      await page.goto(`/embed/dashboards/${seeded.id}?theme=dark`)
-      await waitForEmbedLoaded(page)
+  test('?theme=dark applies dark mode', async ({ page }) => {
+    await page.goto(`/embed/dashboards/${volume.id}?theme=dark`)
+    await waitForEmbedLoaded(page)
 
-      // ThemeProvider adds the `dark` class to `<html>`
-      await expect(page.locator('html')).toHaveClass(/dark/, {
-        timeout: 5_000,
-      })
-    } finally {
-      await deleteDashboard(request, seeded.id)
-    }
+    // ThemeProvider toggles the `dark` class on `<html>`.
+    await expect(page.locator('html')).toHaveClass(/dark/, {
+      timeout: 5_000,
+    })
   })
 
-  test('?filter.region=EMEA pre-applies the region filter', async ({
+  test('?filter.region_code=EMEA pre-applies the region filter', async ({
     page,
-    request,
   }) => {
-    const seeded = await seedDashboard(request, 'filter-apply')
-    try {
-      await page.goto(
-        `/embed/dashboards/${seeded.id}?filter.region=EMEA`,
-      )
-      await waitForEmbedLoaded(page)
+    await page.goto(
+      `/embed/dashboards/${volume.id}?filter.region_code=EMEA`,
+    )
+    await waitForEmbedLoaded(page)
 
-      // The ConfigFilterBar's SingleSelectFilter renders a Shadcn Select
-      // whose trigger carries `data-slot="select-trigger"` and displays the
-      // current value (EMEA) inside the SelectValue span.
-      const regionTrigger = page.locator('[data-slot="select-trigger"]').first()
-      await expect(regionTrigger).toBeVisible({ timeout: 10_000 })
-      await expect(regionTrigger).toContainText('EMEA', { timeout: 10_000 })
-    } finally {
-      await deleteDashboard(request, seeded.id)
-    }
+    // The ConfigFilterBar's MultiSelectFilter renders a Shadcn-styled trigger
+    // with `data-slot="select-trigger"`. Selected EMEA appears inside it.
+    const regionTrigger = page.locator('[data-slot="select-trigger"]').first()
+    await expect(regionTrigger).toBeVisible({ timeout: 10_000 })
+    await expect(regionTrigger).toContainText('EMEA', { timeout: 10_000 })
   })
 
-  test('?filter.lock=region disables the region filter control', async ({
+  test('?filter.lock=region_code disables the region filter control', async ({
     page,
-    request,
   }) => {
-    const seeded = await seedDashboard(request, 'filter-lock')
-    try {
-      await page.goto(
-        `/embed/dashboards/${seeded.id}?filter.lock=region`,
-      )
-      await waitForEmbedLoaded(page)
+    await page.goto(
+      `/embed/dashboards/${volume.id}?filter.lock=region_code`,
+    )
+    await waitForEmbedLoaded(page)
 
-      // The ConfigFilterBar renders a Lock icon (lucide-react) next to a
-      // locked filter's label. Verify the icon is present by looking for
-      // the `lucide-lock` class that lucide automatically applies.
-      await expect(page.locator('.lucide-lock').first()).toBeVisible({
-        timeout: 10_000,
-      })
-      // The Select trigger itself is disabled (Radix applies `disabled` on
-      // the trigger button when the Select is disabled).
-      const regionTrigger = page.locator('[data-slot="select-trigger"]').first()
-      await expect(regionTrigger).toBeVisible({ timeout: 10_000 })
-      await expect(regionTrigger).toBeDisabled()
-    } finally {
-      await deleteDashboard(request, seeded.id)
-    }
+    // ConfigFilterBar renders a lucide Lock icon next to a locked filter.
+    await expect(page.locator('.lucide-lock').first()).toBeVisible({
+      timeout: 10_000,
+    })
+    // The Select trigger itself is disabled (Radix applies `disabled` on
+    // the trigger button when the Select is disabled).
+    const regionTrigger = page.locator('[data-slot="select-trigger"]').first()
+    await expect(regionTrigger).toBeVisible({ timeout: 10_000 })
+    await expect(regionTrigger).toBeDisabled()
   })
 
   test('?hide=filter-bar removes the ConfigFilterBar from the DOM', async ({
     page,
-    request,
   }) => {
-    const seeded = await seedDashboard(request, 'hide-filter-bar')
-    try {
-      await page.goto(
-        `/embed/dashboards/${seeded.id}?hide=filter-bar`,
-      )
-      await waitForEmbedLoaded(page)
+    await page.goto(`/embed/dashboards/${volume.id}?hide=filter-bar`)
+    await waitForEmbedLoaded(page)
 
-      // No filter control (no Apply button from the ConfigFilterBar card)
-      await expect(page.getByRole('button', { name: 'Apply' })).toHaveCount(0)
-      // EmbedTopbar is still visible
-      await expect(page.locator('text=Open in RecViz')).toBeVisible()
-    } finally {
-      await deleteDashboard(request, seeded.id)
-    }
+    // No filter-bar Apply button.
+    await expect(page.getByRole('button', { name: 'Apply' })).toHaveCount(0)
+    // EmbedTopbar still visible.
+    await expect(page.locator('text=Open in RecViz')).toBeVisible()
   })
 
   test('?hide=title hides the topbar title but keeps the bar and the link', async ({
     page,
-    request,
   }) => {
-    const seeded = await seedDashboard(request, 'hide-title')
-    try {
-      await page.goto(`/embed/dashboards/${seeded.id}?hide=title`)
-      await waitForEmbedLoaded(page)
+    await page.goto(`/embed/dashboards/${volume.id}?hide=title`)
+    await waitForEmbedLoaded(page)
 
-      // The "Open in RecViz" link is still there
-      await expect(page.locator('text=Open in RecViz')).toBeVisible()
-      // The seeded dashboard name should NOT appear in the topbar title slot.
-      // Use the topbar container (h-9 border-b) to scope the negative assertion.
-      const topbarTitleCount = await page
-        .locator(
-          `.h-9 >> text=${seeded.name}`,
-        )
-        .count()
-      expect(topbarTitleCount).toBe(0)
-    } finally {
-      await deleteDashboard(request, seeded.id)
-    }
+    await expect(page.locator('text=Open in RecViz')).toBeVisible()
+    // The dashboard name should NOT appear inside the embed topbar slot
+    // (the `.h-9` border-b container scopes the negative assertion).
+    const topbarTitleCount = await page
+      .locator(`.h-9 >> text=${volume.name}`)
+      .count()
+    expect(topbarTitleCount).toBe(0)
   })
 
   test('?hide=toolbar hides the DashboardToolbar refresh button (EmbedTopbar stays)', async ({
     page,
-    request,
   }) => {
-    const seeded = await seedDashboard(request, 'hide-toolbar')
-    try {
-      await page.goto(
-        `/embed/dashboards/${seeded.id}?hide=toolbar`,
-      )
-      await waitForEmbedLoaded(page)
+    await page.goto(`/embed/dashboards/${volume.id}?hide=toolbar`)
+    await waitForEmbedLoaded(page)
 
-      // No Refresh button from the DashboardToolbar
-      await expect(
-        page.getByRole('button', { name: /refresh all dashboard data/i }),
-      ).toHaveCount(0)
-      // EmbedTopbar + its title still visible
-      await expect(page.locator('text=Open in RecViz')).toBeVisible()
-      await expect(page.locator(`text=${seeded.name}`).first()).toBeVisible()
-      // Filter bar still visible
-      await expect(page.getByRole('button', { name: 'Apply' })).toBeVisible()
-    } finally {
-      await deleteDashboard(request, seeded.id)
-    }
+    // No Refresh button from the DashboardToolbar.
+    await expect(
+      page.getByRole('button', { name: /refresh all dashboard data/i }),
+    ).toHaveCount(0)
+    // EmbedTopbar + its title still visible.
+    await expect(page.locator('text=Open in RecViz')).toBeVisible()
+    await expect(page.locator(`text=${volume.name}`).first()).toBeVisible()
+    // Filter bar still visible.
+    await expect(page.getByRole('button', { name: 'Apply' })).toBeVisible()
   })
 
   test('?hide=filter-bar,title,toolbar removes all three in one request', async ({
     page,
-    request,
   }) => {
-    const seeded = await seedDashboard(request, 'hide-all')
-    try {
-      await page.goto(
-        `/embed/dashboards/${seeded.id}?hide=filter-bar,title,toolbar`,
-      )
-      await waitForEmbedLoaded(page)
+    await page.goto(
+      `/embed/dashboards/${volume.id}?hide=filter-bar,title,toolbar`,
+    )
+    await waitForEmbedLoaded(page)
 
-      // Only the "Open in RecViz" link remains in the topbar
-      await expect(page.locator('text=Open in RecViz')).toBeVisible()
-      // No filter bar (no Apply button)
-      await expect(page.getByRole('button', { name: 'Apply' })).toHaveCount(0)
-      // No DashboardToolbar refresh button
-      await expect(
-        page.getByRole('button', { name: /refresh all dashboard data/i }),
-      ).toHaveCount(0)
-    } finally {
-      await deleteDashboard(request, seeded.id)
-    }
+    // Only the "Open in RecViz" link remains in the topbar.
+    await expect(page.locator('text=Open in RecViz')).toBeVisible()
+    // No filter bar.
+    await expect(page.getByRole('button', { name: 'Apply' })).toHaveCount(0)
+    // No DashboardToolbar refresh button.
+    await expect(
+      page.getByRole('button', { name: /refresh all dashboard data/i }),
+    ).toHaveCount(0)
   })
 })

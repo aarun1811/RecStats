@@ -1,163 +1,72 @@
-import { test, expect, type Page } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 
-const SHOWCASE_URL = '/dashboards/chart-showcase'
+import { CURATED_DASHBOARDS, waitForDashboardLoad } from './_fixtures'
 
 /**
- * Wait for the chart showcase dashboard to fully load.
- * Checks that at least one chart card title is visible and
- * all loading skeletons have disappeared.
+ * Phase 10 — Dashboard smoke (rewritten from the legacy chart-showcase spec).
+ *
+ * Walks every curated dashboard in `CURATED_DASHBOARDS` once and asserts:
+ *   1. The dashboard loads without any error panels.
+ *   2. At least one chart canvas (AG Charts) or ECharts instance renders.
+ *   3. The KPI row contains numeric values (not the fallback em-dash `—`).
+ *
+ * The 5 curated dashboards collectively cover all 18 working chart types
+ * (AG: bar, stacked-bar, line, area, pie, donut, scatter, heatmap, treemap,
+ * waterfall, combo, histogram. ECharts: sankey, radar, gauge, funnel, graph,
+ * parallel) plus the three inverted-threshold KPIs.
+ *
+ * This spec replaces the old per-chart-title loop against the dead
+ * `chart-showcase` dashboard.
  */
-async function waitForDashboardLoad(page: Page): Promise<void> {
-  // Wait for at least one chart card title to be visible
-  await page.locator('text=Bar Chart').waitFor({ state: 'visible', timeout: 15_000 })
-  // Wait for loading skeletons to disappear
-  await expect(page.locator('[data-slot="skeleton"]')).toHaveCount(0, { timeout: 15_000 })
-}
 
-// ---------------------------------------------------------------------------
-// Chart Rendering Tests
-// ---------------------------------------------------------------------------
-// Each test validates that a specific chart type renders visible data elements
-// from real query data. AG Charts renders into <canvas>, ECharts into a div
-// with an _echarts_instance_ attribute.
+const DASHBOARDS = Object.entries(CURATED_DASHBOARDS) as Array<
+  [string, (typeof CURATED_DASHBOARDS)[keyof typeof CURATED_DASHBOARDS]]
+>
 
-test.describe('Chart Showcase - Rendering', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto(SHOWCASE_URL)
-    await waitForDashboardLoad(page)
-  })
-
-  /**
-   * All 12 chart types in the showcase dashboard.
-   * Titles must match exactly what is in chart-showcase.json.
-   */
-  const chartTypes = [
-    'Bar Chart',
-    'Stacked Bar Chart',
-    'Line Chart',
-    'Area Chart',
-    'Pie Chart',
-    'Donut Chart',
-    'Scatter Chart',
-    'Heatmap',
-    'Treemap',
-    'Waterfall Chart',
-    'Combo Chart (Bar + Line)',
-    'Funnel (ECharts)',
-  ] as const
-
-  for (const chartTitle of chartTypes) {
-    test(`${chartTitle} renders without error`, async ({ page }) => {
-      // Find the chart card by its title text
-      const titleEl = page.locator(`text="${chartTitle}"`).first()
-      await expect(titleEl).toBeVisible()
-
-      // Navigate up to the Card element, then find card content
-      const card = titleEl
-        .locator('xpath=ancestor::div[contains(@class, "card") or @data-slot="card"]')
-        .first()
-      const content = card
-        .locator('[class*="content"], [data-slot="card-content"]')
-        .first()
-
-      // Assert no error panels are rendered inside this chart card
-      await expect(content.locator('text=Column mapping error')).toHaveCount(0)
-      await expect(content.locator('text=Unsupported chart type')).toHaveCount(0)
-      await expect(content.locator('text=Failed to load')).toHaveCount(0)
-
-      // Assert chart content exists (canvas for AG Charts, div for ECharts)
-      const hasCanvas = await content.locator('canvas').count()
-      const hasECharts = await content.locator('[_echarts_instance_]').count()
-      const hasAgCharts = await content
-        .locator('.ag-charts-wrapper, [class*="ag-chart"]')
-        .count()
-      expect(hasCanvas + hasECharts + hasAgCharts).toBeGreaterThan(0)
+for (const [key, dashboard] of DASHBOARDS) {
+  test.describe(`${dashboard.name} (${key})`, () => {
+    test.beforeEach(async ({ page }) => {
+      await page.goto(`/dashboards/${dashboard.id}`)
+      await waitForDashboardLoad(page, dashboard.name)
     })
-  }
-})
 
-// ---------------------------------------------------------------------------
-// Cross-Filter Interaction Test
-// ---------------------------------------------------------------------------
+    test('renders without error panels', async ({ page }) => {
+      await expect(page.locator('text=Column mapping error')).toHaveCount(0)
+      await expect(page.locator('text=Unsupported chart type')).toHaveCount(0)
+      await expect(page.locator('text=Failed to load')).toHaveCount(0)
+      await expect(page.locator('text=Data source not found')).toHaveCount(0)
+      await expect(page.locator('text=Dashboard not found')).toHaveCount(0)
+    })
 
-test.describe('Chart Showcase - Cross-Filter', () => {
-  test('clicking bar chart segment shows cross-filter badge bar', async ({ page }) => {
-    await page.goto(SHOWCASE_URL)
-    await waitForDashboardLoad(page)
+    test('renders at least one chart surface (canvas or ECharts)', async ({
+      page,
+    }) => {
+      // AG Charts render into <canvas>; ECharts register an
+      // _echarts_instance_ attribute on their container div.
+      const chartSurface = page
+        .locator('canvas, [_echarts_instance_]')
+        .first()
+      await expect(chartSurface).toBeVisible({ timeout: 15_000 })
+    })
 
-    // Find the bar chart canvas and click on a data element.
-    // AG Charts fires seriesNodeClick on canvas click at data point coordinates.
-    const barCard = page
-      .locator('text="Bar Chart"')
-      .locator('xpath=ancestor::div[contains(@class, "card") or @data-slot="card"]')
-      .first()
-    const canvas = barCard.locator('canvas').first()
-    await expect(canvas).toBeVisible()
+    test('KPI row shows numeric values', async ({ page }) => {
+      // ConfigKpiRow renders the KPI value inside a div with the classes
+      // `text-2xl font-semibold tabular-nums tracking-tight`. The div wraps a
+      // motion.span from CountAnimation carrying the formatted value.
+      const kpiValueContainers = page.locator(
+        'div.text-2xl.font-semibold.tabular-nums.tracking-tight',
+      )
+      await expect(kpiValueContainers.first()).toBeVisible({ timeout: 15_000 })
 
-    // Click roughly where a bar should be rendered (left-center of canvas)
-    const box = await canvas.boundingBox()
-    if (box) {
-      await canvas.click({ position: { x: box.width * 0.3, y: box.height * 0.5 } })
-    }
-
-    // Wait for the 250ms click debounce to resolve
-    await page.waitForTimeout(350)
-
-    // Check for cross-filter badge bar appearance.
-    // The CrossFilterBar renders "Filtered by:" text when active.
-    const filterBar = page.locator('text=Filtered by')
-    const isVisible = await filterBar.isVisible().catch(() => false)
-
-    if (isVisible) {
-      await expect(filterBar).toBeVisible()
-      // Verify a clear button exists
-      const clearBtn = page
-        .locator('text=Clear all')
-        .or(page.locator('button:has-text("Clear")'))
-      await expect(clearBtn).toBeVisible()
-    }
-
-    // Note: Canvas click coordinates are approximate. If the click misses a data point,
-    // the cross-filter won't activate. This is acceptable for E2E; manual visual
-    // validation (D-08, Task 2) is the definitive check.
+      // The fallback rendering for an unresolved KPI is a single em-dash.
+      // None of the first N KPI values should be exactly `—`.
+      const count = await kpiValueContainers.count()
+      expect(count).toBeGreaterThan(0)
+      for (let i = 0; i < count; i += 1) {
+        const text = (await kpiValueContainers.nth(i).innerText()).trim()
+        expect(text, `KPI #${i} rendered as placeholder`).not.toBe('—')
+        expect(text.length, `KPI #${i} rendered empty`).toBeGreaterThan(0)
+      }
+    })
   })
-})
-
-// ---------------------------------------------------------------------------
-// Drill-Down Interaction Test
-// ---------------------------------------------------------------------------
-
-test.describe('Chart Showcase - Drill-Down', () => {
-  test('double-clicking bar chart triggers drill navigation', async ({ page }) => {
-    await page.goto(SHOWCASE_URL)
-    await waitForDashboardLoad(page)
-
-    // The bar chart (sc-bar) has drillHierarchy: ["department"]
-    const barCard = page
-      .locator('text="Bar Chart"')
-      .locator('xpath=ancestor::div[contains(@class, "card") or @data-slot="card"]')
-      .first()
-    const canvas = barCard.locator('canvas').first()
-    await expect(canvas).toBeVisible()
-
-    // Double-click on a data point area
-    const box = await canvas.boundingBox()
-    if (box) {
-      await canvas.dblclick({ position: { x: box.width * 0.3, y: box.height * 0.5 } })
-    }
-
-    // Check for breadcrumb appearance (drill state).
-    // DrillBreadcrumb renders "Overview" as root link when drilling is active.
-    const breadcrumb = page.locator('text=Overview').first()
-    const isVisible = await breadcrumb.isVisible().catch(() => false)
-
-    if (isVisible) {
-      await expect(breadcrumb).toBeVisible()
-      // If drill reaches detail level and drillDetailDataSourceId is set,
-      // a detail grid should slide in.
-    }
-
-    // Note: Same caveat as cross-filter -- canvas coordinates are approximate.
-    // Manual visual validation (D-08, Task 2) is the definitive check.
-  })
-})
+}
