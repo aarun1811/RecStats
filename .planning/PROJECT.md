@@ -40,8 +40,11 @@ Business users can view, interact with, and customize dashboards over reconcilia
 
 ### Active
 
-- [ ] Comprehensive testing with advanced/seed data — end-to-end validation against realistic recon data volumes — Phase 10
 - [ ] Saved views — save current filter state as a named bookmark (deferred from Phase 9 to next milestone alongside reports/exports)
+
+### Recently shipped
+
+- ✓ Comprehensive testing with advanced/seed data — clean-slate seed at 100k tier (16 datasets, 22 charts covering 18 working types, 12 KPIs, 5 curated dashboards). Legacy dashboard backend deleted. 5 decimal sub-phase fixes during preflight (10.1 legacy delete + client-side KPI compute, 10.2 sidebar scroll, 10.3 SQL filter WHERE, 10.4 builder layout, 10.5 chart panel heights). Plan 10-02 autonomous 57-checkpoint walk + Plan 10-03 formal UAT runbook deferred — Phase 10 user-marked complete after walking dash-aging + dash-match-rate. Phase 11 will pick up 1M/10M tier scaling. — Phase 10 (completed 2026-04-08)
 
 ### Out of Scope
 
