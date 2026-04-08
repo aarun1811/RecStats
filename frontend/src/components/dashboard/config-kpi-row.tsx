@@ -20,7 +20,6 @@ import type { KpiPartialMatch } from '@/lib/kpi-aggregator'
 import type { FormatType, FormatNumberOptions } from '@/types/formatting'
 
 interface ConfigKpiRowProps {
-  dashboardId: string
   kpis: KpiConfig[]
   crossFilteredKpis?: KpiResult[] | null
   partialMatches?: KpiPartialMatch[]
@@ -54,13 +53,12 @@ function KpiSkeleton() {
 }
 
 export function ConfigKpiRow({
-  dashboardId,
   kpis,
   crossFilteredKpis,
   partialMatches,
 }: ConfigKpiRowProps) {
   const appliedFilters = useFilterStore((s) => s.applied)
-  const { data, isLoading, isError, error, refetch } = useDashboardKpis(dashboardId, appliedFilters)
+  const { data, isLoading, isError, error, refetch } = useDashboardKpis(kpis, appliedFilters)
 
   // Build partial match lookup for quick access
   const partialMatchMap = useMemo(() => {

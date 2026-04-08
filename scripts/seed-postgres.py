@@ -1981,9 +1981,48 @@ def _dash_chart_ref(
 
 
 def _kpi_card(kpi_id: str) -> dict:
-    """Build a dashboard KPI card reference (the renderer reads this list to
-    decide which KPI cards to render)."""
-    return {"id": kpi_id, "kpiId": kpi_id}
+    """Build a dashboard KPI card as a denormalized KpiConfig snapshot.
+
+    The dashboard renderer's ConfigKpiRow expects `{id, label, format, sources,
+    aggregation, trend?}` inline on each KPI entry (mirroring what the builder
+    writes via `serializeConfig()` in builder-page.tsx). We denormalize from
+    the curated `CURATED_KPIS` list so every dashboard KPI card has the full
+    metadata needed to render AND compute values client-side.
+
+    The frontend types `frontend/src/types/dashboard-config.ts` define:
+      KpiConfig.format = 'number' | 'currency' | 'percent'
+    while the managed KPI library uses 'percentage' (FormatType). Mapping:
+      'percentage' → 'percent'; 'decimal' → 'number'; others pass through.
+    """
+    kpi = next((k for k in CURATED_KPIS if k["id"] == kpi_id), None)
+    if kpi is None:
+        raise ValueError(
+            f"Dashboard references unknown KPI {kpi_id!r} — add it to CURATED_KPIS"
+        )
+
+    fmt_type = kpi["config"]["format"]["type"]
+    # Map managed KPI format types to dashboard KpiConfig.format
+    if fmt_type == "percentage":
+        dashboard_format = "percent"
+    elif fmt_type == "decimal":
+        dashboard_format = "number"
+    elif fmt_type in {"number", "currency"}:
+        dashboard_format = fmt_type
+    else:
+        dashboard_format = "number"
+
+    return {
+        "id": kpi_id,
+        "label": kpi["name"],
+        "format": dashboard_format,
+        "sources": [
+            {
+                "dataSourceId": kpi["dataset_id"],
+                "metric": kpi["metric_column"],
+            }
+        ],
+        "aggregation": kpi["aggregation"],
+    }
 
 
 CURATED_DASHBOARDS: list[dict] = [
