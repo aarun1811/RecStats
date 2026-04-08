@@ -29,23 +29,19 @@ Business users can view, interact with, and customize dashboards over reconcilia
 - ✓ Hive database connectivity via Superset (PyHive driver) — Phase 4
 - ✓ Connection management UI with dynamic forms, test-before-save, status tracking — Phase 4
 - ✓ Dataset management UI — dev team creates, edits, and manages datasets (SQL → named dataset → column metadata) — Phase 5
+- ✓ Chart library — reusable charts saved to a library, browseable, with builder mapping dataset columns to visual properties — Phase 6
+- ✓ KPI library — reusable KPI templates with thresholds, trend comparison, and animated counters — Phase 7
+- ✓ Dashboard builder UI — business users create, edit, save, and manage dashboards via drag-and-drop layout — Phase 8
+- ✓ Cross-filtering and drill-down (client-side, zero network calls) — Phase 2
+- ✓ Chart and grid interactions (export, fullscreen, manual + auto refresh) — Phase 3
+- ✓ Shareable URLs — filter state encoded in URL params, recipient opens exact same view — Phase 9
+- ✓ Embeddable dashboards — iframe embedding via /embed route with `?theme`, `?filter.X`, `?filter.lock`, `?hide=filter-bar,title,toolbar` granular hide — Phase 9
+- ✓ Cmd+K command palette — searches dashboards, charts, datasets, KPIs from managed tables (not Superset) — Phase 9
 
 ### Active
 
-- [ ] Dashboard builder UI — business users create/edit dashboards from datasets
-- [ ] Chart builder — pick dataset, choose columns for axes/metrics, select chart type, configure appearance
-- [ ] Dashboard layout editor — arrange charts, KPIs, filters on a canvas; resize and reposition
-- [ ] Cross-filtering — click a chart segment to filter all other charts on the dashboard (client-side, zero network calls)
-- [ ] Drill-down to raw data — click aggregated chart → see underlying rows in AG Grid with breadcrumb navigation
-- [ ] Configurable auto-refresh — default ~10 min interval, manual refresh button, user-configurable per dashboard
-- [ ] Embeddable dashboards — shareable URLs + iframe embedding for internal portals
-- [ ] KPI cards with animated counters, trend indicators, and drill-down
-- [ ] Skeleton loading on every data component — never show blank screens
-- [ ] Chart export — PNG, CSV, clipboard for individual charts
-- [ ] Fullscreen chart view — expand any chart to a modal/overlay for detailed inspection
-- [ ] Saved views — save filter + layout combinations, share via URL, set defaults
-- [ ] Dashboard templates — pre-built layouts (KPI + charts + grid, etc.) as starting points
-- [ ] Command palette (Cmd+K) — search across dashboards, datasets, saved views
+- [ ] Comprehensive testing with advanced/seed data — end-to-end validation against realistic recon data volumes — Phase 10
+- [ ] Saved views — save current filter state as a named bookmark (deferred from Phase 9 to next milestone alongside reports/exports)
 
 ### Out of Scope
 
@@ -113,4 +109,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-06 after Phase 5 completion*
+*Last updated: 2026-04-08 after Phase 9 completion*
