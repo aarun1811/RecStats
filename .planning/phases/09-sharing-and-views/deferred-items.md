@@ -31,3 +31,11 @@ per execute-plan workflow scope-boundary rule.
 - **Verification:** `python -m pytest backend/tests/test_search.py backend/tests/test_managed_charts.py backend/tests/test_managed_kpis.py backend/tests/test_managed_datasets.py backend/tests/test_connection_status.py backend/tests/test_merge_engine.py backend/tests/test_uri_builder.py` → 51/51 PASSED. The plan-scope test (test_search.py) and all adjacent managed-entity suites are green.
 - **Fix (deferred):** These are unrelated maintenance issues — test_config_store + test_query_engine need to be updated to pass a DB session/engine to ConfigStore's new constructor; test_database_registrar needs `pytest-asyncio` wiring; test_dataset_sync's two failures look like similar async test infrastructure drift. All orthogonal to SHAR-04.
 - **Suggested home:** Phase 10 backend testing cleanup pass.
+
+### chart-showcase.spec.ts — all 14 tests failing (Pre-existing)
+
+- **File:** `frontend/e2e/chart-showcase.spec.ts`
+- **Symptom:** All 12 "Chart X renders without error" tests + Cross-Filter + Drill-Down tests fail. Likely waiting on a Chart Showcase page/route that was removed or renamed during Phases 5-8, or a test setup fixture that no longer matches the current managed-chart library flow.
+- **Status:** Verified pre-existing by stashing 09-03 Task 3 changes and re-running — all 14 tests fail identically on commit `5d65ca6` (pre-09-03 Task 3) with the same failures.
+- **Fix (deferred):** Investigate whether the chart-showcase route still exists, what fixture it needs, and whether the spec should be migrated to the managed-charts library or deleted. Orthogonal to SHAR-04.
+- **Suggested home:** Phase 10 frontend testing cleanup pass.

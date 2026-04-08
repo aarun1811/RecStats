@@ -197,11 +197,18 @@ async function deleteDataset(
  * Chromium fires `Meta+k` and `Control+k` identically — the palette's
  * keyboard handler checks both `metaKey` and `ctrlKey`, so either works.
  */
+/**
+ * Locate the palette CommandInput specifically (not the header search input
+ * which also has a "Search dashboards..." placeholder). The Shadcn Command
+ * primitive emits `data-slot="command-input"` on its input element.
+ */
+function paletteInput(page: import('@playwright/test').Page) {
+  return page.locator('[data-slot="command-input"]')
+}
+
 async function openPalette(page: import('@playwright/test').Page) {
   await page.keyboard.press('Meta+k')
-  await expect(
-    page.getByPlaceholder(/Search dashboards/),
-  ).toBeVisible({ timeout: 5_000 })
+  await expect(paletteInput(page)).toBeVisible({ timeout: 5_000 })
 }
 
 test.describe('SHAR-04 command palette', () => {
@@ -211,10 +218,10 @@ test.describe('SHAR-04 command palette', () => {
     try {
       await page.goto('/dashboards')
       await openPalette(page)
-      const input = page.getByPlaceholder(
+      await expect(paletteInput(page)).toHaveAttribute(
+        'placeholder',
         'Search dashboards, charts, datasets, KPIs...',
       )
-      await expect(input).toBeVisible()
     } finally {
       await deleteDashboard(request, dashboard.id)
     }
@@ -228,9 +235,7 @@ test.describe('SHAR-04 command palette', () => {
     try {
       await page.goto('/dashboards')
       await openPalette(page)
-      await page
-        .getByPlaceholder(/Search dashboards/)
-        .fill(dashboard.name)
+      await paletteInput(page).fill(dashboard.name)
 
       // Wait for the group heading to appear
       await expect(
@@ -262,7 +267,7 @@ test.describe('SHAR-04 command palette', () => {
       chart = await seedChart(request, dataset.id, 'nav')
       await page.goto('/dashboards')
       await openPalette(page)
-      await page.getByPlaceholder(/Search dashboards/).fill(chart.name)
+      await paletteInput(page).fill(chart.name)
 
       await expect(
         page.locator('[cmdk-group-heading]', { hasText: 'Charts' }),
@@ -291,7 +296,7 @@ test.describe('SHAR-04 command palette', () => {
     try {
       await page.goto('/dashboards')
       await openPalette(page)
-      await page.getByPlaceholder(/Search dashboards/).fill(dataset.name)
+      await paletteInput(page).fill(dataset.name)
 
       await expect(
         page.locator('[cmdk-group-heading]', { hasText: 'Datasets' }),
@@ -321,7 +326,7 @@ test.describe('SHAR-04 command palette', () => {
       kpi = await seedKpi(request, dataset.id, 'nav')
       await page.goto('/dashboards')
       await openPalette(page)
-      await page.getByPlaceholder(/Search dashboards/).fill(kpi.name)
+      await paletteInput(page).fill(kpi.name)
 
       // KPI group heading present
       await expect(
@@ -366,7 +371,7 @@ test.describe('SHAR-04 command palette', () => {
 
       await page.goto('/dashboards')
       await openPalette(page)
-      await page.getByPlaceholder(/Search dashboards/).fill(token)
+      await paletteInput(page).fill(token)
 
       // All four headings should render
       const headings = page.locator('[cmdk-group-heading]')
