@@ -205,7 +205,7 @@ Plans:
 Plans:
 - [x] 09-01-PLAN.md -- Hook upgrade to useManagedDashboard + URL filter state sync + Share button (SHAR-02)
 - [x] 09-02-PLAN.md -- Embed route hardening: managed hook + ?hide= tokens + EmbedTopbar/Renderer props (SHAR-03)
-- [ ] 09-03-PLAN.md -- Backend search rewrite to managed tables + command palette KPI integration + route fixes (SHAR-04)
+- [x] 09-03-PLAN.md -- Backend search rewrite to managed tables + command palette KPI integration + route fixes (SHAR-04)
 
 ## Progress
 
