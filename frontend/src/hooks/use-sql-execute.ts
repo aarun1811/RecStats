@@ -4,7 +4,7 @@ import type { SqlResult } from '@/types/api'
 
 interface SqlExecuteParams {
   sql: string
-  databaseId?: number
+  databaseId?: string
   schema?: string
   limit?: number
 }
@@ -16,7 +16,7 @@ export function useSqlExecute() {
     mutationFn: (params: SqlExecuteParams) =>
       api.post<SqlResult>('/api/sql/execute', {
         sql: params.sql,
-        database_id: params.databaseId ?? 1,
+        database_id: params.databaseId ?? '',
         schema: params.schema ?? 'public',
         limit: params.limit ?? 1000,
       }),

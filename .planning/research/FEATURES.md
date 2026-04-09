@@ -1,304 +1,454 @@
-# Feature Research
+# Feature Landscape: Superset Removal -- Direct Query Engine
 
-**Domain:** Internal BI/visualization platform replacing Tableau/Qlik for financial reconciliation
-**Researched:** 2026-04-04
-**Confidence:** HIGH (primary sources: Tableau/Qlik official docs, BI buyer guides, reconciliation domain analysis)
+**Domain:** Replacing Apache Superset with direct SQLAlchemy query engine in FastAPI
+**Researched:** 2026-04-09
+**Confidence:** HIGH (primary sources: existing codebase audit, SQLAlchemy 2.0/2.1 official docs, python-oracledb docs)
 
-## Feature Landscape
+## Context: What Superset Actually Does for RecViz Today
 
-### Table Stakes (Users Expect These)
+Based on a complete audit of `superset_client.py`, the API routes, `query_engine.py`, `database_registrar.py`, `dataset_sync.py`, and the Superset config, here is every Superset capability RecViz exercises:
 
-Features Tableau/Qlik users assume exist. Missing any of these and the tool feels broken compared to what they already have.
+### Superset API Endpoints Actually Called
 
-#### A. Dashboard Builder Core
+| Superset Endpoint | RecViz Caller | Purpose |
+|---|---|---|
+| `POST /api/v1/security/login` | `SupersetClient.authenticate()` | Get JWT token |
+| `GET /api/v1/security/csrf_token/` | `SupersetClient.authenticate()` | Get CSRF token for mutations |
+| `POST /api/v1/sqllab/execute/` | `QueryEngine.execute()`, `sql.py` | **Core: execute raw SQL against a database** |
+| `POST /api/v1/chart/data` | `datasets.py:get_dataset_data()` | Query dataset with adhoc filters (pagination, sort) |
+| `GET /api/v1/database/` | `DatabaseRegistrar.sync()`, `databases.py`, `sql.py` | List registered databases |
+| `GET /api/v1/database/{id}` | `databases.py:get_database()` | Get single database details |
+| `POST /api/v1/database/` | `DatabaseRegistrar.sync()`, `databases.py` | Register a new database connection |
+| `PUT /api/v1/database/{id}` | `databases.py:update_database()` | Update database connection |
+| `DELETE /api/v1/database/{id}` | `databases.py:delete_database()` | Delete database connection |
+| `POST /api/v1/database/test_connection/` | `databases.py:test_connection()` | Test database connectivity |
+| `GET /api/v1/dataset/` | `datasets.py:list_datasets()` | List Superset virtual datasets |
+| `GET /api/v1/dataset/{id}` | `datasets.py:get_dataset()` | Get dataset with column metadata |
+| `POST /api/v1/dataset/` | `DatasetSyncService.sync_dataset()` | Create virtual dataset in Superset |
+| `PUT /api/v1/dataset/{id}` | `DatasetSyncService.sync_dataset()` | Update virtual dataset SQL |
+| `DELETE /api/v1/dataset/{id}` | `DatasetSyncService.delete_synced()` | Delete virtual dataset |
+| `GET /api/v1/chart/` | `SupersetClient.list_charts()` | **Not called by any route** |
+| `GET /api/v1/chart/{id}` | `SupersetClient.list_charts()` | **Not called by any route** |
+| `GET /api/v1/dashboard/` | `SupersetClient.list_dashboards()` | **Not called by any route** |
+| `GET /api/v1/dashboard/{id}` | `SupersetClient.get_dashboard()` | **Not called by any route** |
 
-| Feature | Why Expected | Complexity | Notes |
-|---------|--------------|------------|-------|
-| **Chart builder: dataset-to-chart pipeline** | Tableau/Qlik core workflow. Users pick a dataset, select columns for axes/metrics, choose chart type, see preview. Without this, there is no self-service. | HIGH | The central product feature. Needs: dataset picker, column list with types, drag/drop or select columns to X/Y/metric slots, aggregation function picker (SUM, COUNT, AVG, MIN, MAX), chart type selector with preview, and a "Run" button. Superset Explore view is the reference model, but with a cleaner UX. |
-| **Chart type selector with visual thumbnails** | Tableau "Show Me" panel, Qlik "Add chart" menu. Users expect to see what chart types are available and pick visually. | LOW | Grid of chart type icons. Highlight which types are compatible with the selected data shape (e.g., pie needs 1 dimension + 1 measure). AG Charts + ECharts types already cataloged in CLAUDE.md. |
-| **Dashboard layout editor (grid-based)** | Tableau tiled layout, Power BI grid snap. Users need to arrange multiple charts, KPIs, and grids on a canvas. | HIGH | 12-column CSS grid with drag-to-resize handles. Panels snap to grid. Existing `config-chart-grid.tsx` uses 12-col grid already. Add drag-and-drop reordering + resize handles. Libraries: `react-grid-layout` or custom with `react-dnd`. |
-| **Global filter bar** | Both Tableau and Qlik have prominent filter bars. Date range, dropdowns, multi-select. Filters apply to all charts. | LOW (exists) | Already built in `config-filter-bar.tsx`. Supports single-select, multi-select, preset-range with cascading dependencies. Needs to be wired into the builder so users can configure which filters appear. |
-| **Cross-filtering (click chart to filter others)** | Tableau "Use as Filter" is a one-click setup. Qlik does this automatically via the associative model. This is the single most expected interactive feature. | MEDIUM | Click a bar/slice/point in Chart A, all other charts on the dashboard filter to that selection. Already designed in legacy code (`cross-filter.ts`, `cross-filter-bar.tsx`). Needs porting to config-driven system. Must be client-side only (Zustand + useMemo on cached data). Zero network calls. |
-| **Drill-down (hierarchy navigation)** | Tableau hierarchy sets + set actions. Qlik automatic drill-down dimensions. Users click an aggregated value to see breakdown, then detail rows. | MEDIUM | Breadcrumb navigation: Summary -> Category -> Sub-category -> Detail rows. Already designed in legacy code (`drill-store.ts`, `use-drill-down.ts`, `drill-breadcrumb.tsx`). Needs porting. Client-side for aggregated levels, backend call for detail level (AG Grid). |
-| **KPI cards with trend indicators** | Every BI tool shows headline numbers. Trend arrows (up/down), percentage change, sparklines. | LOW (exists) | Already built: `config-kpi-row.tsx` + `count-animation.tsx`. Users need to configure which metrics become KPIs in the builder. |
-| **Data grid with sort, filter, pagination** | AG Grid or equivalent. Analysts live in grids. Column sorting, text/number filtering, pagination for large datasets. | LOW (exists) | Already built: `config-data-grid.tsx` with AG Grid Enterprise. Quartz theme, 100 rows/page, quick-filter search. Needs: column show/hide toggle, column reorder. |
-| **Save and load dashboards** | Fundamental. Users create a dashboard, save it, come back later. | MEDIUM | Currently JSON config files on disk. Needs: save to database (Oracle sidecar DB), version history, "Save As" for cloning. The dashboard config schema (`DashboardConfig` type) is the persistence format. |
-| **Dark/light theme toggle** | Modern expectation. Many finance users work in dark mode. | LOW (exists) | Already built. CSS variable theming via Shadcn. AG Grid Quartz theme, AG Charts custom theme, Monaco `vs-dark`. |
-| **Skeleton loading / progressive data loading** | Users coming from Tableau expect instant feedback. Blank screens feel like a crash. | LOW (exists) | Already built. KPIs load first (small payload), then charts, then grid. Skeleton components on every data element. |
-| **Dashboard title, description, metadata** | Basic organization. Name the dashboard, add a description, see last modified date. | LOW | Trivial UI. Already in dashboard list page. Builder needs an edit form for title/description. |
-| **Manual refresh button** | Tableau has "Refresh All". Users need to force-refresh data without reloading the page. | LOW | Simple button that invalidates TanStack Query cache for the dashboard. Partially exists (chart-panel toolbar had a refresh button in legacy). |
-| **Fullscreen chart view** | Click a chart to expand it to a modal/overlay for detailed inspection. Standard in all BI tools. | LOW | Modal with the chart rendered at full viewport. Legacy `chart-panel.tsx` had this. Port to config-driven system. |
+### What Superset Provides Under the Hood
 
-#### B. Data Pipeline & Configuration
+When RecViz calls `POST /api/v1/sqllab/execute/`, Superset internally:
+1. Looks up the database by `database_id` (connection string stored in its metadata DB)
+2. Creates a SQLAlchemy engine for that database dialect
+3. Executes the SQL with a row limit
+4. Returns `{columns: [{name, type, is_date}], data: [{col: val, ...}], status: "success"}`
+5. Optionally caches results in Redis (configured in `superset_config.py`)
 
-| Feature | Why Expected | Complexity | Notes |
-|---------|--------------|------------|-------|
-| **Dataset management (dev-team facing)** | Devs define SQL queries as named datasets with column metadata. This is the "data layer" that business users consume. | MEDIUM | Dataset = SQL template + column definitions (name, type, role: dimension/measure/time). Dev-facing UI: SQL editor, column metadata editor, test query. Superset already manages datasets, but RecViz needs its own metadata layer for column roles, friendly names, and aggregation defaults. |
-| **Column metadata (friendly names, types, roles)** | Business users see "Total Items" not "total_items_cnt". Columns tagged as dimension vs. measure. | MEDIUM | Per-column config: display name, data type (string/number/date/currency), role (dimension/measure/time), default aggregation, format string. Stored alongside dataset definition. |
-| **Database connection management** | Already exists in Superset; RecViz needs UI for the dev team. | LOW (exists) | Already built: `data-sources-tab.tsx`, `data-source-sheet.tsx` with full CRUD. URI builder supports Oracle, PostgreSQL, Hive, Elasticsearch. |
-| **Auto-refresh at configurable intervals** | Recon data updates throughout the day. Default ~10 min, but configurable per dashboard. | LOW | Timer-based TanStack Query invalidation. Dashboard config stores interval. Manual override via refresh button. |
+When RecViz calls `POST /api/v1/chart/data`, Superset:
+1. Looks up the virtual dataset (SQL + database)
+2. Applies adhoc_filters as WHERE clauses to the SQL
+3. Applies row_limit, row_offset, orderby
+4. Executes the modified SQL
+5. Returns `{result: [{data: [...], rowcount: N, ...}]}`
 
-#### C. Export & Sharing
+---
 
-| Feature | Why Expected | Complexity | Notes |
-|---------|--------------|------------|-------|
-| **Chart export: PNG, CSV, clipboard** | Tableau right-click > Export. Every chart should be exportable individually. | LOW | AG Charts has built-in export to PNG. CSV export = serialize chart data. Clipboard = copy data as tab-separated. Legacy `chart-panel.tsx` had this toolbar. |
-| **Grid export: CSV, Excel** | AG Grid Enterprise has built-in export. Analysts need to pull data into Excel constantly. | LOW | AG Grid `exportDataAsCsv()` and `exportDataAsExcel()`. Already have `grid-toolbar.tsx` with export button. |
-| **Embeddable dashboards (iframe)** | Internal portals need embedded charts. SharePoint, Confluence, internal tools. | LOW (exists) | Already built: `/embed/dashboards/$dashboardId` route with URL param filters, locked filters, theme override, chromeless topbar. |
-| **Shareable URLs with filter state** | "Send this exact view to a colleague." URL encodes current filter selections. | LOW | URL params for filter values. Partially exists in embed route. Needs extension to main dashboard route: encode applied filters in URL, restore on load. |
+## Table Stakes (Must Replicate from Superset for v1.0 Parity)
 
-### Differentiators (Competitive Advantage Over Tableau/Qlik)
+Features users and the system depend on today. Dropping any of these breaks existing functionality.
 
-These are where RecViz can beat the incumbents. Focus on speed, recon-specificity, and self-service.
+### TS-1: Raw SQL Execution Against Configured Databases
 
-| Feature | Value Proposition | Complexity | Notes |
-|---------|-------------------|------------|-------|
-| **Dashboard templates for reconciliation** | Pre-built layouts for common recon patterns: breaks summary, aging analysis, SLA monitoring, match rate tracking. Users start from a template instead of blank canvas. Tableau has no domain-specific templates. | MEDIUM | 5-8 templates: (1) Break Summary (KPIs + bar chart by type + aging chart + detail grid), (2) SLA Dashboard (RAG status KPIs + trend lines + breached items grid), (3) Match Rate Tracker (percentage KPIs + trend over time + breakdown by recon type), (4) Aging Analysis (bucket distribution + trend + detail), (5) Volume Dashboard (daily volumes + peaks + capacity), (6) Operational Summary (multi-recon overview for managers). Templates = pre-configured DashboardConfig JSON that users can customize. |
-| **Recon-specific KPI library** | Pre-defined KPI calculations: break count, break value, match rate %, unmatched items, SLA adherence %, aging distribution, average resolution time. Users select from a menu instead of writing formulas. | MEDIUM | KPI templates with SQL fragments that map to common recon table columns. Devs configure once per data source; business users pick KPIs from a catalog. Much faster than Tableau calculated fields. |
-| **Saved views (personal bookmarks)** | Power BI has personal bookmarks. RecViz saves filter state + layout tweaks as named views. Share via URL. Set a default view per user. | MEDIUM | Already has `use-saved-views.ts` + backend CRUD. Currently in-memory only. Needs: persist to database, URL encoding, "Set as default" per user, "Load" button that actually works (currently broken per codebase guide). |
-| **Conditional formatting with threshold rules** | Color-code cells in grids based on business rules: red when break value > $1M, amber when SLA < 4 hours remaining. Power BI does this well; Tableau requires complex calculations. | MEDIUM | AG Grid Enterprise supports cell styling functions. Config-driven: per-column rules `[{condition: ">1000000", color: "destructive"}, ...]`. Recon users need this for aging, SLA, break amounts. Visual instant triage. |
-| **Cross-filter visual state (Qlik-style selection highlighting)** | Qlik's green/white/gray selection states are beloved. When you click a bar, unrelated items dim (not disappear). Shows what's selected, what's related, what's excluded. | MEDIUM | AG Charts already has `makeItemStyler()` that dims non-selected items. Extend to show: selected items (full color), related items (slightly dimmed), excluded items (heavily dimmed). Add a "selection bar" showing active cross-filters with one-click removal. Legacy `cross-filter-bar.tsx` is a starting point. |
-| **Command palette (Cmd+K) global search** | Fast navigation across dashboards, datasets, saved views. Not standard in Tableau/Qlik. Power users love this. | LOW (exists) | Already built: `command-palette.tsx` using Shadcn CommandDialog. Searches via `/api/search`. Needs: search within chart titles on current dashboard, jump to saved views, keyboard shortcut discoverability. |
-| **Zero-latency cross-filtering** | Tableau cross-filters re-query the server. Qlik keeps data in memory. RecViz caches query results in TanStack Query and cross-filters client-side via `useMemo`. Instant response, zero network calls. | LOW (designed) | Architecture already supports this: `applyCrossFilters()` in `lib/cross-filter.ts` filters cached data. Competitive advantage over Tableau's server-round-trip model. Must NOT break this by adding server calls to cross-filter. |
-| **Multi-dashboard overview page** | Managers overseeing 50+ recons need a "dashboard of dashboards" -- summary KPIs from multiple recons on one screen. Tableau requires publishing separate workbooks. | MEDIUM | A meta-dashboard that pulls headline KPIs from multiple dashboard configs. Shows: recon name, break count, match rate, SLA status across all recons. Click to open the full dashboard. Like a portfolio view. |
-| **Inline chart type switching** | User viewing a bar chart can switch to line, pie, or table without going to edit mode. Quick "what does this look like as X?" exploration. Inspired by Tableau's "Show Me" but faster. | LOW | Dropdown or toggle on chart card header. Chart already receives data + vizType via `ChartWrapperProps`. Swap vizType, re-render. Compatible types only (bar<->line<->area, pie<->donut). |
-| **Progressive dashboard loading with priority** | KPIs load first (50ms), then charts (200-500ms), then grids (500ms-2s). User sees value immediately. Tableau loads everything at once and shows a spinner. | LOW (exists) | Already architected. KPI queries are small. Charts use separate query hooks. Grids load last. Maintain this advantage. |
+| Aspect | Detail |
+|---|---|
+| **What it does** | Accept SQL string + database identifier, execute against the correct database, return rows + column metadata |
+| **Current path** | `QueryEngine.execute()` -> `SupersetClient.execute_sql()` -> Superset `/api/v1/sqllab/execute/` |
+| **Replacement** | Direct SQLAlchemy `text()` execution via async engine. `async with engine.connect() as conn: result = await conn.execute(text(sql))` |
+| **Complexity** | MEDIUM |
+| **Column type detection** | Superset returns `{name, type, is_date}` per column. SQLAlchemy's `result.cursor.description` provides column names and DB-API type codes. Map these to the same string types (`VARCHAR`, `NUMERIC`, `DATE`, `TIMESTAMP`). For the RecViz column model (`string`, `number`, `date`, `currency`), this is sufficient. |
+| **Row limit** | Superset applies row limit server-side. Replace with `SELECT * FROM (user_sql) sub LIMIT :limit` for PostgreSQL or `SELECT * FROM (user_sql) sub WHERE ROWNUM <= :limit` for Oracle. Better: wrap in a CTE or use `text(sql).limit(n)` -- but `text()` does not support `.limit()`. Use SQL wrapping. |
+| **Error handling** | Superset returns structured errors for bad SQL, connection failures, timeouts. Replace with try/except on `sqlalchemy.exc.OperationalError`, `sqlalchemy.exc.ProgrammingError`, `asyncio.TimeoutError`. Map to the same HTTP error structure the frontend expects. |
+| **Dependencies** | Requires TS-2 (connection management) to know which engine to use |
 
-### Anti-Features (Deliberately NOT Building)
+### TS-2: Database Connection Management (CRUD + Storage)
 
-Features that seem attractive but create excessive complexity, scope creep, or maintenance burden for the target audience.
+| Aspect | Detail |
+|---|---|
+| **What it does** | Create, read, update, delete database connections. Store connection URIs. Map logical name -> connection details. |
+| **Current path** | `databases.py` -> `SupersetClient` -> Superset REST API. Superset stores connections in its PostgreSQL metadata DB. `databases.json` defines initial connections, `DatabaseRegistrar` syncs them to Superset on startup. |
+| **Replacement** | Store connections in a new `recviz_databases` table in the metadata DB (PostgreSQL dev / Oracle prod). CRUD endpoints stay at `/api/databases`. Remove all Superset proxy calls. |
+| **Complexity** | MEDIUM |
+| **Schema design** | `recviz_databases` table: `id` (int, PK auto), `name` (unique), `display_name`, `backend` (oracle/postgresql), `host`, `port`, `database_name`, `username`, `encrypted_password`, `schema_name`, `dialect`, `extra_params` (JSONB), `status`, `last_tested_at`, `created_at`, `updated_at` |
+| **Credential storage** | Currently stored in plaintext in `databases.json` and Superset metadata. For v2.0: use Fernet symmetric encryption for passwords at rest (Python `cryptography` library). Encryption key from env var. Not enterprise KMS, but better than plaintext. |
+| **URI construction** | `uri_builder.py` already builds SQLAlchemy URIs from form fields. Keep this, extend to generate async URIs (`postgresql+asyncpg://`, `oracle+oracledb_async://`). |
+| **Initial data** | Migrate `databases.json` entries into the new table on first startup. One-time migration, then the file becomes unnecessary. |
+| **Dependencies** | None -- this is foundational |
 
-| Feature | Why Requested | Why Problematic | Alternative |
-|---------|---------------|-----------------|-------------|
-| **Free-form SQL for business users** | "Let me write my own queries." | Business users writing SQL against Oracle production creates a support nightmare. Bad queries can hammer databases. Security risk. Two-tier model (devs write SQL, users consume datasets) is a deliberate design choice. | Devs create datasets. Business users build charts from datasets. SQL Explorer stays dev-team-only. |
-| **Natural language / AI querying** | "Ask questions in English." Industry hype in 2026. | Massive implementation complexity. LLM hallucination risk on financial data. Not trustworthy enough for recon operations where accuracy is critical. Requires LLM infrastructure that may not be available on-prem. | Defer entirely. Build excellent self-service chart builder instead. Revisit in 12+ months when on-prem LLM options mature. |
-| **Real-time WebSocket live updates** | "Show breaks as they happen." | Recon data arrives in batches (nightly, hourly). True real-time adds WebSocket infrastructure, message broker, connection management. ROI is minimal when auto-refresh at 10-min intervals covers the use case. | Configurable auto-refresh (already planned). Manual refresh button. Default 10 min, customizable per dashboard. |
-| **Mobile/tablet responsive design** | "Access dashboards on my phone." | Recon analysts work on desktop workstations with large screens. Data density is the priority. Responsive design would compromise every layout decision. Desktop-first is a deliberate constraint. | Desktop-only. Embed mode for tablets in meeting rooms if needed. |
-| **Full drag-and-drop freeform canvas** | "Like Figma for dashboards." | Freeform positioning creates alignment nightmares. Every user's dashboard looks different. Maintenance hell. Tableau's floating objects are the most complained-about feature. | Grid-based layout with snap-to-grid. Constrained but clean. Templates as starting points. Tiled layout (Tableau-style) not floating. |
-| **Custom calculated fields / DAX-like formulas** | "Let me create my own metrics." | Opens a Pandora's box of complexity. Business users creating formulas on financial data without validation is dangerous. Debugging user-created calculations is a support burden. | Pre-defined KPI library managed by dev team. If a new metric is needed, devs add it to the dataset/KPI catalog. Business users select from the catalog. |
-| **Dashboard versioning / undo history** | "I want to go back to yesterday's version." | Full version control is complex to implement and rarely used. Most users just want "undo last change." | "Save As" for cloning before major changes. Simple last-saved-state rollback (one level of undo). No full version history. |
-| **Pixel-perfect report designer** | "Generate formatted PDF reports with headers, footers, page breaks." | Entirely different product category. BI dashboards and paginated reports are separate concerns. Building a report designer is 6+ months of work. | Phase 1: screenshot-to-PDF of current dashboard view. Phase 2: templated PDF export with WeasyPrint for simple layouts. No WYSIWYG report designer. |
-| **Multi-tenant / workspace isolation** | "Separate dashboards by team/department." | Premature optimization. Start with a flat list. 100 dashboards is manageable with search, tags, and favorites. Multi-tenancy adds auth complexity. | Folder/tag organization. Cmd+K search. Favorites list. |
-| **Alerting / threshold notifications** | "Notify me when breaks exceed $10M." | Requires notification infrastructure (email, Slack), scheduling service, alert state management. Significant backend work that is not core to the dashboard builder. | Phase 1: visual threshold indicators in the dashboard (conditional formatting). Phase 2: scheduled report delivery (deferred). Alerting as a separate future milestone. |
+### TS-3: Database Connection Testing
+
+| Aspect | Detail |
+|---|---|
+| **What it does** | Test if a database connection works before saving it. Return success/failure with error message. |
+| **Current path** | `databases.py:test_connection()` -> `SupersetClient.test_connection()` -> Superset `POST /api/v1/database/test_connection/` |
+| **Replacement** | Create a temporary async engine, attempt `SELECT 1` (PostgreSQL) or `SELECT 1 FROM DUAL` (Oracle). Timeout after 10 seconds. Return success/failure. Dispose engine after test. |
+| **Complexity** | LOW |
+| **Connection status tracking** | `ConnectionStatusTracker` (in-memory) already works. Update it when test succeeds/fails. Keep the same `/api/databases/test` endpoint shape. |
+| **Dependencies** | Requires TS-2 for connection details |
+
+### TS-4: Dynamic Engine Pool Management
+
+| Aspect | Detail |
+|---|---|
+| **What it does** | Maintain a pool of SQLAlchemy async engines, one per registered database. Create engines lazily on first use. Dispose on database deletion or update. |
+| **Current path** | Superset manages its own engine pool internally. RecViz has no visibility into it. |
+| **Replacement** | New `EngineManager` service: `dict[int, AsyncEngine]`. On first query to a database, create `create_async_engine()` with pool settings. Cache the engine. On connection update/delete, `await engine.dispose()` and remove from cache. On startup, pre-warm engines for all registered databases. |
+| **Complexity** | MEDIUM |
+| **Pool settings** | `pool_size=5` per database (conservative -- RecViz is single-tenant). `max_overflow=10`. `pool_timeout=30`. `pool_recycle=1800` (30 min). `pool_pre_ping=True` (detect stale connections). |
+| **Oracle specifics** | Use `oracle+oracledb_async://` dialect string. Requires SQLAlchemy 2.0.25+. Thin mode only (no Oracle Instant Client). Connection string format: `oracle+oracledb_async://user:pass@host:port/?service_name=SID`. |
+| **PostgreSQL specifics** | Use `postgresql+asyncpg://` (already used for metadata DB). |
+| **Dependencies** | Requires TS-2 for connection details |
+
+### TS-5: Dataset SQL Execution with Filter Injection
+
+| Aspect | Detail |
+|---|---|
+| **What it does** | Execute a managed dataset's SQL query with runtime filter injection, pagination, and sorting. This powers every chart and grid on every dashboard. |
+| **Current path** | Two paths: (A) `data_sources.py` -> `QueryEngine.execute()` -> builds SQL from config template with `{{filters}}` -> `SupersetClient.execute_sql()`. (B) `datasets.py:get_dataset_data()` -> `SupersetClient.get_chart_data()` with adhoc_filters, row_limit, row_offset, orderby. |
+| **Replacement** | Unify into one path. `QueryEngine.execute()` already builds SQL with filter injection. Replace `self._superset.execute_sql()` call with direct `engine.execute(text(sql))` using the engine from TS-4. The SQL template system (`{{filters}}`, `{{values}}`, `{{date_range_clause}}`) stays unchanged -- it is RecViz's own code, not Superset's. |
+| **Complexity** | LOW-MEDIUM (mostly wiring change) |
+| **Pagination** | Currently done via `row_limit` and `row_offset` in Superset's adhoc query format. Replace with SQL-level `LIMIT/OFFSET` (PostgreSQL) or `OFFSET FETCH` (Oracle 12c+) wrapping. |
+| **Sorting** | Currently `orderby` in Superset's query format. Replace with `ORDER BY` clause appended to SQL before limit/offset wrapping. |
+| **Dependencies** | Requires TS-1, TS-4 |
+
+### TS-6: Dataset Metadata Management (Without Superset Sync)
+
+| Aspect | Detail |
+|---|---|
+| **What it does** | Create, update, delete managed datasets. Currently each dataset is dual-stored: RecViz metadata in `recviz_datasets` table + a "virtual dataset" mirrored in Superset via `DatasetSyncService`. |
+| **Replacement** | Drop the Superset sync entirely. Remove `superset_id`, `sync_status` columns from `recviz_datasets`. Remove `DatasetSyncService`. Dataset CRUD becomes purely local -- write to `recviz_datasets`, done. The `managed_datasets.py` endpoints simplify dramatically. |
+| **Complexity** | LOW (removing code is easier than adding it) |
+| **Column metadata** | Already stored in `recviz_datasets.columns` as JSONB. The `ColumnMetaSchema` model (`name`, `display_name`, `data_type`, `role`, `aggregation`, `format_preset`, `format_string`) is RecViz-owned. No Superset involvement. |
+| **What disappears** | `DatasetSyncService` class, `dataset_sync.py` file, startup reconciliation loop, `superset_id` field, `sync_status` field, Superset virtual dataset concept entirely. |
+| **Dependencies** | None -- can be done independently |
+
+### TS-7: Schema Browser (Table/Column Introspection)
+
+| Aspect | Detail |
+|---|---|
+| **What it does** | SQL Explorer's schema browser shows tables and columns for a database. Used by dev team when writing dataset SQL. |
+| **Current path** | Not currently implemented in RecViz -- the SQL Explorer lists databases via `sql.py:list_databases()` -> Superset, but has no table/column browser. Devs write SQL from memory or external tools. |
+| **Replacement** | Use SQLAlchemy Inspector via `run_sync`: `inspector = inspect(conn)`, `inspector.get_table_names(schema=...)`, `inspector.get_columns(table_name, schema=...)`. New endpoints: `GET /api/databases/{id}/schemas`, `GET /api/databases/{id}/tables?schema=X`, `GET /api/databases/{id}/columns?schema=X&table=Y`. |
+| **Complexity** | MEDIUM |
+| **Oracle specifics** | Oracle has many system tables. Filter to user-owned tables: `inspector.get_table_names(schema=owner)`. Oracle schemas = Oracle users. |
+| **Caching** | Schema metadata changes rarely. Cache introspection results in-memory with 5-minute TTL. Use `cachetools.TTLCache`. |
+| **Dependencies** | Requires TS-4 (engine pool) |
+
+### TS-8: SQL Explorer Direct Execution
+
+| Aspect | Detail |
+|---|---|
+| **What it does** | Dev team types arbitrary SQL in Monaco editor, hits "Run", sees results in a grid. Separate from dashboard query execution. |
+| **Current path** | `sql.py:execute_sql()` -> `SupersetClient.execute_sql()` with `database_id`, `sql`, `schema`, `limit` |
+| **Replacement** | Same as TS-1 but exposed via the `/api/sql/execute` endpoint. Accept `database_id`, `sql`, `schema`, `limit`. Look up engine from TS-4, execute with `text()`, return `{columns, data, row_count}`. Keep query history in-memory (already implemented). |
+| **Complexity** | LOW (it is TS-1 behind a different endpoint) |
+| **Safety** | Add query timeout (configurable, default 60s). Add read-only enforcement: reject statements starting with `INSERT`, `UPDATE`, `DELETE`, `DROP`, `ALTER`, `CREATE`, `TRUNCATE`. This is a defense-in-depth measure -- the database user should also be read-only. |
+| **Dependencies** | Requires TS-1, TS-4 |
+
+---
+
+## Differentiators (Things We Can Do BETTER Without Superset)
+
+Removing Superset is not just about parity -- it unlocks improvements that were impossible with a proxied architecture.
+
+### D-1: Faster Query Execution (Eliminate Double-Hop)
+
+| Aspect | Detail |
+|---|---|
+| **What improves** | Every query currently goes: FastAPI -> HTTP -> Superset -> SQLAlchemy -> Database -> Superset -> HTTP -> FastAPI. Removing Superset eliminates the HTTP hop, JSON serialization/deserialization, Superset's auth check, Superset's query parsing. Direct path: FastAPI -> SQLAlchemy -> Database -> FastAPI. |
+| **Expected improvement** | 50-200ms latency reduction per query. On dashboards with 10+ queries, this is 0.5-2 seconds of wall time saved. |
+| **Complexity** | FREE (inherent to the removal) |
+| **Confidence** | HIGH -- the HTTP serialization overhead is measurable |
+
+### D-2: Better Error Messages
+
+| Aspect | Detail |
+|---|---|
+| **What improves** | Superset wraps database errors in its own error format, sometimes losing the original Oracle error code (ORA-XXXXX) or PostgreSQL error detail. Direct SQLAlchemy exceptions preserve the full `orig` attribute with the native database error. |
+| **Replacement** | Catch `sqlalchemy.exc.OperationalError` and extract `e.orig` for the native error. Return structured errors with the Oracle error code or PostgreSQL SQLSTATE. Dev team debugging SQL queries gets the real error, not Superset's interpretation. |
+| **Complexity** | LOW |
+
+### D-3: Streaming Large Result Sets
+
+| Aspect | Detail |
+|---|---|
+| **What improves** | Superset loads the entire result set into memory before returning JSON. For 100K+ row exports, this is a memory bottleneck. Direct SQLAlchemy supports `result.partitions(batch_size)` for server-side cursors, enabling streaming responses. |
+| **What to build** | `StreamingResponse` for CSV/Excel export endpoints. Fetch 1000 rows at a time, write to response stream. Never hold the full result in memory. |
+| **Complexity** | MEDIUM |
+| **Dependencies** | Requires TS-1, TS-4. Useful for export endpoints (currently stubbed). |
+
+### D-4: Connection Pool Observability
+
+| Aspect | Detail |
+|---|---|
+| **What improves** | Superset's connection pool is opaque -- no metrics exposed. Direct SQLAlchemy engines expose pool stats: `engine.pool.status()` returns pool size, checked-out connections, overflow count. |
+| **What to build** | `GET /api/health/pools` endpoint showing pool stats per database. Useful for production monitoring. |
+| **Complexity** | LOW |
+
+### D-5: Simplified Infrastructure (No Superset, No Redis)
+
+| Aspect | Detail |
+|---|---|
+| **What improves** | Current dev setup requires Docker with PostgreSQL + Redis + pip install Superset + Superset startup + database initialization + Alembic migration conflicts (`recviz_alembic_version` workaround). Production requires Superset process + Redis process + separate metadata DB. |
+| **After removal** | Dev: Docker with PostgreSQL only + `uvicorn` + `pnpm dev`. Production: FastAPI + Oracle. Two processes total (FastAPI + frontend static files). |
+| **Complexity** | FREE (inherent to removal) |
+| **Impact** | Dramatically simpler onboarding for new developers. Faster CI/CD. Fewer moving parts to debug in production. |
+
+### D-6: Query Timeout Control
+
+| Aspect | Detail |
+|---|---|
+| **What improves** | Superset has a global query timeout. Direct SQLAlchemy allows per-query timeout via `conn.execution_options(timeout=N)` or by wrapping in `asyncio.wait_for()`. Different queries can have different timeouts. |
+| **What to build** | SQL Explorer queries: 60s timeout. Dashboard chart queries: 30s timeout. Schema introspection: 10s timeout. Configurable per-database. |
+| **Complexity** | LOW |
+
+### D-7: True Async All the Way Down
+
+| Aspect | Detail |
+|---|---|
+| **What improves** | Current architecture is fake-async: FastAPI is async, but `httpx` calls to Superset block on Superset's synchronous processing. With direct async engines (`oracledb_async`, `asyncpg`), the entire path is truly non-blocking. |
+| **Impact** | Better concurrency under load. A slow Oracle query does not block other requests from being served. |
+| **Complexity** | FREE (inherent to using async engines) |
+
+---
+
+## Anti-Features (Superset Complexity We Must NOT Replicate)
+
+Superset has many features we never used and should not rebuild. Explicitly listing them prevents scope creep.
+
+### AF-1: Superset Virtual Dataset Abstraction
+
+| What it is | Why NOT to replicate |
+|---|---|
+| Superset's concept of "virtual datasets" -- SQL saved as a named object in Superset with its own ID, column detection, metric definitions, and "explore" interface | RecViz already has `recviz_datasets` table with its own metadata model (`ColumnMetaSchema` with display names, roles, aggregation defaults, format presets). The Superset virtual dataset was a redundant mirror. Removing it simplifies the data model. Datasets are RecViz-managed, period. |
+
+### AF-2: Superset Chart Data API (Adhoc Query Builder)
+
+| What it is | Why NOT to replicate |
+|---|---|
+| Superset's `/api/v1/chart/data` endpoint accepts a complex JSON query format with `datasource`, `queries[]` containing `columns`, `metrics`, `filters`, `orderby`, `row_limit`, `row_offset`, `extras`, `time_range`, etc. It is essentially a JSON-to-SQL compiler. | RecViz's `QueryEngine` already builds SQL from templates with `{{filters}}` placeholders. This is simpler, more transparent (the SQL is visible in the dataset definition), and easier to debug. Do not rebuild Superset's JSON-to-SQL layer. Instead, use the existing template-based SQL builder and enhance it with LIMIT/OFFSET/ORDER BY support. |
+
+### AF-3: Superset Result Caching (Redis)
+
+| What it is | Why NOT to replicate |
+|---|---|
+| Superset caches query results in Redis with configurable TTL (300s metadata, 600s data). Cache keys based on query hash. | RecViz uses TanStack Query on the client side with 5-minute stale time and 30-minute garbage collection. This is sufficient for the use case: single-tenant, desktop app, ~12 concurrent users. Server-side caching adds infrastructure (Redis) for marginal benefit. If server-side caching is needed later, use `cachetools.TTLCache` in-memory (see Optional section below). Do not bring back Redis. |
+
+### AF-4: Superset Authentication / RBAC
+
+| What it is | Why NOT to replicate |
+|---|---|
+| Superset's Flask-AppBuilder auth system with roles, permissions, row-level security, JWT tokens, CSRF tokens, OAuth support | RecViz explicitly defers auth to a future milestone. No auth system needed for v2.0. When auth is added, it will be SSO/SAML/OIDC at the FastAPI level, not a Superset-style permission system. |
+
+### AF-5: Superset Metadata Database
+
+| What it is | Why NOT to replicate |
+|---|---|
+| Superset maintains its own PostgreSQL metadata database with 50+ tables: `ab_user`, `ab_role`, `dashboards`, `slices`, `tables`, `columns`, `metrics`, `query`, `saved_query`, `logs`, `annotation`, `report_schedule`, etc. | RecViz has 5 managed tables (`recviz_dashboards`, `recviz_charts`, `recviz_datasets`, `recviz_kpis`, `recviz_data_sources`). Adding `recviz_databases` makes 6. That is the entire metadata layer. Do not create a parallel Superset-sized schema. |
+
+### AF-6: Superset Chart/Dashboard Objects
+
+| What it is | Why NOT to replicate |
+|---|---|
+| Superset has its own chart and dashboard objects (`/api/v1/chart/`, `/api/v1/dashboard/`). The `SupersetClient` has methods `list_charts()`, `get_chart()`, `list_dashboards()`, `get_dashboard()`. | These methods exist in `superset_client.py` but are **never called by any route handler**. They are dead code. RecViz manages charts and dashboards entirely in its own tables. Drop them. |
+
+### AF-7: Celery Async Query Execution
+
+| What it is | Why NOT to replicate |
+|---|---|
+| Superset can run queries asynchronously via Celery, storing results in Redis. The `execute_sql()` call uses `"runAsync": False` (synchronous mode). | RecViz never uses async query execution. All queries run synchronously with a timeout. For large exports, use streaming (D-3) instead of background jobs. Do not add Celery infrastructure. |
+
+### AF-8: Superset Template Processing
+
+| What it is | Why NOT to replicate |
+|---|---|
+| Superset has Jinja2 template processing in SQL (`FEATURE_FLAGS: ENABLE_TEMPLATE_PROCESSING`). Allows `{{ current_username() }}`, `{{ url_param('x') }}`, etc. | RecViz has its own simpler template system (`{{filters}}`, `{{values}}`, `{{date_range_clause}}`, `{{column}}`). These are processed in `QueryEngine._build_sql()`. Keep this. Do not add Jinja2 complexity. |
+
+---
+
+## Optional Features (Nice to Have, Not Required for Parity)
+
+### OPT-1: In-Memory Query Result Cache
+
+| Aspect | Detail |
+|---|---|
+| **What** | TTL-based in-memory cache for query results on the server side. Prevents re-executing identical queries within a short window. |
+| **When needed** | If TanStack Query client-side caching proves insufficient -- e.g., multiple users viewing the same dashboard trigger duplicate database queries. |
+| **Implementation** | `cachetools.TTLCache(maxsize=200, ttl=300)` keyed by hash of `(database_id, sql, params)`. ~50 lines of code. |
+| **Complexity** | LOW |
+| **Decision** | Defer. Implement only if query load becomes a measured problem. TanStack Query with 5-min stale time means each client caches independently. With ~12 concurrent users this is likely fine. |
+
+### OPT-2: Query History Persistence
+
+| Aspect | Detail |
+|---|---|
+| **What** | SQL Explorer query history is currently in-memory (`_query_history: list[dict]`). Lost on restart. |
+| **Implementation** | Add `recviz_query_history` table. Store last 500 queries per database. Show in SQL Explorer sidebar. |
+| **Complexity** | LOW |
+| **Decision** | Nice to have. In-memory works for dev usage. Persist if users request it. |
+
+### OPT-3: Query Cost Estimation
+
+| Aspect | Detail |
+|---|---|
+| **What** | Before executing a query, run `EXPLAIN` (PostgreSQL) or `EXPLAIN PLAN FOR` (Oracle) to estimate cost/rows. Warn if estimated rows exceed threshold. |
+| **Complexity** | MEDIUM |
+| **Decision** | Defer. Useful for protecting production databases, but not needed for v2.0 parity. |
+
+---
 
 ## Feature Dependencies
 
 ```
-[Dataset Management (dev)]
-    |
-    +--requires--> [Column Metadata / Friendly Names]
-    |                  |
-    |                  +--enables--> [Chart Builder: column picker with types]
-    |                                    |
-    |                                    +--enables--> [Chart Type Selector]
-    |                                    |                 |
-    |                                    |                 +--enables--> [Dashboard Layout Editor]
-    |                                    |                                    |
-    |                                    |                                    +--enables--> [Save Dashboard]
-    |                                    |                                    |
-    |                                    |                                    +--enables--> [Dashboard Templates]
-    |                                    |
-    |                                    +--enables--> [KPI Card Builder]
-    |
-    +--enables--> [Recon KPI Library]
+TS-2: Database Connection Management (CRUD + Storage)
+  |
+  +--enables--> TS-3: Connection Testing
+  |
+  +--enables--> TS-4: Dynamic Engine Pool
+                  |
+                  +--enables--> TS-1: Raw SQL Execution
+                  |               |
+                  |               +--enables--> TS-5: Dataset SQL with Filters
+                  |               |
+                  |               +--enables--> TS-8: SQL Explorer Execution
+                  |
+                  +--enables--> TS-7: Schema Browser
+                  |
+                  +--enables--> D-3: Streaming Results
+                  |
+                  +--enables--> D-4: Pool Observability
 
-[Global Filter Bar] (exists)
-    |
-    +--enhances--> [Cross-Filtering]
-    |                  |
-    |                  +--enhances--> [Cross-Filter Visual State (Qlik-style)]
-    |
-    +--enhances--> [Drill-Down]
-    |                  |
-    |                  +--requires--> [Data Grid] (for detail level)
-    |
-    +--enables--> [Saved Views] (saves filter state)
-    |                 |
-    |                 +--enables--> [Shareable URLs with filter state]
+TS-6: Dataset Metadata (No Sync) -- INDEPENDENT, can be done first or in parallel
 
-[Chart Export (PNG/CSV)] --independent-- (no dependencies, can build anytime)
-
-[Grid Export (CSV/Excel)] --independent-- (AG Grid built-in)
-
-[Embed Mode] (exists) --enhances--> [Shareable URLs]
-
-[Conditional Formatting]
-    +--requires--> [Column Metadata] (needs to know column types/thresholds)
-
-[Dashboard Templates]
-    +--requires--> [Dashboard Layout Editor]
-    +--requires--> [Chart Builder]
-    +--requires--> [Save Dashboard]
-
-[Multi-Dashboard Overview]
-    +--requires--> [Save Dashboard] (needs multiple saved dashboards)
-    +--requires--> [KPI Cards] (pulls headline metrics)
+D-1: Faster Queries -- FREE, automatic with removal
+D-2: Better Errors -- FREE, falls out of direct exception handling
+D-5: Simpler Infra -- FREE, result of removing Superset + Redis
+D-6: Timeout Control -- LOW, add after TS-4
+D-7: True Async -- FREE, inherent to async engine usage
 ```
 
-### Dependency Notes
+### Critical Path
 
-- **Chart Builder requires Dataset Management:** Cannot build charts without knowing what datasets exist and what columns they contain. This is the foundation.
-- **Column Metadata enables the entire self-service pipeline:** Friendly names, data types, and dimension/measure roles drive the chart builder UI. Without this, users see raw SQL column names.
-- **Dashboard Layout Editor requires Chart Builder:** You need charts to place on the layout. Builder flow: pick dataset -> build chart -> place on dashboard.
-- **Cross-Filtering requires cached data:** The zero-latency cross-filter model depends on TanStack Query caching chart data client-side. If data is not cached, cross-filters would need server calls (breaking the UX advantage).
-- **Saved Views require Global Filters:** A view is a snapshot of filter state + layout. Filters must work first.
-- **Dashboard Templates require all builder primitives:** Templates are pre-configured DashboardConfig objects. The builder must exist to create/edit them.
-- **Conditional Formatting requires Column Metadata:** Rules reference column names and types. Must know if a column is a number to apply "> threshold" rules.
-- **Multi-Dashboard Overview requires multiple saved dashboards:** Only valuable when there are 10+ dashboards to summarize.
+```
+TS-2 (DB storage) -> TS-4 (engine pool) -> TS-1 (SQL execution) -> TS-5 (dataset queries)
+```
 
-## MVP Definition
+Everything else branches off TS-4. TS-6 (removing DatasetSyncService) is independent and can be done early as a cleanup win.
 
-### Launch With (v1) -- The Dashboard Builder
+---
 
-Minimum viable: business users can create dashboards from dev-curated datasets. Replaces the need for Tableau for basic use cases.
+## Migration Surface Analysis
 
-- [ ] **Dataset management UI (dev-facing)** -- devs create, edit, test datasets with SQL + column metadata
-- [ ] **Chart builder** -- pick dataset, select columns for axes/metrics, choose chart type, preview, save
-- [ ] **Dashboard layout editor** -- grid-based, add/remove/resize chart panels and KPI cards
-- [ ] **Save/load dashboards** -- persist to Oracle sidecar DB, dashboard list with search
-- [ ] **Global filter bar (configurable)** -- users add/remove filters from available dataset columns
-- [ ] **Cross-filtering** -- click chart element to filter all other charts (client-side, zero latency)
-- [ ] **Drill-down** -- click aggregated -> breakdown -> detail rows with breadcrumb navigation
-- [ ] **Chart export (PNG, CSV)** -- individual chart export from toolbar
-- [ ] **Grid export (CSV, Excel)** -- AG Grid built-in export
-- [ ] **Fullscreen chart view** -- expand any chart to modal
-- [ ] **Manual refresh + auto-refresh** -- configurable interval per dashboard
+### API Endpoints That Change
 
-### Add After Validation (v1.x)
+| Endpoint | Current (Superset Proxy) | After (Direct) | Frontend Impact |
+|---|---|---|---|
+| `GET /api/databases` | Proxies Superset list | Queries `recviz_databases` table | Response shape stays identical -- no frontend change |
+| `GET /api/databases/{id}` | Proxies Superset get | Queries `recviz_databases` table | No frontend change |
+| `POST /api/databases` | Creates in Superset | Inserts into `recviz_databases` | No frontend change |
+| `PUT /api/databases/{id}` | Updates in Superset | Updates `recviz_databases` + disposes cached engine | No frontend change |
+| `DELETE /api/databases/{id}` | Deletes from Superset | Deletes from `recviz_databases` + disposes cached engine | No frontend change |
+| `POST /api/databases/test` | Superset test_connection | Direct `SELECT 1` via temp engine | No frontend change |
+| `POST /api/data-sources/{id}/query` | QueryEngine -> Superset execute_sql | QueryEngine -> direct engine execute | No frontend change |
+| `GET /api/data-sources/{id}/distinct/{col}` | QueryEngine -> Superset execute_sql | QueryEngine -> direct engine execute | No frontend change |
+| `POST /api/data-sources/merge` | QueryEngine -> Superset execute_sql | QueryEngine -> direct engine execute | No frontend change |
+| `POST /api/sql/execute` | Superset sqllab execute | Direct engine execute | No frontend change |
+| `GET /api/sql/databases` | Superset list databases | Queries `recviz_databases` | No frontend change |
+| `GET /api/datasets` | Superset list datasets | **Remove or redirect to managed** | Minor frontend change (if used) |
+| `GET /api/datasets/{id}` | Superset get dataset | **Remove or redirect to managed** | Minor frontend change (if used) |
+| `POST /api/datasets/{id}/data` | Superset chart/data | **Replace with direct query** | Response shape change possible |
+| `POST /api/datasets/managed` | Creates in RecViz + syncs to Superset | Creates in RecViz only | No frontend change (sync was non-blocking) |
+| `PUT /api/datasets/managed/{id}` | Updates in RecViz | Updates in RecViz only | No frontend change |
+| `DELETE /api/datasets/managed/{id}` | Deletes from RecViz + Superset | Deletes from RecViz only | No frontend change |
 
-Features to add once the builder is in use and feedback is collected.
+### Frontend Impact Summary
 
-- [ ] **Dashboard templates** -- pre-built recon layouts (breaks summary, SLA, aging, match rate). Trigger: users complain about building from scratch
-- [ ] **Saved views / personal bookmarks** -- save filter state, share URL. Trigger: users ask "how do I get back to that view?"
-- [ ] **Conditional formatting** -- threshold-based cell coloring in grids and KPI status colors. Trigger: users manually scanning for outliers
-- [ ] **Recon KPI library** -- pre-defined recon metrics catalog. Trigger: multiple dashboards redefining the same KPIs
-- [ ] **Inline chart type switching** -- swap viz type without editing. Trigger: users wanting quick exploration
-- [ ] **Cross-filter visual state** -- Qlik-style dimming of excluded items. Trigger: users confused about what cross-filter is doing
-- [ ] **Shareable URLs with filter state** -- encode filter state in URL for sharing. Trigger: users copy-pasting screenshots instead of links
+**Zero frontend changes required** for the core migration. All API response shapes can remain identical. The frontend talks to FastAPI endpoints, not to Superset. The proxy layer is transparent.
 
-### Future Consideration (v2+)
+The only endpoints that might change shape are the Superset-native dataset routes (`/api/datasets`, `/api/datasets/{id}`, `/api/datasets/{id}/data`) which either get removed (if unused) or consolidated into the managed dataset endpoints (if used).
 
-Features to defer until the builder is mature and user patterns are established.
+### Files to Delete
 
-- [ ] **Multi-dashboard overview** -- portfolio view across all recons. Defer: needs 20+ dashboards to be valuable
-- [ ] **PDF export of dashboards** -- screenshot-to-PDF or WeasyPrint. Defer: complex layout rendering, Celery infrastructure
-- [ ] **Excel export of dashboards** -- multi-sheet workbook with charts + data. Defer: complex formatting, openpyxl
-- [ ] **Scheduled report delivery** -- email dashboards on a schedule. Defer: requires Celery, email infrastructure, notification preferences
-- [ ] **Row-level security / RBAC** -- restrict data by user role. Defer: no auth system yet
-- [ ] **Alerting / threshold notifications** -- notify when metrics cross thresholds. Defer: requires notification infrastructure
+| File | Reason |
+|---|---|
+| `backend/app/services/superset_client.py` | No longer needed |
+| `backend/app/services/dataset_sync.py` | No longer needed |
+| `backend/app/services/database_registrar.py` | Replaced by direct DB table |
+| `backend/app/api/datasets.py` (Superset proxy routes) | Replaced by managed_datasets or new direct routes |
+| `backend/app/models/database_config.py` | `DatabaseEntry` model for JSON config file, replaced by DB model |
+| `backend/app/config/databases.json` | Connections stored in DB |
+| `superset/superset_config.py` | No Superset |
+| `superset/superset_config_local.py` | No Superset |
+| `superset/` directory | Entirely |
 
-## Feature Prioritization Matrix
+### Files to Modify
 
-| Feature | User Value | Implementation Cost | Priority |
-|---------|------------|---------------------|----------|
-| Chart builder (dataset-to-chart pipeline) | HIGH | HIGH | P1 |
-| Dashboard layout editor | HIGH | HIGH | P1 |
-| Dataset management UI (dev-facing) | HIGH | MEDIUM | P1 |
-| Column metadata / friendly names | HIGH | MEDIUM | P1 |
-| Cross-filtering | HIGH | MEDIUM | P1 |
-| Drill-down | HIGH | MEDIUM | P1 |
-| Save/load dashboards | HIGH | MEDIUM | P1 |
-| Global filter bar (configurable) | HIGH | LOW | P1 |
-| Chart export (PNG/CSV) | MEDIUM | LOW | P1 |
-| Grid export (CSV/Excel) | MEDIUM | LOW | P1 |
-| Fullscreen chart view | MEDIUM | LOW | P1 |
-| Auto-refresh (configurable) | MEDIUM | LOW | P1 |
-| Dashboard templates (recon-specific) | HIGH | MEDIUM | P2 |
-| Saved views / bookmarks | MEDIUM | MEDIUM | P2 |
-| Conditional formatting | HIGH | MEDIUM | P2 |
-| Recon KPI library | MEDIUM | MEDIUM | P2 |
-| Inline chart type switching | MEDIUM | LOW | P2 |
-| Cross-filter visual state (Qlik-style) | MEDIUM | MEDIUM | P2 |
-| Shareable URLs with filter state | MEDIUM | LOW | P2 |
-| Multi-dashboard overview | MEDIUM | MEDIUM | P3 |
-| PDF dashboard export | LOW | HIGH | P3 |
-| Scheduled reports | LOW | HIGH | P3 |
-| RBAC / row-level security | LOW | HIGH | P3 |
+| File | Change |
+|---|---|
+| `backend/app/main.py` | Remove Superset client init, registrar sync, dataset reconciliation. Add engine manager init. |
+| `backend/app/config.py` | Remove `superset_url`, `superset_username`, `superset_password`, `redis_url`. Add `encryption_key` for credential storage. |
+| `backend/app/core/dependencies.py` | Remove `SupersetDep`, `DatasetSyncDep`. Add `EngineManagerDep`. |
+| `backend/app/services/query_engine.py` | Replace `self._superset.execute_sql()` with direct engine execution. Remove httpx error handling. |
+| `backend/app/api/databases.py` | Replace Superset proxy calls with direct DB queries. Remove httpx error mapping. |
+| `backend/app/api/sql.py` | Replace Superset proxy calls with direct engine execution. |
+| `backend/app/api/managed_datasets.py` | Remove sync_service calls, superset_id references. |
+| `backend/app/db/models/dataset.py` | Remove `superset_id`, `sync_status` columns. |
+| `backend/app/models/managed_dataset.py` | Remove `superset_id`, `sync_status` from response model. |
+| `backend/app/services/connection_status.py` | Change from Superset ID tracking to RecViz database ID tracking. |
 
-**Priority key:**
-- P1: Must have for launch -- the dashboard builder is not usable without these
-- P2: Should have -- adds significant value, build in the phase after core launch
-- P3: Nice to have -- defer until builder is established and user needs are validated
+### New Files to Create
 
-## Competitor Feature Analysis
+| File | Purpose |
+|---|---|
+| `backend/app/services/engine_manager.py` | Dynamic engine pool management |
+| `backend/app/db/models/database_connection.py` | SQLAlchemy model for `recviz_databases` table |
+| `backend/app/models/database_connection.py` | Pydantic request/response models |
+| `backend/app/services/credential_encryption.py` | Fernet encryption for stored passwords |
+| `backend/app/api/schema_browser.py` | Schema introspection endpoints (tables, columns) |
+| `backend/app/migrations/versions/NNN_add_databases_table.py` | Alembic migration |
+| `backend/app/migrations/versions/NNN_remove_superset_fields.py` | Remove superset_id, sync_status from datasets |
 
-| Feature | Tableau | Qlik Sense/View | Power BI | RecViz Approach |
-|---------|---------|-----------------|----------|-----------------|
-| **Chart creation** | Drag fields to shelves (rows/columns). "Show Me" suggests types. Powerful but steep learning curve. | Drag fields to properties panel. Auto-chart suggestions. | Drag fields to visual well. AI copilot suggests. | Select dataset > pick columns from list > choose chart type > preview. Simpler than Tableau, similar to Qlik. No drag-to-shelves complexity. |
-| **Dashboard layout** | Tiled + floating objects. Grid snap optional. Layout containers for grouping. Flexible but alignment-heavy. | Sheet-based. Add objects to sheet. Grid layout. Simpler than Tableau. | Floating objects with grid snap. Auto-layout option. | Grid-based only (no floating). 12-column grid with snap. Templates as starting points. Simpler and more consistent than Tableau. |
-| **Cross-filtering** | "Use as Filter" toggle per sheet. Re-queries server. Configurable filter actions. | Automatic via associative model. All objects cross-filter by default. Green/white/gray states. | Bidirectional cross-filter. Configurable per visual. | Automatic like Qlik -- all charts cross-filter by default. Client-side only (zero latency). Dim excluded items. Toggle off per-chart if needed. |
-| **Drill-down** | Hierarchy sets + set actions. Powerful but complex to configure. Asymmetric drill possible. | Drill-down dimensions defined in data model. Click to drill. Simple and automatic. | Drill-through pages. Hierarchies in data model. | Configured per chart: define drill hierarchy (e.g., region > desk > recon > detail). Click to drill. Breadcrumb navigation. Backend call only for detail rows. |
-| **Filter bar** | Quick filters panel. Parameter controls. Date range pickers. | Filter panes with search. Date pickers. Selection bar showing active filters. | Slicers on canvas. Filter pane (hidden side panel). | Configurable filter bar at top. Cascading dependencies. Same position on every dashboard. Simpler than Tableau parameter setup. |
-| **Export** | PDF, PowerPoint, PNG, CSV, crosstab. Server-side rendering. | PDF, Excel, PNG, data export. Qlik NPrinting for scheduled. | PDF, PowerPoint, Excel. Paginated reports for pixel-perfect. | Phase 1: PNG + CSV per chart, Excel per grid. Phase 2: dashboard PDF. No paginated reports. |
-| **Saved views** | No direct equivalent. Users create separate workbooks. | Bookmarks in Qlik Sense. | Personal bookmarks + report bookmarks. Shareable via URL. | Named saved views: filter state + layout. Personal to user. Share via URL. Set as default. |
-| **Templates** | "Accelerators" (pre-built workbooks for specific industries). | App marketplace with templates. | Template apps. | Recon-specific templates: breaks, SLA, aging, match rate, volume. Domain advantage over generic tools. |
-| **Conditional formatting** | Complex: requires calculated fields or color shelf manipulation. | Expression-based coloring. Set analysis for thresholds. | Excellent: rule-based + field-based formatting. Easy to configure. | Rule-based per column in grid. Threshold config in chart/KPI builder. Simpler than Tableau, comparable to Power BI. |
-| **Performance (large data)** | Extract engine (Hyper) for fast queries. Live connections slower. | In-memory associative engine. Very fast for < 500M rows. | Import mode fast. DirectQuery slower. | Superset query engine with Redis caching. TanStack Query client-side caching. Aggregation-first queries. Target: < 2s for chart renders on million-row datasets. |
-| **Learning curve** | High. 2-4 weeks for proficiency. "Shelf" metaphor confusing for non-analysts. | Medium. 1-2 weeks. Associative model intuitive once understood. | Medium. 1-2 weeks. Familiar Office-like interface. | Target: < 1 day for basic dashboard creation. Template-first workflow. No shelves/calculated fields. Pick dataset > pick columns > pick chart type > done. |
-| **Recon-specific features** | None. Generic tool. | None. Generic tool. | None. Generic tool. | Break analysis, aging buckets, SLA monitoring, match rate tracking, multi-recon overview -- all built-in. Massive domain advantage. |
+---
 
-## Domain-Specific Feature Details (Reconciliation)
+## Complexity Summary
 
-### Reconciliation KPI Types
+| Feature | Complexity | Lines of Code (Estimate) | Risk |
+|---|---|---|---|
+| TS-2: Database Connection Storage | MEDIUM | ~200 (model + migration + CRUD) | Low -- straightforward CRUD |
+| TS-3: Connection Testing | LOW | ~50 | Low |
+| TS-4: Engine Pool Manager | MEDIUM | ~150 | Medium -- async engine lifecycle, Oracle dialect quirks |
+| TS-1: Raw SQL Execution | MEDIUM | ~100 | Medium -- error mapping, column type detection |
+| TS-5: Dataset Query with Filters | LOW-MEDIUM | ~80 (mostly modifying existing QueryEngine) | Low -- existing SQL builder stays |
+| TS-6: Remove Dataset Sync | LOW | Net negative (deleting code) | Low |
+| TS-7: Schema Browser | MEDIUM | ~150 | Medium -- Oracle schema introspection can be slow |
+| TS-8: SQL Explorer Execution | LOW | ~50 | Low |
+| D-3: Streaming Results | MEDIUM | ~100 | Low |
+| Cleanup (delete Superset files) | LOW | Net negative | Low |
+| **Total new code** | | **~880 lines** | |
+| **Total deleted code** | | **~800+ lines** (superset_client, dataset_sync, registrar, Superset configs) | |
 
-Based on industry analysis, these are the standard recon KPIs that RecViz should support out of the box:
+The migration is roughly code-neutral: we write ~880 lines and delete ~800+.
 
-| KPI | Calculation | Visualization | Notes |
-|-----|-------------|---------------|-------|
-| Break Count | COUNT of unmatched items | KPI card + trend sparkline | Primary operational metric |
-| Break Value | SUM of unmatched amounts | KPI card + trend sparkline | Monetary impact. Format as currency. |
-| Match Rate % | (matched / total) * 100 | KPI card + gauge | Target is typically 95-99%. Green/amber/red thresholds. |
-| SLA Adherence % | (on-time / total) * 100 | KPI card + RAG indicator | Red < 80%, Amber 80-95%, Green > 95% |
-| Aging Distribution | COUNT per aging bucket (0-1d, 1-3d, 3-7d, 7-14d, 14-30d, 30d+) | Stacked bar or heatmap | Critical for identifying stale breaks |
-| Average Resolution Time | AVG time from break creation to resolution | KPI card + trend | Hours or days. Lower is better. |
-| Volume (items processed) | COUNT of total items | KPI card + area chart | Capacity planning |
-| Escalation Count | COUNT of escalated breaks | KPI card | Indicates systemic issues |
-
-### Reconciliation-Specific Visualizations
-
-| Visualization | Purpose | Chart Type | Priority |
-|---------------|---------|------------|----------|
-| Break trend over time | Daily/weekly break count trend | Line chart | P1 |
-| Break distribution by type | Which recon types have most breaks | Bar chart (horizontal) | P1 |
-| Aging bucket distribution | How old are current breaks | Stacked bar | P1 |
-| SLA status overview | RAG status across recons | Heatmap or status grid | P1 |
-| Match rate trend | Match rate % over time | Area chart with target line | P2 |
-| Break value waterfall | Where is the money stuck | Waterfall chart | P2 |
-| Recon completion funnel | Total > matched > partial > unmatched | Funnel (ECharts) | P2 |
-| Cross-recon comparison | Compare metrics across recon types | Grouped bar | P2 |
-| Resolution time distribution | How long breaks take to resolve | Box plot or histogram | P3 |
-| Break flow (source to category) | Where breaks originate and how they categorize | Sankey (ECharts) | P3 |
-
-### Reconciliation Filter Patterns
-
-| Filter | Type | Typical Values | Notes |
-|--------|------|---------------|-------|
-| Date Range | Preset range | Today, Yesterday, Last 7/30/90 days, Custom | Most critical filter. Default: Yesterday. |
-| TLM Instance / Recon System | Single-select | TLMP_CONSUMER, TLMP_EQUITIES, etc. | Maps to different databases via dynamic routing (already built). |
-| Recon Type | Multi-select | Cash, Securities, Positions, Margin, etc. | Domain-specific grouping. |
-| Status | Multi-select | Matched, Unmatched, Partial, Investigating, Resolved | Break lifecycle states. |
-| Business Unit / Desk | Multi-select | Hierarchical: Region > BU > Desk | Cascading filter (already built). |
-| Counterparty | Searchable single-select | Hundreds of values | Needs typeahead search, not dropdown. |
-| Materiality / Amount Range | Range slider or presets | < $1K, $1K-$10K, $10K-$100K, $100K-$1M, > $1M | Bucket-based filtering. |
-| Aging | Multi-select or range | 0-1d, 1-3d, 3-7d, 7-14d, 14-30d, 30d+ | Standard aging buckets. |
+---
 
 ## Sources
 
-- [Tableau Dashboard Creation Guide](https://help.tableau.com/current/pro/desktop/en-us/dashboards_create.htm) -- official Tableau docs on dashboard layout, objects, actions
-- [Tableau Filter Actions](https://help.tableau.com/current/pro/desktop/en-us/actions_filter.htm) -- cross-filtering interaction model
-- [Tableau Mark Types](https://help.tableau.com/current/pro/desktop/en-us/viewparts_marks_marktypes.htm) -- chart type switching, "Show Me" feature
-- [Tableau Dashboard Layout](https://help.tableau.com/current/pro/desktop/en-us/dashboards_organize_floatingandtiled.htm) -- tiled vs floating, grid snap, layout containers
-- [Qlik Associative Selection Model](https://help.qlik.com/en-US/sense/November2025/Subsystems/Hub/Content/Sense_Hub/Selections/associative-selection-model.htm) -- green/white/gray selection states
-- [Qlik Visualizations & Dashboards](https://www.qlik.com/us/products/qlik-visualizations-dashboards) -- cross-filter, drill-down, associative engine
-- [Power BI Bookmarks](https://learn.microsoft.com/en-us/power-bi/consumer/end-user-bookmarks) -- saved views, filter state persistence
-- [Power BI Conditional Formatting](https://learn.microsoft.com/en-us/power-bi/create-reports/desktop-conditional-table-formatting) -- rule-based and field-based formatting
-- [Dashboard Software Buyer's Guide 2026](https://www.basedash.com/blog/dashboard-software-the-complete-guide-for-modern-teams-in-2026) -- table stakes, AI, security, performance
-- [Complete Guide to Reconciliation Dashboards 2026](https://www.osfin.ai/blog/reconciliation-dashboard) -- recon-specific features, KPIs, exception handling
-- [NeoXam Reconciliation Dashboards](https://www.neoxam.com/aro/reconciliation-dashboards-reporting-audit-trails/) -- breaks, aging, SLA monitoring, audit trails
-- [SmartStream TLM Reconciliations Premium](https://www.smartstream-stp.com/resources/tlm-reconciliations-premium/) -- TLM View dashboard features
-- [Superset Explore View](https://superset.apache.org/user-docs/using-superset/exploring-data/) -- dataset-to-chart pipeline, query building
-- [Databricks Dashboard Visualizations](https://docs.databricks.com/aws/en/dashboards/visualizations/) -- modern dataset-to-viz pipeline patterns
+- [SQLAlchemy 2.0 Oracle Dialect Documentation](https://docs.sqlalchemy.org/en/20/dialects/oracle.html) -- oracledb_async dialect support
+- [SQLAlchemy 2.0 Connection Pooling](https://docs.sqlalchemy.org/en/20/core/pooling.html) -- AsyncAdaptedQueuePool, pool settings
+- [SQLAlchemy 2.0 Async I/O](https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html) -- run_sync for Inspector, async engine patterns
+- [python-oracledb Asyncio Documentation](https://python-oracledb.readthedocs.io/en/latest/user_guide/asyncio.html) -- AsyncConnection, thin mode, async pooling
+- [SQLAlchemy Oracle Async Support Issue #10679](https://github.com/sqlalchemy/sqlalchemy/issues/10679) -- oracledb_async integration status
+- [SQLAlchemy Reflecting Database Objects](https://docs.sqlalchemy.org/en/20/core/reflection.html) -- Inspector.get_table_names(), get_columns()
+- [FastAPI Async Database Connections 2026](https://oneuptime.com/blog/post/2026-02-02-fastapi-async-database/view) -- async engine patterns with FastAPI
+- [TTL LRU Cache in Python/FastAPI](https://medium.com/@priyanshu009ch/ttl-lru-cache-in-python-fastapi-2ca2a39258dc) -- in-memory caching without Redis
+- Existing codebase: `superset_client.py`, `query_engine.py`, `database_registrar.py`, `dataset_sync.py`, `databases.py`, `datasets.py`, `sql.py`, `managed_datasets.py`
 
 ---
-*Feature research for: Internal BI/visualization platform for financial reconciliation*
-*Researched: 2026-04-04*
+*Feature research for: RecViz v2.0 -- Superset Removal, Direct Query Engine*
+*Researched: 2026-04-09*

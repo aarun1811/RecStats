@@ -45,11 +45,6 @@ export function DatasetCard({ dataset, databaseName, backendType, onClick }: Dat
         </div>
         <p className="text-xs text-muted-foreground">
           {databaseName ?? backendType ?? 'Database'}
-          {dataset.syncStatus !== 'synced' && (
-            <span className="text-amber-600 dark:text-amber-400 ml-2">
-              &middot; {dataset.syncStatus === 'error' ? 'Sync Error' : 'Unsynced'}
-            </span>
-          )}
         </p>
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <span>{dataset.columns.length} columns</span>

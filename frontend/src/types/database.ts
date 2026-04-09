@@ -3,7 +3,7 @@ export type DatabaseBackend = 'oracle' | 'postgresql' | 'hive' | 'elasticsearch'
 export type ConnectionStatus = 'connected' | 'unreachable' | 'untested'
 
 export interface DatabaseInfo {
-  id: number
+  id: string
   databaseName: string
   backend: DatabaseBackend
   createdOn: string | null
@@ -45,7 +45,7 @@ export interface TestConnectionRequest {
   database?: string
   username?: string
   password?: string
-  databaseId?: number
+  databaseId?: string
 }
 
 export interface TestConnectionResponse {
@@ -54,7 +54,7 @@ export interface TestConnectionResponse {
 }
 
 export interface DatasetSummary {
-  id: number
+  id: string
   tableName: string
   columnCount: number
 }

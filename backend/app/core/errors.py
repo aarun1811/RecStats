@@ -17,8 +17,6 @@ def sanitize_detail(exc: Exception) -> str:
     raw = str(exc)
     if len(raw) > 500:
         raw = raw[:500] + "... (truncated)"
-    # Strip potential connection strings
-    raw = re.sub(r"postgresql://[^\s]+", "postgresql://***", raw)
-    raw = re.sub(r"oracle://[^\s]+", "oracle://***", raw)
-    raw = re.sub(r"hive://[^\s]+", "hive://***", raw)
+    # Strip potential connection strings (any SQLAlchemy dialect+driver URI format)
+    raw = re.sub(r"\w+(\+\w+)?://[^\s]+", "***://***", raw)
     return raw

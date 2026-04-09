@@ -1,45 +1,44 @@
+"""QueryExecutor -- direct SQL execution against async engine pool.
+
+Replaces the Superset-backed QueryEngine. Dataset SQL templates are built
+via _build_sql() (filter injection, date range clauses) and executed directly
+against the target database engine via text() + EngineManager.
+
+Response shape is identical to the Superset-era output:
+  {columns: [{column_name, name, type, is_date}], rows: [{col: val}], row_count, truncated}
+"""
+
 from __future__ import annotations
 
+import asyncio
+import logging
 import re
-from typing import Any
+from typing import TYPE_CHECKING
 
-import httpx
+from sqlalchemy import select, text
+from sqlalchemy.exc import DBAPIError, OperationalError
 
+from app.db.engine import async_session_factory
+from app.db.models.connection import RecvizConnection as ConnModel
 from app.models.data_source_config import DataSourceConfig
 from app.services.connection_status import ConnectionStatusTracker
-from app.services.database_registrar import DatabaseRegistrar
+from app.services.query_utils import build_result_response, wrap_with_pagination
+
+if TYPE_CHECKING:
+    from app.services.connection_resolver import ConnectionResolver
+    from app.services.engine_manager import EngineManager
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_MAX_ROWS = 10_000
 
-# Strings in Superset error responses that indicate a connection-level failure
-# rather than a query-level error (bad SQL). Used to detect unreachable databases
-# even when Superset returns HTTP 400 instead of 5xx.
-# (Addresses review concern: Superset returns 400 with connection failure in body)
-_CONNECTION_FAILURE_PATTERNS = (
-    "connection refused",
-    "could not connect",
-    "connection failed",
-    "connection timed out",
-    "no listener",           # Oracle: TNS:no listener
-    "ora-12541",             # Oracle: no listener
-    "ora-12514",             # Oracle: service not found
-    "ora-12170",             # Oracle: connect timeout
-    "thrift.transport",      # Hive: Thrift transport errors
-    "could not establish",
-    "name or service not known",
-    "connection reset",
-)
+# Query timeout for dashboard queries (seconds)
+_QUERY_TIMEOUT = 30.0
 
 
-def _is_connection_failure(error_text: str) -> bool:
-    """Check if an error message indicates a connection-level failure."""
-    lower = error_text.lower()
-    return any(pattern in lower for pattern in _CONNECTION_FAILURE_PATTERNS)
-
-
-class QueryEngine:
+class QueryExecutor:
     """Builds SQL from config templates, resolves dynamic DB routing,
-    and executes queries via Superset.
+    and executes queries directly via async engine pool.
 
     Data source configs are resolved per-request by the caller (via
     ResolvedDataSourceDep or ConfigStore) and passed directly to execute().
@@ -47,12 +46,12 @@ class QueryEngine:
 
     def __init__(
         self,
-        superset_client: Any,
-        database_registrar: DatabaseRegistrar,
+        engine_manager: EngineManager,
+        connection_resolver: ConnectionResolver,
         status_tracker: ConnectionStatusTracker | None = None,
     ) -> None:
-        self._superset = superset_client
-        self._registrar = database_registrar
+        self._engine_manager = engine_manager
+        self._resolver = connection_resolver
         self._status_tracker = status_tracker
 
     def _resolve_database(self, ds: DataSourceConfig, filters: dict) -> str:
@@ -121,6 +120,9 @@ class QueryEngine:
                     f"Column '{column}' not in data source '{ds.id}' "
                     f"columns: {valid_columns}"
                 )
+            # Sanitize: only allow valid SQL identifier characters (defense in depth)
+            if not re.match(r'^[A-Za-z_][A-Za-z0-9_]*$', column):
+                raise ValueError(f"Invalid column name: '{column}'")
             sql = sql.replace("{{column}}", column)
 
         # Build filter clauses
@@ -154,47 +156,13 @@ class QueryEngine:
 
         # Strip schema prefixes when the target database has no schema
         if db_name:
-            schema = self._registrar.get_schema(db_name)
+            schema = self._resolver.get_schema(db_name)
             if not schema:
-                for known_schema in self._registrar.get_all_schemas():
+                for known_schema in self._resolver.get_all_schemas():
                     if known_schema:
                         sql = re.sub(rf'\b{re.escape(known_schema)}\.', '', sql)
 
         return sql
-
-    def _handle_connection_error(
-        self, exc: Exception, db_id: int
-    ) -> None:
-        """Inspect an httpx exception and mark the database unreachable if
-        the error indicates a connection-level failure."""
-        if not self._status_tracker:
-            return
-
-        if isinstance(exc, httpx.ConnectError):
-            self._status_tracker.mark_unreachable(db_id)
-            return
-
-        if isinstance(exc, httpx.HTTPStatusError):
-            status = exc.response.status_code
-            if status in (500, 502, 503):
-                self._status_tracker.mark_unreachable(db_id)
-            elif status == 400:
-                # Superset returns 400 for some connection failures with error
-                # details in the JSON body. Inspect the body to distinguish
-                # connection failures from query errors (bad SQL).
-                try:
-                    body = exc.response.json()
-                    error_text = str(body.get("message", ""))
-                    errors_list = body.get("errors", [])
-                    for err in errors_list:
-                        error_text += " " + str(err.get("message", ""))
-                        error_text += " " + str(
-                            err.get("extra", {}).get("issue_codes", "")
-                        )
-                    if _is_connection_failure(error_text):
-                        self._status_tracker.mark_unreachable(db_id)
-                except Exception:
-                    pass  # If body parsing fails, don't mask the original error
 
     async def execute(
         self,
@@ -202,39 +170,59 @@ class QueryEngine:
         filters: dict,
         max_rows: int = DEFAULT_MAX_ROWS,
     ) -> dict:
-        """Execute a query for the given data source config and filters."""
+        """Execute a query for the given data source config and filters.
+
+        Uses direct text() execution against the async engine pool instead of
+        proxying through Superset. Response shape is identical to Superset-era
+        output for zero-change frontend compatibility.
+        """
         db_name = self._resolve_database(ds, filters)
-        db_id = await self._registrar.resolve(db_name)
-        dialect = self._registrar.get_dialect(db_name)
-        schema = self._registrar.get_schema(db_name)
-        sql = self._build_sql(
-            ds, filters, dialect=dialect, db_name=db_name
-        )
+        connection_id = await self._resolver.resolve(db_name)
+        dialect = self._resolver.get_dialect(db_name)
+        sql = self._build_sql(ds, filters, dialect=dialect, db_name=db_name)
+
+        # Wrap with pagination to enforce max_rows at SQL level
+        sql = wrap_with_pagination(sql, limit=max_rows, offset=0, dialect=dialect)
 
         try:
-            result = await self._superset.execute_sql(
-                database_id=db_id, sql=sql, schema=schema or "", limit=max_rows
-            )
-        except (httpx.ConnectError, httpx.HTTPStatusError) as exc:
-            self._handle_connection_error(exc, db_id)
+            # Get the RecvizConnection record to build engine
+            async with async_session_factory() as session:
+                result = await session.execute(
+                    select(ConnModel).where(ConnModel.id == connection_id)
+                )
+                conn_record = result.scalar_one()
+            engine = await self._engine_manager.get_engine_for_connection(conn_record)
+
+            async with engine.connect() as conn:
+                result = await asyncio.wait_for(
+                    conn.execute(text(sql)),
+                    timeout=_QUERY_TIMEOUT,
+                )
+                # Get column descriptions before consuming rows
+                cursor_desc = result.cursor.description or []
+                # Pass raw type info (OID int or type object) — let
+                # build_result_response handle OID-to-name mapping
+                column_descriptions = [
+                    (col[0], col[1])
+                    for col in cursor_desc
+                ]
+                rows = result.fetchall()
+
+        except asyncio.TimeoutError:
+            if self._status_tracker:
+                self._status_tracker.mark_unreachable(connection_id)
+            raise
+        except (OperationalError, DBAPIError) as exc:
+            if self._status_tracker:
+                self._status_tracker.mark_unreachable(connection_id)
+            raise
+        except Exception:
             raise
 
-        # Success -- mark connected
         if self._status_tracker:
-            self._status_tracker.mark_connected(db_id)
+            self._status_tracker.mark_connected(connection_id)
 
-        if result and result.get("status") == "success":
-            rows = result.get("data", [])
-            truncated = len(rows) > max_rows
-            if truncated:
-                rows = rows[:max_rows]
-            return {
-                "columns": result.get("columns", []),
-                "rows": rows,
-                "row_count": len(rows),
-                "truncated": truncated,
-            }
-        return {"columns": [], "rows": [], "row_count": 0, "truncated": False}
+        return build_result_response(column_descriptions, rows, max_rows=max_rows)
 
     async def execute_distinct(
         self,
@@ -242,27 +230,42 @@ class QueryEngine:
         column: str,
         filters: dict,
     ) -> list[str]:
-        """Execute a distinct values query for a specific column."""
+        """Execute a distinct values query for a specific column.
+
+        Returns a list of string values, excluding nulls.
+        """
         db_name = self._resolve_database(ds, filters)
-        db_id = await self._registrar.resolve(db_name)
-        dialect = self._registrar.get_dialect(db_name)
-        schema = self._registrar.get_schema(db_name)
-        sql = self._build_sql(
-            ds, filters, column=column, dialect=dialect, db_name=db_name
-        )
+        connection_id = await self._resolver.resolve(db_name)
+        dialect = self._resolver.get_dialect(db_name)
+        sql = self._build_sql(ds, filters, column=column, dialect=dialect, db_name=db_name)
 
         try:
-            result = await self._superset.execute_sql(
-                database_id=db_id, sql=sql, schema=schema or ""
-            )
-        except (httpx.ConnectError, httpx.HTTPStatusError) as exc:
-            self._handle_connection_error(exc, db_id)
+            async with async_session_factory() as session:
+                result = await session.execute(
+                    select(ConnModel).where(ConnModel.id == connection_id)
+                )
+                conn_record = result.scalar_one()
+            engine = await self._engine_manager.get_engine_for_connection(conn_record)
+
+            async with engine.connect() as conn:
+                result = await asyncio.wait_for(
+                    conn.execute(text(sql)),
+                    timeout=_QUERY_TIMEOUT,
+                )
+                rows = result.fetchall()
+
+        except (asyncio.TimeoutError, OperationalError, DBAPIError) as exc:
+            if self._status_tracker:
+                self._status_tracker.mark_unreachable(connection_id)
             raise
 
-        # Success -- mark connected
         if self._status_tracker:
-            self._status_tracker.mark_connected(db_id)
+            self._status_tracker.mark_connected(connection_id)
 
-        if result and result.get("data"):
-            return [row.get(column, "") for row in result["data"]]
+        if rows:
+            return [str(row[0]) for row in rows if row[0] is not None]
         return []
+
+
+# Backward compatibility alias
+QueryEngine = QueryExecutor

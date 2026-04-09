@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 from sqlalchemy import DateTime, String, func
-from sqlalchemy.dialects.postgresql import JSONB
+from app.db.types import PortableJSON
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -20,7 +20,7 @@ class RecvizKpi(Base):
     dataset_id: Mapped[str] = mapped_column(String(128), nullable=False)
     metric_column: Mapped[str] = mapped_column(String(256), nullable=False)
     aggregation: Mapped[str] = mapped_column(String(32), nullable=False, server_default="SUM", default="SUM")
-    config: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    config: Mapped[dict] = mapped_column(PortableJSON(), nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), default=_utcnow
     )

@@ -1,206 +1,219 @@
 # Architecture
 
-**Analysis Date:** 2026-04-06
+**Analysis Date:** 2026-04-09
 
 ## Pattern Overview
 
-**Overall:** Three-tier headless BI architecture -- React SPA talks to a FastAPI sidecar, which proxies/orchestrates calls to Apache Superset as a headless query engine. Two parallel subsystems exist: a config-driven dashboard system (active) and a legacy hardcoded chart system (dead code).
+**Overall:** Three-tier SPA with Headless BI Engine
+
+The application follows a React SPA -> FastAPI proxy/sidecar -> Apache Superset (headless query engine) -> Database(s) architecture. Superset is never exposed directly to users; all Superset interactions are proxied through FastAPI. The frontend talks exclusively to the FastAPI backend.
 
 **Key Characteristics:**
-- Superset is the query execution engine; its UI is never exposed to users
-- FastAPI acts as both a proxy layer and a sidecar with its own DB-backed config store
-- Dashboard definitions live in PostgreSQL as JSONB configs, not in Superset
-- The frontend never talks to Superset directly -- all queries are routed through FastAPI
-- Config-driven data sources use SQL templates with filter placeholders, executed via Superset's SQLLab API
-- RecViz-managed datasets and charts have their own CRUD pipeline with Superset sync
+- Config-driven dashboards: Dashboard layout, charts, KPIs, filters, and grids are defined as JSON configs stored in PostgreSQL (JSONB columns)
+- Superset as headless query engine: Superset handles SQL execution, database connectivity, caching, and dataset management. No Superset UI is exposed.
+- FastAPI as both proxy and sidecar: Proxies Superset API calls AND provides its own CRUD endpoints for managed entities (dashboards, charts, KPIs, datasets)
+- Builder pattern: Users create/edit dashboards, charts, KPIs, and datasets through wizard-style builder UIs that persist configs to the backend
+- Dual data paths: "Data sources" (legacy config-driven queries) and "managed datasets" (Superset virtual datasets) coexist
 
 ## Layers
 
 **Presentation Layer (React SPA):**
-- Purpose: Render dashboards, charts, grids, SQL explorer, and settings UI
+- Purpose: Renders dashboards, builder UIs, SQL explorer, settings, and library/CRUD pages
 - Location: `frontend/src/`
-- Contains: Route pages, components, hooks, Zustand stores, type definitions
-- Depends on: FastAPI backend (via `frontend/src/lib/api-client.ts`)
-- Used by: Browser (desktop-first)
+- Contains: Route pages, components, hooks, stores, types, utilities
+- Depends on: FastAPI backend (via `api-client.ts`)
+- Used by: End users via browser
 
-**API Layer (FastAPI):**
-- Purpose: Expose REST endpoints, validate requests, proxy to Superset, serve config-driven data
+**State Management Layer (Zustand + TanStack Query):**
+- Purpose: Manages client-side state (filters, drills, builder) and server cache
+- Location: `frontend/src/stores/` (Zustand), `frontend/src/hooks/` (TanStack Query)
+- Contains: Filter store, drill store, builder store, layout history store; query/mutation hooks
+- Depends on: API client for server state; pure functions for computed state
+- Used by: Components via selectors and hooks
+
+**API Gateway Layer (FastAPI):**
+- Purpose: Authenticates to Superset, proxies queries, provides CRUD for managed entities, handles search, export stubs
 - Location: `backend/app/api/`
-- Contains: Route handlers organized by domain (dashboards, data-sources, charts, datasets, sql, databases, export, views, managed-charts, managed-datasets)
-- Depends on: Service layer, Pydantic models, FastAPI dependency injection
-- Used by: React SPA
+- Contains: Route handlers organized by domain (dashboards, charts, KPIs, datasets, data sources, databases, SQL, search, export, views)
+- Depends on: Service layer, DB session, Superset client
+- Used by: Frontend API client
 
 **Service Layer (Python):**
-- Purpose: Business logic, external API orchestration, config resolution, data merging
+- Purpose: Encapsulates business logic - query building/execution, database registration, dataset sync, config migration, data merging
 - Location: `backend/app/services/`
-- Contains: SupersetClient, QueryEngine, DatabaseRegistrar, ConfigStore, MergeEngine, DatasetSyncService, ConnectionStatusTracker, ConfigMigrator
-- Depends on: Superset REST API (via httpx), PostgreSQL (via SQLAlchemy), in-memory caches
-- Used by: API layer
+- Contains: `superset_client.py`, `query_engine.py`, `database_registrar.py`, `dataset_sync.py`, `config_store.py`, `merge_engine.py`, `connection_status.py`, `config_migrator.py`, `uri_builder.py`
+- Depends on: Superset REST API (via httpx), SQLAlchemy async sessions
+- Used by: API route handlers via dependency injection
 
-**Data Layer (SQLAlchemy + PostgreSQL):**
-- Purpose: Persist dashboard configs, data source configs, managed datasets, managed charts
-- Location: `backend/app/db/`
-- Contains: SQLAlchemy models, async engine, session factory, Alembic migrations
-- Depends on: PostgreSQL
-- Used by: Service layer (ConfigStore, managed dataset/chart CRUD)
+**Persistence Layer:**
+- Purpose: Stores RecViz-managed entities (dashboards, charts, KPIs, datasets, data sources) and Superset metadata
+- Location: `backend/app/db/` (engine, base, models), `backend/app/migrations/`
+- Contains: SQLAlchemy ORM models, async engine config, Alembic migrations
+- Depends on: PostgreSQL (asyncpg driver)
+- Used by: Service and API layers via `DbSessionDep`
 
-**Query Engine (Apache Superset):**
-- Purpose: Execute SQL queries against data sources, manage database connections, provide caching
-- Location: `superset/` (config + Dockerfile)
-- Contains: Superset config, Docker image, entrypoint script
-- Depends on: PostgreSQL (metadata), Redis (cache), target databases (Oracle, Hive, PostgreSQL)
-- Used by: Service layer (via SupersetClient)
+**Query Engine Layer (Superset):**
+- Purpose: Executes SQL against configured databases, manages dataset metadata, handles query caching
+- Location: `superset/` (config files and Dockerfile)
+- Contains: `superset_config.py`, Dockerfile, entrypoint script
+- Depends on: PostgreSQL (metadata), Redis (cache), configured data source databases
+- Used by: FastAPI backend via `SupersetClient`
 
 ## Data Flow
 
-**Config-Driven Dashboard Rendering (primary flow):**
+**Dashboard View Flow:**
 
-1. User navigates to `/dashboards/$dashboardId`
-2. Route component (`frontend/src/routes/_app/dashboards/$dashboardId.tsx`) calls `useDashboardConfig` hook
-3. Hook fetches `GET /api/dashboards/{id}` -> FastAPI reads from `recviz_dashboards` table via `ConfigStore`
-4. `DashboardRenderer` (`frontend/src/components/dashboard/dashboard-renderer.tsx`) receives config, initializes `FilterStore`
-5. Filter bar (`ConfigFilterBar`) populates options via `GET /api/data-sources/{id}/distinct/{column}`
-6. User applies filters -> `FilterStore.applied` updates -> all data-fetching hooks re-fire
-7. KPI data: `POST /api/dashboards/{id}/kpis` with filters -> `QueryEngine` executes SQL per KPI source
-8. Chart data: Each chart uses `useDataSourceQuery` -> `POST /api/data-sources/{id}/query` -> `QueryEngine` builds SQL from template + filters, resolves database, executes via Superset SQLLab
-9. Grid data: Same flow as charts, plus optional multi-source merge via `POST /api/data-sources/merge`
+1. User navigates to `/dashboards/:id` -> `routes/_app/dashboards/$dashboardId.tsx`
+2. `useManagedDashboard(id)` hook fetches dashboard config from `GET /api/dashboards/managed/:id`
+3. `DashboardRenderer` receives `DashboardConfig` JSON, initializes filter store from config defaults + URL params
+4. `ConfigFilterBar` renders filter controls, user selects values, clicks Apply -> filter store `applied` updated
+5. `ConfigKpiRow` renders KPI cards: `useDashboardKpis` hook calls `POST /api/data-sources/:id/query` for each KPI source
+6. `ConfigChartGrid` renders charts: each chart calls `useDataSourceQuery` -> `POST /api/data-sources/:id/query`
+7. Backend `QueryEngine.execute()` resolves database (static/dynamic routing), builds SQL from template + filters, executes via `SupersetClient.execute_sql()`
+8. Results flow back: Superset -> FastAPI -> React -> AG Charts/ECharts render
 
-**SQL Explorer Flow:**
+**Cross-Filter Flow (client-side only):**
 
-1. User types SQL in Monaco Editor (`frontend/src/routes/_app/explorer/index.tsx`)
-2. `useSqlExecute` hook fires `POST /api/sql/execute` with raw SQL + database_id
-3. FastAPI proxies directly to `SupersetClient.execute_sql()` (Superset SQLLab API)
-4. Results displayed in AG Grid via `QueryResults` component
-5. User can "Save as Dataset" -> creates managed dataset -> syncs to Superset as virtual dataset
+1. User clicks a chart segment -> `onChartClick` fires `ChartClickEvent`
+2. `ConfigChartGrid` calls `filterStore.addCrossFilter({ sourceChartId, column, value })`
+3. `useCrossFilter(chartId, data)` hook runs `applyCrossFilters()` on each chart's cached data
+4. `useCrossFilterData` re-aggregates KPI values from filtered chart data
+5. Zero network calls - all cross-filtering uses already-fetched TanStack Query cache
 
-**Managed Dataset/Chart CRUD Flow:**
+**Drill-Down Flow:**
 
-1. User creates dataset via Dataset Editor (`frontend/src/components/datasets/dataset-editor.tsx`)
-2. `POST /api/datasets/managed` -> creates `RecvizDataset` row in PostgreSQL
-3. `DatasetSyncService.sync_dataset()` creates matching virtual dataset in Superset (non-blocking on failure)
-4. Charts reference datasets -> `POST /api/charts/managed` -> creates `RecvizChart` row
-5. On startup, `DatasetSyncService.reconcile()` retries unsynced datasets
+1. User double-clicks a chart segment -> `onChartDoubleClick` fires
+2. `ConfigChartGrid` calls `drillStore.drillDown(chartId, { column, value, label })`
+3. Chart re-queries with additional filter constraints from drill levels
+4. `DrillBreadcrumb` renders navigation; clicking a crumb calls `drillStore.drillToLevel()`
+5. At detail level, `DrillDetailGrid` fetches from `drillDetailDataSourceId` with accumulated drill filters
 
-**Cross-Filter Flow (client-side, zero network calls):**
+**Builder Save Flow:**
 
-1. User clicks chart segment -> `onChartClick` fires -> `FilterStore.addCrossFilter()`
-2. `useCrossFilterData` hook fetches KPI data sources (shared TanStack Query cache -- no extra requests if already fetched)
-3. `recomputeKpis()` (`frontend/src/lib/kpi-aggregator.ts`) filters cached rows client-side, recomputes KPI values
-4. `applyCrossFilters()` (`frontend/src/lib/cross-filter.ts`) filters chart data rows client-side
-5. AG Grid uses `doesExternalFilterPass` with `rowPassesCrossFilters()` for grid filtering
+1. User arranges panels in `BuilderCanvas` (drag-and-drop grid layout)
+2. `BuilderStore` tracks all items (charts, KPIs, grids), filters, name, description
+3. On save, `BuilderPage` serializes store into `DashboardConfig` JSON
+4. `useCreateDashboard` or `useUpdateDashboard` mutation sends `POST/PUT /api/dashboards/managed`
+5. Backend persists entire config as JSONB in `recviz_dashboards` table
+
+**Managed Dataset Flow (with Superset sync):**
+
+1. User creates dataset in Dataset Editor (`/datasets/new`)
+2. `POST /api/datasets/managed` creates `RecvizDataset` row in PostgreSQL
+3. `DatasetSyncService.sync_dataset()` creates a virtual dataset in Superset via `SupersetClient.create_dataset()`
+4. If sync succeeds, `superset_id` is stored; if it fails, `sync_status` = "error"
+5. On backend startup, `DatasetSyncService.reconcile()` retries all unsynced datasets
 
 **State Management:**
-- **Server state**: TanStack Query (query cache with 5min stale, 30min GC). Query keys: `['dashboard-config', id]`, `['data-source', id, filters]`, `['dashboard-kpis', id, filters]`, `['chart-data', id, filters]`
-- **Client state**: Zustand stores -- `FilterStore` (filter values + applied snapshot + cross-filters + locked filters), `DrillStore` (per-chart drill depth via Map)
-- **Theme state**: React context via `ThemeProvider` wrapping `next-themes`
+- **Server state**: TanStack Query manages all API data with 5-min stale time, 30-min GC time. Mutations invalidate related query keys.
+- **Filter state**: Zustand `filter-store` holds values, applied snapshot, locked set, and cross-filters. Filters are applied on explicit "Apply" action.
+- **Drill state**: Zustand `drill-store` holds per-chart drill level stacks.
+- **Builder state**: Zustand `builder-store` holds dashboard layout being edited, with dirty tracking.
+- **Layout history**: Zustand `layout-history-store` provides undo/redo for builder canvas layouts.
+- **URL state**: Dashboard filters are bidirectionally synced to URL search params via `dashboard-url-state.ts`.
 
 ## Key Abstractions
 
-**DashboardConfig:**
-- Purpose: Complete dashboard definition -- filters, KPIs, charts, grids, features, layout
-- Backend: `backend/app/models/dashboard_config.py` (Pydantic model)
-- Frontend: `frontend/src/types/dashboard-config.ts` (TypeScript interface)
-- Storage: `recviz_dashboards.config` (JSONB column in PostgreSQL)
-- Pattern: JSON config validated by Pydantic, serialized to frontend, rendered by `DashboardRenderer`
+**DashboardConfig (JSON schema):**
+- Purpose: Complete dashboard definition - filters, KPIs, charts, grids, features, layout
+- Examples: `frontend/src/types/dashboard-config.ts`, stored in `recviz_dashboards.config` JSONB column
+- Pattern: The frontend builder writes this config; the renderer reads it. The backend stores and retrieves it as opaque JSON.
 
-**DataSourceConfig:**
-- Purpose: SQL template + database routing + filter mappings for a single data query
-- Backend: `backend/app/models/data_source_config.py` (Pydantic model)
-- Storage: `recviz_data_sources.config` (JSONB column in PostgreSQL), JSON files in `backend/app/config/data_sources/`
-- Pattern: SQL template with `{{filters}}`, `{{column}}`, `{{values}}` placeholders, resolved at query time by `QueryEngine`
+**DataSourceConfig (Pydantic model):**
+- Purpose: Defines a parameterized SQL query with database routing and filter mappings
+- Examples: `backend/app/models/data_source_config.py`, stored in `recviz_data_sources.config` JSONB column
+- Pattern: Query templates use `{{filters}}`, `{{values}}`, `{{date_range_clause}}` placeholders. `QueryEngine._build_sql()` resolves them.
 
-**QueryEngine:**
-- Purpose: Build SQL from config templates, resolve dynamic database routing, execute via Superset
-- Location: `backend/app/services/query_engine.py`
-- Pattern: Template interpolation with dialect-aware date clauses, filter mapping, schema prefix stripping
+**ChartFactory / ChartWrapperProps:**
+- Purpose: Unified interface for rendering any chart type, routing to AG Charts or ECharts
+- Examples: `frontend/src/components/charts/chart-factory.tsx`, `frontend/src/types/chart.ts`
+- Pattern: Factory pattern - `ChartFactory` inspects `config.vizType`, delegates to `AgChartWrapper` or `EChartWrapper`. Both expose `ChartRef` for export.
 
 **SupersetClient:**
-- Purpose: Authenticated async HTTP client for Superset REST API with auto-retry on 401
-- Location: `backend/app/services/superset_client.py`
-- Pattern: Token-based auth with 25min refresh, CSRF token handling, all methods async
+- Purpose: Async HTTP client wrapping all Superset REST API calls with auto-authentication and 401 retry
+- Examples: `backend/app/services/superset_client.py`
+- Pattern: Singleton created in FastAPI lifespan, stored in `app.state.superset`, injected via `SupersetDep`
 
-**DatabaseRegistrar:**
-- Purpose: Sync logical database names from `databases.json` to Superset, resolve name -> Superset numeric ID
-- Location: `backend/app/services/database_registrar.py`
-- Pattern: Cache with negative cache + lock-guarded refresh, supports static + dynamic routing
+**QueryEngine:**
+- Purpose: Resolves database routing, builds SQL from templates, executes via Superset, tracks connection status
+- Examples: `backend/app/services/query_engine.py`
+- Pattern: Stateful service (holds registrar + tracker references), per-request `execute()` calls resolve data source -> database -> SQL -> result
 
-**ChartFactory:**
-- Purpose: Route chart rendering to AG Charts or ECharts based on viz type
-- Location: `frontend/src/components/charts/chart-factory.tsx`
-- Pattern: Set-based routing (ECHART_TYPES, SUPPORTED_AG_TYPES), unified `ChartRef` imperative handle for export
-
-**ConfigStore:**
-- Purpose: DB-backed store for dashboard and data source configs (session-scoped)
-- Location: `backend/app/services/config_store.py`
-- Pattern: Wraps SQLAlchemy queries, applies config migration pipeline before returning Pydantic models
+**Dependency Injection (FastAPI Depends):**
+- Purpose: Provide request-scoped services to route handlers without boilerplate
+- Examples: `backend/app/core/dependencies.py`
+- Pattern: Annotated types (`DbSessionDep`, `SupersetDep`, `QueryEngineDep`, `ConfigStoreDep`, `ResolvedDataSourceDep`, `DatasetSyncDep`) used as function parameter type hints
 
 ## Entry Points
 
-**Frontend:**
+**Frontend SPA:**
 - Location: `frontend/src/main.tsx`
-- Triggers: Browser navigation
-- Responsibilities: Register AG Charts/Grid enterprise modules, mount React app
+- Triggers: Browser loads `index.html`, Vite serves bundled JS
+- Responsibilities: Registers AG Grid/Charts enterprise modules, mounts React root with `<App />`
 
-**Frontend Root Route:**
+**React Router Root:**
 - Location: `frontend/src/routes/__root.tsx`
-- Triggers: All page loads
-- Responsibilities: Provide ThemeProvider, QueryClientProvider, Toaster, ErrorBoundary
+- Triggers: Router initialization in `App.tsx`
+- Responsibilities: Wraps app in ThemeProvider, QueryClientProvider, Toaster, ErrorBoundary
 
-**Frontend App Layout:**
+**App Layout (authenticated shell):**
 - Location: `frontend/src/routes/_app.tsx`
-- Triggers: All `/_app/*` routes
-- Responsibilities: Render sidebar, header, animated outlet
+- Triggers: Any `/_app/*` route match
+- Responsibilities: Renders sidebar, header, animated outlet for page content
 
-**Backend:**
+**Root Redirect:**
+- Location: `frontend/src/routes/index.tsx`
+- Triggers: Navigation to `/`
+- Responsibilities: Redirects to `/dashboards`
+
+**Embed Route (no sidebar):**
+- Location: `frontend/src/routes/embed/dashboards/$dashboardId.tsx`
+- Triggers: Navigation to `/embed/dashboards/:id`
+- Responsibilities: Renders dashboard without sidebar/header, supports `?theme=`, `?hide=`, `?filter.*`, `?filter.lock`
+
+**FastAPI Application:**
 - Location: `backend/app/main.py`
-- Triggers: `uvicorn app.main:app`
-- Responsibilities: Initialize httpx client, authenticate to Superset, sync databases, create QueryEngine, reconcile datasets, mount all API routers
+- Triggers: `uvicorn app.main:app --reload`
+- Responsibilities: Lifespan initializes Superset client, database registrar, query engine, dataset sync service. Mounts all API routers. CORS + X-Frame-Options middleware.
 
-**API Router:**
-- Location: `backend/app/api/router.py`
-- Triggers: All `/api/*` requests
-- Responsibilities: Aggregate and mount all domain-specific API routers
+**Health Check:**
+- Location: `backend/app/main.py` (`GET /health`)
+- Triggers: Infrastructure health probes
+- Responsibilities: Returns `{"status": "ok", "superset": true}`
 
 ## Error Handling
 
-**Strategy:** Structured error responses with consistent shape, cascading from Superset errors through FastAPI to frontend toast notifications.
-
-**Backend Patterns:**
-- All Superset communication wrapped in `try/except` for `httpx.ConnectError`, `httpx.TimeoutException`, `httpx.HTTPStatusError`
-- Each maps to specific HTTP status: 503 (connect), 504 (timeout), 502 (Superset error), 500 (unexpected)
-- Error response shape: `{"error": code, "message": human_msg, "detail": sanitized_detail, "retry_after": seconds}`
-- `sanitize_detail()` (`backend/app/core/errors.py`) truncates long messages and redacts connection strings
-- Connection-level failures detected via pattern matching (`backend/app/services/query_engine.py` `_CONNECTION_FAILURE_PATTERNS`) and tracked by `ConnectionStatusTracker`
+**Strategy:** Layered error handling with graceful degradation
 
 **Frontend Patterns:**
-- `ApiError` class (`frontend/src/lib/api-client.ts`) parses structured error responses
-- TanStack Query `QueryCache.onError` shows toast via Sonner with `error.userMessage`
-- `ErrorBoundary` component (`frontend/src/components/shared/error-boundary.tsx`) wraps app layout
-- `ErrorPanel` component (`frontend/src/components/shared/error-panel.tsx`) for inline error display in charts/grids
+- `ErrorBoundary` component (`frontend/src/components/shared/error-boundary.tsx`) catches React rendering errors
+- TanStack Query's `QueryCache.onError` shows toast notifications for `ApiError` instances (`frontend/src/lib/query-client.ts`)
+- `ApiError` class (`frontend/src/lib/api-client.ts`) parses structured error responses with `status`, `code`, `userMessage`, `detail`, `retryAfter`
+- Chart components show skeleton loaders during loading, error panels with retry on failure, "No data available" on empty results
+- Non-2xx fetch responses throw `ApiError`; TanStack Query retries once then exposes error to components
+
+**Backend Patterns:**
+- Route handlers catch specific exceptions (`ValueError`, `httpx.ConnectError`, `httpx.HTTPStatusError`, `httpx.TimeoutException`) and map to appropriate HTTP status codes
+- `sanitize_detail()` (`backend/app/core/errors.py`) truncates long messages and redacts connection-string URIs before sending to clients
+- Superset connection failures return 503 with `retry_after` hint
+- `QueryEngine._handle_connection_error()` inspects exception types and response bodies to mark databases as unreachable in `ConnectionStatusTracker`
+- `DatasetSyncService` treats Superset sync failures as non-blocking (dataset saves succeed; sync retried at startup)
+- DB session dependency (`get_db_session`) auto-commits on success, auto-rollbacks on exception
 
 ## Cross-Cutting Concerns
 
-**Logging:**
-- Backend: Python `logging` module, `logging.basicConfig(level=INFO)` in `backend/app/main.py`
-- Frontend: No structured logging; errors surface via TanStack Query error handling + Sonner toasts
+**Logging:** Python `logging` module throughout backend. No structured logging framework. Frontend has no logging beyond console.
 
 **Validation:**
-- Backend: Pydantic v2 models for all request bodies and config schemas
-- Frontend: TypeScript strict mode; form validation is component-local
-- Config migration: `backend/app/services/config_migrator.py` applies versioned migrations to JSONB configs before Pydantic validation
+- Frontend: TypeScript strict mode for compile-time type safety. Runtime validation via TanStack Router `validateSearch` for URL params.
+- Backend: Pydantic v2 models validate all request bodies. `CamelModel` base class provides camelCase alias generation. SQLAlchemy models enforce DB constraints.
 
-**Authentication:**
-- Superset auth: Username/password login via `SupersetClient.authenticate()`, token stored in memory, auto-refresh at 25min
-- User auth: **None** -- no authentication on any endpoint. Noted as critical gap.
+**Authentication:** Not implemented. All endpoints are unauthenticated. FastAPI authenticates to Superset using hardcoded admin credentials from config/env vars. Auth strategy TBD (likely SSO/SAML/OIDC).
 
-**Key Transform:**
-- `frontend/src/lib/api-client.ts` auto-converts all response keys from `snake_case` to `camelCase`
-- `DATA_KEYS` set (`rows`, `columns`, `data`, `config`) are skipped to preserve DB column names in data payloads
+**Key Transform (API boundary):** The `api-client.ts` automatically converts snake_case response keys to camelCase. The `DATA_KEYS` set (`rows`, `columns`, `data`, `config`) skips key transformation for data payloads containing database column names.
 
-**CORS:**
-- Configured in `backend/app/main.py` for `localhost:5173`, `localhost:3000`, `localhost:4200`
-- `X-Frame-Options: ALLOWALL` for embed support
+**Config Migration:** `backend/app/services/config_migrator.py` provides a versioned migration pipeline for data source configs stored as JSONB. Currently at schema version 1 with no migrations registered.
 
 ---
 
-*Architecture analysis: 2026-04-06*
+*Architecture analysis: 2026-04-09*

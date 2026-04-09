@@ -1,5 +1,6 @@
 import React from 'react'
 import { useLocation } from '@tanstack/react-router'
+import { useQueryClient } from '@tanstack/react-query'
 import { BellIcon, PanelLeftIcon } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
 import {
@@ -19,12 +20,20 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 function useBreadcrumbs() {
   const { pathname } = useLocation()
   const segments = pathname.split('/').filter(Boolean)
+  const queryClient = useQueryClient()
 
   return segments
     .filter((seg) => !UUID_RE.test(seg))
-    .map((seg) => ({
-      label: seg.charAt(0).toUpperCase() + seg.slice(1).replace(/-/g, ' '),
-    }))
+    .map((seg) => {
+      // Look up dashboard name from TanStack Query cache
+      if (seg.startsWith('dash-')) {
+        const cached = queryClient.getQueryData<{ name?: string }>(['managed-dashboard', seg])
+        if (cached?.name) return { label: cached.name }
+      }
+      return {
+        label: seg.charAt(0).toUpperCase() + seg.slice(1).replace(/-/g, ' '),
+      }
+    })
 }
 
 export function Header() {

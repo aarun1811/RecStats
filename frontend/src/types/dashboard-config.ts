@@ -70,6 +70,14 @@ export interface DashboardChartConfig {
   drillDetailDataSourceId?: string
   /** Per-chart refresh interval override in milliseconds. undefined = use dashboard default. */
   refreshInterval?: number
+  /** Appearance overrides (colorRange, legend, labels) — passed through to chart renderer. */
+  appearance?: {
+    colorRange?: string[]
+    showLegend?: boolean
+    legendPosition?: 'top' | 'bottom' | 'left' | 'right'
+    showXLabel?: boolean
+    showYLabel?: boolean
+  }
 }
 
 export interface GridColumn {

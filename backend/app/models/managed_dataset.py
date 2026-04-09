@@ -25,7 +25,7 @@ class ColumnMetaSchema(CamelModel):
 class DatasetCreate(CamelModel):
     name: str = Field(min_length=1, max_length=256)
     description: str = Field(default="", max_length=1024)
-    database_id: int
+    database_id: str
     sql: str = Field(min_length=1)
     columns: list[ColumnMetaSchema]
 
@@ -41,11 +41,9 @@ class DatasetResponse(CamelModel):
     id: str
     name: str
     description: str
-    database_id: int
-    superset_id: int | None
+    database_id: str
     sql: str
     columns: list[ColumnMetaSchema]
-    sync_status: str
     schema_version: int
     created_at: datetime
     updated_at: datetime

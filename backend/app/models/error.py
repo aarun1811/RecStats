@@ -13,7 +13,7 @@ class ErrorResponse(BaseModel):
     hints how long clients should wait before retrying (seconds, for 503s).
     """
 
-    error: str  # e.g. "superset_unavailable", "query_timeout", "query_error", "database_error"
+    error: str  # e.g. "service_unavailable", "query_timeout", "query_error", "database_error"
     message: str  # Human-readable: "The query engine is temporarily unavailable"
     detail: str | None = None  # Sanitised technical detail
     retry_after: int | None = None  # Seconds before client should retry (for 503)

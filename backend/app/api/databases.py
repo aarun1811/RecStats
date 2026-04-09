@@ -1,258 +1,301 @@
-"""Database (data source) CRUD routes."""
+"""Database (data source) CRUD routes -- direct recviz_connections access."""
 
 from __future__ import annotations
 
 import logging
+import uuid
 
-import httpx
 from fastapi import APIRouter, HTTPException
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from starlette.requests import Request
 
-from app.core.dependencies import SupersetDep
+from app.core.dependencies import DbSessionDep, EngineManagerDep
 from app.core.errors import sanitize_detail
+from app.db.models.connection import RecvizConnection
+from app.db.models.dataset import RecvizDataset
 from app.models.database import (
     DatabaseCreate,
     DatabaseUpdate,
     TestConnectionRequest,
 )
 from app.services.connection_status import ConnectionStatusTracker
-from app.services.uri_builder import build_sqlalchemy_uri
+from app.services.encryption import EncryptionService
+from app.services.engine_manager import EngineManager
+from app.services.uri_builder import build_async_uri
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/databases", tags=["databases"])
 
 
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
 def _get_status_tracker(request: Request) -> ConnectionStatusTracker | None:
     return getattr(request.app.state, "connection_status", None)
 
 
-def _resolve_uri(body: DatabaseCreate | DatabaseUpdate | TestConnectionRequest) -> str:
-    """Build SQLAlchemy URI from either explicit URI or form fields."""
-    if body.sqlalchemy_uri:
-        return body.sqlalchemy_uri
-    return build_sqlalchemy_uri(
-        backend=body.backend,
-        host=body.host,
-        port=body.port,
-        database=body.database,
-        username=body.username,
-        password=body.password,
-        schema_name=getattr(body, "schema_name", None),
-    )
-
-
-def _superset_unavailable() -> HTTPException:
-    return HTTPException(
-        status_code=503,
-        detail={"error": "superset_unavailable", "message": "Query engine is not connected", "detail": None, "retry_after": 30},
-    )
-
-
-def _handle_httpx_error(e: Exception, context: str) -> HTTPException:
-    """Map httpx exceptions to appropriate HTTPExceptions."""
-    if isinstance(e, httpx.ConnectError):
-        logger.warning("Superset connection failed (%s): %s", context, e)
-        return HTTPException(
+def _get_encryption(request: Request) -> EncryptionService:
+    encryption = getattr(request.app.state, "encryption", None)
+    if encryption is None:
+        raise HTTPException(
             status_code=503,
-            detail={"error": "superset_unavailable", "message": "Query engine is temporarily unavailable", "detail": sanitize_detail(e), "retry_after": 15},
+            detail="Encryption service not available",
         )
-    if isinstance(e, httpx.TimeoutException):
-        logger.warning("Superset timed out (%s): %s", context, e)
-        return HTTPException(
-            status_code=504,
-            detail={"error": "query_timeout", "message": "Query timed out", "detail": sanitize_detail(e)},
-        )
-    if isinstance(e, httpx.HTTPStatusError):
-        logger.error("Superset error %s (%s): %s", e.response.status_code, context, e)
-        return HTTPException(
-            status_code=502,
-            detail={"error": "superset_error", "message": f"Query engine returned error: {e.response.status_code}", "detail": sanitize_detail(e)},
-        )
-    logger.exception("Unexpected error (%s)", context)
-    return HTTPException(
-        status_code=500,
-        detail={"error": "internal_error", "message": "An unexpected error occurred", "detail": sanitize_detail(e)},
-    )
+    return encryption
+
+
+def _build_response(conn: RecvizConnection, status_info: dict) -> dict:
+    """Build a response dict matching the DatabaseInfo shape from a connection record."""
+    return {
+        "id": conn.id,
+        "database_name": conn.display_name,
+        "backend": conn.backend,
+        "created_on": conn.created_at.isoformat() if conn.created_at else None,
+        "expose_in_sqllab": True,
+        "dataset_count": 0,
+        "status": status_info["status"],
+        "last_tested": status_info["last_tested"],
+    }
+
+
+# ---------------------------------------------------------------------------
+# Endpoints
+# ---------------------------------------------------------------------------
 
 
 @router.get("")
-async def list_databases(superset: SupersetDep, request: Request) -> list[dict]:
-    if not superset:
-        raise _superset_unavailable()
-    try:
-        tracker = _get_status_tracker(request)
-        raw = await superset.list_databases()
-        results = []
-        for db in raw:
-            db_id = db.get("id")
-            if tracker and db_id is not None:
-                status_info = tracker.get_status(db_id)
-            else:
-                status_info = {"status": "untested", "last_tested": None}
-            results.append(
-                {
-                    "id": db_id,
-                    "database_name": db.get("database_name", ""),
-                    "backend": db.get("backend", ""),
-                    "created_on": db.get("created_on"),
-                    "expose_in_sqllab": db.get("expose_in_sqllab", True),
-                    "dataset_count": 0,
-                    "status": status_info["status"],
-                    "last_tested": status_info["last_tested"],
-                }
-            )
-        return results
-    except Exception as e:
-        raise _handle_httpx_error(e, "list_databases")
+async def list_databases(session: DbSessionDep, request: Request) -> list[dict]:
+    """List all registered database connections."""
+    tracker = _get_status_tracker(request)
+    stmt = select(RecvizConnection).order_by(RecvizConnection.name)
+    result = await session.execute(stmt)
+    connections = result.scalars().all()
+
+    results = []
+    for conn in connections:
+        if tracker:
+            status_info = tracker.get_status(conn.id)
+        else:
+            status_info = {"status": "untested", "last_tested": None}
+        results.append(_build_response(conn, status_info))
+    return results
 
 
 @router.get("/{db_id}")
-async def get_database(db_id: int, superset: SupersetDep, request: Request) -> dict:
-    if not superset:
-        raise _superset_unavailable()
-    try:
-        tracker = _get_status_tracker(request)
-        raw = await superset.get_database(db_id)
-        raw_id = raw.get("id", db_id)
-        if tracker and raw_id is not None:
-            status_info = tracker.get_status(raw_id)
-        else:
-            status_info = {"status": "untested", "last_tested": None}
-        return {
-            "id": raw_id,
-            "database_name": raw.get("database_name", ""),
-            "backend": raw.get("backend", ""),
-            "created_on": raw.get("created_on"),
-            "expose_in_sqllab": raw.get("expose_in_sqllab", True),
-            "dataset_count": 0,
-            "status": status_info["status"],
-            "last_tested": status_info["last_tested"],
-        }
-    except Exception as e:
-        raise _handle_httpx_error(e, f"get_database({db_id})")
+async def get_database(db_id: str, session: DbSessionDep, request: Request) -> dict:
+    """Get a single database connection by ID."""
+    tracker = _get_status_tracker(request)
+    stmt = select(RecvizConnection).where(RecvizConnection.id == db_id)
+    result = await session.execute(stmt)
+    conn = result.scalar_one_or_none()
+    if conn is None:
+        raise HTTPException(status_code=404, detail=f"Database '{db_id}' not found")
+
+    if tracker:
+        status_info = tracker.get_status(conn.id)
+    else:
+        status_info = {"status": "untested", "last_tested": None}
+    return _build_response(conn, status_info)
 
 
 @router.get("/{db_id}/datasets")
 async def list_database_datasets(
-    db_id: int,
-    superset: SupersetDep,
+    db_id: str,
+    session: DbSessionDep,
     page: int = 1,
     page_size: int = 50,
 ) -> dict:
     """Return paginated datasets for a given database."""
-    if not superset:
-        raise _superset_unavailable()
-    try:
-        raw = await superset.list_datasets()
-        db_datasets = [
-            {
-                "id": ds.get("id"),
-                "table_name": ds.get("table_name", ""),
-                "column_count": len(ds.get("columns", [])),
-            }
-            for ds in raw
-            if ds.get("database", {}).get("id") == db_id
-            or ds.get("database_id") == db_id
-        ]
-        total = len(db_datasets)
-        start = (page - 1) * page_size
-        end = start + page_size
-        return {
-            "datasets": db_datasets[start:end],
-            "total": total,
-            "page": page,
-            "page_size": page_size,
+    stmt = select(RecvizDataset).where(RecvizDataset.database_id == db_id)
+    result = await session.execute(stmt)
+    datasets = result.scalars().all()
+
+    db_datasets = [
+        {
+            "id": ds.id,
+            "table_name": ds.name,
+            "column_count": len(ds.columns) if ds.columns else 0,
         }
-    except Exception as e:
-        raise _handle_httpx_error(e, f"list_database_datasets({db_id})")
+        for ds in datasets
+    ]
+    total = len(db_datasets)
+    start = (page - 1) * page_size
+    end = start + page_size
+    return {
+        "datasets": db_datasets[start:end],
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+    }
 
 
-@router.post("")
-async def create_database(body: DatabaseCreate, superset: SupersetDep) -> dict:
-    if not superset:
-        raise _superset_unavailable()
+@router.post("", status_code=201)
+async def create_database(
+    body: DatabaseCreate,
+    session: DbSessionDep,
+    engine_manager: EngineManagerDep,
+    request: Request,
+) -> dict:
+    """Create a new database connection with encrypted credentials."""
+    encryption = _get_encryption(request)
+    conn_id = str(uuid.uuid4())
+
+    # Derive a slug-style name from database_name for internal use
+    name = body.database_name.lower().replace(" ", "_")
+
+    # Default port by backend
+    port = body.port
+    if port is None:
+        port = 1521 if body.backend == "oracle" else 5432
+
+    connection = RecvizConnection(
+        id=conn_id,
+        name=name,
+        display_name=body.database_name,
+        backend=body.backend,
+        host=body.host,
+        port=port,
+        database_name=body.database or "",
+        username=body.username or "",
+        encrypted_password=encryption.encrypt(body.password or ""),
+        schema_name=body.schema_name or "",
+    )
+
     try:
-        uri = _resolve_uri(body)
-        payload = {
-            "database_name": body.database_name,
-            "sqlalchemy_uri": uri,
-            "expose_in_sqllab": True,
-        }
-        result = await superset.create_database(payload)
-        created = result.get("result", result)
-        return {
-            "id": created.get("id"),
-            "database_name": created.get("database_name", body.database_name),
-            "backend": body.backend,
-            "created_on": created.get("created_on"),
-            "expose_in_sqllab": True,
-            "dataset_count": 0,
-            "status": "untested",
-        }
-    except Exception as e:
-        raise _handle_httpx_error(e, "create_database")
+        session.add(connection)
+        await session.flush()
+    except IntegrityError:
+        await session.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail={"error": "duplicate_name", "message": f"A connection named '{name}' already exists"},
+        )
+
+    # Invalidate ConnectionResolver cache
+    resolver = getattr(request.app.state, "connection_resolver", None)
+    if resolver:
+        await resolver.invalidate(session)
+
+    return {
+        "id": conn_id,
+        "database_name": body.database_name,
+        "backend": body.backend,
+        "created_on": connection.created_at.isoformat() if connection.created_at else None,
+        "expose_in_sqllab": True,
+        "dataset_count": 0,
+        "status": "untested",
+        "last_tested": None,
+    }
 
 
 @router.put("/{db_id}")
-async def update_database(db_id: int, body: DatabaseUpdate, superset: SupersetDep, request: Request) -> dict:
-    if not superset:
-        raise _superset_unavailable()
-    try:
-        tracker = _get_status_tracker(request)
-        payload: dict = {}
-        if body.database_name:
-            payload["database_name"] = body.database_name
-        if body.sqlalchemy_uri or body.host:
-            payload["sqlalchemy_uri"] = _resolve_uri(body)
-        result = await superset.update_database(db_id, payload)
-        updated = result.get("result", result)
-        updated_id = updated.get("id", db_id)
-        if tracker and updated_id is not None:
-            status_info = tracker.get_status(updated_id)
-        else:
-            status_info = {"status": "untested", "last_tested": None}
-        return {
-            "id": updated_id,
-            "database_name": updated.get("database_name", ""),
-            "backend": updated.get("backend", ""),
-            "created_on": updated.get("created_on"),
-            "expose_in_sqllab": updated.get("expose_in_sqllab", True),
-            "dataset_count": 0,
-            "status": status_info["status"],
-            "last_tested": status_info["last_tested"],
-        }
-    except Exception as e:
-        raise _handle_httpx_error(e, f"update_database({db_id})")
+async def update_database(
+    db_id: str,
+    body: DatabaseUpdate,
+    session: DbSessionDep,
+    engine_manager: EngineManagerDep,
+    request: Request,
+) -> dict:
+    """Update an existing database connection."""
+    encryption = _get_encryption(request)
+    stmt = select(RecvizConnection).where(RecvizConnection.id == db_id)
+    result = await session.execute(stmt)
+    conn = result.scalar_one_or_none()
+    if conn is None:
+        raise HTTPException(status_code=404, detail=f"Database '{db_id}' not found")
+
+    # Apply non-None fields from body
+    if body.database_name is not None:
+        conn.display_name = body.database_name
+        conn.name = body.database_name.lower().replace(" ", "_")
+    if body.backend is not None:
+        conn.backend = body.backend
+    if body.host is not None:
+        conn.host = body.host
+    if body.port is not None:
+        conn.port = body.port
+    if body.database is not None:
+        conn.database_name = body.database
+    if body.schema_name is not None:
+        conn.schema_name = body.schema_name
+    if body.username is not None:
+        conn.username = body.username
+    if body.password is not None:
+        conn.encrypted_password = encryption.encrypt(body.password)
+
+    # Dispose the old engine (connection params may have changed)
+    await engine_manager.dispose_engine(db_id)
+
+    # Invalidate ConnectionResolver cache
+    resolver = getattr(request.app.state, "connection_resolver", None)
+    if resolver:
+        await resolver.invalidate(session)
+
+    tracker = _get_status_tracker(request)
+    if tracker:
+        status_info = tracker.get_status(conn.id)
+    else:
+        status_info = {"status": "untested", "last_tested": None}
+
+    return _build_response(conn, status_info)
 
 
 @router.delete("/{db_id}")
-async def delete_database(db_id: int, superset: SupersetDep) -> dict:
-    if not superset:
-        raise _superset_unavailable()
-    try:
-        await superset.delete_database(db_id)
-        return {"success": True}
-    except Exception as e:
-        raise _handle_httpx_error(e, f"delete_database({db_id})")
+async def delete_database(
+    db_id: str,
+    session: DbSessionDep,
+    engine_manager: EngineManagerDep,
+    request: Request,
+) -> dict:
+    """Delete a database connection."""
+    stmt = select(RecvizConnection).where(RecvizConnection.id == db_id)
+    result = await session.execute(stmt)
+    conn = result.scalar_one_or_none()
+    if conn is None:
+        raise HTTPException(status_code=404, detail=f"Database '{db_id}' not found")
+
+    await session.delete(conn)
+    await engine_manager.dispose_engine(db_id)
+
+    # Invalidate ConnectionResolver cache
+    resolver = getattr(request.app.state, "connection_resolver", None)
+    if resolver:
+        await resolver.invalidate(session)
+
+    # Remove from status tracker
+    tracker = _get_status_tracker(request)
+    if tracker:
+        tracker.remove(db_id)
+
+    return {"success": True}
 
 
 @router.post("/test")
-async def test_connection(body: TestConnectionRequest, superset: SupersetDep, request: Request) -> dict:
-    if not superset:
-        raise _superset_unavailable()
+async def test_connection(body: TestConnectionRequest, request: Request) -> dict:
+    """Test database connectivity using a disposable engine."""
     tracker = _get_status_tracker(request)
     try:
-        uri = _resolve_uri(body)
-        await superset.test_connection({"sqlalchemy_uri": uri})
+        uri = build_async_uri(
+            backend=body.backend,
+            host=body.host or "",
+            port=body.port,
+            database=body.database,
+            username=body.username,
+            password=body.password,
+        )
+        success, message = await EngineManager.test_connection(uri, body.backend)
         if tracker and body.database_id is not None:
-            tracker.mark_connected(body.database_id)
-        return {"success": True, "message": "Connection successful"}
-    except httpx.HTTPStatusError as e:
-        logger.warning("Connection test failed: %s", e)
-        if tracker and body.database_id is not None:
-            tracker.mark_unreachable(body.database_id)
-        return {"success": False, "message": f"Connection failed: {sanitize_detail(e)}"}
+            if success:
+                tracker.mark_connected(body.database_id)
+            else:
+                tracker.mark_unreachable(body.database_id)
+        return {"success": success, "message": message}
+    except ValueError as e:
+        return {"success": False, "message": str(e)}
     except Exception as e:
         logger.warning("Connection test error: %s", e)
         if tracker and body.database_id is not None:
@@ -261,18 +304,6 @@ async def test_connection(body: TestConnectionRequest, superset: SupersetDep, re
 
 
 @router.post("/{db_id}/sync")
-async def sync_datasets(db_id: int, superset: SupersetDep) -> dict:
-    """Trigger a dataset refresh for the given database."""
-    if not superset:
-        raise _superset_unavailable()
-    try:
-        raw = await superset.list_datasets()
-        count = sum(
-            1
-            for ds in raw
-            if ds.get("database", {}).get("id") == db_id
-            or ds.get("database_id") == db_id
-        )
-        return {"success": True, "dataset_count": count}
-    except Exception as e:
-        raise _handle_httpx_error(e, f"sync_datasets({db_id})")
+async def sync_datasets(db_id: str) -> dict:
+    """No-op -- Superset dataset sync removed. Preserved for API compatibility."""
+    return {"success": True, "dataset_count": 0}

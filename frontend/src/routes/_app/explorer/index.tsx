@@ -153,7 +153,7 @@ function Explorer() {
         open={saveDialogOpen}
         onOpenChange={setSaveDialogOpen}
         sql={sql}
-        databaseId={1}
+        databaseId={null}
         columns={result?.columns ?? []}
         rows={result?.data ?? []}
       />

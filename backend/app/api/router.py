@@ -7,7 +7,6 @@ from app.api.managed_kpis import router as managed_kpis_router
 from app.api.managed_dashboards import router as managed_dashboards_router
 from app.api.data_sources import router as data_sources_router
 from app.api.databases import router as databases_router
-from app.api.datasets import router as datasets_router
 from app.api.export import router as export_router
 from app.api.managed_datasets import router as managed_datasets_router
 from app.api.search import router as search_router
@@ -22,7 +21,6 @@ api_router.include_router(databases_router)
 api_router.include_router(managed_kpis_router)
 api_router.include_router(managed_charts_router)
 api_router.include_router(managed_datasets_router)
-api_router.include_router(datasets_router)
 api_router.include_router(sql_router)
 api_router.include_router(search_router)
 api_router.include_router(export_router)

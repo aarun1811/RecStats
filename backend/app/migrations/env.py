@@ -8,7 +8,14 @@ from app.config import settings
 from app.db.base import Base
 
 # Import all models so they register with Base.metadata
-from app.db.models import RecvizDashboard, RecvizDataSource, RecvizDataset  # noqa: F401
+from app.db.models import (  # noqa: F401
+    RecvizChart,
+    RecvizConnection,
+    RecvizDashboard,
+    RecvizDataSource,
+    RecvizDataset,
+    RecvizKpi,
+)
 
 config = context.config
 

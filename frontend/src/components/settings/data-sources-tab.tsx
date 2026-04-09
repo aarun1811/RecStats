@@ -21,7 +21,7 @@ export function DataSourcesTab() {
   // Sheet state
   const [sheetOpen, setSheetOpen] = useState(false)
   const [sheetMode, setSheetMode] = useState<SheetMode>('create')
-  const [selectedDbId, setSelectedDbId] = useState<number | null>(null)
+  const [selectedDbId, setSelectedDbId] = useState<string | null>(null)
 
   const filtered = useMemo(() => {
     if (!searchQuery.trim()) return databases
@@ -39,7 +39,7 @@ export function DataSourcesTab() {
     setSheetOpen(true)
   }
 
-  const handleOpenDetail = (dbId: number) => {
+  const handleOpenDetail = (dbId: string) => {
     setSelectedDbId(dbId)
     setSheetMode('detail')
     setSheetOpen(true)
@@ -51,7 +51,7 @@ export function DataSourcesTab() {
         <CardHeader>
           <CardTitle className="text-base">Configured Data Sources</CardTitle>
           <CardDescription>
-            Manage database connections used by Superset
+            Manage database connections
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

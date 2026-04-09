@@ -1962,6 +1962,7 @@ def _dash_chart_ref(
     data_source_id: str,
     layout: dict,
     *,
+    metric: str = "",
     cross_filter: bool | None = None,
     drill_hierarchy: list[str] | None = None,
     drill_detail_data_source_id: str | None = None,
@@ -1977,7 +1978,7 @@ def _dash_chart_ref(
         "type": chart_type,
         "sourceType": "query",
         "chartId": chart_id,
-        "sources": [{"dataSourceId": data_source_id, "metric": ""}],
+        "sources": [{"dataSourceId": data_source_id, "metric": metric}],
         "layout": layout,
     }
     if cross_filter is not None:
@@ -2057,6 +2058,7 @@ CURATED_DASHBOARDS: list[dict] = [
                     "heatmap",
                     "ds-sla-breach-summary",
                     _layout(0, 0, 12),
+                    metric="breach_rate",
                     cross_filter=True,
                     drill_detail_data_source_id="ds-recon-transaction-detail",
                 ),
@@ -2066,6 +2068,7 @@ CURATED_DASHBOARDS: list[dict] = [
                     "stacked-bar",
                     "ds-recon-transactions-by-region",
                     _layout(0, 3, 6),
+                    metric="txn_count",
                     cross_filter=True,
                     drill_hierarchy=["region", "status"],
                     drill_detail_data_source_id="ds-recon-transaction-detail",
@@ -2076,6 +2079,7 @@ CURATED_DASHBOARDS: list[dict] = [
                     "waterfall",
                     "ds-recon-breaks-aging",
                     _layout(6, 3, 6),
+                    metric="break_count",
                 ),
                 _dash_chart_ref(
                     "chart-match-rate-gauge",
@@ -2143,6 +2147,7 @@ CURATED_DASHBOARDS: list[dict] = [
                     "waterfall",
                     "ds-recon-breaks-aging",
                     _layout(6, 0, 6),
+                    metric="break_count",
                 ),
                 _dash_chart_ref(
                     "chart-breaks-by-type",

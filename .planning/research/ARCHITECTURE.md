@@ -1,1053 +1,669 @@
-# Architecture Research: Dashboard Builder for RecViz
+# Architecture: Removing Superset -- Direct Database Query Engine
 
-**Domain:** Internal BI platform with dashboard builder -- brownfield evolution from config-driven rendering to UI-based builder
-**Researched:** 2026-04-04
-**Confidence:** HIGH (existing codebase thoroughly documented, industry patterns well-established)
+**Domain:** BI platform backend migration (Superset proxy to direct SQLAlchemy)
+**Researched:** 2026-04-09
+**Overall confidence:** HIGH -- based on existing codebase analysis + verified SQLAlchemy/Alembic docs
+
+## Current Architecture (What Exists)
+
+```
+React SPA --> FastAPI --> Superset REST API --> Oracle/PostgreSQL
+                |
+                +--> SQLAlchemy (metadata only) --> PostgreSQL
+                |         recviz_dashboards
+                |         recviz_data_sources
+                |         recviz_datasets
+                |         recviz_charts
+                |         recviz_kpis
+                |
+                +--> ConnectionStatusTracker (in-memory)
+```
+
+### Existing Components (backend/app/)
+
+| Component | Role | Superset-Dependent? |
+|-----------|------|---------------------|
+| `db/engine.py` | Single async engine for metadata DB | NO -- keep as-is |
+| `db/base.py` | DeclarativeBase for ORM models | NO -- keep as-is |
+| `db/models/` | 5 ORM tables (dashboard, data_source, dataset, chart, kpi) | NO -- extend |
+| `services/superset_client.py` | HTTP proxy to Superset REST API | YES -- **DELETE** |
+| `services/database_registrar.py` | Syncs databases.json to Superset IDs | YES -- **REPLACE** |
+| `services/query_engine.py` | Builds SQL, routes to DB, executes via Superset | PARTIALLY -- **REWRITE** |
+| `services/dataset_sync.py` | Syncs datasets to Superset virtual datasets | YES -- **DELETE** |
+| `services/connection_status.py` | In-memory health tracking by Superset ID | PARTIALLY -- **ADAPT** |
+| `services/config_store.py` | DB-backed data source config lookup | NO -- keep as-is |
+| `services/merge_engine.py` | Client-side join of query results | NO -- keep as-is |
+| `services/uri_builder.py` | Builds SQLAlchemy URIs from form fields | NO -- keep as-is |
+| `api/databases.py` | Database CRUD (proxies to Superset) | YES -- **REWRITE** |
+| `api/sql.py` | SQL Explorer execution (proxies to Superset) | YES -- **REWRITE** |
+| `api/data_sources.py` | Data source query endpoint | NO -- keep (uses QueryEngine) |
+| `api/managed_datasets.py` | Dataset CRUD | PARTIALLY -- remove sync logic |
+| `api/managed_charts.py` | Chart CRUD | NO -- keep as-is |
+| `api/managed_kpis.py` | KPI CRUD | NO -- keep as-is |
+| `api/managed_dashboards.py` | Dashboard CRUD | NO -- keep as-is |
+| `config.py` | Settings (has superset_url, superset_username, etc.) | YES -- **CLEAN** |
+| `main.py` | Lifespan: creates SupersetClient, registers DBs | YES -- **REWRITE** |
+
+**Summary: 7 files to delete/rewrite, 10+ files unchanged, 3 files need minor edits.**
 
 ---
 
-## System Overview
-
-The dashboard builder adds a **design-time layer** on top of the existing **runtime layer**. The existing system already handles rendering dashboards from JSON config. The builder gives business users a UI to produce those configs instead of requiring developers to hand-write JSON files.
+## Target Architecture
 
 ```
-                          DESIGN-TIME (new)                    RUNTIME (existing, evolved)
-                     ========================             ===========================
-
-                     +---------------------+
-                     |   Dataset Manager   |  (dev team)
-                     |   - SQL editor      |
-                     |   - Column metadata  |
-                     |   - Filter mappings  |
-                     +----------+----------+
-                                |
-                         dataset registry
-                                |
-                     +----------v----------+
-                     |  Dashboard Builder  |  (business users)
-                     |  - Layout editor    |
-                     |  - Chart builder    |
-                     |  - Filter config    |
-                     |  - KPI config       |
-                     +----------+----------+
-                                |
-                        saves DashboardConfig
-                                |
-              +-----------------v-----------------+
-              |        Config Persistence         |
-              |  (DB-backed, replaces JSON files) |
-              +-----------------+-----------------+
-                                |
-                     reads DashboardConfig
-                                |
-              +-----------------v-----------------+
-              |       Dashboard Renderer          |  (existing, minimal changes)
-              |  FilterBar > KPIs > Charts > Grid |
-              +-----------------+-----------------+
-                                |
-                          API calls
-                                |
-              +-----------------v-----------------+
-              |          FastAPI Backend           |
-              |  - Query Engine (existing)         |
-              |  - Config CRUD (new)               |
-              |  - Dataset Metadata (new)           |
-              +-----------------+-----------------+
-                                |
-              +-----------------v-----------------+
-              |     Superset (headless engine)     |
-              |  - SQL execution                   |
-              |  - DB connectivity                 |
-              |  - Query caching (Redis)           |
-              +-----------------+-----------------+
-                                |
-              +-----------------v-----------------+
-              |         Data Sources               |
-              |  Oracle | Hive | Elasticsearch     |
-              +-----------------------------------+
+React SPA --> FastAPI --> SQLAlchemy async engines --> PostgreSQL (dev) / Oracle (prod)
+                |
+                +--> metadata_engine (existing) --> recviz_* tables
+                |         recviz_dashboards
+                |         recviz_data_sources
+                |         recviz_datasets
+                |         recviz_charts
+                |         recviz_kpis
+                |         recviz_connections (NEW)
+                |
+                +--> DataSourceEnginePool (NEW)
+                |         Manages N async engines for user-created connections
+                |         Engine per unique connection URI
+                |         Lazy creation + LRU eviction
+                |
+                +--> QueryExecutor (REWRITTEN query_engine.py)
+                          Builds SQL (reuse existing logic)
+                          Executes via raw text() on data source engines
+                          Returns same response shape as today
 ```
-
-### Key Architectural Insight
-
-The existing config-driven system already separates **"what to render"** (DashboardConfig JSON) from **"how to render"** (DashboardRenderer + components). The dashboard builder is a **config authoring UI** -- it produces the same DashboardConfig structure that the renderer already consumes. This is the single most important architectural decision: **do not create a parallel rendering path for the builder.** Both builder preview and production view use the same renderer.
 
 ---
 
-## Component Boundaries
+## Component Architecture
 
-### 1. Dataset Manager (Dev-Team Tool)
+### 1. Dual Engine Strategy
 
-| Aspect | Detail |
-|--------|--------|
-| **Responsibility** | Create, edit, validate, and publish datasets that business users consume |
-| **Users** | Dev team only (SQL expertise required) |
-| **Communicates with** | FastAPI backend (dataset CRUD), Superset (table metadata, SQL validation) |
-| **Output** | DatasetConfig objects stored in DB (evolved from JSON files) |
+**Metadata engine** -- the existing `db/engine.py`. Single async engine pointing at the RecViz metadata database (PostgreSQL in dev, Oracle in prod). Used for all ORM operations on `recviz_*` tables. No changes needed except cleaning the connection URL in config.
 
-**What a Dataset contains:**
-- Unique ID and human-readable name
-- Database routing (static or dynamic)
-- SQL template with `{{filter}}` placeholders
-- Column definitions (name, type, label, description, aggregation hints)
-- Filter mappings (which filter IDs map to which SQL expressions)
-- Allowed distinct columns (for populating filter dropdowns)
-- Validation status (tested/untested)
+**Data source engine pool** -- NEW. A registry of async engines, one per user-defined database connection. These engines execute raw SQL (SELECT queries only) against data source databases. They do NOT use ORM models -- they execute `text()` SQL and return rows as dicts.
 
-**Why this is separate from the dashboard builder:** Business users should never see SQL. They pick from a catalog of named datasets with documented columns. The dev team owns the data layer; business users own the presentation layer.
+```python
+# Conceptual structure
+class DataSourceEnginePool:
+    _engines: dict[str, AsyncEngine]   # connection_id -> engine
+    _lock: asyncio.Lock
 
-### 2. Dashboard Builder (Business User Tool)
+    async def get_engine(self, connection_id: str) -> AsyncEngine:
+        """Get or create an engine for a connection. Reads URI from DB."""
 
-| Aspect | Detail |
-|--------|--------|
-| **Responsibility** | Visual dashboard authoring: layout, widget placement, chart configuration, filter setup |
-| **Users** | Business users (recon analysts, team leads) |
-| **Communicates with** | Dataset registry (metadata only), FastAPI backend (save/load configs), Dashboard Renderer (live preview) |
-| **Output** | DashboardConfig objects stored in DB |
+    async def remove_engine(self, connection_id: str) -> None:
+        """Dispose engine when connection is deleted/updated."""
 
-**Sub-components:**
+    async def dispose_all(self) -> None:
+        """Shutdown: dispose all engines."""
+```
 
-| Sub-component | Responsibility |
-|---------------|----------------|
-| **Layout Editor** | Drag-and-drop grid for positioning widgets; resize handles; snap-to-grid |
-| **Widget Palette** | Catalog of addable widgets: KPI card, chart, data grid, text/heading |
-| **Chart Configurator** | Side panel: pick dataset, map columns to axes/metrics, select chart type, preview |
-| **Filter Configurator** | Define global filters: pick dataset column, filter type, cascading dependencies |
-| **KPI Configurator** | Define KPI cards: pick dataset + metric column, aggregation, trend reference |
-| **Properties Panel** | Per-widget settings: title, colors, conditional visibility, cross-filter participation |
+**Why separate engines, not separate sessions on one engine:** Each data source connection points to a different physical database (different hosts, credentials, even different database types). SQLAlchemy engines are bound to a specific URI. You cannot use one engine to talk to multiple databases. This is not multi-tenancy (same schema, different data) -- it is multi-database (different servers entirely).
 
-### 3. Dashboard Renderer (Existing, Evolved)
+### 2. Connection Storage (recviz_connections table)
 
-| Aspect | Detail |
-|--------|--------|
-| **Responsibility** | Render a DashboardConfig into interactive UI with filters, charts, grids |
-| **Users** | All users (view mode) + Builder (preview mode) |
-| **Communicates with** | FastAPI backend (data queries), Zustand stores (filter/cross-filter/drill state) |
-| **Input** | DashboardConfig (from DB or from builder's in-memory draft) |
+Currently, connections are stored in two places:
+1. `databases.json` -- static config file, synced to Superset on startup
+2. Superset's internal metadata -- the canonical store after sync
 
-**Evolution needed:**
-- Accept config from DB-backed API (currently: static JSON)
-- Support cross-filtering (currently: only in legacy components)
-- Support drill-down (currently: only in legacy components)
-- Support chart panel features (export, fullscreen) -- currently missing in config-driven system
-- Accept a `mode` prop: `'view'` (normal) vs `'preview'` (inside builder, no editing)
+Both go away. Replace with a `recviz_connections` table in the metadata DB.
 
-### 4. Config Persistence Layer (New)
+```python
+class RecvizConnection(Base):
+    __tablename__ = "recviz_connections"
 
-| Aspect | Detail |
-|--------|--------|
-| **Responsibility** | CRUD for DashboardConfig and DatasetConfig; versioning; draft/published states |
-| **Communicates with** | PostgreSQL (or Oracle in prod) via SQLAlchemy |
-| **Replaces** | JSON files in `backend/app/config/` |
+    id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    name: Mapped[str] = mapped_column(String(256), nullable=False, unique=True)
+    display_name: Mapped[str] = mapped_column(String(256), nullable=False)
+    backend: Mapped[str] = mapped_column(String(32), nullable=False)  # oracle, postgresql
+    host: Mapped[str] = mapped_column(String(256), nullable=False)
+    port: Mapped[int] = mapped_column(Integer, nullable=False)
+    database: Mapped[str] = mapped_column(String(256), nullable=False)
+    schema_name: Mapped[str] = mapped_column(String(256), server_default="")
+    username: Mapped[str] = mapped_column(String(256), nullable=False)
+    encrypted_password: Mapped[str] = mapped_column(Text, nullable=False)
+    dialect: Mapped[str] = mapped_column(String(32), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), server_default="untested")
+    last_tested: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+```
 
-### 5. FastAPI Backend (Existing, Extended)
+**Credential encryption:** Passwords stored encrypted using Fernet symmetric encryption. Key derived from an env var (`RECVIZ_ENCRYPTION_KEY`). The `uri_builder.py` already exists and constructs URIs from individual fields -- it will be reused. The URI is built at runtime from decrypted fields, never stored in plaintext.
 
-| Aspect | Detail |
-|--------|--------|
-| **New routes** | Dashboard CRUD, Dataset CRUD, dataset metadata queries, column introspection |
-| **Extended routes** | Dashboard rendering now reads from DB instead of JSON files |
-| **Unchanged** | Query engine, Superset proxy, SQL executor, merge engine |
+**Migration from databases.json:** A one-time migration script reads `databases.json`, creates rows in `recviz_connections`, and the JSON files become unnecessary. Keep them as a fallback/seed mechanism for fresh installs.
 
-### 6. Superset Engine (Unchanged)
+### 3. DataSourceEnginePool (NEW service)
 
-No changes needed. Continues to serve as headless SQL execution engine.
+```
+DataSourceEnginePool
+  |
+  +--> _engines: dict[str, AsyncEngine]
+  |       Keyed by connection ID (not name)
+  |       Created lazily on first query to that connection
+  |       Disposed on connection delete/update or shutdown
+  |
+  +--> get_engine(connection_id) -> AsyncEngine
+  |       1. Check cache
+  |       2. If miss: load RecvizConnection from metadata DB
+  |       3. Decrypt password, build URI via uri_builder
+  |       4. create_async_engine(uri, pool_size=5, max_overflow=3)
+  |       5. Cache and return
+  |
+  +--> execute_raw(connection_id, sql, params?) -> list[dict]
+  |       1. Get engine
+  |       2. async with engine.connect() as conn:
+  |       3.     result = await conn.execute(text(sql))
+  |       4.     return [dict(row._mapping) for row in result]
+  |
+  +--> test_connection(connection_id | uri) -> bool
+  |       1. Create temporary engine (or use cached)
+  |       2. Execute "SELECT 1" (PostgreSQL) or "SELECT 1 FROM DUAL" (Oracle)
+  |       3. Return success/failure
+  |
+  +--> invalidate(connection_id) -> None
+  |       Dispose cached engine (force reconnect on next use)
+  |
+  +--> dispose_all() -> None
+          Shutdown hook: dispose all engines
+```
+
+**Pool sizing rationale:** Each data source engine gets `pool_size=5, max_overflow=3`. With ~4 data sources typical in the current config, that is 20 base connections + 12 overflow = 32 total max connections to data databases. Reasonable for a single-server BI tool. The metadata engine keeps its existing `pool_size=10, max_overflow=5`.
+
+**Engine dialect selection:** The URI scheme determines the dialect automatically.
+- PostgreSQL (dev): `postgresql+asyncpg://...` -- uses asyncpg driver
+- Oracle (prod): `oracle+oracledb://...` -- uses python-oracledb in thin mode (async supported since SQLAlchemy 2.0.25 + python-oracledb 2.0+)
+
+### 4. QueryExecutor (REWRITTEN services/query_engine.py)
+
+The existing `QueryEngine` has two excellent pieces of reusable logic:
+1. **`_resolve_database()`** -- routes a DataSourceConfig to a database name via static/dynamic routing
+2. **`_build_sql()`** -- template engine for SQL with filter injection, date range clauses, dialect-aware syntax
+
+These stay. What changes is the execution path:
+
+**Before:** `QueryEngine.execute()` -> `self._superset.execute_sql(database_id, sql, schema, limit)`
+**After:** `QueryExecutor.execute()` -> `self._pool.execute_raw(connection_id, sql)`
+
+```python
+class QueryExecutor:
+    """Builds SQL from data source configs and executes via direct DB connections."""
+
+    def __init__(
+        self,
+        engine_pool: DataSourceEnginePool,
+        connection_resolver: ConnectionResolver,
+        status_tracker: ConnectionStatusTracker,
+    ) -> None:
+        self._pool = engine_pool
+        self._resolver = connection_resolver
+        self._status = status_tracker
+
+    # _resolve_database() -- REUSED from current QueryEngine
+    # _build_sql() -- REUSED from current QueryEngine
+    # _build_date_range_clause() -- REUSED from current QueryEngine
+
+    async def execute(self, ds: DataSourceConfig, filters: dict, max_rows: int = 10_000) -> dict:
+        db_name = self._resolve_database(ds, filters)
+        connection_id = await self._resolver.resolve_name_to_id(db_name)
+        dialect = self._resolver.get_dialect(db_name)
+        schema = self._resolver.get_schema(db_name)
+        sql = self._build_sql(ds, filters, dialect=dialect, db_name=db_name)
+
+        try:
+            rows = await self._pool.execute_raw(connection_id, sql)
+        except Exception as exc:
+            self._status.mark_unreachable(connection_id)
+            raise
+
+        self._status.mark_connected(connection_id)
+
+        columns = list(rows[0].keys()) if rows else []
+        truncated = len(rows) > max_rows
+        if truncated:
+            rows = rows[:max_rows]
+
+        return {
+            "columns": columns,
+            "rows": rows,
+            "row_count": len(rows),
+            "truncated": truncated,
+        }
+```
+
+**Response shape is identical to today.** The frontend sees `{ columns, rows, row_count, truncated }` -- no changes needed.
+
+### 5. ConnectionResolver (REPLACES DatabaseRegistrar)
+
+The current `DatabaseRegistrar` resolves logical database names to Superset numeric IDs. The new `ConnectionResolver` resolves logical database names to `recviz_connections` row IDs.
+
+```python
+class ConnectionResolver:
+    """Resolves logical database names to connection IDs from recviz_connections table."""
+
+    _cache: dict[str, ConnectionInfo]  # name -> {id, dialect, schema}
+
+    async def sync(self, session: AsyncSession) -> None:
+        """Load all connections from DB into cache. Called at startup."""
+
+    async def resolve_name_to_id(self, name: str) -> str:
+        """Resolve logical name to connection ID."""
+
+    def get_dialect(self, name: str) -> str
+    def get_schema(self, name: str) -> str
+    def get_all_schemas(self) -> set[str]
+
+    async def invalidate(self) -> None:
+        """Force reload from DB (after connection CRUD)."""
+```
+
+**API surface is identical to DatabaseRegistrar** -- same methods, just returns string IDs instead of int Superset IDs. This means `QueryExecutor._resolve_database()` works unchanged.
+
+### 6. Updated ConnectionStatusTracker
+
+Minor change: currently keyed by Superset int ID, needs to be keyed by connection string ID instead.
+
+```python
+class ConnectionStatusTracker:
+    _status: dict[str, dict]  # connection_id (str) -> {status, last_tested}
+    # Same API: get_status, mark_connected, mark_unreachable, remove
+```
+
+### 7. API Layer Changes
+
+#### databases.py -> connections.py (REWRITE)
+
+Currently proxies every CRUD operation to Superset. Rewrite to use direct SQLAlchemy ORM against `recviz_connections` table.
+
+**Endpoint mapping (API contracts preserved):**
+
+| Current Endpoint | New Endpoint | Change |
+|-----------------|-------------|--------|
+| `GET /api/databases` | `GET /api/databases` | Same URL, reads from recviz_connections |
+| `GET /api/databases/{id}` | `GET /api/databases/{id}` | Same URL, reads from recviz_connections |
+| `POST /api/databases` | `POST /api/databases` | Same URL, writes to recviz_connections |
+| `PUT /api/databases/{id}` | `PUT /api/databases/{id}` | Same URL, writes to recviz_connections |
+| `DELETE /api/databases/{id}` | `DELETE /api/databases/{id}` | Same URL, deletes from recviz_connections |
+| `POST /api/databases/test` | `POST /api/databases/test` | Same URL, tests via DataSourceEnginePool |
+| `GET /api/databases/{id}/datasets` | `GET /api/databases/{id}/datasets` | Same URL, queries recviz_datasets |
+
+**Response shapes stay identical.** The frontend DatabaseCreate/DatabaseUpdate/DatabaseInfo models already match. The `id` field changes from Superset int to RecViz string UUID, but the frontend already handles string IDs elsewhere (charts, dashboards, datasets all use string UUIDs).
+
+**IMPORTANT: ID type change from int to string.** Current `/api/databases/{db_id}` uses `db_id: int` (Superset ID). New version uses `db_id: str` (UUID). The frontend connection management UI sends IDs it received from the list endpoint, so this is transparent AS LONG AS:
+1. The list endpoint returns the new string IDs
+2. The frontend doesn't assume integer arithmetic on database IDs
+
+Review of frontend code shows `database_id` is treated as opaque (passed through, never parsed). Safe to change.
+
+#### sql.py (REWRITE)
+
+Currently calls `superset.execute_sql()`. Rewrite to use `DataSourceEnginePool.execute_raw()` directly.
+
+```python
+@router.post("/execute")
+async def execute_sql(body: SqlRequest, pool: DataSourceEnginePoolDep):
+    rows = await pool.execute_raw(body.database_id, body.sql)
+    columns = list(rows[0].keys()) if rows else []
+    return {
+        "status": "success",
+        "columns": columns,
+        "data": rows,
+        "row_count": len(rows),
+    }
+```
+
+Response shape matches current output. The `database_id` field in `SqlRequest` changes from Superset int to connection string ID.
+
+#### managed_datasets.py (MINOR EDIT)
+
+Remove all `DatasetSyncService` references. The `superset_id` and `sync_status` columns become unnecessary (mark as deprecated or remove in migration). Dataset records become purely metadata -- the SQL is stored but not synced to Superset.
+
+### 8. Lifespan (main.py REWRITE)
+
+```python
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 1. Create DataSourceEnginePool
+    pool = DataSourceEnginePool(metadata_session_factory=async_session_factory)
+    app.state.engine_pool = pool
+
+    # 2. Create ConnectionResolver and sync from DB
+    resolver = ConnectionResolver()
+    async with async_session_factory() as session:
+        await resolver.sync(session)
+    app.state.connection_resolver = resolver
+
+    # 3. Create ConnectionStatusTracker
+    status = ConnectionStatusTracker()
+    app.state.connection_status = status
+
+    # 4. Create QueryExecutor
+    app.state.query_engine = QueryExecutor(
+        engine_pool=pool,
+        connection_resolver=resolver,
+        status_tracker=status,
+    )
+
+    yield
+
+    # Shutdown
+    await pool.dispose_all()
+    await engine.dispose()  # metadata engine
+```
+
+**No httpx client.** No Superset authentication. No database registration into Superset. Startup is faster and has zero external dependencies (just the metadata DB needs to be reachable).
 
 ---
 
 ## Data Flow
 
-### Flow 1: Dataset Creation (Dev Team)
+### Dashboard Rendering (unchanged for frontend)
 
 ```
-Dev opens Dataset Manager
-  |
-  +--> Selects target database connection
-  |      (from Superset-registered databases)
-  |
-  +--> Writes SQL query in Monaco editor
-  |      SELECT agent_code, stmt_date, COUNT(*) AS breaks
-  |      FROM bank b JOIN item i ON ...
-  |      WHERE {{filters}}
-  |      GROUP BY agent_code, stmt_date
-  |
-  +--> "Validate" button executes SQL via Superset
-  |      with sample filter values
-  |      Returns column names + types
-  |
-  +--> System auto-detects column metadata:
-  |      - name: from SQL result columns
-  |      - type: string/number/date (from DB types)
-  |      - label: default = titleCase(name), editable
-  |      - description: empty, editable
-  |      - aggregatable: true for number columns
-  |      - groupable: true for string/date columns
-  |
-  +--> Dev configures filter mappings:
-  |      filter_id: "recon" --> sql_expr: "b.agent_code IN ({{values}})"
-  |      filter_id: "date_range" --> sql_expr: "i.stmt_date {{date_range_clause}}"
-  |
-  +--> Dev sets database routing:
-  |      Static: always "superset_db_reconmgmt"
-  |      Dynamic: route by filter "tlm_instance" with mapping
-  |
-  +--> Saves DatasetConfig to DB
-  |      Status: "published" (available to dashboard builder)
-  |
-  +--> Dataset appears in builder's dataset catalog
+1. Frontend: GET /api/dashboards/managed/{id}
+   -> Returns dashboard config with data_source references
+
+2. Frontend: POST /api/data-sources/{ds_id}/query  {filters: {...}}
+   -> FastAPI: ConfigStore.get_data_source(ds_id) -> DataSourceConfig
+   -> FastAPI: QueryExecutor.execute(ds_config, filters)
+     -> _resolve_database(ds_config, filters) -> "superset_db_TCOSPRD"
+     -> ConnectionResolver.resolve_name_to_id("superset_db_TCOSPRD") -> "abc-123"
+     -> _build_sql(ds_config, filters, dialect="postgresql") -> "SELECT ..."
+     -> DataSourceEnginePool.execute_raw("abc-123", sql)
+       -> get_engine("abc-123") -> create_async_engine if not cached
+       -> engine.connect() -> execute(text(sql)) -> rows
+     -> Return {columns, rows, row_count, truncated}
+
+3. Frontend: renders AG Charts/Grid with the data
 ```
 
-### Flow 2: Dashboard Building (Business User)
+### Connection CRUD (simplified)
 
 ```
-User opens Dashboard Builder
-  |
-  +--> Starts from blank canvas or template
-  |      Template = pre-populated DashboardConfig (e.g., "KPI + Charts + Grid")
-  |
-  +--> LAYOUT PHASE: Arranges widgets on grid
-  |    +-- Drags "KPI Card" widget from palette --> grid position (0,0) size 3x1
-  |    +-- Drags "Chart" widget from palette --> grid position (0,1) size 6x2
-  |    +-- Drags "Data Grid" widget --> grid position (0,3) size 12x3
-  |    +-- Resizes, repositions via drag handles
-  |    +-- Layout auto-saved as array of {widgetId, x, y, w, h}
-  |
-  +--> CONFIGURE PHASE: Configures each widget
-  |    |
-  |    +-- Clicks KPI card widget:
-  |    |   Properties panel opens on right
-  |    |   - Select dataset: "TLM Break Statistics"
-  |    |   - Select metric column: "breaks_count"
-  |    |   - Aggregation: SUM
-  |    |   - Label: "Total Breaks"
-  |    |   - Trend: percentage_of "total_items"
-  |    |   Preview updates live
-  |    |
-  |    +-- Clicks Chart widget:
-  |    |   Chart configurator panel opens
-  |    |   Step 1: Select dataset --> columns list loads
-  |    |   Step 2: Chart type picker (bar, line, pie, donut...)
-  |    |   Step 3: Map columns:
-  |    |     - Category axis (X): "agent_code" (string column)
-  |    |     - Value axis (Y): "breaks_count" (number column, AGG: SUM)
-  |    |     - Optional: Series/Group by: "stmt_date"
-  |    |   Step 4: Appearance (colors, legend position)
-  |    |   Preview chart renders with real data (sampled)
-  |    |
-  |    +-- Clicks Data Grid widget:
-  |        - Select dataset(s) (single or merge)
-  |        - Choose visible columns, ordering, default sort
-  |        - Conditional visibility (show when KPI > threshold)
-  |
-  +--> FILTER PHASE: Defines global filters
-  |    +-- Add filter:
-  |    |   - Pick dataset for options source
-  |    |   - Pick column for values
-  |    |   - Filter type: single-select / multi-select / date-range / preset-range
-  |    |   - Set cascading dependencies (filter B depends on filter A's selection)
-  |    |   - Default value
-  |    +-- Filter order (drag to reorder)
-  |
-  +--> INTERACTION PHASE: Configure cross-filtering
-  |    +-- Toggle cross-filtering ON for dashboard
-  |    +-- For each chart: opt-in/opt-out of cross-filtering
-  |    +-- Define field mappings (which field in source chart maps to target charts)
-  |    +-- Auto-mapped when datasets share column names
-  |
-  +--> SAVE: Produces DashboardConfig
-       - Draft: saved but not visible to other users
-       - Publish: visible to all users
-       - Version: previous version preserved
+1. POST /api/databases {name, backend, host, port, ...}
+   -> Encrypt password with Fernet
+   -> INSERT into recviz_connections
+   -> ConnectionResolver.invalidate() (refresh cache)
+   -> Return connection info
+
+2. POST /api/databases/test {backend, host, port, ...}
+   -> Build URI via uri_builder
+   -> DataSourceEnginePool.test_connection(uri)
+   -> Return {success, message}
+
+3. DELETE /api/databases/{id}
+   -> DataSourceEnginePool.invalidate(id) (dispose cached engine)
+   -> DELETE from recviz_connections
+   -> ConnectionResolver.invalidate()
 ```
 
-### Flow 3: Dataset Metadata to Chart Configuration UI
-
-This is the critical data flow that makes the builder usable. When a business user configures a chart, they need to understand what data is available without seeing SQL.
+### SQL Explorer (simplified)
 
 ```
-User clicks "Select Dataset" in chart configurator
-  |
-  +--> Frontend fetches: GET /api/datasets/catalog
-  |    Returns: [{id, name, description, columnCount, lastValidated}]
-  |    Displayed as searchable list with descriptions
-  |
-  +--> User selects "TLM Break Statistics"
-  |
-  +--> Frontend fetches: GET /api/datasets/{id}/metadata
-  |    Returns:
-  |    {
-  |      id: "tlm_breaks",
-  |      name: "TLM Break Statistics",
-  |      description: "Break counts by agent, set, date",
-  |      columns: [
-  |        {name: "agent_code", type: "string", label: "Agent Code",
-  |         description: "Recon agent identifier",
-  |         roles: ["dimension", "groupable", "filterable"]},
-  |        {name: "stmt_date", type: "date", label: "Statement Date",
-  |         roles: ["dimension", "groupable", "filterable", "temporal"]},
-  |        {name: "breaks_count", type: "number", label: "Breaks",
-  |         roles: ["measure", "aggregatable"],
-  |         defaultAggregation: "sum"}
-  |      ],
-  |      availableFilters: ["recon", "set_id", "date_range"],
-  |      sampleRowCount: 5000
-  |    }
-  |
-  +--> Chart type picker filters options by column availability:
-  |    - Line/Area: requires >= 1 temporal + >= 1 measure --> enabled
-  |    - Bar: requires >= 1 dimension + >= 1 measure --> enabled
-  |    - Pie/Donut: requires >= 1 dimension + exactly 1 measure --> enabled
-  |    - Scatter: requires >= 2 measures --> disabled (only 1 measure column)
-  |    - Sankey: requires >= 2 dimensions + 1 measure --> disabled
-  |
-  +--> Column mapping dropdowns filtered by role:
-       - X-axis: shows only columns with "dimension" or "temporal" role
-       - Y-axis: shows only columns with "measure" role
-       - Group by: shows only columns with "groupable" role
-       - Aggregation dropdown: SUM, COUNT, AVG, MIN, MAX (for measure columns)
-```
+1. POST /api/sql/execute {sql, database_id, schema, limit}
+   -> DataSourceEnginePool.execute_raw(database_id, sql + " FETCH FIRST {limit} ROWS ONLY")
+   -> Return {status, columns, data, row_count}
 
-### Flow 4: Cross-Filtering (Client-Side, Zero Network Calls)
-
-```
-All charts on dashboard share a data cache (TanStack Query)
-  |
-  +--> User clicks "Operations" bar in "Breaks by Desk" chart
-  |
-  +--> AG Charts onClick callback fires
-  |    event: {field: "desk", value: "Operations", chartId: "breaks-by-desk"}
-  |
-  +--> Cross-filter middleware checks DashboardConfig.crossFilterRules:
-  |    Rule: {source: "breaks-by-desk", sourceField: "desk",
-  |           targets: ["*"], targetField: "desk"}
-  |
-  +--> Zustand filter store: addCrossFilter({chartId, field, value})
-  |    Toggle behavior: clicking same value removes the filter
-  |
-  +--> All subscribed chart components re-render:
-  |    |
-  |    +-- Each chart's hook calls: applyCrossFilters(cachedData, crossFilters, myChartId)
-  |    |   - Filters rows where data[targetField] === crossFilterValue
-  |    |   - Excludes self (source chart doesn't filter itself)
-  |    |   - Returns filtered array
-  |    |
-  |    +-- Source chart: dims non-selected items via makeItemStyler()
-  |    |   (opacity: 0.3 for unselected, 1.0 for selected)
-  |    |
-  |    +-- KPI cards: recompute aggregations from filtered data
-  |    |
-  |    +-- Data grid: applies AG Grid external filter model
-  |    |   isExternalFilterPresent() + doesExternalFilterPass()
-  |
-  +--> CrossFilterBar component renders active filter badges
-       Each badge: "Desk: Operations [x]"
-       Click [x] to remove that cross-filter
-
-  Total latency: < 16ms (single frame, no network)
-```
-
-### Flow 5: Drill-Down (Hybrid Client + Server)
-
-```
-Dashboard chart shows monthly aggregation (Level 0)
-  |
-  +--> User clicks "January 2026" bar
-  |
-  +--> Drill-down handler checks DashboardConfig.drillDown config:
-  |    levels: [
-  |      {name: "monthly", groupBy: "month(stmt_date)", aggregation: "sum"},
-  |      {name: "daily", groupBy: "stmt_date", aggregation: "sum"},
-  |      {name: "detail", groupBy: null, aggregation: null}  // raw rows
-  |    ]
-  |
-  +--> Level 0 -> Level 1 transition:
-  |    drillStore.drillDown({column: "month", value: "2026-01"})
-  |    Breadcrumb: [All] > January 2026
-  |
-  |    Strategy: CLIENT-SIDE if data granularity allows
-  |    - Daily data already in cache from the monthly query
-  |    - reaggregateByField(cachedData, "stmt_date", "sum")
-  |    - Filter to month === "2026-01"
-  |    - Re-render chart with daily breakdown
-  |
-  +--> User clicks "Jan 15" bar
-  |
-  +--> Level 1 -> Level 2 transition:
-  |    drillStore.drillDown({column: "stmt_date", value: "2026-01-15"})
-  |    Breadcrumb: [All] > January 2026 > Jan 15
-  |
-  |    Strategy: SERVER-SIDE (detail rows need a new query)
-  |    - New query: SELECT * FROM ... WHERE stmt_date = '2026-01-15' {{filters}}
-  |    - TanStack Query fires with drill-specific query key
-  |    - AG Grid renders individual break records
-  |
-  +--> Breadcrumb navigation:
-       Click "January 2026" to go back to Level 1
-       Click "All" to reset to Level 0
-       Each level restores the chart/grid appropriate for that depth
+2. GET /api/sql/databases
+   -> SELECT id, name, display_name, backend FROM recviz_connections
+   -> Return [{id, database_name, backend}]
 ```
 
 ---
 
-## Recommended Project Structure (New/Modified Files)
+## Alembic Migration Strategy
 
-```
-frontend/src/
-  |
-  +-- components/
-  |   +-- builder/                          # NEW: Dashboard builder UI
-  |   |   +-- dashboard-builder.tsx         # Main builder layout (canvas + panels)
-  |   |   +-- builder-toolbar.tsx           # Top toolbar (save, publish, preview, undo/redo)
-  |   |   +-- builder-canvas.tsx            # react-grid-layout wrapper for widget placement
-  |   |   +-- widget-palette.tsx            # Left sidebar: draggable widget types
-  |   |   +-- properties-panel.tsx          # Right sidebar: selected widget configuration
-  |   |   +-- chart-configurator.tsx        # Chart-specific config (dataset, columns, type)
-  |   |   +-- kpi-configurator.tsx          # KPI card config (dataset, metric, trend)
-  |   |   +-- grid-configurator.tsx         # Data grid config (dataset, columns, merge)
-  |   |   +-- filter-configurator.tsx       # Filter bar config (datasets, cascading)
-  |   |   +-- cross-filter-configurator.tsx # Cross-filter rules editor
-  |   |   +-- drill-configurator.tsx        # Drill-down levels editor
-  |   |   +-- dataset-picker.tsx            # Reusable dataset selection component
-  |   |   +-- column-mapper.tsx             # Column-to-axis mapping UI
-  |   |   +-- template-picker.tsx           # Start from template dialog
-  |   |
-  |   +-- dataset/                          # NEW: Dataset management UI (dev team)
-  |   |   +-- dataset-manager.tsx           # Dataset list + CRUD
-  |   |   +-- dataset-editor.tsx            # SQL editor + column config + validation
-  |   |   +-- column-editor.tsx             # Column metadata editing (labels, types, roles)
-  |   |   +-- filter-mapping-editor.tsx     # Filter-to-SQL mapping editor
-  |   |   +-- dataset-validator.tsx         # Test execution + preview results
-  |   |
-  |   +-- dashboard/                        # EXISTING: evolved
-  |   |   +-- dashboard-renderer.tsx        # Add mode prop, cross-filter, drill-down
-  |   |   +-- config-filter-bar.tsx         # Unchanged
-  |   |   +-- config-kpi-row.tsx            # Add cross-filter awareness
-  |   |   +-- config-chart-grid.tsx         # Add ChartPanel wrapper, cross-filter, drill
-  |   |   +-- config-data-grid.tsx          # Add cross-filter external filter
-  |   |   +-- cross-filter-bar.tsx          # MIGRATE from legacy, integrate with config system
-  |   |   +-- drill-breadcrumb.tsx          # MIGRATE from legacy, integrate with config system
-  |   |   +-- chart-panel.tsx               # MIGRATE from legacy (export, fullscreen, refresh)
-  |
-  +-- stores/
-  |   +-- filter-store.ts                   # EXISTING: add cross-filter toggle behavior
-  |   +-- drill-store.ts                    # EXISTING: unchanged
-  |   +-- builder-store.ts                  # NEW: builder state (selected widget, draft config,
-  |                                         #   undo/redo stack, dirty flag)
-  |
-  +-- hooks/
-  |   +-- use-dashboard-config.ts           # EXISTING: point to DB-backed API
-  |   +-- use-dataset-catalog.ts            # NEW: fetch dataset list for builder
-  |   +-- use-dataset-metadata.ts           # NEW: fetch column metadata for chart config
-  |   +-- use-dashboard-crud.ts             # NEW: save/publish/delete dashboards
-  |   +-- use-dataset-crud.ts               # NEW: dataset CRUD for dataset manager
-  |   +-- use-cross-filter.ts               # EXISTING: integrate with config-driven system
-  |   +-- use-drill-down.ts                 # EXISTING: integrate with config-driven system
-  |
-  +-- types/
-      +-- dashboard-config.ts               # EXISTING: extend with cross-filter rules,
-      |                                     #   drill-down config, widget IDs
-      +-- dataset-metadata.ts               # NEW: column roles, aggregation hints
-      +-- builder.ts                        # NEW: builder-specific types (draft state, etc.)
+### Problem: JSONB is PostgreSQL-specific
 
-backend/app/
-  |
-  +-- api/
-  |   +-- dashboards.py                     # EXISTING: add CRUD (create, update, delete, publish)
-  |   +-- datasets_v2.py                    # NEW: dataset CRUD for builder + metadata endpoint
-  |   +-- data_sources.py                   # EXISTING: unchanged (query execution)
-  |
-  +-- services/
-  |   +-- config_store.py                   # REPLACE: DB-backed instead of JSON files
-  |   +-- query_engine.py                   # EXISTING: unchanged
-  |   +-- dataset_service.py               # NEW: dataset validation, column introspection
-  |
-  +-- models/
-  |   +-- dashboard_config.py               # EXISTING: add version, status, created_by, timestamps
-  |   +-- data_source_config.py             # EXISTING: add column roles, descriptions
-  |   +-- persistence.py                    # NEW: SQLAlchemy ORM models for config storage
-  |
-  +-- migrations/                           # NEW: Alembic migrations for config tables
-      +-- versions/
-          +-- 001_dashboard_configs.py
-          +-- 002_dataset_configs.py
+Current migrations use `from sqlalchemy.dialects.postgresql import JSONB` directly. This will fail on Oracle.
+
+### Solution: Cross-dialect JSON type with with_variant
+
+Define a portable JSON type:
+
+```python
+# app/db/types.py
+import json as json_lib
+from sqlalchemy import JSON, Text
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.types import TypeDecorator
+
+# For Oracle 19c (no native JSON type), store as CLOB with manual serialization
+class OracleJSON(TypeDecorator):
+    impl = Text       # Maps to CLOB on Oracle
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        if value is not None:
+            return json_lib.dumps(value)
+        return value
+
+    def process_result_value(self, value, dialect):
+        if value is not None:
+            return json_lib.loads(value)
+        return value
+
+# Use JSONB on PostgreSQL (efficient binary JSON with indexing)
+# Use CLOB-based custom type on Oracle 19c
+# Use generic JSON elsewhere (SQLite, etc.)
+PortableJSON = JSON().with_variant(JSONB, "postgresql").with_variant(OracleJSON(), "oracle")
 ```
+
+For Oracle 21c+, `sa.JSON` maps natively. Since the target Oracle is likely 19c (corporate), the CLOB approach with `TypeDecorator` is the safe path. If the production Oracle turns out to be 21c+, simplify to `JSON().with_variant(JSONB, "postgresql")`.
+
+### Migration env.py changes
+
+The existing `env.py` already uses `recviz_alembic_version` as the version table (separate from Superset). No changes needed to the migration framework itself.
+
+New migration scripts should use `PortableJSON` instead of `JSONB`:
+
+```python
+# In new migration files
+from app.db.types import PortableJSON
+
+op.create_table(
+    "recviz_connections",
+    sa.Column("id", sa.String(128), primary_key=True),
+    ...
+)
+```
+
+### Migration for new table
+
+A new Alembic migration (005) creates `recviz_connections` and optionally drops `superset_id`/`sync_status` from `recviz_datasets` (or leaves them as deprecated nullable columns for safety).
+
+### Retroactive migration for existing tables
+
+Existing migrations (001-004) hardcode `JSONB`. Two options:
+1. **Leave as-is** -- only affects fresh PostgreSQL installs, which is the dev environment. Oracle installs start from a clean schema anyway.
+2. **Add migration 005** that alters existing JSONB columns -- unnecessary complexity for dev-only databases.
+
+**Recommendation:** Leave existing migrations PostgreSQL-only. Add a separate Oracle init script (or conditional logic in env.py) for production. The metadata DB in production will be Oracle from the start, so migrations run against Oracle with the PortableJSON type.
 
 ---
 
-## Architectural Patterns
+## What Can Be Reused vs Must Be Rewritten
 
-### Pattern 1: Config-as-Contract (Most Important)
+### Reuse directly (zero changes)
+- `db/engine.py` -- metadata engine
+- `db/base.py` -- DeclarativeBase
+- `db/models/dashboard.py` -- RecvizDashboard
+- `db/models/data_source.py` -- RecvizDataSource
+- `db/models/chart.py` -- RecvizChart
+- `db/models/kpi.py` -- RecvizKpi
+- `services/config_store.py` -- data source config lookup
+- `services/merge_engine.py` -- client-side join
+- `services/uri_builder.py` -- URI construction from fields
+- `models/data_source_config.py` -- DataSourceConfig Pydantic model
+- `models/database.py` -- DatabaseCreate/Update/Info Pydantic models
+- `api/data_sources.py` -- data source query endpoints
+- `api/managed_charts.py` -- chart CRUD
+- `api/managed_kpis.py` -- KPI CRUD
+- `api/managed_dashboards.py` -- dashboard CRUD
+- `api/search.py` -- global search
+- `api/export.py` -- export endpoints
+- `api/views.py` -- saved views
 
-**What:** The DashboardConfig JSON schema is the contract between builder (producer) and renderer (consumer). The builder produces valid configs; the renderer consumes them. Neither knows about the other's internals.
+### Reuse with modifications
+- `services/query_engine.py` -> `QueryExecutor`: keep `_build_sql()`, `_resolve_database()`, `_build_date_range_clause()`, rewrite `execute()` and `execute_distinct()`
+- `services/connection_status.py`: change key type from `int` to `str`
+- `db/models/dataset.py`: drop `superset_id` and `sync_status` columns (or mark deprecated)
+- `api/managed_datasets.py`: remove DatasetSyncService usage
+- `config.py`: remove Superset settings, add encryption key setting
+- `core/dependencies.py`: remove SupersetDep, add DataSourceEnginePoolDep
 
-**When to use:** Always. This is the foundational pattern for the entire system.
+### Delete entirely
+- `services/superset_client.py` -- the entire Superset HTTP proxy
+- `services/database_registrar.py` -- Superset DB registration logic
+- `services/dataset_sync.py` -- Superset dataset syncing
 
-**Trade-offs:**
-- Pro: Builder and renderer can evolve independently. Builder can be completely rewritten without touching rendering code.
-- Pro: Configs are serializable, versionable, diffable, exportable/importable.
-- Pro: Existing JSON configs continue to work -- zero migration needed for the renderer.
-- Con: Schema evolution requires coordination. Adding a new widget type means updating both producer and consumer.
-
-**Example -- the evolved DashboardConfig schema:**
-```typescript
-interface DashboardConfig {
-  // Identity
-  id: string
-  name: string
-  description: string
-  version: number
-  status: 'draft' | 'published'
-
-  // Layout (evolved from fixed sections to grid-based)
-  layout: {
-    type: 'grid'                    // react-grid-layout based
-    columns: 12                     // 12-column grid
-    rowHeight: 80                   // pixels per row unit
-    widgets: WidgetLayout[]         // position + size for each widget
-  }
-
-  // Widgets (replaces separate filters/kpis/charts/grids arrays)
-  widgets: {
-    [widgetId: string]: WidgetConfig  // union type of all widget kinds
-  }
-
-  // Interactions
-  crossFilterRules: CrossFilterRule[]
-  drillDownConfig: DrillDownConfig | null
-
-  // Features
-  features: {
-    crossFilter: boolean
-    drillDown: boolean
-    autoRefresh: { enabled: boolean; intervalMs: number }
-  }
-}
-
-interface WidgetLayout {
-  widgetId: string
-  x: number        // grid column (0-11)
-  y: number        // grid row
-  w: number        // width in columns
-  h: number        // height in row units
-  minW?: number
-  minH?: number
-}
-
-type WidgetConfig =
-  | KpiWidgetConfig
-  | ChartWidgetConfig
-  | GridWidgetConfig
-  | FilterBarWidgetConfig
-  | TextWidgetConfig
-
-interface ChartWidgetConfig {
-  kind: 'chart'
-  id: string
-  title: string
-  datasetId: string
-  vizType: VizType
-  mapping: {
-    categoryKey: string        // X-axis column
-    valueKeys: string[]        // Y-axis column(s)
-    seriesKey?: string         // Group-by column
-    aggregation: AggregationType
-  }
-  appearance: {
-    colors?: string[]
-    legendPosition?: 'top' | 'bottom' | 'right' | 'none'
-    showLabels?: boolean
-  }
-  crossFilter: {
-    enabled: boolean
-    sourceField?: string       // field emitted on click
-  }
-  drillDown: {
-    enabled: boolean
-    hierarchy?: string[]       // column sequence for drill levels
-  }
-}
-```
-
-### Pattern 2: Widget Registry
-
-**What:** A registry mapping widget `kind` strings to their React components, configurator panels, and default configs. New widget types are added by registering, not by modifying switch statements.
-
-**When to use:** When the system supports multiple widget types that share common lifecycle (render, configure, serialize).
-
-**Trade-offs:**
-- Pro: Adding new widget types is modular -- register and go.
-- Pro: Clean separation of concerns per widget type.
-- Con: Slight indirection. Debugging requires looking up registry entries.
-
-**Example:**
-```typescript
-interface WidgetRegistryEntry<T extends WidgetConfig> {
-  kind: string
-  displayName: string
-  icon: LucideIcon
-  defaultConfig: () => T
-  renderer: React.ComponentType<{ config: T; data: unknown }>
-  configurator: React.ComponentType<{ config: T; onChange: (c: T) => void }>
-  validateConfig: (config: T) => ValidationResult
-  getDataRequirements: (config: T) => DataRequirement[]
-}
-
-const WIDGET_REGISTRY: Record<string, WidgetRegistryEntry<any>> = {
-  chart: { kind: 'chart', displayName: 'Chart', icon: BarChart3, ... },
-  kpi: { kind: 'kpi', displayName: 'KPI Card', icon: TrendingUp, ... },
-  grid: { kind: 'grid', displayName: 'Data Grid', icon: Table, ... },
-  text: { kind: 'text', displayName: 'Text', icon: Type, ... },
-  filterBar: { kind: 'filterBar', displayName: 'Filter Bar', icon: Filter, ... },
-}
-```
-
-### Pattern 3: Draft/Preview/Publish Lifecycle
-
-**What:** Dashboard configs go through a lifecycle: draft (editing) -> preview (testing) -> published (live). Only one published version is active. Drafts are auto-saved.
-
-**When to use:** Any multi-user system where changes should not immediately affect viewers.
-
-**Trade-offs:**
-- Pro: Business users can experiment without breaking live dashboards.
-- Pro: Enables "undo publish" by reverting to previous published version.
-- Con: Slightly more complex persistence (need to track version + status).
-
-**State transitions:**
-```
-[new] --save--> [draft v1] --publish--> [published v1]
-                                             |
-                                        --edit-->
-                                             |
-                [draft v2] <--(auto-save)--- |
-                     |
-                 --publish-->
-                     |
-                [published v2]  (v1 archived)
-```
-
-### Pattern 4: Column Role Classification
-
-**What:** Dataset columns are classified into roles (dimension, measure, temporal) rather than just types (string, number, date). The chart configurator uses roles to determine what columns can be placed where.
-
-**When to use:** Always in chart builders. This is what makes the "pick columns for axes" UX work.
-
-**Trade-offs:**
-- Pro: Prevents invalid chart configurations (e.g., SUM of a string column).
-- Pro: Enables smart defaults (temporal column auto-suggested for X-axis in line charts).
-- Con: Requires dev team to review auto-detected roles during dataset creation.
-
-**Role taxonomy:**
-```typescript
-type ColumnRole =
-  | 'dimension'       // categorical (string) -- usable as X-axis, group-by, filter
-  | 'measure'         // numeric -- usable as Y-axis, aggregatable
-  | 'temporal'        // date/timestamp -- usable as X-axis for time series
-  | 'identifier'      // unique row ID -- not useful for charts, but needed for drill-down
-
-// Auto-detection heuristic:
-// - type: "date" --> roles: ['temporal', 'dimension']
-// - type: "number" --> roles: ['measure']
-// - type: "string" + low cardinality --> roles: ['dimension']
-// - type: "string" + high cardinality --> roles: ['identifier']
-```
-
-### Pattern 5: Optimistic UI with Auto-Save
-
-**What:** The builder saves draft state to the backend frequently (debounced, every 5-10 seconds after changes). The UI is optimistic -- it does not wait for save confirmation before allowing the next edit.
-
-**When to use:** Any builder/editor where data loss is unacceptable.
-
-**Trade-offs:**
-- Pro: Users never lose work.
-- Pro: "Save" button is only for explicit save points, not for persistence.
-- Con: Backend needs to handle high-frequency writes efficiently (consider diffing).
+### New files
+- `db/models/connection.py` -- RecvizConnection ORM model
+- `db/types.py` -- PortableJSON cross-dialect type
+- `services/engine_pool.py` -- DataSourceEnginePool
+- `services/connection_resolver.py` -- ConnectionResolver (replaces DatabaseRegistrar)
+- `services/encryption.py` -- Fernet encrypt/decrypt for credentials
+- `migrations/versions/005_*.py` -- migration for recviz_connections + dataset cleanup
 
 ---
 
-## Layout Engine: react-grid-layout
+## Suggested Build Order (Dependencies)
 
-**Recommendation: Use react-grid-layout v2** as the layout engine for the dashboard builder.
-
-**Why react-grid-layout:**
-- Purpose-built for dashboard builders (drag + resize + snap-to-grid)
-- 1.8M weekly npm downloads, actively maintained, v2 rewritten in TypeScript
-- Used by Grafana, ilert, and many production dashboard products
-- Serialization-ready: layout is a simple array of `{i, x, y, w, h}` objects -- maps directly to our WidgetLayout schema
-- 12-column grid matches RecViz's existing CSS grid approach
-- Responsive breakpoints built-in (not critical for desktop-only, but future-proof)
-
-**Why NOT dnd-kit:**
-- dnd-kit is a general DnD library, not a dashboard layout engine
-- No built-in resize handles -- would need to build them
-- No grid snapping or auto-packing -- would need to build them
-- Better for list reordering, kanban boards, not grid dashboards
-
-**Why NOT gridstack.js:**
-- jQuery heritage, less idiomatic React integration
-- Smaller React community compared to react-grid-layout
-
-**Integration pattern:**
-```typescript
-// builder-canvas.tsx
-import { Responsive, WidthProvider } from 'react-grid-layout'
-
-const ResponsiveGrid = WidthProvider(Responsive)
-
-function BuilderCanvas({ widgets, layout, onLayoutChange }: BuilderCanvasProps) {
-  return (
-    <ResponsiveGrid
-      layouts={{ lg: layout }}
-      cols={{ lg: 12 }}
-      rowHeight={80}
-      onLayoutChange={(newLayout) => onLayoutChange(newLayout)}
-      isDraggable={true}
-      isResizable={true}
-      compactType="vertical"
-      draggableHandle=".widget-drag-handle"
-    >
-      {Object.entries(widgets).map(([id, config]) => (
-        <div key={id}>
-          <WidgetRenderer
-            config={config}
-            mode="builder"
-            onSelect={() => selectWidget(id)}
-          />
-        </div>
-      ))}
-    </ResponsiveGrid>
-  )
-}
 ```
+Phase 1: Foundation
+  1a. recviz_connections table + ORM model + Alembic migration
+  1b. PortableJSON type + encryption service
+  1c. DataSourceEnginePool (core: create/dispose engines, execute_raw, test_connection)
+  1d. ConnectionResolver (replaces DatabaseRegistrar)
+
+Phase 2: Query execution
+  2a. QueryExecutor (rewrite execute path, reuse SQL builder)
+  2b. ConnectionStatusTracker key type change (int -> str)
+
+Phase 3: API migration
+  3a. databases.py rewrite (CRUD against recviz_connections)
+  3b. sql.py rewrite (execute via engine pool)
+  3c. managed_datasets.py cleanup (remove sync logic)
+  3d. main.py lifespan rewrite
+  3e. config.py + dependencies.py cleanup
+
+Phase 4: Cleanup
+  4a. Delete superset_client.py, database_registrar.py, dataset_sync.py
+  4b. Remove Superset from docker-compose.yml
+  4c. Remove Redis from docker-compose.yml
+  4d. Seed migration script (databases.json -> recviz_connections rows)
+  4e. Remove Superset settings from config, .env, etc.
+
+Phase 5: Verification
+  5a. All existing API contracts produce identical response shapes
+  5b. Frontend loads dashboards with zero changes
+  5c. SQL Explorer works against PostgreSQL dev DB
+  5d. Connection management UI works (create, test, delete)
+  5e. Dataset management works without sync_status
+```
+
+**Phase 1 has no API-visible effects** -- it is pure infrastructure. Phase 2 can be tested by swapping the lifespan wiring. Phase 3 is where the frontend starts talking to the new code. Phase 4 is safe cleanup after Phase 3 is verified. Phase 5 is validation.
 
 ---
 
-## Schema Evolution: Existing Config to Builder Config
+## Security Considerations
 
-The current `DashboardConfig` schema needs targeted extensions, not a rewrite. The builder produces the same structure with additional optional fields.
+### SQL Injection in Query Execution
 
-### Current Schema (keep as-is for backward compatibility)
+The current `QueryEngine._build_sql()` uses string interpolation for filter values (e.g., `f"'{v.replace(chr(39), chr(39)*2)}'"` for escaping quotes). This is inherited from the Superset-era design where Superset provided a secondary security boundary.
 
-```
-DashboardConfig
-  +-- id, name, description
-  +-- features: {crossFilter: boolean, drillDown: boolean}
-  +-- filters: FilterConfig[]
-  +-- kpis: KpiConfig[]
-  +-- charts: DashboardChartConfig[]
-  +-- grids: GridConfig[]
-  +-- layout: {type: "flow", sections: ["filters","kpis","charts","grids"]}
-```
+**With direct execution, this is now the ONLY defense.** Recommendations:
+1. **Data source queries** (from `DataSourceConfig.query`): These are dev-authored SQL templates stored in the DB. Safe because devs control the SQL; filter values are the only user input, and they go through the existing escaping.
+2. **SQL Explorer** (`/api/sql/execute`): User types raw SQL. This is inherently dangerous. Mitigation: the SQL Explorer is dev-team-only. Add a read-only mode: wrap user SQL in a read-only transaction or validate it starts with SELECT.
+3. **Future:** When auth is added, restrict SQL Explorer to admin role.
 
-### Evolved Schema (backward-compatible extension)
+### Credential Storage
 
-```
-DashboardConfig
-  +-- id, name, description
-  +-- version: number                     // NEW
-  +-- status: "draft" | "published"       // NEW
-  +-- createdBy: string                   // NEW
-  +-- updatedAt: ISO timestamp            // NEW
-  +-- features: {crossFilter, drillDown, autoRefresh}
-  +-- layout:
-  |   +-- type: "flow" | "grid"           // "flow" = legacy, "grid" = builder
-  |   +-- columns?: 12                    // for grid type
-  |   +-- rowHeight?: 80                  // for grid type
-  |   +-- widgets?: WidgetLayout[]        // for grid type
-  |   +-- sections?: string[]             // for flow type (backward compat)
-  +-- widgets?: Record<string, WidgetConfig>  // NEW: for grid layout type
-  +-- filters: FilterConfig[]             // kept for flow layout type
-  +-- kpis: KpiConfig[]                   // kept for flow layout type
-  +-- charts: DashboardChartConfig[]      // kept for flow layout type
-  +-- grids: GridConfig[]                 // kept for flow layout type
-  +-- crossFilterRules?: CrossFilterRule[]   // NEW
-  +-- drillDownConfig?: DrillDownConfig      // NEW
-```
-
-The renderer checks `layout.type`:
-- `"flow"`: renders using existing section-based approach (filters, kpis, charts, grids arrays)
-- `"grid"`: renders using react-grid-layout with `widgets` map
-
-This means **existing JSON dashboards continue to work unchanged** while new builder-created dashboards use the grid layout.
+- Passwords encrypted with Fernet (symmetric, key from env var)
+- Key rotation: re-encrypt all passwords when key changes (migration script)
+- Never log or return passwords in API responses
+- URI built at runtime, never stored
 
 ---
 
-## Cross-Filtering Architecture (Detailed)
+## Cross-Dialect Compatibility
 
-### Config Model
+### SQL differences between PostgreSQL and Oracle
 
-```typescript
-interface CrossFilterRule {
-  id: string
-  sourceWidgetId: string       // Widget that emits the filter
-  sourceField: string          // Column in source widget's dataset
-  targetWidgetIds: string[]    // Widgets that receive the filter ("*" = all)
-  targetField: string          // Column to filter on in targets
-}
-```
+The `_build_date_range_clause()` already handles PostgreSQL vs Oracle syntax. Other areas:
 
-### Auto-Detection Logic
+| Feature | PostgreSQL | Oracle | Strategy |
+|---------|-----------|--------|----------|
+| JSONB columns | Native JSONB | CLOB + TypeDecorator | PortableJSON type |
+| `CURRENT_TIMESTAMP` | Supported | Supported | Use as-is |
+| `SYSDATE` | Not supported | Supported | Already handled in _build_sql |
+| `LIMIT N` | `LIMIT N` | `FETCH FIRST N ROWS ONLY` (12c+) | Handle in execute_raw |
+| `INTERVAL` | `INTERVAL '7 days'` | `SYSDATE - 7` | Already handled |
+| JSON query | `->`, `->>` operators | `JSON_VALUE`, `JSON_QUERY` | Avoid in metadata queries; data queries are author-controlled |
+| `func.now()` | `now()` | `SYSTIMESTAMP` | SQLAlchemy handles via ORM |
+| Identifier quoting | `"column_name"` | `"COLUMN_NAME"` | Oracle uppercases unquoted identifiers |
 
-When cross-filtering is enabled, the system can auto-generate rules:
-1. Find all chart/grid widgets that share the same dataset
-2. For each shared column across widgets, create a bidirectional rule
-3. User can then customize: remove rules, change targets, add custom rules
+### Model changes for Oracle compatibility
 
-### Runtime Implementation
-
-Cross-filtering is **entirely client-side**. The implementation lives in:
-
-1. **Filter store**: `crossFilters: CrossFilter[]` array in Zustand
-2. **applyCrossFilters utility**: Pure function that filters a data array by active cross-filters
-3. **Chart wrapper**: Each chart's `useMemo` calls `applyCrossFilters(data, crossFilters, myWidgetId)`
-4. **Grid external filter**: AG Grid's `isExternalFilterPresent` + `doesExternalFilterPass`
-
-The key performance characteristic: cross-filtering never triggers network calls. It operates on TanStack Query's cached data. This means the data must be fetched at sufficient granularity for client-side filtering to work.
-
-### When Client-Side Cross-Filtering Breaks
-
-If a chart shows pre-aggregated data (e.g., monthly totals), clicking a bar cannot filter another chart that shows daily detail -- the daily data isn't in cache. Solutions:
-
-1. **Fetch at finest granularity, aggregate in client**: Query returns daily data; chart displays monthly aggregation via `useMemo`. Cross-filter operates on daily data. Works for moderate datasets (< 50K rows).
-
-2. **Server-side cross-filter for large datasets**: Cross-filter click triggers new backend query with filter applied. Slower but handles millions of rows. Use when client-side data exceeds 50K rows.
-
-3. **Hybrid**: Use client-side for charts sharing the same dataset at same granularity. Fall back to server-side when datasets differ.
-
-**Recommendation for RecViz:** Start with client-side (Pattern 1). Most recon dashboards show < 10K aggregated rows. Add server-side fallback in a later phase only if needed.
+Current ORM models use `from sqlalchemy.dialects.postgresql import JSONB`. Replace with `PortableJSON` in all model files:
+- `RecvizDashboard.config`
+- `RecvizDataSource.config`
+- `RecvizDataset.columns`
+- `RecvizChart.config`
+- `RecvizKpi.config`
 
 ---
 
-## Drill-Down Architecture (Detailed)
+## Anti-Patterns to Avoid
 
-### Config Model
+### Anti-Pattern 1: Shared engine for all databases
+**What:** Using one engine with connection-level database switching
+**Why bad:** SQLAlchemy engines are bound to a URI. You cannot switch databases per-request on the same engine.
+**Instead:** One engine per unique connection URI (the DataSourceEnginePool approach).
 
-```typescript
-interface DrillDownConfig {
-  enabled: boolean
-  levels: DrillLevel[]
-}
+### Anti-Pattern 2: Sync engines for data queries
+**What:** Using `create_engine` (sync) with `run_sync` wrappers
+**Why bad:** Blocks the async event loop during long queries (data queries can take seconds on millions of rows).
+**Instead:** Use `create_async_engine` with `asyncpg` (PostgreSQL) or `oracledb_async` (Oracle).
 
-interface DrillLevel {
-  name: string                   // "monthly" | "daily" | "detail"
-  groupBy: string | null         // Column to group by at this level (null = raw rows)
-  aggregation: AggregationType | null  // How to aggregate measures
-  vizType?: VizType              // Override chart type at this level
-  serverSide: boolean            // Whether this level requires a backend call
-}
-```
+### Anti-Pattern 3: Storing plaintext connection URIs
+**What:** Saving full SQLAlchemy URIs (with passwords) in the database
+**Why bad:** Password visible in DB dumps, logs, error messages.
+**Instead:** Store fields separately, encrypt password, build URI at runtime.
 
-### Decision: Client-Side vs Server-Side Per Level
+### Anti-Pattern 4: Unlimited engine creation
+**What:** Creating engines on every request without caching or limits
+**Why bad:** Each engine creates a connection pool. Unbounded engine creation = unbounded connections.
+**Instead:** Cache engines by connection ID, limit total engines (8-16 max), evict idle engines.
 
-| Level | Data Availability | Strategy |
-|-------|-------------------|----------|
-| Level 0 -> 1 (e.g., month -> day) | Often in cache if queried at day granularity | Client-side: reaggregate cached data |
-| Level 1 -> 2 (e.g., day -> category) | Depends on original query's GROUP BY | Client-side if data present, server-side if not |
-| Level N -> Detail (raw rows) | Never in cache (too many rows) | Always server-side |
-
-### Breadcrumb State
-
-```typescript
-// Zustand drill store (existing, enhanced)
-interface DrillState {
-  activeWidget: string | null    // Which widget is currently drilled
-  levels: {
-    label: string                // Display text: "January 2026"
-    column: string               // "month"
-    value: string | number       // "2026-01"
-    filters: Record<string, unknown>  // Accumulated filters at this level
-  }[]
-}
-```
-
-### Dashboard-Wide vs Per-Widget Drill-Down
-
-Two approaches exist in the industry:
-
-1. **Dashboard-wide** (Grafana model): Drilling in one chart applies filters to ALL charts. Effectively a "scoped global filter."
-2. **Per-widget** (Tableau model): Drilling in one chart only affects that chart. Other charts remain at their current level.
-
-**Recommendation for RecViz:** Start with **per-widget** drill-down (simpler, less surprising). Optionally add "drill affects dashboard" as a toggle in cross-filter rules.
+### Anti-Pattern 5: Using ORM for data queries
+**What:** Creating ORM models for recon data tables and using `session.query()`
+**Why bad:** Recon tables have unknown schemas (defined by dev SQL). ORM requires static model definitions.
+**Instead:** Use `text()` + raw result sets for data queries. ORM is only for RecViz metadata tables.
 
 ---
 
-## Scaling Considerations
+## Scalability Notes
 
-| Scale | Architecture Adjustments |
-|-------|--------------------------|
-| 10 dashboards, 50 widgets | Current approach is fine. JSON-to-DB migration, in-memory builder state. |
-| 100 dashboards, 500 widgets | Add dashboard search/categorization. Consider lazy-loading widget configs. DB indexing on dashboard status + owner. |
-| 100+ dashboards, millions of rows per query | Server-side cross-filtering for large datasets. Superset query caching critical. Consider pre-aggregated materialized views in Oracle for common queries. |
-
-### First bottleneck: Query execution time
-
-At scale, the bottleneck is **Superset query execution against Oracle**, not the builder UI. Mitigation:
-- Aggressive Redis caching (already in place)
-- TanStack Query client-side caching with 5-min stale time
-- Pre-aggregated views for common dashboard patterns
-- Pagination for detail grids (already in place)
-
-### Second bottleneck: Dashboard list/search
-
-With 100+ dashboards, the flat list becomes unusable. Mitigation:
-- Add categories/folders for dashboards
-- Full-text search across dashboard names/descriptions
-- "Favorites" and "Recently viewed" shortcuts
-- Existing command palette (Cmd+K) already supports search
-
----
-
-## Anti-Patterns
-
-### Anti-Pattern 1: Separate Rendering Paths for Builder and Viewer
-
-**What people do:** Build one component tree for the builder preview and a separate one for the production view.
-**Why it's wrong:** Divergence is inevitable. Builder preview shows one thing, production view shows another. Bugs are doubled. Maintenance cost doubles.
-**Do this instead:** Single DashboardRenderer used in both contexts. The builder wraps it with selection/editing overlay. The renderer accepts a `mode` prop to suppress interactive features during editing (e.g., disable cross-filter clicks while configuring).
-
-### Anti-Pattern 2: Storing Widget State in the Builder Store
-
-**What people do:** Put fetched data, loading states, and error states in the builder's Zustand store.
-**Why it's wrong:** TanStack Query already manages server state with caching, deduplication, background refetch, and error handling. Duplicating this in Zustand creates stale data bugs and cache invalidation nightmares.
-**Do this instead:** Builder store holds ONLY builder-specific state: selected widget, draft config, undo/redo stack, panel open/closed. All data flows through TanStack Query as it already does.
-
-### Anti-Pattern 3: Building Chart Config from Scratch Instead of Evolving Existing Schema
-
-**What people do:** Design a completely new chart config schema for the builder, then write translation layers to convert to the renderer's format.
-**Why it's wrong:** Translation layers are bugs waiting to happen. Schema drift between builder and renderer format means subtle rendering differences.
-**Do this instead:** The builder produces the EXACT same `DashboardChartConfig` / `WidgetConfig` that the renderer consumes. No translation layer. One schema.
-
-### Anti-Pattern 4: Eager-Loading All Widget Data in the Builder
-
-**What people do:** When opening a dashboard in the builder, immediately fetch data for all widgets.
-**Why it's wrong:** The builder is for layout and configuration. Most of the time, the user is dragging widgets around, not looking at live data. Fetching all data wastes network and creates unnecessary load.
-**Do this instead:** Lazy-load widget data only when the widget is selected for configuration OR when "Preview" mode is activated. In layout mode, show skeleton placeholders.
-
-### Anti-Pattern 5: Client-Side SQL Generation
-
-**What people do:** Have the frontend build SQL queries based on chart configuration.
-**Why it's wrong:** SQL injection risk. Frontend has no business knowing SQL. Couples frontend to database schema.
-**Do this instead:** The existing pattern is correct: frontend sends structured filter objects; backend's QueryEngine builds SQL from templates. The builder configures dataset + column mappings; the backend handles SQL generation.
-
----
-
-## Integration Points
-
-### External Services
-
-| Service | Integration Pattern | Notes |
-|---------|---------------------|-------|
-| Superset | REST API via httpx (existing) | No changes needed. Query execution unchanged. |
-| Oracle/Hive | Via Superset SQLAlchemy | No changes needed. Builder doesn't touch data sources directly. |
-| Elasticsearch | Direct via elasticsearch-py (existing) | May need to add ES-backed datasets to the catalog. |
-| Redis | Via Superset (query cache) + direct (future session) | No changes for builder. Consider Redis for auto-save if DB writes are too frequent. |
-| PostgreSQL | New: config persistence via SQLAlchemy | Add Alembic migrations. Tables: dashboards, datasets, dashboard_versions. |
-
-### Internal Boundaries
-
-| Boundary | Communication | Notes |
-|----------|---------------|-------|
-| Builder -> Renderer | DashboardConfig object (in-memory) | Builder passes draft config directly to renderer for preview. No serialization needed. |
-| Builder -> Backend | REST API (JSON) | Save/load/publish configs. Dataset metadata queries. |
-| Renderer -> Backend | REST API (JSON, existing) | Data queries unchanged. Config loading switches from JSON files to DB-backed API. |
-| Backend Config Store -> DB | SQLAlchemy ORM | Replaces JSON file reads with DB queries. Same interface to callers. |
-| Dataset Manager -> Superset | Via Backend REST API | Column introspection, SQL validation, database listing. |
-
----
-
-## Suggested Build Order
-
-The component dependencies dictate the build order. Each phase builds on the previous.
-
-### Phase 1: Foundation (Config Persistence + Renderer Evolution)
-
-**Build:**
-1. DB-backed config persistence (replace JSON files with PostgreSQL tables)
-2. Dashboard CRUD API (create, read, update, delete, list, publish)
-3. Integrate cross-filtering into config-driven renderer (port from legacy)
-4. Integrate drill-down into config-driven renderer (port from legacy)
-5. Add ChartPanel wrapper to config-driven charts (export, fullscreen)
-
-**Why first:** The renderer must support all features before the builder can configure them. Cross-filtering and drill-down are the biggest gaps. DB persistence is needed before the builder can save anything.
-
-**Dependencies:** None (works with existing codebase).
-
-### Phase 2: Dataset Management
-
-**Build:**
-1. Dataset CRUD API with validation endpoint
-2. Column metadata with roles (dimension/measure/temporal)
-3. Dataset Manager UI (dev-team tool)
-4. Column introspection via Superset (auto-detect types)
-
-**Why second:** The builder needs datasets with rich metadata before it can offer column-to-axis mapping. This is a dev-team tool, so it can be built and populated before the builder UI exists.
-
-**Dependencies:** Phase 1 (DB persistence).
-
-### Phase 3: Dashboard Builder Core
-
-**Build:**
-1. Builder layout with react-grid-layout (canvas + drag/resize)
-2. Widget palette (KPI, chart, grid, filter bar)
-3. Widget registry pattern
-4. Properties panel (per-widget configurator)
-5. Chart configurator (dataset picker -> column mapper -> type picker)
-6. Builder store (selected widget, draft config, undo/redo)
-7. Live preview mode (renders draft config through existing renderer)
-
-**Why third:** The builder is the capstone. It depends on datasets (for column metadata) and the renderer (for preview).
-
-**Dependencies:** Phase 1 (renderer features, persistence) + Phase 2 (dataset metadata).
-
-### Phase 4: Advanced Builder Features
-
-**Build:**
-1. Cross-filter rule configurator UI
-2. Drill-down level configurator UI
-3. Dashboard templates (pre-built starting configs)
-4. Auto-save + draft/publish lifecycle
-5. Dashboard versioning
-6. KPI configurator with trend/comparison
-
-**Why last:** These are enhancements to the builder. The core loop (place widgets, configure, preview, save) must work first.
-
-**Dependencies:** Phase 3 (builder core).
-
----
-
-## How the Existing Config-Driven System Evolves
-
-The evolution is incremental. At no point does the existing system break.
-
-| Step | What Changes | What Stays |
-|------|-------------|------------|
-| 1. Add DB persistence | Config store reads from DB. JSON files imported as seed data on first run. | Renderer unchanged. API contract unchanged. |
-| 2. Add CRUD API | New endpoints: POST/PUT/DELETE dashboards. GET returns same shape. | Existing GET endpoints return same format. Frontend dashboard list works unchanged. |
-| 3. Port cross-filtering | ConfigChartGrid gets onChartClick + cross-filter integration. Filter store's crossFilter methods are already there. | Filter bar, KPI row unchanged. |
-| 4. Port drill-down | ConfigChartGrid gets drill-down handler. DrillBreadcrumb added. Drill store already exists. | Other components unchanged. |
-| 5. Add ChartPanel | ConfigChartGrid wraps charts in ChartPanel (export, fullscreen). | Chart rendering logic unchanged. |
-| 6. Add builder route | New route: `/builder/:dashboardId?`. Opens builder UI. Produces same DashboardConfig. | All existing routes unchanged. |
-| 7. Add grid layout type | Renderer checks `layout.type`: "flow" uses existing path, "grid" uses react-grid-layout. | Existing "flow" dashboards unchanged. |
-
-The existing `tlm-stats.json` dashboard continues working throughout. New dashboards created via the builder use the "grid" layout type. Old dashboards can be "upgraded" to grid layout via the builder's import mechanism.
+| Concern | Current (with Superset) | Target (direct) |
+|---------|------------------------|-----------------|
+| Connection overhead | FastAPI -> HTTP -> Superset -> SQLAlchemy -> DB | FastAPI -> SQLAlchemy -> DB (one fewer hop) |
+| Startup time | ~15s (auth + DB sync + dataset reconciliation) | ~2s (just load connections from metadata DB) |
+| Query latency | +50-200ms (Superset HTTP overhead) | Direct (no proxy overhead) |
+| Connection pooling | Superset manages pools | DataSourceEnginePool manages pools |
+| Max concurrent queries | Limited by Superset workers | Limited by pool_size per engine |
+| Memory | Superset process (~500MB-1GB) + FastAPI | FastAPI only (~100-200MB) |
 
 ---
 
 ## Sources
 
-- [react-grid-layout GitHub](https://github.com/react-grid-layout/react-grid-layout) -- v2.2.3, 1.8M weekly downloads, TypeScript rewrite
-- [ilert: Why React-Grid-Layout Was Our Best Choice](https://www.ilert.com/blog/building-interactive-dashboards-why-react-grid-layout-was-our-best-choice) -- Production dashboard builder case study
-- [Grafana Dashboard JSON Schema v2](https://grafana.com/docs/grafana/latest/as-code/observability-as-code/schema-v2/) -- Layout system reference (GridLayout, AutoGridLayout, RowsLayout, TabsLayout)
-- [Grafana Dashboard JSON Model](https://grafana.com/docs/grafana/latest/visualizations/dashboards/build-dashboards/view-dashboard-json-model/) -- Panel structure, templating, variables
-- [Metabase Dashboard Architecture](https://www.metabase.com/docs/latest/dashboards/introduction) -- Cards, questions, visualization override pattern
-- [Metabase Dashboard Interactivity](https://www.metabase.com/docs/latest/dashboards/interactive) -- Cross-filtering, drill-down patterns
-- [Apache Superset API Reference](https://superset.apache.org/developer-docs/api/) -- Dataset endpoints, column metadata, metrics
-- [Superset Semantic Layer](https://preset.io/blog/understanding-superset-semantic-layer/) -- Dataset/metric/column architecture
-- [Databricks AI/BI Cross-Filtering](https://www.databricks.com/blog/next-level-interactivity-aibi-dashboards) -- Client-side filter evaluation pattern
-- [Looker Cross-Filtering](https://cloud.google.com/looker/docs/cross-filtering-dashboards) -- Shared dataset auto-filter pattern
-- [Holistics Cross-Filtering](https://docs.holistics.io/docs/cross-filtering) -- Field mapping between widgets
-- [Drill-Down Navigation Patterns](https://dev3lop.com/implementing-drill-down-navigation-in-hierarchical-visualizations/) -- Hierarchy depth, breadcrumb, aggregation
-- [Bold BI Drill-Down Architecture](https://www.boldbi.com/blog/what-is-drill-down-and-drill-up-in-dashboards/) -- Dashboard-level vs widget-level drill
-- [Puck: Top 5 DnD Libraries for React](https://puckeditor.com/blog/top-5-drag-and-drop-libraries-for-react) -- react-grid-layout vs dnd-kit comparison
-- [npm trends: react-grid-layout](https://npmtrends.com/react-grid-layout) -- Download statistics
-
----
-*Architecture research for: RecViz Dashboard Builder*
-*Researched: 2026-04-04*
+- [SQLAlchemy 2.0 Async I/O docs](https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html) -- HIGH confidence
+- [SQLAlchemy 2.1 Oracle dialect](https://docs.sqlalchemy.org/en/21/dialects/oracle.html) -- HIGH confidence
+- [SQLAlchemy Connection Pooling](https://docs.sqlalchemy.org/en/20/core/pooling.html) -- HIGH confidence
+- [SQLAlchemy Type Basics (with_variant)](https://docs.sqlalchemy.org/en/20/core/type_basics.html) -- HIGH confidence
+- [python-oracledb asyncio docs](https://python-oracledb.readthedocs.io/en/latest/user_guide/asyncio.html) -- HIGH confidence
+- [Oracle async in SQLAlchemy (issue #10679)](https://github.com/sqlalchemy/sqlalchemy/issues/10679) -- HIGH confidence, confirmed implemented in 2.0.25
+- [Alembic dialect support](https://deepwiki.com/sqlalchemy/alembic/3.4-dialect-support) -- MEDIUM confidence
+- [Fernet encryption with SQLAlchemy](https://blog.miguelgrinberg.com/post/encryption-at-rest-with-sqlalchemy) -- HIGH confidence
+- [Multi-tenant FastAPI patterns](https://makimo.com/blog/asynchronous-sqlalchemy-and-multiple-databases/) -- MEDIUM confidence
