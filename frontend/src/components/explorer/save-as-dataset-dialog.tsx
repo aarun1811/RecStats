@@ -29,7 +29,7 @@ interface SaveAsDatasetDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   sql: string
-  databaseId: number | null
+  databaseId: string | null
   columns: string[]
   rows: Record<string, unknown>[]
 }
@@ -60,8 +60,7 @@ export function SaveAsDatasetDialog({
   }, [open, databaseId])
 
   const handleSave = () => {
-    const dbId = Number(selectedDbId)
-    if (!name.trim() || !dbId) return
+    if (!name.trim() || !selectedDbId) return
 
     const detectedColumns = autoDetectColumns(columns, rows)
 
@@ -69,7 +68,7 @@ export function SaveAsDatasetDialog({
       {
         name: name.trim(),
         description: description.trim(),
-        databaseId: dbId,
+        databaseId: selectedDbId,
         sql,
         columns: detectedColumns,
       },

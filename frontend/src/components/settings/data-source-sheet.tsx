@@ -60,7 +60,7 @@ interface DataSourceSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   mode: SheetMode
-  databaseId: number | null
+  databaseId: string | null
   onModeChange: (mode: SheetMode) => void
 }
 
@@ -144,7 +144,7 @@ export function DataSourceSheet({
   const [hasPassedTest, setHasPassedTest] = useState(false)
 
   // Dataset expand state
-  const [expandedDataset, setExpandedDataset] = useState<number | null>(null)
+  const [expandedDataset, setExpandedDataset] = useState<string | null>(null)
 
   // Queries and mutations
   const { data: databaseDetail } = useDatabase(mode === 'detail' || mode === 'edit' ? databaseId : null)
@@ -355,8 +355,8 @@ interface DetailViewProps {
   datasets: DatasetSummary[]
   totalDatasets: number
   datasetsLoading: boolean
-  expandedDataset: number | null
-  onToggleDataset: (id: number) => void
+  expandedDataset: string | null
+  onToggleDataset: (id: string) => void
   hasNextPage: boolean
   isFetchingNextPage: boolean
   onLoadMore: () => void

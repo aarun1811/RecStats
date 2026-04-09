@@ -45,9 +45,6 @@ export function DatasetRow({ dataset, databaseName, backendType, onClick }: Data
       <span className="text-xs text-muted-foreground shrink-0">
         {formatDistanceToNow(new Date(dataset.updatedAt), { addSuffix: true })}
       </span>
-      {dataset.syncStatus === 'error' && (
-        <span className="size-2 rounded-full bg-amber-500 shrink-0" title="Sync error" />
-      )}
       <ChevronRight className="size-4 text-muted-foreground shrink-0" />
     </div>
   )

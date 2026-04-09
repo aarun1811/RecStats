@@ -16,7 +16,7 @@ interface SchemaBrowserProps {
 export function SchemaBrowser({ onInsertTable, onInsertColumn }: SchemaBrowserProps) {
   const { data: datasets, isLoading } = useDatasets()
   const [search, setSearch] = useState('')
-  const [openTables, setOpenTables] = useState<Set<number>>(new Set())
+  const [openTables, setOpenTables] = useState<Set<string>>(new Set())
 
   const filtered = useMemo(() => {
     if (!datasets) return []
@@ -30,7 +30,7 @@ export function SchemaBrowser({ onInsertTable, onInsertColumn }: SchemaBrowserPr
     )
   }, [datasets, search])
 
-  const toggleTable = (id: number) => {
+  const toggleTable = (id: string) => {
     setOpenTables((prev) => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)

@@ -21,7 +21,7 @@ export function useDatabases() {
   })
 }
 
-export function useDatabase(id: number | null) {
+export function useDatabase(id: string | null) {
   return useQuery({
     queryKey: ['database', id],
     queryFn: () => api.get<DatabaseInfo>(`/api/databases/${id}`),
@@ -29,7 +29,7 @@ export function useDatabase(id: number | null) {
   })
 }
 
-export function useDatabaseDatasets(dbId: number | null) {
+export function useDatabaseDatasets(dbId: string | null) {
   return useInfiniteQuery({
     queryKey: ['database-datasets', dbId],
     queryFn: ({ pageParam = 1 }) =>
@@ -61,7 +61,7 @@ export function useUpdateDatabase() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: DatabaseUpdate }) =>
+    mutationFn: ({ id, data }: { id: string; data: DatabaseUpdate }) =>
       api.put<DatabaseInfo>(`/api/databases/${id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['databases'] })
@@ -73,7 +73,7 @@ export function useDeleteDatabase() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (id: number) => api.delete(`/api/databases/${id}`),
+    mutationFn: (id: string) => api.delete(`/api/databases/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['databases'] })
     },
@@ -91,7 +91,7 @@ export function useSyncDatasets() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (dbId: number) =>
+    mutationFn: (dbId: string) =>
       api.post<{ success: boolean; datasetCount: number }>(
         `/api/databases/${dbId}/sync`,
       ),
