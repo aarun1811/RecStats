@@ -76,10 +76,10 @@ export function useDashboardKpis(
     }
     if (cache.size === 0) return undefined
 
-    // Compute each KPI value by SUMming the metric column from its sources
-    // (matching the legacy backend's behavior: sum across all sources)
+    // Compute each KPI value from its sources using the configured aggregation
     const results: KpiResult[] = kpis.map((kpi) => {
       let total = 0
+      let count = 0
       for (const source of kpi.sources) {
         const dataset = cache.get(source.dataSourceId)
         if (!dataset) continue
@@ -87,11 +87,53 @@ export function useDashboardKpis(
           const val = row[source.metric]
           if (val != null) {
             const n = typeof val === 'number' ? val : Number(val)
-            if (!Number.isNaN(n)) total += n
+            if (!Number.isNaN(n)) {
+              total += n
+              count += 1
+            }
           }
         }
       }
-      return { id: kpi.id, value: total }
+      const agg = kpi.aggregation ?? 'SUM'
+      let value: number
+      if (agg === 'AVG' && count > 0) {
+        value = total / count
+      } else if (agg === 'COUNT') {
+        value = count
+      } else if (agg === 'MIN') {
+        // Re-scan for MIN (total was a sum)
+        let min = Infinity
+        for (const source of kpi.sources) {
+          const dataset = cache.get(source.dataSourceId)
+          if (!dataset) continue
+          for (const row of dataset.rows) {
+            const val = row[source.metric]
+            if (val != null) {
+              const n = typeof val === 'number' ? val : Number(val)
+              if (!Number.isNaN(n) && n < min) min = n
+            }
+          }
+        }
+        value = min === Infinity ? 0 : min
+      } else if (agg === 'MAX') {
+        let max = -Infinity
+        for (const source of kpi.sources) {
+          const dataset = cache.get(source.dataSourceId)
+          if (!dataset) continue
+          for (const row of dataset.rows) {
+            const val = row[source.metric]
+            if (val != null) {
+              const n = typeof val === 'number' ? val : Number(val)
+              if (!Number.isNaN(n) && n > max) max = n
+            }
+          }
+        }
+        value = max === -Infinity ? 0 : max
+      } else {
+        // SUM (default)
+        value = total
+      }
+      return { id: kpi.id, value }
     })
 
     // Compute percentage_of trends (KPI A as % of KPI B)
