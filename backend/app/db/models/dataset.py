@@ -17,7 +17,7 @@ class RecvizDataset(Base):
     id: Mapped[str] = mapped_column(String(128), primary_key=True)
     name: Mapped[str] = mapped_column(String(256), nullable=False)
     description: Mapped[str] = mapped_column(String(1024), server_default="", default="")
-    database_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    database_id: Mapped[str] = mapped_column(String(128), nullable=False)
     sql: Mapped[str] = mapped_column(Text, nullable=False)
     columns: Mapped[list] = mapped_column(PortableJSON(), nullable=False, default=list)
     schema_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)

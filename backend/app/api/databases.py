@@ -103,13 +103,7 @@ async def list_database_datasets(
     page: int = 1,
     page_size: int = 50,
 ) -> dict:
-    """Return paginated datasets for a given database.
-
-    Note: recviz_datasets.database_id is still an int (Superset-era). Since
-    connection IDs are now UUIDs, this endpoint queries by database_id string
-    match. Until datasets are migrated to use connection UUIDs, results may
-    be empty for UUID-based IDs. This preserves the endpoint shape.
-    """
+    """Return paginated datasets for a given database."""
     stmt = select(RecvizDataset).where(RecvizDataset.database_id == db_id)
     result = await session.execute(stmt)
     datasets = result.scalars().all()

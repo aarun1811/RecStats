@@ -26,7 +26,7 @@ def _make_dataset_row(
     dataset_id: str = "test-uuid-1",
     name: str = "Test Dataset",
     description: str = "A test dataset",
-    database_id: int = 1,
+    database_id: str = "db-uuid-1",
     sql: str = "SELECT * FROM recon",
     columns: list | None = None,
     schema_version: int = 1,
@@ -63,7 +63,7 @@ def _create_test_app(session_mock: AsyncMock) -> FastAPI:
 VALID_CREATE_BODY = {
     "name": "My Dataset",
     "description": "Testing",
-    "databaseId": 1,
+    "databaseId": "db-uuid-1",
     "sql": "SELECT * FROM recon",
     "columns": [
         {
@@ -121,7 +121,7 @@ def test_create_managed_dataset_returns_201():
     assert resp.status_code == 201
     data = resp.json()
     assert data["name"] == "My Dataset"
-    assert data["databaseId"] == 1
+    assert data["databaseId"] == "db-uuid-1"
     assert "supersetId" not in data
     assert "syncStatus" not in data
     assert data["schemaVersion"] == 1
