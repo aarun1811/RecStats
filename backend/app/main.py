@@ -105,35 +105,48 @@ async def lifespan(app: FastAPI):
     http = httpx.AsyncClient(timeout=120.0)
     superset = SupersetClient(http)
 
-    # 1. Authenticate to Superset (hard requirement)
-    await superset.authenticate()
-    app.state.superset = superset
-    logger.info("Superset client ready")
+    # 1. Authenticate to Superset (optional -- new endpoints use QueryExecutor directly)
+    try:
+        await superset.authenticate()
+        app.state.superset = superset
+        logger.info("Superset client ready")
+    except Exception as exc:
+        logger.warning("Superset unavailable, running without legacy engine: %s", exc)
+        app.state.superset = None
 
     app.state.http = http
 
-    # 2. Sync databases into Superset
-    registrar = DatabaseRegistrar(
-        superset_client=superset,
-        config_path=settings.databases_config_path,
-    )
-    await registrar.sync()
-    app.state.database_registrar = registrar
-    logger.info("DatabaseRegistrar synced")
+    # 2. Sync databases into Superset (skip if Superset unavailable)
+    registrar = None
+    if app.state.superset is not None:
+        registrar = DatabaseRegistrar(
+            superset_client=superset,
+            config_path=settings.databases_config_path,
+        )
+        await registrar.sync()
+        app.state.database_registrar = registrar
+        logger.info("DatabaseRegistrar synced")
+    else:
+        app.state.database_registrar = None
+        logger.info("DatabaseRegistrar skipped (Superset unavailable)")
 
     # 3. Create connection status tracker (in-memory, resets on restart)
     status_tracker = ConnectionStatusTracker()
     app.state.connection_status = status_tracker
     logger.info("ConnectionStatusTracker initialized")
 
-    # 4. Create QueryEngine (no longer needs ConfigStore — data sources
-    #    are resolved per-request via ResolvedDataSourceDep)
-    app.state.query_engine = QueryEngine(
-        superset_client=superset,
-        database_registrar=registrar,
-        status_tracker=status_tracker,
-    )
-    logger.info("QueryEngine initialized — ready to serve")
+    # 4. Create legacy QueryEngine (skip if Superset unavailable;
+    #    overwritten by QueryExecutor in step 9 regardless)
+    if app.state.superset is not None and registrar is not None:
+        app.state.query_engine = QueryEngine(
+            superset_client=superset,
+            database_registrar=registrar,
+            status_tracker=status_tracker,
+        )
+        logger.info("QueryEngine initialized (legacy, will be replaced by QueryExecutor)")
+    else:
+        app.state.query_engine = None
+        logger.info("QueryEngine skipped (Superset unavailable)")
 
     # 5. Initialize EncryptionService and EngineManager (Phase 12 -- engine foundation)
     encryption = EncryptionService(settings.recviz_encryption_key.get_secret_value())
