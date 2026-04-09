@@ -20,7 +20,7 @@ class DatabaseCreate(CamelModel):
 
 class DatabaseUpdate(CamelModel):
     database_name: str | None = None
-    backend: str | None = None
+    backend: Literal["oracle", "postgresql"] | None = None
     host: str | None = None
     port: int | None = None
     database: str | None = None
