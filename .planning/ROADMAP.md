@@ -51,7 +51,12 @@ Plans:
   3. Result columns are auto-typed (string, number, date, currency) from cursor description, and Oracle UPPERCASE column names are normalized to lowercase
   4. Pagination works on both PostgreSQL (LIMIT/OFFSET) and Oracle (OFFSET FETCH FIRST N ROWS ONLY)
   5. Date range filter clauses work correctly on both PostgreSQL and Oracle dialects
-**Plans**: TBD
+**Plans:** 3 plans
+
+Plans:
+- [ ] 13-01-PLAN.md -- ConnectionResolver + query utilities (result adapter, column detection, read-only validator, pagination)
+- [ ] 13-02-PLAN.md -- QueryExecutor rewrite with direct text() execution + FastAPI wiring
+- [ ] 13-03-PLAN.md -- SQL Explorer direct execution + read-only enforcement
 
 ### Phase 14: API Migration
 **Goal**: All API endpoints serve data from the direct engine -- no Superset HTTP calls remain in any code path, dataset management operates purely on RecViz tables
@@ -96,7 +101,7 @@ Phases execute in numeric order: 12 -> 13 -> 14 -> 15 -> 16
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 12. Engine Foundation | 3/3 | Complete    | 2026-04-09 |
-| 13. Query Execution | 0/TBD | Not started | - |
+| 13. Query Execution | 0/3 | Not started | - |
 | 14. API Migration | 0/TBD | Not started | - |
 | 15. Superset Removal | 0/TBD | Not started | - |
 | 16. Parity Verification | 0/TBD | Not started | - |
