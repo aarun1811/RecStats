@@ -130,7 +130,7 @@ This document captures those replacements and the user-level architecture they f
 
 ## 5. Code changes required
 
-All four changes are applied to a deploy branch on the laptop, committed, and included in the shipped tarball. None of them break the existing Postgres-based local dev setup.
+**Three** changes (not four — §5.2 was eliminated after verifying SQLAlchemy's native async oracledb support). All are applied to a deploy branch on the laptop, committed, and included in the shipped tarball. None of them break the existing Postgres-based local dev setup.
 
 ### 5.1 JSONB → JSON in Alembic migrations (#1)
 
@@ -156,31 +156,23 @@ sa.Column("config", sa.JSON(), nullable=False),
 
 **Blast radius:** Alembic-only. Runtime code does not care because the ORM serializes/deserializes JSON transparently.
 
-### 5.2 Async → sync SQLAlchemy engine (#2)
+### 5.2 Async engine — NO code change needed (superseded)
 
-**File:** `backend/app/db/engine.py` — and every call site that uses `async_session_factory`.
+**Previous assumption (wrong):** I originally assumed SQLAlchemy 2.0.49 did not support async oracledb, which would have forced a ~60-line sync conversion across 11 files.
 
-**Why:** `create_async_engine` with `oracle+oracledb://` is not supported in SQLAlchemy 2.0.49. The async oracledb dialect is newer and not part of this pin. Options were (a) upgrade SQLAlchemy, (b) use an experimental async dialect string, (c) convert the backend's DB access to sync. Option (c) is the safest — it preserves the pinned dependency versions and works on both Postgres and Oracle.
+**Actual state (verified against the installed `sqlalchemy==2.0.49` inside `backend/venv/`):**
 
-**Change shape:**
-```python
-# before
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-engine = create_async_engine(settings.recviz_db_url, pool_size=10, max_overflow=5)
-async_session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+- `sqlalchemy/dialects/oracle/oracledb.py:912` defines `OracleDialectAsync_oracledb` with `is_async = True`.
+- `sqlalchemy/dialects/oracle/__init__.py:43-45` registers it as the `oracledb_async` dialect alias.
+- Per the SQLAlchemy docstring in that file: *"When using `create_async_engine` with a URL like `oracle+oracledb://...`, SQLAlchemy automatically selects the async version."* Added in SQLAlchemy 2.0.25.
+- Minimum oracledb version for async support: 2.0. We're pinning 2.5.1.
+- Async Oracle mode requires **thin mode** (thick mode is unsupported by asyncio). We already use thin mode — confirmed working from the RHEL server in the Phase B connection test.
 
-# after
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
-engine = create_engine(settings.recviz_db_url, pool_size=10, max_overflow=5)
-session_factory = sessionmaker(engine, class_=Session, expire_on_commit=False)
-```
+**Implication:** the backend's existing async DB code (`create_async_engine`, `async_session_factory`, `async with session:`, `await session.execute(...)` across `main.py`, `dependencies.py`, `dataset_sync.py`, `config_store.py`, `managed_*.py`, `search.py`, and `migrations/env.py`) works **unchanged** on Oracle 19c. No refactor required.
 
-All call sites that did `async with async_session_factory() as session:` become `with session_factory() as session:`. The enclosing route handlers stay `async def` — they simply call sync DB methods, which blocks one uvicorn worker during the call. At expected traffic (tens of concurrent users, sub-second queries) this is invisible.
+**What this means for the plan:** the only thing that changes in `.env` is the `RECVIZ_DB_URL` value — from `postgresql+asyncpg://...` (dev) to `oracle+oracledb://RECTRACE:<pw>@<host>:8889/?service_name=<svc>` (prod). No file edits to `engine.py`, `main.py` lifespan, `dependencies.py`, or any of the `managed_*.py` route handlers.
 
-**Local-dev impact (IMPORTANT):** the existing dev `.env` uses `RECVIZ_DB_URL=postgresql+asyncpg://...` (asyncpg is async-only). With `create_engine` (sync), asyncpg fails at connect time. Dev team members must update their local `.env` to use `postgresql://` (which defaults to psycopg2) or explicitly `postgresql+psycopg2://`. The default in `backend/app/config.py:12` should also be updated in the same patch so new dev installs get the working URL out of the box. `psycopg2-binary` is already in `requirements.txt`, so no new dependency is needed for Postgres.
-
-**Blast radius:** `backend/app/db/engine.py` itself, `backend/app/config.py` (change default URL scheme), and every file that imports `async_session_factory`. Exact count and locations determined during implementation patch writing; estimated at <10 files, <50 lines of change total.
+**Blast radius: zero code files.** This is purely a runtime URL change via the `.env` override.
 
 ### 5.3 StaticFiles mount + SPA 404 fallback (#3)
 
@@ -399,7 +391,7 @@ Everything else (code, venvs, `dist/`, logs) is reproducible or ephemeral.
 ## 10. Gotchas — deployment-specific
 
 1. **JSONB is banned.** Any new Alembic migration importing `sqlalchemy.dialects.postgresql.JSONB` breaks Oracle prod. Pre-release check: `grep -r JSONB backend/app/migrations/` should return nothing.
-2. **Sync DB engine only.** New code using `async with session.begin()` or `await session.execute()` will not work on prod. Pattern is sync DB calls inside async route handlers.
+2. **Async Oracle requires thin mode only.** `OracleDialectAsync_oracledb` in SQLAlchemy explicitly does not support thick mode. If anyone ever calls `oracledb.init_oracle_client()` or sets `thick_mode=True` on the backend's engine, Oracle async calls start raising. Stay on thin mode.
 3. **The `cx_Oracle` shim in `superset_config_prod.py`** (`oracledb.version = "8.3.0"; sys.modules["cx_Oracle"] = oracledb`) MUST NOT be removed. Without it, Superset's SQLAlchemy 1.4 crashes trying to import the real `cx_Oracle`.
 4. **RECTRACE is co-tenant.** Superset metadata + RecViz `recviz_*` tables share one schema. Never `DROP USER RECTRACE CASCADE` — you'd lose everything. "Nuclear reset" only drops the specific Superset/RecViz table names, not the schema.
 5. **`SECRET_KEY` is irreplaceable.** It encrypts DB passwords stored in Superset's `dbs` table. Losing it means re-entering every recon DB credential via the UI. Back up `.env` out-of-band.
@@ -427,7 +419,7 @@ Everything else (code, venvs, `dist/`, logs) is reproducible or ephemeral.
 - `backend/app/config.py` — Pydantic Settings class defining all env vars
 - `backend/app/migrations/versions/` — Alembic migrations requiring the JSONB→JSON patch
 - `backend/app/main.py` — target of the StaticFiles mount patch
-- `backend/app/db/engine.py` — target of the async→sync engine patch
+- `backend/app/db/engine.py` — already uses `create_async_engine`; NO patch (confirmed async oracledb works)
 - Memory: `project_superset_alembic.md`, `project_local_dev_setup.md`, `project_dashboard_config_conventions.md`, `project_api_client_gotchas.md`
 
 ---
