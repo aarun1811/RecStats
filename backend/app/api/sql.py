@@ -115,7 +115,7 @@ async def execute_sql(
             )
             cursor_desc = db_result.cursor.description or []
             column_descriptions = [
-                (col[0], getattr(col[1], "__name__", str(col[1])))
+                (col[0], col[1])
                 for col in cursor_desc
             ]
             rows = db_result.fetchall()

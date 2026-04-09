@@ -200,8 +200,10 @@ class QueryExecutor:
                 )
                 # Get column descriptions before consuming rows
                 cursor_desc = result.cursor.description or []
+                # Pass raw type info (OID int or type object) — let
+                # build_result_response handle OID-to-name mapping
                 column_descriptions = [
-                    (col[0], getattr(col[1], "__name__", str(col[1])))
+                    (col[0], col[1])
                     for col in cursor_desc
                 ]
                 rows = result.fetchall()

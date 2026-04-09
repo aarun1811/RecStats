@@ -36,6 +36,30 @@ _STRING_PATTERNS = ("CHAR", "VARCHAR", "TEXT", "CLOB", "STRING", "NCHAR", "NVARC
 _NUMBER_PATTERNS = ("NUMBER", "INT", "FLOAT", "DECIMAL", "NUMERIC", "DOUBLE", "REAL", "MONEY")
 _DATE_PATTERNS = ("DATE", "TIMESTAMP", "TIME")
 
+# asyncpg returns PostgreSQL OID integers instead of type name strings.
+# Map common OIDs to type names that detect_column_type recognizes.
+_PG_OID_TO_TYPE_NAME: dict[int, str] = {
+    16: "BOOLEAN",       # bool
+    20: "BIGINT",        # int8
+    21: "SMALLINT",      # int2
+    23: "INTEGER",       # int4
+    25: "TEXT",           # text
+    114: "JSON",          # json
+    142: "XML",           # xml
+    700: "FLOAT",         # float4
+    701: "DOUBLE",        # float8
+    790: "MONEY",         # money
+    1042: "CHAR",         # bpchar
+    1043: "VARCHAR",      # varchar
+    1082: "DATE",         # date
+    1083: "TIME",         # time
+    1114: "TIMESTAMP",    # timestamp
+    1184: "TIMESTAMP",    # timestamptz
+    1700: "NUMERIC",      # numeric
+    2950: "VARCHAR",      # uuid (treat as string)
+    3802: "JSON",         # jsonb
+}
+
 
 def detect_column_type(db_type_name: str) -> tuple[str, bool]:
     """Map a database type name to a RecViz type and is_date flag.
@@ -95,17 +119,14 @@ def build_result_response(
     # Build column metadata
     columns_meta: list[dict] = []
     for i, desc in enumerate(column_descriptions):
-        # Type can be a string name or a DB-API type object/class.
-        # DB-API type codes are typically classes like STRING, NUMBER, DATETIME
-        # whose __name__ attribute is the type label.
+        # Type can be a string name, a DB-API type object/class, or an
+        # integer OID (asyncpg returns PostgreSQL OID integers).
         type_info = desc[1] if len(desc) > 1 else "string"
-        if isinstance(type_info, str):
+        if isinstance(type_info, int):
+            type_name = _PG_OID_TO_TYPE_NAME.get(type_info, "VARCHAR")
+        elif isinstance(type_info, str):
             type_name = type_info
         elif isinstance(type_info, type):
-            # It's a class -- check for a class-level __name__ override first,
-            # then fall back to the class name itself.
-            # DB-API type objects often set __name__ as a class attribute.
-            # Use vars() to distinguish class-level __name__ from the default.
             if "__name__" in vars(type_info):
                 type_name = vars(type_info)["__name__"]
             else:
