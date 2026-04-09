@@ -20,7 +20,7 @@ Requirements for Superset removal and direct database engine. Each maps to roadm
 - [x] **QENG-01**: Dynamic engine pool — one AsyncEngine per registered database, created lazily, disposed on connection update/delete
 - [x] **QENG-02**: Raw SQL execution via SQLAlchemy `text()` + `AsyncConnection.execute()` with configurable timeout
 - [x] **QENG-03**: Dataset SQL execution with filter injection, pagination (LIMIT/OFFSET or OFFSET FETCH), and sorting
-- [ ] **QENG-04**: SQL Explorer direct execution with read-only enforcement (reject INSERT/UPDATE/DELETE/DROP/ALTER/CREATE/TRUNCATE)
+- [x] **QENG-04**: SQL Explorer direct execution with read-only enforcement (reject INSERT/UPDATE/DELETE/DROP/ALTER/CREATE/TRUNCATE)
 - [x] **QENG-05**: Column type detection from cursor description mapped to RecViz column types (string, number, date, currency)
 - [x] **QENG-06**: Oracle UPPERCASE column name normalization to lowercase (match frontend config expectations)
 
@@ -99,7 +99,7 @@ Deferred to future milestones. Tracked but not in current roadmap.
 | QENG-01 | Phase 12 | Complete |
 | QENG-02 | Phase 13 | Complete |
 | QENG-03 | Phase 13 | Complete |
-| QENG-04 | Phase 13 | Pending |
+| QENG-04 | Phase 13 | Complete |
 | QENG-05 | Phase 13 | Complete |
 | QENG-06 | Phase 13 | Complete |
 | DATA-01 | Phase 14 | Pending |
