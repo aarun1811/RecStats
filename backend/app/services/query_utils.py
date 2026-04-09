@@ -201,5 +201,9 @@ def wrap_with_pagination(
             f"OFFSET {offset} ROWS FETCH FIRST {limit} ROWS ONLY"
         )
 
-    # PostgreSQL (and default)
-    return f"{sql}\nLIMIT {limit} OFFSET {offset}"
+    # PostgreSQL (and default) — wrap in subquery to avoid double-LIMIT
+    # when the source SQL already contains LIMIT/ORDER BY clauses
+    return (
+        f"SELECT * FROM (\n{sql}\n) recviz_paged\n"
+        f"LIMIT {limit} OFFSET {offset}"
+    )
