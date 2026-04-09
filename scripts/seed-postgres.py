@@ -2068,6 +2068,7 @@ CURATED_DASHBOARDS: list[dict] = [
                     "stacked-bar",
                     "ds-recon-transactions-by-region",
                     _layout(0, 3, 6),
+                    metric="txn_count",
                     cross_filter=True,
                     drill_hierarchy=["region", "status"],
                     drill_detail_data_source_id="ds-recon-transaction-detail",
