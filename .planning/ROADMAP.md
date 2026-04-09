@@ -34,11 +34,11 @@
   3. The engine pool lazily creates one AsyncEngine per registered database and disposes it cleanly on connection update or delete (no pool leaks)
   4. All existing ORM models (dashboards, charts, datasets, KPIs, connections) use portable `JSON` column types that work on both PostgreSQL and Oracle
   5. Alembic migrations run successfully on both PostgreSQL (dev) and Oracle (prod) after the JSONB-to-JSON migration
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 
 Plans:
 - [x] 12-01-PLAN.md -- PortableJSON TypeDecorator + replace JSONB in all 5 ORM models
-- [ ] 12-02-PLAN.md -- RecvizConnection model + EncryptionService + async URI builder + config
+- [x] 12-02-PLAN.md -- RecvizConnection model + EncryptionService + async URI builder + config
 - [ ] 12-03-PLAN.md -- EngineManager service + Alembic migration 005 + FastAPI startup wiring
 
 ### Phase 13: Query Execution
@@ -95,7 +95,7 @@ Phases execute in numeric order: 12 -> 13 -> 14 -> 15 -> 16
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 12. Engine Foundation | 1/3 | In Progress|  |
+| 12. Engine Foundation | 2/3 | In Progress|  |
 | 13. Query Execution | 0/TBD | Not started | - |
 | 14. API Migration | 0/TBD | Not started | - |
 | 15. Superset Removal | 0/TBD | Not started | - |

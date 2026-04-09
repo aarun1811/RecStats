@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Remove Superset -- Direct Database Engine
 status: executing
-stopped_at: Completed 12-01-PLAN.md
-last_updated: "2026-04-09T11:09:32.832Z"
+stopped_at: Completed 12-02-PLAN.md
+last_updated: "2026-04-09T11:15:01.730Z"
 last_activity: 2026-04-09
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
-  percent: 33
+  completed_plans: 2
+  percent: 67
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-09)
 ## Current Position
 
 Phase: 12 (Engine Foundation) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-04-09
 
@@ -63,6 +63,7 @@ Progress: ░░░░░░░░░░ 0%
 
 *Updated after each plan completion*
 | Phase 12 P01 | 2min | 2 tasks | 8 files |
+| Phase 12 P02 | 3min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -77,6 +78,8 @@ Recent decisions affecting current work:
 - [v2.0]: Fernet encryption for credentials (key from env var) -- build URI at runtime from decrypted fields
 - [v2.0]: API response shapes must be byte-identical to Superset-proxied versions -- zero frontend changes
 - [Phase 12]: TypeDecorator with load_dialect_impl for PortableJSON -- sa.JSON() does NOT compile on Oracle in SA 2.0.49
+- [Phase 12]: Dev-only default Fernet key in Settings -- production MUST override via RECVIZ_ENCRYPTION_KEY env var
+- [Phase 12]: build_async_uri is separate function from build_sqlalchemy_uri -- both coexist for backward compatibility
 
 ### Pending Todos
 
@@ -90,6 +93,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-09T11:09:32.830Z
-Stopped at: Completed 12-01-PLAN.md
+Last session: 2026-04-09T11:15:01.728Z
+Stopped at: Completed 12-02-PLAN.md
 Resume file: None

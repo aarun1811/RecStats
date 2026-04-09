@@ -9,11 +9,11 @@ Requirements for Superset removal and direct database engine. Each maps to roadm
 
 ### Database Connections
 
-- [ ] **CONN-01**: Connections stored in `recviz_databases` table (replacing Superset storage + databases.json)
+- [x] **CONN-01**: Connections stored in `recviz_databases` table (replacing Superset storage + databases.json)
 - [ ] **CONN-02**: CRUD API endpoints for database connections (create, read, update, delete) — no Superset proxy
 - [ ] **CONN-03**: Connection testing via direct `SELECT 1` / `SELECT 1 FROM DUAL` with timeout
-- [ ] **CONN-04**: Credential encryption at rest using Fernet symmetric encryption (key from env var)
-- [ ] **CONN-05**: URI builder generates async dialect URIs (`postgresql+asyncpg://`, `oracle+oracledb://`)
+- [x] **CONN-04**: Credential encryption at rest using Fernet symmetric encryption (key from env var)
+- [x] **CONN-05**: URI builder generates async dialect URIs (`postgresql+asyncpg://`, `oracle+oracledb://`)
 
 ### Query Engine
 
@@ -91,11 +91,11 @@ Deferred to future milestones. Tracked but not in current roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CONN-01 | Phase 12 | Pending |
+| CONN-01 | Phase 12 | Complete |
 | CONN-02 | Phase 14 | Pending |
 | CONN-03 | Phase 12 | Pending |
-| CONN-04 | Phase 12 | Pending |
-| CONN-05 | Phase 12 | Pending |
+| CONN-04 | Phase 12 | Complete |
+| CONN-05 | Phase 12 | Complete |
 | QENG-01 | Phase 12 | Pending |
 | QENG-02 | Phase 13 | Pending |
 | QENG-03 | Phase 13 | Pending |
