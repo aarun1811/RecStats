@@ -20,7 +20,7 @@
 - [x] **Phase 13: Query Execution** - QueryExecutor rewrite with direct SQL execution, filter injection, column detection, and Oracle normalization (completed 2026-04-09)
 - [x] **Phase 14: API Migration** - Rewrite database/dataset/SQL endpoints to use direct engine, remove all Superset sync code (completed 2026-04-09)
 - [x] **Phase 15: Superset Removal** - Delete all Superset code, remove Redis, simplify Docker Compose, clean dependencies (completed 2026-04-09)
-- [ ] **Phase 16: Parity Verification** - Full regression testing confirming every v1.0 feature works identically with the new engine
+- [x] **Phase 16: Parity Verification** - Full regression testing confirming every v1.0 feature works identically with the new engine (completed 2026-04-09)
 
 ## Phase Details
 
@@ -98,12 +98,12 @@ Plans:
   3. Dashboard builder create/edit/save/delete cycle works -- a new dashboard can be built from scratch and saved
   4. Sharing (URL filter sync), embed mode (with ?theme, ?filter.X, ?hide params), and Cmd+K command palette all function correctly
   5. SQL Explorer executes queries and displays results, and connection management UI creates, tests, and manages connections
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 - [x] 16-01-PLAN.md -- Fix frontend type mismatches (database ID int->string, remove supersetId/syncStatus)
 - [x] 16-02-PLAN.md -- E2E verification of dashboard rendering, cross-filter, builder, sharing/embed/Cmd+K
-- [ ] 16-03-PLAN.md -- E2E verification of SQL Explorer and connection management UI
+- [x] 16-03-PLAN.md -- E2E verification of SQL Explorer and connection management UI
 
 ## Progress
 
@@ -116,4 +116,4 @@ Phases execute in numeric order: 12 -> 13 -> 14 -> 15 -> 16
 | 13. Query Execution | 3/3 | Complete    | 2026-04-09 |
 | 14. API Migration | 2/2 | Complete    | 2026-04-09 |
 | 15. Superset Removal | 1/1 | Complete    | 2026-04-09 |
-| 16. Parity Verification | 2/3 | In Progress|  |
+| 16. Parity Verification | 3/3 | Complete   | 2026-04-09 |

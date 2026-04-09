@@ -52,8 +52,8 @@ Requirements for Superset removal and direct database engine. Each maps to roadm
 - [x] **PRTY-03**: Cross-filtering and drill-down work end-to-end on seed dashboards
 - [x] **PRTY-04**: Dashboard builder create/edit/save/delete cycle works
 - [x] **PRTY-05**: Sharing (URL sync), embed mode, and Cmd+K command palette work
-- [ ] **PRTY-06**: SQL Explorer executes queries and displays results
-- [ ] **PRTY-07**: Connection management UI creates, tests, and manages connections
+- [x] **PRTY-06**: SQL Explorer executes queries and displays results
+- [x] **PRTY-07**: Connection management UI creates, tests, and manages connections
 
 ## Future Requirements
 
@@ -119,8 +119,8 @@ Deferred to future milestones. Tracked but not in current roadmap.
 | PRTY-03 | Phase 16 | Complete |
 | PRTY-04 | Phase 16 | Complete |
 | PRTY-05 | Phase 16 | Complete |
-| PRTY-06 | Phase 16 | Pending |
-| PRTY-07 | Phase 16 | Pending |
+| PRTY-06 | Phase 16 | Complete |
+| PRTY-07 | Phase 16 | Complete |
 
 **Coverage:**
 - v2.0 requirements: 30 total
