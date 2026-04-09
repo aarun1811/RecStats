@@ -1,0 +1,132 @@
+# Requirements: RecViz v2.0 — Remove Superset
+
+**Defined:** 2026-04-09
+**Core Value:** Business users can view, interact with, and customize dashboards over reconciliation data without depending on another team for every change.
+
+## v2.0 Requirements
+
+Requirements for Superset removal and direct database engine. Each maps to roadmap phases.
+
+### Database Connections
+
+- [ ] **CONN-01**: Connections stored in `recviz_databases` table (replacing Superset storage + databases.json)
+- [ ] **CONN-02**: CRUD API endpoints for database connections (create, read, update, delete) — no Superset proxy
+- [ ] **CONN-03**: Connection testing via direct `SELECT 1` / `SELECT 1 FROM DUAL` with timeout
+- [ ] **CONN-04**: Credential encryption at rest using Fernet symmetric encryption (key from env var)
+- [ ] **CONN-05**: URI builder generates async dialect URIs (`postgresql+asyncpg://`, `oracle+oracledb://`)
+
+### Query Engine
+
+- [ ] **QENG-01**: Dynamic engine pool — one AsyncEngine per registered database, created lazily, disposed on connection update/delete
+- [ ] **QENG-02**: Raw SQL execution via SQLAlchemy `text()` + `AsyncConnection.execute()` with configurable timeout
+- [ ] **QENG-03**: Dataset SQL execution with filter injection, pagination (LIMIT/OFFSET or OFFSET FETCH), and sorting
+- [ ] **QENG-04**: SQL Explorer direct execution with read-only enforcement (reject INSERT/UPDATE/DELETE/DROP/ALTER/CREATE/TRUNCATE)
+- [ ] **QENG-05**: Column type detection from cursor description mapped to RecViz column types (string, number, date, currency)
+- [ ] **QENG-06**: Oracle UPPERCASE column name normalization to lowercase (match frontend config expectations)
+
+### Dataset Management
+
+- [ ] **DATA-01**: Remove DatasetSyncService and all Superset dataset sync code
+- [ ] **DATA-02**: Remove `superset_id` and `sync_status` columns from recviz_datasets model and DB
+- [ ] **DATA-03**: Dataset CRUD operates purely on recviz_datasets table — no external API calls
+
+### Cross-Dialect Compatibility
+
+- [ ] **DIAL-01**: Replace all JSONB column types with portable `sa.JSON()` using `with_variant` for PostgreSQL/Oracle
+- [ ] **DIAL-02**: SQL pagination works on both PostgreSQL (LIMIT/OFFSET) and Oracle (OFFSET FETCH FIRST N ROWS ONLY)
+- [ ] **DIAL-03**: Alembic migrations execute successfully on both PostgreSQL and Oracle
+- [ ] **DIAL-04**: Date range clauses work on both dialects (existing `_build_date_range_clause` already handles this)
+
+### Infrastructure Cleanup
+
+- [ ] **INFR-01**: Delete all Superset code — superset_client.py, database_registrar.py, dataset_sync.py, superset/ directory
+- [ ] **INFR-02**: Remove Redis from Docker Compose and all config references
+- [ ] **INFR-03**: Remove httpx dependency (no more Superset HTTP proxy calls)
+- [ ] **INFR-04**: Docker Compose simplified to PostgreSQL-only for local dev
+- [ ] **INFR-05**: Production deployment requires only FastAPI + Oracle — no Docker, no Redis, no Superset
+
+### Parity Verification
+
+- [ ] **PRTY-01**: All API response shapes preserved — zero breaking frontend changes
+- [ ] **PRTY-02**: Seed data dashboards render correctly with charts, KPIs, grids, and filters
+- [ ] **PRTY-03**: Cross-filtering and drill-down work end-to-end on seed dashboards
+- [ ] **PRTY-04**: Dashboard builder create/edit/save/delete cycle works
+- [ ] **PRTY-05**: Sharing (URL sync), embed mode, and Cmd+K command palette work
+- [ ] **PRTY-06**: SQL Explorer executes queries and displays results
+- [ ] **PRTY-07**: Connection management UI creates, tests, and manages connections
+
+## Future Requirements
+
+Deferred to future milestones. Tracked but not in current roadmap.
+
+### Data Sources
+
+- **DSRC-01**: Hive database connectivity via PyHive driver
+- **DSRC-02**: Elasticsearch connectivity for real-time search queries
+
+### Caching
+
+- **CACH-01**: Server-side query result caching (in-memory TTLCache or Redis if needed)
+
+### Features
+
+- **FEAT-01**: Saved views — save current filter state as named bookmark
+- **FEAT-02**: Schema browser — table/column introspection in SQL Explorer
+- **FEAT-03**: Streaming large result sets for CSV/Excel export
+- **FEAT-04**: Query cost estimation via EXPLAIN before execution
+
+## Out of Scope
+
+| Feature | Reason |
+|---------|--------|
+| Superset virtual dataset abstraction | RecViz has its own dataset model — Superset's was redundant |
+| Superset chart data API (JSON-to-SQL compiler) | RecViz's template-based SQL builder is simpler and sufficient |
+| Redis caching layer | TanStack Query client-side caching sufficient for ~12 users |
+| Superset authentication/RBAC | Auth deferred to future milestone (SSO/SAML/OIDC at FastAPI level) |
+| Celery async query execution | Synchronous queries with timeout sufficient; streaming for large exports |
+| Mobile/tablet responsive design | Desktop-only application |
+| Hive/ES data sources | Deferred — Oracle-only for this milestone |
+
+## Traceability
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| CONN-01 | — | Pending |
+| CONN-02 | — | Pending |
+| CONN-03 | — | Pending |
+| CONN-04 | — | Pending |
+| CONN-05 | — | Pending |
+| QENG-01 | — | Pending |
+| QENG-02 | — | Pending |
+| QENG-03 | — | Pending |
+| QENG-04 | — | Pending |
+| QENG-05 | — | Pending |
+| QENG-06 | — | Pending |
+| DATA-01 | — | Pending |
+| DATA-02 | — | Pending |
+| DATA-03 | — | Pending |
+| DIAL-01 | — | Pending |
+| DIAL-02 | — | Pending |
+| DIAL-03 | — | Pending |
+| DIAL-04 | — | Pending |
+| INFR-01 | — | Pending |
+| INFR-02 | — | Pending |
+| INFR-03 | — | Pending |
+| INFR-04 | — | Pending |
+| INFR-05 | — | Pending |
+| PRTY-01 | — | Pending |
+| PRTY-02 | — | Pending |
+| PRTY-03 | — | Pending |
+| PRTY-04 | — | Pending |
+| PRTY-05 | — | Pending |
+| PRTY-06 | — | Pending |
+| PRTY-07 | — | Pending |
+
+**Coverage:**
+- v2.0 requirements: 30 total
+- Mapped to phases: 0
+- Unmapped: 30
+
+---
+*Requirements defined: 2026-04-09*
+*Last updated: 2026-04-09 after initial definition*
