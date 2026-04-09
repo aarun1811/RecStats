@@ -15,7 +15,6 @@ from app.services.config_store import ConfigStore
 from app.services.connection_resolver import ConnectionResolver
 from app.services.engine_manager import EngineManager
 from app.services.query_engine import QueryEngine
-from app.services.superset_client import SupersetClient
 
 logger = logging.getLogger(__name__)
 
@@ -34,11 +33,6 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
 DbSessionDep = Annotated[AsyncSession, Depends(get_db_session)]
 
 
-def get_superset_client(request: Request) -> SupersetClient | None:
-    """Return the SupersetClient from app state, or None if unavailable."""
-    return getattr(request.app.state, "superset", None)
-
-
 def get_config_store(session: DbSessionDep) -> ConfigStore:
     """Return a session-scoped ConfigStore."""
     return ConfigStore(session)
@@ -49,7 +43,6 @@ def get_query_engine(request: Request) -> QueryEngine:
     return request.app.state.query_engine
 
 
-SupersetDep = Annotated[SupersetClient | None, Depends(get_superset_client)]
 ConfigStoreDep = Annotated[ConfigStore, Depends(get_config_store)]
 QueryEngineDep = Annotated[QueryEngine, Depends(get_query_engine)]
 

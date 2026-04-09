@@ -238,17 +238,14 @@ def test_dataset_references_returns_referencing_kpis():
     """When KPIs reference a dataset, the dataset references endpoint should list them."""
     from app.api.managed_datasets import router as ds_router
     from app.core.dependencies import get_db_session
-    from app.services.dataset_sync import DatasetSyncService
 
     ds_row = MagicMock()
     ds_row.id = "dataset-uuid-1"
     ds_row.name = "Test Dataset"
     ds_row.description = ""
     ds_row.database_id = 1
-    ds_row.superset_id = 42
     ds_row.sql = "SELECT 1"
     ds_row.columns = []
-    ds_row.sync_status = "synced"
     ds_row.schema_version = 1
     ds_row.created_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
     ds_row.updated_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
@@ -273,11 +270,8 @@ def test_dataset_references_returns_referencing_kpis():
 
     session.execute = AsyncMock(side_effect=[ds_result, chart_result, kpi_result])
 
-    sync_service = MagicMock(spec=DatasetSyncService)
-
     test_app = FastAPI()
     test_app.include_router(ds_router)
-    test_app.state.dataset_sync = sync_service
 
     async def override_db():
         yield session
@@ -301,17 +295,14 @@ def test_dataset_delete_blocked_when_kpis_reference():
     """DELETE dataset should return 409 when KPIs reference it (even if no charts)."""
     from app.api.managed_datasets import router as ds_router
     from app.core.dependencies import get_db_session
-    from app.services.dataset_sync import DatasetSyncService
 
     ds_row = MagicMock()
     ds_row.id = "dataset-uuid-1"
     ds_row.name = "Test Dataset"
     ds_row.description = ""
     ds_row.database_id = 1
-    ds_row.superset_id = 42
     ds_row.sql = "SELECT 1"
     ds_row.columns = []
-    ds_row.sync_status = "synced"
     ds_row.schema_version = 1
     ds_row.created_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
     ds_row.updated_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
@@ -337,12 +328,8 @@ def test_dataset_delete_blocked_when_kpis_reference():
     session.execute = AsyncMock(side_effect=[ds_result, chart_result, kpi_result])
     session.delete = AsyncMock()
 
-    sync_service = MagicMock(spec=DatasetSyncService)
-    sync_service.delete_synced = AsyncMock()
-
     test_app = FastAPI()
     test_app.include_router(ds_router)
-    test_app.state.dataset_sync = sync_service
 
     async def override_db():
         yield session
