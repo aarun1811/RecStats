@@ -120,6 +120,9 @@ class QueryExecutor:
                     f"Column '{column}' not in data source '{ds.id}' "
                     f"columns: {valid_columns}"
                 )
+            # Sanitize: only allow valid SQL identifier characters (defense in depth)
+            if not re.match(r'^[A-Za-z_][A-Za-z0-9_]*$', column):
+                raise ValueError(f"Invalid column name: '{column}'")
             sql = sql.replace("{{column}}", column)
 
         # Build filter clauses
