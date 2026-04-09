@@ -140,20 +140,34 @@ def build_result_response(
 # Read-only SQL validator (QENG-04 / Threat T-13-01)
 # ---------------------------------------------------------------------------
 
-_FORBIDDEN_PREFIXES = re.compile(
-    r"^\s*(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|TRUNCATE|MERGE|GRANT|REVOKE)\b",
-    re.IGNORECASE,
+_ALLOWED_PREFIXES = re.compile(
+    r"^\s*(/\*.*?\*/\s*)*(--[^\n]*\n\s*)*(SELECT|WITH|EXPLAIN)\b",
+    re.IGNORECASE | re.DOTALL,
 )
 
 
 def validate_read_only(sql: str) -> bool:
-    """Return True if the SQL statement is read-only (SELECT or WITH).
+    """Return True if the SQL statement is read-only (SELECT, WITH, or EXPLAIN).
 
-    Rejects INSERT, UPDATE, DELETE, DROP, ALTER, CREATE, TRUNCATE, MERGE,
-    GRANT, and REVOKE statements. Defense in depth -- the database user
-    should also have read-only permissions.
+    Uses an allowlist approach: only statements beginning with SELECT, WITH,
+    or EXPLAIN (after optional SQL comments) are permitted.
+
+    Rejects multi-statement queries (semicolons within the body) to prevent
+    appending destructive statements after a valid SELECT. Handles SQL
+    comments (block and line) that could hide forbidden keywords.
+
+    Defense in depth -- the database user should also have read-only
+    permissions.
     """
-    return not bool(_FORBIDDEN_PREFIXES.match(sql))
+    # Strip outer whitespace and trailing semicolons
+    stripped = sql.strip().rstrip(";").strip()
+
+    # Reject multi-statement queries (semicolons within the body)
+    if ";" in stripped:
+        return False
+
+    # Allowlist: must start with SELECT, WITH, or EXPLAIN (after optional comments)
+    return bool(_ALLOWED_PREFIXES.match(stripped))
 
 
 # ---------------------------------------------------------------------------
