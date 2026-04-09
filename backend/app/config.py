@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     databases_config_path: str = str(
         Path(__file__).parent / "config" / "databases.json"
     )
+    recviz_encryption_key: str = "ZtmS2OQUhct4iBQmAcreQftJoeodRw4h7Rz3fU8ZPG4="
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
