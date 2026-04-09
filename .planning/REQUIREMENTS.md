@@ -26,9 +26,9 @@ Requirements for Superset removal and direct database engine. Each maps to roadm
 
 ### Dataset Management
 
-- [ ] **DATA-01**: Remove DatasetSyncService and all Superset dataset sync code
-- [ ] **DATA-02**: Remove `superset_id` and `sync_status` columns from recviz_datasets model and DB
-- [ ] **DATA-03**: Dataset CRUD operates purely on recviz_datasets table — no external API calls
+- [x] **DATA-01**: Remove DatasetSyncService and all Superset dataset sync code
+- [x] **DATA-02**: Remove `superset_id` and `sync_status` columns from recviz_datasets model and DB
+- [x] **DATA-03**: Dataset CRUD operates purely on recviz_datasets table — no external API calls
 
 ### Cross-Dialect Compatibility
 
@@ -102,9 +102,9 @@ Deferred to future milestones. Tracked but not in current roadmap.
 | QENG-04 | Phase 13 | Complete |
 | QENG-05 | Phase 13 | Complete |
 | QENG-06 | Phase 13 | Complete |
-| DATA-01 | Phase 14 | Pending |
-| DATA-02 | Phase 14 | Pending |
-| DATA-03 | Phase 14 | Pending |
+| DATA-01 | Phase 14 | Complete |
+| DATA-02 | Phase 14 | Complete |
+| DATA-03 | Phase 14 | Complete |
 | DIAL-01 | Phase 12 | Complete |
 | DIAL-02 | Phase 13 | Complete |
 | DIAL-03 | Phase 12 | Complete |

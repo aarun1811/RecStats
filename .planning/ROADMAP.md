@@ -18,7 +18,7 @@
 
 - [x] **Phase 12: Engine Foundation** - Connection storage table, credential encryption, cross-dialect types, async engine pool, and URI builder (completed 2026-04-09)
 - [x] **Phase 13: Query Execution** - QueryExecutor rewrite with direct SQL execution, filter injection, column detection, and Oracle normalization (completed 2026-04-09)
-- [ ] **Phase 14: API Migration** - Rewrite database/dataset/SQL endpoints to use direct engine, remove all Superset sync code
+- [x] **Phase 14: API Migration** - Rewrite database/dataset/SQL endpoints to use direct engine, remove all Superset sync code (completed 2026-04-09)
 - [ ] **Phase 15: Superset Removal** - Delete all Superset code, remove Redis, simplify Docker Compose, clean dependencies
 - [ ] **Phase 16: Parity Verification** - Full regression testing confirming every v1.0 feature works identically with the new engine
 
@@ -67,11 +67,11 @@ Plans:
   2. DatasetSyncService and all Superset dataset sync code are deleted -- dataset CRUD operates purely on `recviz_datasets`
   3. The `superset_id` and `sync_status` columns are removed from the datasets model and database via Alembic migration
   4. Every API response shape is byte-compatible with v1.0 -- frontend code requires zero changes
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [x] 14-01-PLAN.md -- Rewrite database connection CRUD to use recviz_connections directly
-- [ ] 14-02-PLAN.md -- Remove DatasetSyncService + Alembic migration to drop superset_id/sync_status
+- [x] 14-02-PLAN.md -- Remove DatasetSyncService + Alembic migration to drop superset_id/sync_status
 
 ### Phase 15: Superset Removal
 **Goal**: Superset, Redis, and all associated code are completely removed from the project -- the system runs with only FastAPI + PostgreSQL (dev) or FastAPI + Oracle (prod)
@@ -106,6 +106,6 @@ Phases execute in numeric order: 12 -> 13 -> 14 -> 15 -> 16
 |-------|----------------|--------|-----------|
 | 12. Engine Foundation | 3/3 | Complete    | 2026-04-09 |
 | 13. Query Execution | 3/3 | Complete    | 2026-04-09 |
-| 14. API Migration | 1/2 | In Progress|  |
+| 14. API Migration | 2/2 | Complete   | 2026-04-09 |
 | 15. Superset Removal | 0/TBD | Not started | - |
 | 16. Parity Verification | 0/TBD | Not started | - |
