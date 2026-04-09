@@ -21,11 +21,12 @@ from app.api.router import api_router
 from app.config import settings
 from app.db.engine import engine
 from app.db.models.connection import RecvizConnection
+from app.services.connection_resolver import ConnectionResolver
 from app.services.connection_status import ConnectionStatusTracker
 from app.services.database_registrar import DatabaseRegistrar
 from app.services.encryption import EncryptionService
 from app.services.engine_manager import EngineManager
-from app.services.query_engine import QueryEngine
+from app.services.query_engine import QueryEngine, QueryExecutor
 from app.services.superset_client import SupersetClient
 
 logging.basicConfig(level=logging.INFO)
@@ -173,6 +174,23 @@ async def lifespan(app: FastAPI):
                 logger.info("Pre-warmed engine for connection: %s", conn.name)
             except Exception as exc:
                 logger.warning("Failed to pre-warm connection %s: %s", conn.name, exc)
+
+    # 9. Create ConnectionResolver and sync from DB (Phase 13 -- query execution)
+    connection_resolver = ConnectionResolver()
+    async with async_session_factory() as session:
+        await connection_resolver.sync(session)
+    app.state.connection_resolver = connection_resolver
+    logger.info("ConnectionResolver synced (%d connections)", len(connection_resolver._cache))
+
+    # 10. Create QueryExecutor (replaces Superset-backed QueryEngine)
+    # Overwrites the old QueryEngine from step 4 -- all data source queries
+    # now execute directly against the database via EngineManager.
+    app.state.query_engine = QueryExecutor(
+        engine_manager=engine_manager,
+        connection_resolver=connection_resolver,
+        status_tracker=status_tracker,
+    )
+    logger.info("QueryExecutor initialized -- direct database execution ready")
 
     yield
 

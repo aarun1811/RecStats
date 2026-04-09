@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.engine import async_session_factory
 from app.models.data_source_config import DataSourceConfig
 from app.services.config_store import ConfigStore
+from app.services.connection_resolver import ConnectionResolver
 from app.services.dataset_sync import DatasetSyncService
 from app.services.engine_manager import EngineManager
 from app.services.query_engine import QueryEngine
@@ -68,6 +69,14 @@ def get_engine_manager(request: Request) -> EngineManager:
 
 
 EngineManagerDep = Annotated[EngineManager, Depends(get_engine_manager)]
+
+
+def get_connection_resolver(request: Request) -> ConnectionResolver:
+    """Return the ConnectionResolver from app state."""
+    return request.app.state.connection_resolver
+
+
+ConnectionResolverDep = Annotated[ConnectionResolver, Depends(get_connection_resolver)]
 
 
 # --------------------------------------------------------------------------- #
