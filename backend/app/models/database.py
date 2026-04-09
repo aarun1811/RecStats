@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from app.models.base import CamelModel
 
 
 class DatabaseCreate(CamelModel):
     database_name: str
-    backend: str  # "oracle", "postgresql", "hive", "elasticsearch"
-    sqlalchemy_uri: str | None = None
-    host: str | None = None
+    backend: Literal["oracle", "postgresql"]
+    host: str
     port: int | None = None
     database: str | None = None
     schema_name: str | None = None
@@ -20,7 +21,6 @@ class DatabaseCreate(CamelModel):
 class DatabaseUpdate(CamelModel):
     database_name: str | None = None
     backend: str | None = None
-    sqlalchemy_uri: str | None = None
     host: str | None = None
     port: int | None = None
     database: str | None = None
@@ -30,7 +30,7 @@ class DatabaseUpdate(CamelModel):
 
 
 class DatabaseInfo(CamelModel):
-    id: int
+    id: str
     database_name: str
     backend: str
     created_on: str | None = None
@@ -42,13 +42,12 @@ class DatabaseInfo(CamelModel):
 
 class TestConnectionRequest(CamelModel):
     backend: str
-    sqlalchemy_uri: str | None = None
     host: str | None = None
     port: int | None = None
     database: str | None = None
     username: str | None = None
     password: str | None = None
-    database_id: int | None = None  # Superset ID for status tracking on existing DBs
+    database_id: str | None = None  # Connection UUID for status tracking on existing DBs
 
 
 class TestConnectionResponse(CamelModel):
