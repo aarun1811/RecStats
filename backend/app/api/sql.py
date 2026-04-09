@@ -28,8 +28,18 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/sql", tags=["sql"])
 
-# In-memory query history (simple for now)
+# In-memory query history (simple for now).
+# NOTE: In-memory history -- only valid for single-worker uvicorn.
+# For multi-worker, migrate to Redis or database storage.
+_MAX_HISTORY = 200
 _query_history: list[dict] = []
+
+
+def _record_history(record: dict) -> None:
+    """Insert a history record and prune to bounded size."""
+    _query_history.insert(0, record)
+    if len(_query_history) > _MAX_HISTORY:
+        del _query_history[_MAX_HISTORY:]
 
 
 class SqlRequest(CamelModel):
@@ -57,7 +67,7 @@ async def execute_sql(
     if not validate_read_only(body.sql):
         record["status"] = "error"
         record["error"] = "Read-only violation: only SELECT and WITH statements are allowed"
-        _query_history.insert(0, record)
+        _record_history(record)
         raise HTTPException(
             status_code=400,
             detail={
@@ -77,7 +87,7 @@ async def execute_sql(
     if conn_record is None:
         record["status"] = "error"
         record["error"] = f"Database connection '{body.database_id}' not found"
-        _query_history.insert(0, record)
+        _record_history(record)
         raise HTTPException(
             status_code=404,
             detail={
@@ -115,7 +125,7 @@ async def execute_sql(
 
         record["status"] = "success"
         record["rows"] = shaped["row_count"]
-        _query_history.insert(0, record)
+        _record_history(record)
 
         # SQL Explorer response uses "data" key (not "rows") and adds "status"
         return {
@@ -129,7 +139,7 @@ async def execute_sql(
         logger.warning("SQL query timed out after 60s")
         record["status"] = "error"
         record["error"] = "Query timed out"
-        _query_history.insert(0, record)
+        _record_history(record)
         raise HTTPException(
             status_code=504,
             detail={
@@ -142,7 +152,7 @@ async def execute_sql(
         logger.exception("Error during SQL execution")
         record["status"] = "error"
         record["error"] = str(e)[:200]
-        _query_history.insert(0, record)
+        _record_history(record)
         raise HTTPException(
             status_code=500,
             detail={
