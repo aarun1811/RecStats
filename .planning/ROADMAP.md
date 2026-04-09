@@ -98,7 +98,12 @@ Plans:
   3. Dashboard builder create/edit/save/delete cycle works -- a new dashboard can be built from scratch and saved
   4. Sharing (URL filter sync), embed mode (with ?theme, ?filter.X, ?hide params), and Cmd+K command palette all function correctly
   5. SQL Explorer executes queries and displays results, and connection management UI creates, tests, and manages connections
-**Plans**: TBD
+**Plans:** 3 plans
+
+Plans:
+- [ ] 16-01-PLAN.md -- Fix frontend type mismatches (database ID int->string, remove supersetId/syncStatus)
+- [ ] 16-02-PLAN.md -- E2E verification of dashboard rendering, cross-filter, builder, sharing/embed/Cmd+K
+- [ ] 16-03-PLAN.md -- E2E verification of SQL Explorer and connection management UI
 
 ## Progress
 
@@ -111,4 +116,4 @@ Phases execute in numeric order: 12 -> 13 -> 14 -> 15 -> 16
 | 13. Query Execution | 3/3 | Complete    | 2026-04-09 |
 | 14. API Migration | 2/2 | Complete    | 2026-04-09 |
 | 15. Superset Removal | 1/1 | Complete    | 2026-04-09 |
-| 16. Parity Verification | 0/TBD | Not started | - |
+| 16. Parity Verification | 0/3 | In progress | - |
