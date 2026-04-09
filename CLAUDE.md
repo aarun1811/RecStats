@@ -345,7 +345,7 @@ There are TWO dashboard systems in the codebase:
 
 **RecViz**
 
-RecViz is an internal BI and visualization platform replacing Tableau and Qlik View for Citi's Global Reconciliation Unit (GRU). It provides a dashboard builder where the dev team creates datasets (SQL queries against Oracle/Hive/ES) and business users build, view, and customize dashboards from those datasets. Apache Superset serves as the headless query engine; a custom React frontend delivers the premium UI and builder experience.
+RecViz is an internal BI and visualization platform replacing Tableau and Qlik View for Citi's Global Reconciliation Unit (GRU). It provides a dashboard builder where the dev team creates datasets (SQL queries against Oracle) and business users build, view, and customize dashboards from those datasets. FastAPI serves as the backend with a direct SQLAlchemy query engine; a custom React frontend delivers the premium UI and builder experience.
 
 **Core Value:** Business users can view, interact with, and customize dashboards over reconciliation data without depending on another team for every change.
 
@@ -353,18 +353,378 @@ RecViz is an internal BI and visualization platform replacing Tableau and Qlik V
 
 - **Tech stack**: React 19 + Vite 6 + TypeScript 5 + Shadcn/ui + AG Grid/Charts Enterprise + FastAPI + Superset — established in existing codebase
 - **Desktop only**: Optimize for large screens and data density. No mobile/tablet.
-- **Superset as engine**: Keep Superset as headless query engine — best free option for multi-source query, caching, dataset management
-- **No direct Superset UI**: Frontend never exposes Superset's UI to users. All queries proxied through FastAPI.
-- **Data volume**: Millions of rows — aggregation-first, caching critical (Redis via Superset + TanStack Query client-side)
+- **No Superset**: Superset removed in v2.0. FastAPI queries databases directly via SQLAlchemy.
+- **No Redis**: No caching layer. TanStack Query handles client-side caching.
+- **No Docker in prod**: Production runs natively on Oracle. Docker only for local dev (PostgreSQL).
+- **Data volume**: Millions of rows — aggregation-first, TanStack Query client-side caching.
 - **Corporate environment**: On-prem deployment, no cloud services. All dependencies must be self-hostable.
 <!-- GSD:project-end -->
 
 <!-- GSD:stack-start source:codebase/STACK.md -->
-<!-- Stack, conventions, and architecture details are in the hand-written sections above (Tech Stack Reference, Coding Conventions, Architecture). Full auto-generated details available in .planning/codebase/*.md files. -->
+## Technology Stack
+
+## Languages
+- TypeScript ~5.9.3 - Frontend SPA (`frontend/src/`)
+- Python 3.12+ - Backend API and query engine (`backend/app/`)
+- SQL - Data source queries, Alembic migrations (`backend/app/config/seed/`, `backend/app/migrations/versions/`)
+- Shell/Bash - Setup and seed scripts (`scripts/`, `superset/superset-entrypoint.sh`)
+## Runtime
+- Node.js (version not pinned; no `.nvmrc`) - Frontend dev server and build
+- Python 3.12+ (specified in `superset/Dockerfile`: `python:3.12-slim`) - Backend + Superset container
+- Docker - PostgreSQL, Redis, Superset containers via `docker-compose.yml`
+- pnpm - Frontend (lockfile: `frontend/pnpm-lock.yaml`)
+- pip - Backend (no `pyproject.toml`; uses `backend/requirements.txt`)
+## Frameworks
+- React 19.2.0 - Frontend UI framework (`frontend/src/`)
+- FastAPI 0.128.6 - Backend HTTP API (`backend/app/main.py`)
+- Apache Superset (latest from pip) - Headless query engine, runs in Docker (`superset/Dockerfile`)
+- Vitest 4.1.2 - Unit tests (`frontend/vitest.config.ts`)
+- Playwright 1.59.1 - E2E tests (`frontend/playwright.config.ts`, `frontend/e2e/`)
+- @testing-library/react 16.3.2 - React component testing utilities
+- @testing-library/jest-dom 6.9.1 - DOM assertion matchers
+- Vite 7.3.1 - Frontend bundler and dev server (`frontend/vite.config.ts`)
+- @vitejs/plugin-react 5.1.1 - React Fast Refresh for Vite
+- @tailwindcss/vite 4.1.18 - Tailwind CSS integration as Vite plugin
+- TanStack Router Plugin 1.159.5 - File-based route generation (`frontend/src/routeTree.gen.ts`)
+- Uvicorn 0.40.0 - ASGI server for FastAPI
+- Alembic 1.18.4 - Database schema migrations (`backend/app/migrations/`)
+- ESLint 9.39.1 - TypeScript linting (`frontend/eslint.config.js`)
+- typescript-eslint 8.48.0 - TypeScript ESLint rules
+- eslint-plugin-react-hooks 7.0.1 - React hooks lint rules
+- eslint-plugin-react-refresh 0.4.24 - React refresh lint rules
+- No Prettier configured (no `.prettierrc` found)
+## Key Dependencies
+### Frontend Critical
+- `@tanstack/react-router` 1.159.5 - File-based routing (`frontend/src/routes/`)
+- `@tanstack/react-query` 5.90.20 - Server state management (`frontend/src/lib/query-client.ts`)
+- `zustand` 5.0.11 - Client state management (`frontend/src/stores/`)
+- `ag-grid-enterprise` 35.0.1 - Enterprise data grid (`frontend/src/main.tsx` registers AllEnterpriseModule)
+- `ag-charts-enterprise` 13.0.1 - Enterprise charting (`frontend/src/main.tsx` registers AllChartsEnterpriseModule)
+- `echarts` 6.0.0 + `echarts-for-react` 3.0.6 - Exotic chart types only (Sankey, radar, gauge, etc.)
+### Frontend UI
+- `radix-ui` 1.4.3 + `@radix-ui/react-slot` 1.2.4 - Headless UI primitives
+- `shadcn` 3.8.4 (devDep) - CLI for adding Shadcn/ui components (components live in `frontend/src/components/ui/`)
+- `tailwindcss` 4.1.18 - Utility-first CSS (`frontend/src/index.css`)
+- `tw-animate-css` 1.4.0 - Tailwind animation utilities
+- `class-variance-authority` 0.7.1 - Component variant management
+- `clsx` 2.1.1 + `tailwind-merge` 3.4.0 - Class name utilities (`frontend/src/lib/utils.ts`)
+- `lucide-react` 0.563.0 - Icon library
+- `motion` 12.34.0 - Animations (import from `motion/react`, NOT `framer-motion`)
+- `sonner` 2.0.7 - Toast notifications
+- `cmdk` 1.1.1 - Command palette
+- `next-themes` 0.4.6 - Theme management (dark/light mode)
+- `react-day-picker` 9.13.2 - Date picker component
+- `react-resizable-panels` 4.6.2 - Resizable split panels
+- `react-grid-layout` 2.2.3 - Draggable dashboard grid layout
+- `@monaco-editor/react` 4.7.0 - SQL editor
+- `date-fns` 4.1.0 - Date utility library
+### Backend Critical
+- `httpx` 0.28.1 - Async HTTP client for Superset proxy (`backend/app/services/superset_client.py`)
+- `pydantic` 2.12.5 - Request/response validation (`backend/app/models/`)
+- `pydantic-settings` 2.12.0 - Environment configuration (`backend/app/config.py`)
+- `sqlalchemy[asyncio]` 2.0.49 - Async ORM for RecViz metadata DB (`backend/app/db/`)
+- `asyncpg` 0.31.0 - Async PostgreSQL driver
+- `psycopg2-binary` 2.9.11 - Sync PostgreSQL driver (used by Alembic)
+- `redis` 4.6.0 - Redis client (available but not directly used in backend yet)
+- `requests` 2.32.5 - Sync HTTP client (seed scripts)
+- `python-dotenv` 1.2.1 - .env file loading
+### Superset Container Dependencies (in `superset/Dockerfile`)
+- `apache-superset` (latest) - Query engine
+- `psycopg2-binary` - PostgreSQL driver for metadata
+- `redis` + `cachelib` - Query result caching
+- `oracledb` - Oracle database driver (thin mode, no Instant Client)
+- `pyhive` + `thrift` - Hive database driver
+## Configuration
+- Backend config via `pydantic-settings` in `backend/app/config.py` (reads from `.env` file)
+- Required env vars: `superset_url`, `superset_username`, `superset_password`, `redis_url`, `recon_db_url`, `recviz_db_url`, `databases_config_path`
+- `.env` file present at `backend/.env` (not committed; existence noted only)
+- Frontend config via Vite env vars (`import.meta.env.VITE_API_BASE_URL`, defaults to `http://localhost:8000`)
+- `frontend/vite.config.ts` - Vite build config with React, Tailwind, TanStack Router plugins
+- `frontend/tsconfig.json` - TypeScript project references (app, node, e2e)
+- `frontend/tsconfig.app.json` - Strict mode, ES2022 target, bundler module resolution, `@/*` path alias
+- `frontend/eslint.config.js` - Flat ESLint config with TypeScript + React plugins
+- `frontend/vitest.config.ts` - Vitest with node environment, excludes e2e
+- `frontend/playwright.config.ts` - Chromium only, sequential, auto-starts dev server
+- `backend/app/config/databases.json` - Local dev database entries (PostgreSQL standing in for Oracle)
+- `backend/app/config/databases.prod.json` - Production database entries (Oracle + Hive)
+- `backend/app/migrations/alembic.ini` - Alembic migration config (uses `recviz_alembic_version` table to avoid Superset conflicts)
+- `superset/superset_config.py` - Docker Superset config (PostgreSQL metadata, Redis cache, Celery, oracledb shim)
+- `superset/superset_config_local.py` - Native local dev config (SQLite metadata, SimpleCache, no Celery)
+## Platform Requirements
+- Docker Desktop (for PostgreSQL 16, Redis 7, Superset containers)
+- Node.js + pnpm (frontend)
+- Python 3.12+ with venv (backend)
+- Startup order: Docker Compose first, then Superset (must be healthy), then backend (FastAPI), then frontend (Vite)
+- RHEL (on-prem deployment target)
+- Oracle databases (primary recon data via `oracledb` thin mode driver)
+- Hive (historical/batch data via `pyhive`)
+- No cloud services -- fully self-hostable
+- AG Grid Enterprise and AG Charts Enterprise require valid license keys
+## TypeScript Configuration
+- `strict: true`
+- `noUnusedLocals: true`
+- `noUnusedParameters: true`
+- `noFallthroughCasesInSwitch: true`
+- `noUncheckedSideEffectImports: true`
+- `verbatimModuleSyntax: true`
+- `erasableSyntaxOnly: true`
 <!-- GSD:stack-end -->
-<!-- GSD:conventions-start source:codebase/CONVENTIONS.md -->
+<!-- GSD:conventions-start source:CONVENTIONS.md -->
+## Conventions
+
+## Naming Patterns
+- Components: `kebab-case.tsx` (e.g., `config-filter-bar.tsx`, `dashboard-list-card.tsx`)
+- Hooks: `use-{name}.ts` (e.g., `use-data-source-query.ts`, `use-managed-dashboards.ts`)
+- Stores: `{name}-store.ts` (e.g., `filter-store.ts`, `drill-store.ts`, `builder-store.ts`)
+- Types: `{name}.ts` in `frontend/src/types/` (e.g., `chart.ts`, `filter.ts`, `dashboard-config.ts`)
+- Utils/lib: `kebab-case.ts` in `frontend/src/lib/` (e.g., `api-client.ts`, `cross-filter.ts`, `formatters.ts`)
+- Route pages: `index.tsx` for list pages, `$paramName.tsx` for detail pages (TanStack Router file-based routing)
+- Tests: `{name}.test.ts(x)` co-located with source file (e.g., `cross-filter.test.ts` next to `cross-filter.ts`)
+- Python: `snake_case.py` (e.g., `superset_client.py`, `query_engine.py`, `managed_dashboards.py`)
+- TypeScript: `camelCase` (e.g., `useDataSourceQuery`, `applyCrossFilters`, `buildSeries`)
+- Python: `snake_case` (e.g., `list_managed_dashboards`, `_build_sql`, `_resolve_database`)
+- Private Python helpers: prefix with underscore (e.g., `_to_response`, `_is_connection_failure`)
+- TypeScript: `camelCase` for variables and props (e.g., `crossFilters`, `appliedFilters`, `dataSourceId`)
+- Python: `snake_case` (e.g., `superset_client`, `database_registrar`, `status_tracker`)
+- Constants: `UPPER_SNAKE_CASE` in both languages (e.g., `DEFAULT_MAX_ROWS`, `DATA_KEYS`, `EXPORT_PIXEL_RATIO`)
+- TypeScript interfaces: `PascalCase` (e.g., `FilterStore`, `ChartWrapperProps`, `ChartDataResponse`)
+- Props interface: named `{ComponentName}Props` and defined directly above the component
+- Python Pydantic models: `PascalCase` (e.g., `DashboardCreate`, `DashboardResponse`, `CamelModel`)
+- `PascalCase` function names (e.g., `ConfigFilterBar`, `DashboardRenderer`, `ErrorPanel`)
+- Named exports for all components, hooks, stores, and utilities
+- Exception: page-level route components use `function ComponentName()` locally and `export const Route = createFileRoute(...)` for the route
+## Code Style
+- No Prettier config file detected; formatting enforced by ESLint + TypeScript
+- Semicolons: omitted (no semicolons in TypeScript files)
+- Trailing commas: used in multi-line parameter lists and arrays
+- Single quotes for strings in TypeScript
+- Double quotes for strings in Python (convention follows FastAPI/Pydantic ecosystem)
+- 2-space indentation in TypeScript, 4-space in Python
+- ESLint flat config at `frontend/eslint.config.js`
+- Plugins: `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh`, `typescript-eslint`
+- Extends: `js.configs.recommended`, `tseslint.configs.recommended`, `reactHooks.configs.flat.recommended`, `reactRefresh.configs.vite`
+- TypeScript strict mode enabled in `frontend/tsconfig.app.json`: `strict: true`, `noUnusedLocals: true`, `noUnusedParameters: true`
+- No Python linter config detected (no ruff, flake8, or mypy config files)
+- `strict: true` in `tsconfig.app.json`
+- `noUnusedLocals: true`
+- `noUnusedParameters: true`
+- `noFallthroughCasesInSwitch: true`
+- `verbatimModuleSyntax: true`
+- `erasableSyntaxOnly: true`
+- Target: ES2022, Module: ESNext, JSX: react-jsx
+## Import Organization
+- Blank line between groups
+- Type imports use `import type { ... }` syntax (enforced by `verbatimModuleSyntax`)
+- `@/*` maps to `frontend/src/*` (configured in `tsconfig.json`, `vite.config.ts`, and `vitest.config.ts`)
+## Component Patterns
+- All React components are functional. No class components anywhere in the codebase.
+- Components use named function declarations, not arrow functions:
+- Define `{ComponentName}Props` interface directly above the component:
+- Small helper components (used only by the primary component) live in the same file
+- Separated by comment dividers:
+- Private helpers are not exported (no `export` keyword)
+- No `index.ts` re-exporting. Import directly from the source file:
+## State Management (Zustand)
+- One store per concern: `filter-store.ts`, `drill-store.ts`, `builder-store.ts`, `layout-history-store.ts`
+- Interface defined above the store, named `{Name}Store`:
+- Zustand: UI state only (filters, drill state, builder state, layout)
+- TanStack Query: all server data. Never store fetched data in Zustand.
+## Data Fetching (TanStack Query)
+- Every data-fetching operation wrapped in a custom hook in `frontend/src/hooks/`:
+- Examples: `['managed-dashboards']`, `['managed-dashboard', id]`, `['data-source', dataSourceId, filters]`
+- `staleTime`: 5 minutes
+- `gcTime`: 30 minutes
+- `retry`: 1
+- `refetchOnWindowFocus`: false
+- Global error handler: toasts `ApiError.userMessage` via Sonner
+## API Client
+- Uses native `fetch` (no axios)
+- Base URL from `import.meta.env.VITE_API_BASE_URL`, defaults to `http://localhost:8000`
+- Automatic `snake_case` to `camelCase` key transformation on responses
+- `DATA_KEYS` set (`rows`, `columns`, `data`, `config`) are skip-transformed to preserve DB column names
+- 204 responses return `undefined`
+- Non-2xx responses throw `ApiError` with structured fields: `status`, `code`, `userMessage`, `detail`, `retryAfter`
+## Error Handling
+- `ApiError` class in `frontend/src/lib/api-client.ts` — structured error with `status`, `code`, `userMessage`, `detail`
+- Global TanStack Query error handler toasts `ApiError.userMessage` via Sonner
+- Component-level: check `isError` from useQuery, render `<ErrorPanel>` with retry callback
+- `<ErrorBoundary>` component wraps route outlet in `frontend/src/routes/_app.tsx`
+- Pattern: `const apiError = error instanceof ApiError ? error : null`
+- FastAPI `HTTPException` for client errors (404, 409, 422)
+- `sanitize_detail()` in `backend/app/core/errors.py` — truncates long messages, redacts DB connection strings
+- Route handlers log full exceptions server-side, return sanitized details to clients
+- Connection-level failures detected via pattern matching on Superset error text (`_CONNECTION_FAILURE_PATTERNS`)
+## Logging
+- Errors surface via TanStack Query's global error handler + Sonner toasts
+- Python `logging` module with `logging.basicConfig(level=logging.INFO)` in `backend/app/main.py`
+- Logger created per-module: `logger = logging.getLogger(__name__)`
+- Used for startup events, sync status, and error context before sanitization
+## Comments
+- JSDoc-style `/** */` comments on exported functions that have non-obvious behavior
+- Comment dividers between logical sections within a file:
+- Inline comments for business logic, workarounds, and non-obvious decisions
+- Test file headers with `/** */` blocks explaining scope, context, and preconditions
+- Simple getters, setters, and obvious component wiring are not commented
+## Function Design
+- Hooks return the TanStack Query result object directly (not wrapped)
+- Store hooks return objects with state + actions
+- Utility functions return typed values
+## Module Design
+- No default exports except implicit route exports from TanStack Router file-based routing.
+## Python / FastAPI Conventions
+- All route handlers are `async def`
+- Services use `async` methods for I/O operations
+- `httpx.AsyncClient` for outbound HTTP, `asyncpg` for database
+- Route handlers in `backend/app/api/` — thin, validate input, call service, return response
+- Services in `backend/app/services/` — business logic, external API calls, DB queries
+- No direct DB/HTTP calls in route handlers (except simple SQLAlchemy queries for CRUD)
+- `Annotated[Type, Depends(factory)]` pattern for type-safe DI
+- Named dependency types: `DbSessionDep`, `SupersetDep`, `ConfigStoreDep`, `QueryEngineDep`, `DatasetSyncDep`, `ResolvedDataSourceDep`
+- Session lifecycle managed via `get_db_session()` generator with auto commit/rollback
+- Base class `CamelModel` in `backend/app/models/base.py` auto-generates camelCase aliases
+- All request/response models inherit `CamelModel`
+- Field validation via `Field(min_length=1, max_length=256)` etc.
+- `from __future__ import annotations` at top of every Python file for forward references
+- Located in `backend/app/db/models/`
+- Use `Mapped[T]` + `mapped_column()` (SQLAlchemy 2.0 style)
+- Table names prefixed with `recviz_` (e.g., `recviz_dashboards`, `recviz_charts`)
+- JSONB for flexible config storage
+- Each entity has its own router file in `backend/app/api/` (e.g., `managed_dashboards.py`, `managed_charts.py`)
+- Routers use `prefix="/api/..."` and `tags=[...]`
+- Aggregated in `backend/app/api/router.py` via `api_router.include_router()`
+## Shadcn/ui Rules
+- Style: `new-york` (from `frontend/components.json`)
+- Base color: `neutral`
+- CSS variables enabled
+- Icon library: Lucide React
+- Use `cn()` from `frontend/src/lib/utils.ts` for class merging (clsx + tailwind-merge)
+- Extend Shadcn via composition, not modification of base `ui/` files
+- Domain components compose Shadcn primitives (e.g., `ConfigFilterBar` composes `Select`, `Popover`, `Command`, `Button`)
+## Tailwind CSS Rules
+- Shadcn CSS variable theming in `frontend/src/index.css`
+- Colors reference variables: `text-foreground`, `bg-background`, `text-muted-foreground`, `bg-muted`, `border`, `bg-primary`
+- Status colors: `text-green-600 dark:text-green-400` (positive), `text-red-600 dark:text-red-400` (negative)
+- Chart colors: `--color-chart-1` through `--color-chart-5`
+- Class strategy: `dark` class on `<html>` element
+- Custom variant: `@custom-variant dark (&:is(.dark *));`
+- Every component must include `dark:` variants for colors
+- ThemeProvider at `frontend/src/components/layout/theme-provider.tsx`
+- No mobile/tablet responsive design. Desktop-optimized layouts.
+- Fixed widths for filter controls (e.g., `w-[180px]`, `w-[200px]`)
+## Spacing and Typography
+- Page padding: `p-6` (each page owns its padding)
+- Section gaps: `space-y-6` between major sections
+- Card padding: Shadcn defaults (not overridden)
+- Grid gaps: `gap-3` for KPI rows, `gap-4` for chart grids
+- Page title: `text-2xl font-semibold tracking-tight`
+- Section title: `text-lg font-medium`
+- Body: `text-sm` (14px default)
+- Caption/label: `text-xs text-muted-foreground`, `text-[11px] font-medium uppercase tracking-wider text-muted-foreground` for KPI labels
+- Monospace: `font-mono text-sm`
 <!-- GSD:conventions-end -->
-<!-- GSD:architecture-start source:codebase/ARCHITECTURE.md -->
+<!-- GSD:architecture-start source:ARCHITECTURE.md -->
+## Architecture
+
+## Pattern Overview
+- Config-driven dashboards: Dashboard layout, charts, KPIs, filters, and grids are defined as JSON configs stored in PostgreSQL (JSONB columns)
+- Superset as headless query engine: Superset handles SQL execution, database connectivity, caching, and dataset management. No Superset UI is exposed.
+- FastAPI as both proxy and sidecar: Proxies Superset API calls AND provides its own CRUD endpoints for managed entities (dashboards, charts, KPIs, datasets)
+- Builder pattern: Users create/edit dashboards, charts, KPIs, and datasets through wizard-style builder UIs that persist configs to the backend
+- Dual data paths: "Data sources" (legacy config-driven queries) and "managed datasets" (Superset virtual datasets) coexist
+## Layers
+- Purpose: Renders dashboards, builder UIs, SQL explorer, settings, and library/CRUD pages
+- Location: `frontend/src/`
+- Contains: Route pages, components, hooks, stores, types, utilities
+- Depends on: FastAPI backend (via `api-client.ts`)
+- Used by: End users via browser
+- Purpose: Manages client-side state (filters, drills, builder) and server cache
+- Location: `frontend/src/stores/` (Zustand), `frontend/src/hooks/` (TanStack Query)
+- Contains: Filter store, drill store, builder store, layout history store; query/mutation hooks
+- Depends on: API client for server state; pure functions for computed state
+- Used by: Components via selectors and hooks
+- Purpose: Authenticates to Superset, proxies queries, provides CRUD for managed entities, handles search, export stubs
+- Location: `backend/app/api/`
+- Contains: Route handlers organized by domain (dashboards, charts, KPIs, datasets, data sources, databases, SQL, search, export, views)
+- Depends on: Service layer, DB session, Superset client
+- Used by: Frontend API client
+- Purpose: Encapsulates business logic - query building/execution, database registration, dataset sync, config migration, data merging
+- Location: `backend/app/services/`
+- Contains: `superset_client.py`, `query_engine.py`, `database_registrar.py`, `dataset_sync.py`, `config_store.py`, `merge_engine.py`, `connection_status.py`, `config_migrator.py`, `uri_builder.py`
+- Depends on: Superset REST API (via httpx), SQLAlchemy async sessions
+- Used by: API route handlers via dependency injection
+- Purpose: Stores RecViz-managed entities (dashboards, charts, KPIs, datasets, data sources) and Superset metadata
+- Location: `backend/app/db/` (engine, base, models), `backend/app/migrations/`
+- Contains: SQLAlchemy ORM models, async engine config, Alembic migrations
+- Depends on: PostgreSQL (asyncpg driver)
+- Used by: Service and API layers via `DbSessionDep`
+- Purpose: Executes SQL against configured databases, manages dataset metadata, handles query caching
+- Location: `superset/` (config files and Dockerfile)
+- Contains: `superset_config.py`, Dockerfile, entrypoint script
+- Depends on: PostgreSQL (metadata), Redis (cache), configured data source databases
+- Used by: FastAPI backend via `SupersetClient`
+## Data Flow
+- **Server state**: TanStack Query manages all API data with 5-min stale time, 30-min GC time. Mutations invalidate related query keys.
+- **Filter state**: Zustand `filter-store` holds values, applied snapshot, locked set, and cross-filters. Filters are applied on explicit "Apply" action.
+- **Drill state**: Zustand `drill-store` holds per-chart drill level stacks.
+- **Builder state**: Zustand `builder-store` holds dashboard layout being edited, with dirty tracking.
+- **Layout history**: Zustand `layout-history-store` provides undo/redo for builder canvas layouts.
+- **URL state**: Dashboard filters are bidirectionally synced to URL search params via `dashboard-url-state.ts`.
+## Key Abstractions
+- Purpose: Complete dashboard definition - filters, KPIs, charts, grids, features, layout
+- Examples: `frontend/src/types/dashboard-config.ts`, stored in `recviz_dashboards.config` JSONB column
+- Pattern: The frontend builder writes this config; the renderer reads it. The backend stores and retrieves it as opaque JSON.
+- Purpose: Defines a parameterized SQL query with database routing and filter mappings
+- Examples: `backend/app/models/data_source_config.py`, stored in `recviz_data_sources.config` JSONB column
+- Pattern: Query templates use `{{filters}}`, `{{values}}`, `{{date_range_clause}}` placeholders. `QueryEngine._build_sql()` resolves them.
+- Purpose: Unified interface for rendering any chart type, routing to AG Charts or ECharts
+- Examples: `frontend/src/components/charts/chart-factory.tsx`, `frontend/src/types/chart.ts`
+- Pattern: Factory pattern - `ChartFactory` inspects `config.vizType`, delegates to `AgChartWrapper` or `EChartWrapper`. Both expose `ChartRef` for export.
+- Purpose: Async HTTP client wrapping all Superset REST API calls with auto-authentication and 401 retry
+- Examples: `backend/app/services/superset_client.py`
+- Pattern: Singleton created in FastAPI lifespan, stored in `app.state.superset`, injected via `SupersetDep`
+- Purpose: Resolves database routing, builds SQL from templates, executes via Superset, tracks connection status
+- Examples: `backend/app/services/query_engine.py`
+- Pattern: Stateful service (holds registrar + tracker references), per-request `execute()` calls resolve data source -> database -> SQL -> result
+- Purpose: Provide request-scoped services to route handlers without boilerplate
+- Examples: `backend/app/core/dependencies.py`
+- Pattern: Annotated types (`DbSessionDep`, `SupersetDep`, `QueryEngineDep`, `ConfigStoreDep`, `ResolvedDataSourceDep`, `DatasetSyncDep`) used as function parameter type hints
+## Entry Points
+- Location: `frontend/src/main.tsx`
+- Triggers: Browser loads `index.html`, Vite serves bundled JS
+- Responsibilities: Registers AG Grid/Charts enterprise modules, mounts React root with `<App />`
+- Location: `frontend/src/routes/__root.tsx`
+- Triggers: Router initialization in `App.tsx`
+- Responsibilities: Wraps app in ThemeProvider, QueryClientProvider, Toaster, ErrorBoundary
+- Location: `frontend/src/routes/_app.tsx`
+- Triggers: Any `/_app/*` route match
+- Responsibilities: Renders sidebar, header, animated outlet for page content
+- Location: `frontend/src/routes/index.tsx`
+- Triggers: Navigation to `/`
+- Responsibilities: Redirects to `/dashboards`
+- Location: `frontend/src/routes/embed/dashboards/$dashboardId.tsx`
+- Triggers: Navigation to `/embed/dashboards/:id`
+- Responsibilities: Renders dashboard without sidebar/header, supports `?theme=`, `?hide=`, `?filter.*`, `?filter.lock`
+- Location: `backend/app/main.py`
+- Triggers: `uvicorn app.main:app --reload`
+- Responsibilities: Lifespan initializes Superset client, database registrar, query engine, dataset sync service. Mounts all API routers. CORS + X-Frame-Options middleware.
+- Location: `backend/app/main.py` (`GET /health`)
+- Triggers: Infrastructure health probes
+- Responsibilities: Returns `{"status": "ok", "superset": true}`
+## Error Handling
+- `ErrorBoundary` component (`frontend/src/components/shared/error-boundary.tsx`) catches React rendering errors
+- TanStack Query's `QueryCache.onError` shows toast notifications for `ApiError` instances (`frontend/src/lib/query-client.ts`)
+- `ApiError` class (`frontend/src/lib/api-client.ts`) parses structured error responses with `status`, `code`, `userMessage`, `detail`, `retryAfter`
+- Chart components show skeleton loaders during loading, error panels with retry on failure, "No data available" on empty results
+- Non-2xx fetch responses throw `ApiError`; TanStack Query retries once then exposes error to components
+- Route handlers catch specific exceptions (`ValueError`, `httpx.ConnectError`, `httpx.HTTPStatusError`, `httpx.TimeoutException`) and map to appropriate HTTP status codes
+- `sanitize_detail()` (`backend/app/core/errors.py`) truncates long messages and redacts connection-string URIs before sending to clients
+- Superset connection failures return 503 with `retry_after` hint
+- `QueryEngine._handle_connection_error()` inspects exception types and response bodies to mark databases as unreachable in `ConnectionStatusTracker`
+- `DatasetSyncService` treats Superset sync failures as non-blocking (dataset saves succeed; sync retried at startup)
+- DB session dependency (`get_db_session`) auto-commits on success, auto-rollbacks on exception
+## Cross-Cutting Concerns
+- Frontend: TypeScript strict mode for compile-time type safety. Runtime validation via TanStack Router `validateSearch` for URL params.
+- Backend: Pydantic v2 models validate all request bodies. `CamelModel` base class provides camelCase alias generation. SQLAlchemy models enforce DB constraints.
 <!-- GSD:architecture-end -->
 
 <!-- GSD:workflow-start source:GSD defaults -->
@@ -373,9 +733,9 @@ RecViz is an internal BI and visualization platform replacing Tableau and Qlik V
 Before using Edit, Write, or other file-changing tools, start work through a GSD command so planning artifacts and execution context stay in sync.
 
 Use these entry points:
-- `/gsd:quick` for small fixes, doc updates, and ad-hoc tasks
-- `/gsd:debug` for investigation and bug fixing
-- `/gsd:execute-phase` for planned phase work
+- `/gsd-quick` for small fixes, doc updates, and ad-hoc tasks
+- `/gsd-debug` for investigation and bug fixing
+- `/gsd-execute-phase` for planned phase work
 
 Do not make direct repo edits outside a GSD workflow unless the user explicitly asks to bypass it.
 <!-- GSD:workflow-end -->
@@ -386,3 +746,9 @@ Do not make direct repo edits outside a GSD workflow unless the user explicitly 
 > Profile not yet configured. Run `/gsd:profile-user` to generate your developer profile.
 > This section is managed by `generate-claude-profile` -- do not edit manually.
 <!-- GSD:profile-end -->
+
+<!-- GSD:skills-start source:skills/ -->
+## Project Skills
+
+No project skills found. Add skills to any of: `.claude/skills/`, `.agents/skills/`, `.cursor/skills/`, or `.github/skills/` with a `SKILL.md` index file.
+<!-- GSD:skills-end -->

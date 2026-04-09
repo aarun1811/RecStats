@@ -91,42 +91,42 @@ Deferred to future milestones. Tracked but not in current roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CONN-01 | — | Pending |
-| CONN-02 | — | Pending |
-| CONN-03 | — | Pending |
-| CONN-04 | — | Pending |
-| CONN-05 | — | Pending |
-| QENG-01 | — | Pending |
-| QENG-02 | — | Pending |
-| QENG-03 | — | Pending |
-| QENG-04 | — | Pending |
-| QENG-05 | — | Pending |
-| QENG-06 | — | Pending |
-| DATA-01 | — | Pending |
-| DATA-02 | — | Pending |
-| DATA-03 | — | Pending |
-| DIAL-01 | — | Pending |
-| DIAL-02 | — | Pending |
-| DIAL-03 | — | Pending |
-| DIAL-04 | — | Pending |
-| INFR-01 | — | Pending |
-| INFR-02 | — | Pending |
-| INFR-03 | — | Pending |
-| INFR-04 | — | Pending |
-| INFR-05 | — | Pending |
-| PRTY-01 | — | Pending |
-| PRTY-02 | — | Pending |
-| PRTY-03 | — | Pending |
-| PRTY-04 | — | Pending |
-| PRTY-05 | — | Pending |
-| PRTY-06 | — | Pending |
-| PRTY-07 | — | Pending |
+| CONN-01 | Phase 12 | Pending |
+| CONN-02 | Phase 14 | Pending |
+| CONN-03 | Phase 12 | Pending |
+| CONN-04 | Phase 12 | Pending |
+| CONN-05 | Phase 12 | Pending |
+| QENG-01 | Phase 12 | Pending |
+| QENG-02 | Phase 13 | Pending |
+| QENG-03 | Phase 13 | Pending |
+| QENG-04 | Phase 13 | Pending |
+| QENG-05 | Phase 13 | Pending |
+| QENG-06 | Phase 13 | Pending |
+| DATA-01 | Phase 14 | Pending |
+| DATA-02 | Phase 14 | Pending |
+| DATA-03 | Phase 14 | Pending |
+| DIAL-01 | Phase 12 | Pending |
+| DIAL-02 | Phase 13 | Pending |
+| DIAL-03 | Phase 12 | Pending |
+| DIAL-04 | Phase 13 | Pending |
+| INFR-01 | Phase 15 | Pending |
+| INFR-02 | Phase 15 | Pending |
+| INFR-03 | Phase 15 | Pending |
+| INFR-04 | Phase 15 | Pending |
+| INFR-05 | Phase 15 | Pending |
+| PRTY-01 | Phase 16 | Pending |
+| PRTY-02 | Phase 16 | Pending |
+| PRTY-03 | Phase 16 | Pending |
+| PRTY-04 | Phase 16 | Pending |
+| PRTY-05 | Phase 16 | Pending |
+| PRTY-06 | Phase 16 | Pending |
+| PRTY-07 | Phase 16 | Pending |
 
 **Coverage:**
 - v2.0 requirements: 30 total
-- Mapped to phases: 0
-- Unmapped: 30
+- Mapped to phases: 30
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-04-09*
-*Last updated: 2026-04-09 after initial definition*
+*Last updated: 2026-04-09 after roadmap creation*
