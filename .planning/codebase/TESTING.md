@@ -1,171 +1,194 @@
 # Testing Patterns
 
-**Analysis Date:** 2026-04-06
+**Analysis Date:** 2026-04-09
 
 ## Test Frameworks
 
 ### Frontend Unit Tests
 
 **Runner:**
-- Vitest 4.1.2
+- Vitest 4.1+ (latest major)
 - Config: `frontend/vitest.config.ts`
 
 **Assertion Library:**
-- Vitest built-in (`expect`, `describe`, `it`)
-- `@testing-library/jest-dom` for DOM matchers (available but used sparingly)
-
-**DOM Testing:**
-- `@testing-library/react` (v16.3.2) for component rendering
-- `jsdom` (v29.0.1) for browser environment simulation
-- Environment set per-file via `// @vitest-environment jsdom` comment directive (default is `node`)
+- Vitest built-in (`expect`, `describe`, `it`, `vi`)
+- `@testing-library/jest-dom` available but NOT globally wired (no `setupFiles` in vitest config)
+- Use `expect(element).toBeDefined()` or `expect(element).toBeTruthy()` instead of `toBeInTheDocument()`
 
 **Run Commands:**
 ```bash
 cd frontend
-npx vitest                  # Run all tests (watch mode by default)
-npx vitest run              # Run all tests once
-npx vitest run --reporter=verbose   # Verbose output
+npx vitest                   # Watch mode (default)
+npx vitest run               # Single run
+npx vitest run --coverage    # Coverage (no coverage config detected)
 ```
+
+**Environment:**
+- Default: `node` (from `frontend/vitest.config.ts`: `environment: 'node'`)
+- Override per-file with `// @vitest-environment jsdom` at top of file (used for component tests and DOM-dependent utils)
+- `jsdom` v29 available as devDependency
+- E2E tests excluded: `exclude: ['e2e/**', 'node_modules/**']`
 
 ### Frontend E2E Tests
 
 **Runner:**
-- Playwright 1.59.1
+- Playwright 1.59+
 - Config: `frontend/playwright.config.ts`
 
 **Run Commands:**
 ```bash
 cd frontend
-npx playwright test                     # Run all E2E tests
-npx playwright test --reporter=list     # List reporter
-npx playwright test --ui                # Interactive UI mode
+npx playwright test --reporter=list    # Run all E2E tests
+npx playwright test embed.spec.ts      # Run a specific spec
+npx playwright show-report             # View HTML report
 ```
 
-**Prerequisites:** Full stack must be running (Docker Compose, Superset, FastAPI backend, Frontend dev server). Playwright auto-starts the frontend dev server via `webServer` config if not already running.
+**Prerequisites:**
+- Full stack must be running: Docker Compose (PostgreSQL + Redis), Superset, FastAPI backend, frontend dev server
+- Frontend dev server auto-started by `webServer` config if not already running
+- Seeded curated test data must exist in the database (via `seed-postgres.py`)
 
 **Configuration:**
-- Test directory: `frontend/e2e/`
-- Single worker (`workers: 1`), not fully parallel (`fullyParallel: false`)
-- Chromium only (`Desktop Chrome`)
-- Base URL: `http://localhost:5173`
-- Timeout: 30s per test, 10s per assertion
-- Screenshots: only on failure
-- Trace: on first retry
+- `testDir`: `./e2e`
+- `fullyParallel`: false (sequential)
+- `workers`: 1
+- `timeout`: 30 seconds
+- `expect.timeout`: 10 seconds
+- `baseURL`: `http://localhost:5173`
+- `trace`: on first retry
+- `screenshot`: only on failure
+- Browser: Chromium (Desktop Chrome) only
+- Retries: 0 locally, 2 on CI
 
-### Backend Unit Tests
+### Backend Tests
 
 **Runner:**
-- pytest (installed in venv, not in `requirements.txt` -- dev dependency)
-- pytest-asyncio for async test functions
+- pytest (version from requirements not pinned, installed in venv)
+- No pytest config file detected (no `pytest.ini`, `pyproject.toml`, or `setup.cfg`)
+
+**Assertion Library:**
+- Standard `assert` statements
+- `pytest.raises` for exception assertions
 
 **Run Commands:**
 ```bash
 cd backend
-python -m pytest tests/                 # Run all backend tests
-python -m pytest tests/ -v              # Verbose output
-python -m pytest tests/test_query_engine.py  # Single file
+python -m pytest tests/         # Run all backend tests
+python -m pytest tests/ -v      # Verbose output
+python -m pytest tests/test_query_engine.py  # Run specific file
 ```
 
-**No pytest config file** (no `pytest.ini`, `pyproject.toml`, or `setup.cfg`). Uses default pytest discovery.
+**Async Support:**
+- `pytest-asyncio` for async test functions
+- Decorator: `@pytest.mark.asyncio`
 
 ## Test File Organization
 
-**Frontend Unit Tests - Co-located:**
-- Tests live alongside their source files
-- Naming: `{source-name}.test.ts` or `{source-name}.test.tsx`
-- Excluded from Vitest: `e2e/**` and `node_modules/**` via `vitest.config.ts`
-
+**Frontend Unit Tests — Co-located:**
 ```
 frontend/src/
-├── lib/
-│   ├── formatters.ts
-│   ├── formatters.test.ts          # Unit test for formatters
-│   ├── cross-filter.ts
-│   ├── cross-filter.test.ts        # Unit test for cross-filter logic
-│   ├── kpi-aggregator.ts
-│   ├── kpi-aggregator.test.ts
-│   ├── chart-export.ts
-│   ├── chart-export.test.ts
-│   ├── column-detection.ts
-│   ├── column-detection.test.ts
-│   ├── column-merge.ts
-│   ├── column-merge.test.ts
-│   ├── chart-compatibility.ts
-│   └── chart-compatibility.test.ts
-├── stores/
-│   ├── filter-store.ts
-│   ├── filter-store.test.ts
-│   ├── drill-store.ts
-│   └── drill-store.test.ts
-├── hooks/
-│   ├── use-auto-refresh.ts
-│   └── use-auto-refresh.test.ts
-└── components/
-    ├── dashboard/
-    │   ├── grid-toolbar.tsx
-    │   └── grid-toolbar.test.tsx
-    └── charts/
-        ├── chart-factory.tsx
-        ├── chart-factory.test.tsx
-        ├── ag-chart-wrapper.tsx
-        └── ag-chart-wrapper.test.ts
+  lib/
+    cross-filter.ts              # Source
+    cross-filter.test.ts         # Test (same directory)
+    formatters.ts
+    formatters.test.ts
+    kpi-aggregator.ts
+    kpi-aggregator.test.ts
+  stores/
+    filter-store.ts
+    filter-store.test.ts
+    drill-store.ts
+    drill-store.test.ts
+  components/
+    charts/
+      ag-chart-wrapper.tsx
+      ag-chart-wrapper.test.ts   # Pure logic test (node env)
+      ag-chart-wrapper.rules-of-hooks.test.tsx  # Component render test (jsdom)
+      chart-factory.tsx
+      chart-factory.test.tsx
+    dashboard/
+      grid-toolbar.tsx
+      grid-toolbar.test.tsx
+  routes/
+    embed/dashboards/
+      $dashboardId.tsx
+      $dashboardId.test.tsx       # Wiring test with mocked deps
 ```
 
-**Frontend E2E Tests - Separate directory:**
+**Frontend E2E Tests — Separate directory:**
 ```
 frontend/e2e/
-├── chart-showcase.spec.ts      # Chart rendering + cross-filter + drill-down
-└── tlm-stats-regression.spec.ts  # Regression tests for production dashboard
+  _fixtures.ts                    # Shared test fixtures (CURATED_DASHBOARDS, CURATED_CHARTS, etc.)
+  _dashboard-names.json           # Dashboard name cross-check data
+  chart-showcase.spec.ts          # Dashboard smoke tests (all 5 curated dashboards)
+  command-palette.spec.ts         # Cmd+K palette search tests
+  dashboard-edit-regression.spec.ts  # Builder page mount regression
+  dashboard-view-regression.spec.ts  # View route hook regression
+  embed.spec.ts                   # Embed mode tests (8 tests for hide/theme/filter params)
+  share-link.spec.ts              # Share URL bidirectional sync tests
 ```
 
-**Backend Tests - Separate `tests/` directory:**
+**Backend Tests — Separate `tests/` directory:**
 ```
 backend/tests/
-├── __init__.py
-├── test_config_store.py
-├── test_database_registrar.py
-├── test_merge_engine.py
-├── test_query_engine.py
-├── test_uri_builder.py
-├── test_connection_status.py
-├── test_dataset_sync.py
-├── test_managed_datasets.py
-└── test_managed_charts.py
+  __init__.py
+  test_config_store.py            # ConfigStore unit tests
+  test_connection_status.py       # Connection status tracker tests
+  test_database_registrar.py      # Database registrar (async, mocked Superset)
+  test_dataset_sync.py            # Dataset sync service tests
+  test_managed_charts.py          # Chart CRUD API endpoint tests
+  test_managed_datasets.py        # Dataset CRUD API endpoint tests
+  test_managed_kpis.py            # KPI CRUD API endpoint tests
+  test_merge_engine.py            # MergeEngine unit tests
+  test_query_engine.py            # QueryEngine SQL building + routing tests
+  test_search.py                  # Search API endpoint tests
+  test_seed_script.py             # Seed script validation tests
+  test_uri_builder.py             # URI builder utility tests
 ```
 
 ## Test Structure
 
-### Frontend Unit Test Pattern
+### Frontend Unit Test Pattern (Pure Logic)
 
-**Pure function tests (most common):**
+Tests for pure functions use `describe/it` blocks with direct imports:
+
 ```typescript
 import { describe, it, expect } from 'vitest'
-import { formatValue, formatValueFull } from './formatters'
+import type { CrossFilter } from '@/types/filter'
+import { applyCrossFilters, rowPassesCrossFilters } from './cross-filter'
 
-describe('formatValue', () => {
-  describe('null/undefined handling', () => {
-    it('returns empty string for null', () => {
-      expect(formatValue(null, { type: 'number' })).toBe('')
-    })
+describe('applyCrossFilters', () => {
+  const makeData = (rows: Record<string, unknown>[]): ChartDataResponse => ({
+    chartId: 'test',
+    columns: Object.keys(rows[0] ?? {}),
+    data: rows,
+    rowCount: rows.length,
   })
 
-  describe('number formatting', () => {
-    it('formats with abbreviation (compact notation)', () => {
-      const result = formatValue(1234567, { type: 'number', abbreviate: true })
-      expect(result).toMatch(/1\.2M/i)
-    })
+  it('filters rows where column matches', () => {
+    const data = makeData([
+      { region: 'APAC', count: 10 },
+      { region: 'EMEA', count: 20 },
+    ])
+    const filters: CrossFilter[] = [
+      { sourceChartId: 'chart-a', column: 'region', value: 'APAC' },
+    ]
+    const result = applyCrossFilters(data, filters, 'chart-b')
+    expect(result?.data).toHaveLength(1)
   })
 })
 ```
 
-**Zustand store tests:**
+### Frontend Unit Test Pattern (Zustand Store)
+
+Store tests use `useStore.setState()` for setup and `useStore.getState()` for assertions:
+
 ```typescript
 import { describe, it, expect, beforeEach } from 'vitest'
 import { useFilterStore } from './filter-store'
 
 describe('filter-store crossFilters', () => {
   beforeEach(() => {
-    // Reset store state before each test
     useFilterStore.setState({
       crossFilters: [],
       values: {},
@@ -185,37 +208,42 @@ describe('filter-store crossFilters', () => {
 })
 ```
 
-**Component tests (jsdom environment):**
+### Frontend Unit Test Pattern (Component Render)
+
+Component tests use `@testing-library/react` with `jsdom` environment:
+
 ```typescript
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import React from 'react'
 
-import { GridToolbar } from './grid-toolbar'
-
-vi.mock('sonner', () => ({
-  toast: { success: vi.fn(), error: vi.fn() },
-}))
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
 describe('GridToolbar', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
+  beforeEach(() => { vi.clearAllMocks() })
 
   it('renders search input with placeholder', () => {
     render(<GridToolbar {...defaultProps} />)
     expect(screen.getByPlaceholderText('Quick filter...')).toBeDefined()
   })
+
+  it('calls gridApi on button click', () => {
+    const api = mockGridApi()
+    render(<GridToolbar {...defaultProps} gridApi={api as never} />)
+    fireEvent.click(screen.getByRole('button', { name: /csv/i }))
+    expect(api.exportDataAsCsv).toHaveBeenCalledTimes(1)
+  })
 })
 ```
 
-**Hook tests (jsdom environment):**
+### Frontend Unit Test Pattern (Hook Render)
+
+Hook tests use `renderHook` from `@testing-library/react`:
+
 ```typescript
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-
 import { useAutoRefresh } from './use-auto-refresh'
 
 describe('useAutoRefresh', () => {
@@ -233,179 +261,236 @@ describe('useAutoRefresh', () => {
 
 ### Frontend E2E Test Pattern
 
+E2E tests use Playwright with shared fixtures from `frontend/e2e/_fixtures.ts`:
+
 ```typescript
-import { test, expect, type Page } from '@playwright/test'
+import { expect, test } from '@playwright/test'
+import { CURATED_DASHBOARDS, waitForDashboardLoad } from './_fixtures'
 
-async function waitForDashboardLoad(page: Page): Promise<void> {
-  await page.locator('text=Bar Chart').waitFor({ state: 'visible', timeout: 15_000 })
-  await expect(page.locator('[data-slot="skeleton"]')).toHaveCount(0, { timeout: 15_000 })
-}
+const { volume } = CURATED_DASHBOARDS
 
-test.describe('Chart Showcase - Rendering', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto('/dashboards/chart-showcase')
-    await waitForDashboardLoad(page)
-  })
-
-  // Parameterized: iterate over chart types
-  for (const chartTitle of chartTypes) {
-    test(`${chartTitle} renders without error`, async ({ page }) => {
-      const titleEl = page.locator(`text="${chartTitle}"`).first()
-      await expect(titleEl).toBeVisible()
-      // Assert no error panels
-      await expect(content.locator('text=Column mapping error')).toHaveCount(0)
+test.describe('Dashboard view route', () => {
+  test('loads with title visible', async ({ page }) => {
+    const consoleErrors: string[] = []
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') consoleErrors.push(msg.text())
     })
-  }
+
+    await page.goto(`/dashboards/${volume.id}`)
+    await waitForDashboardLoad(page, volume.name)
+
+    await expect(page.locator('h1', { hasText: volume.name })).toBeVisible()
+    await expect(page.locator('text=Dashboard not found')).toHaveCount(0)
+    expect(consoleErrors).toHaveLength(0)
+  })
 })
 ```
 
-### Backend Unit Test Pattern
+### Backend Test Pattern (Service Unit)
 
-**Pure function tests:**
-```python
-from app.services.merge_engine import MergeEngine
+Pure unit tests using pytest fixtures and standard assertions:
 
-def test_outer_join():
-    left = {"columns": ["k", "v1"], "rows": [...], "row_count": 2}
-    right = {"columns": ["k", "v2"], "rows": [...], "row_count": 1}
-    result = MergeEngine.merge([left, right], merge_on=["k"], merge_type="outer_join")
-    assert result["row_count"] == 3
-```
-
-**Async service tests:**
 ```python
 import pytest
+from unittest.mock import MagicMock
+from app.services.query_engine import QueryEngine
+
+@pytest.fixture
+def mock_registrar():
+    registrar = MagicMock()
+    registrar.get_dialect.return_value = "oracle"
+    return registrar
+
+@pytest.fixture
+def engine(mock_registrar):
+    return QueryEngine(superset_client=MagicMock(), database_registrar=mock_registrar)
+
+def test_build_sql_with_filters(engine):
+    sql = engine._build_sql(data_source_id="tlm_breaks", filters={"recon": ["AGENT_01"]})
+    assert "b.agent_code IN ('AGENT_01')" in sql
+```
+
+### Backend Test Pattern (API Endpoint)
+
+API tests create a minimal FastAPI app with mocked dependencies:
+
+```python
 from unittest.mock import AsyncMock, MagicMock
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+
+def _make_chart_row(*, chart_id: str = "chart-uuid-1", name: str = "Test") -> MagicMock:
+    row = MagicMock()
+    row.id = chart_id
+    row.name = name
+    row.config = {"column_mapping": {...}}
+    return row
+
+def _create_test_app(session_mock: AsyncMock) -> FastAPI:
+    from app.api.managed_charts import router
+    from app.core.dependencies import get_db_session
+
+    test_app = FastAPI()
+    test_app.include_router(router)
+
+    async def override_db():
+        yield session_mock
+
+    test_app.dependency_overrides[get_db_session] = override_db
+    return test_app
+
+def test_list_managed_charts_returns_list():
+    row = _make_chart_row()
+    session = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.scalars = MagicMock(return_value=MagicMock(all=MagicMock(return_value=[row])))
+    session.execute = AsyncMock(return_value=mock_result)
+
+    app = _create_test_app(session)
+    client = TestClient(app)
+
+    resp = client.get("/api/charts/managed")
+    assert resp.status_code == 200
+    assert len(resp.json()) == 1
+```
+
+### Backend Test Pattern (Async Service)
+
+Async tests use `@pytest.mark.asyncio` with `AsyncMock`:
+
+```python
+import pytest
+from unittest.mock import AsyncMock
 
 @pytest.mark.asyncio
 async def test_sync_creates_missing_databases():
     superset = AsyncMock()
     superset.list_databases = AsyncMock(return_value=[])
-    superset.create_database = AsyncMock(side_effect=lambda payload: {"id": 99})
+    superset.create_database = AsyncMock(side_effect=lambda p: {"id": 99})
     registrar = DatabaseRegistrar(superset_client=superset, config_path=None)
     registrar._entries = _make_entries()
     await registrar.sync()
     assert superset.create_database.call_count == 2
 ```
 
-**FastAPI endpoint tests (TestClient):**
-```python
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
-
-def _create_test_app(session_mock, sync_mock):
-    test_app = FastAPI()
-    test_app.include_router(router)
-    test_app.state.dataset_sync = sync_mock
-
-    async def override_db():
-        yield session_mock
-    test_app.dependency_overrides[get_db_session] = override_db
-    return test_app
-
-def test_create_managed_dataset_returns_201():
-    session = AsyncMock()
-    sync_service = MagicMock(spec=DatasetSyncService)
-    sync_service.sync_dataset = AsyncMock(return_value=42)
-    app = _create_test_app(session, sync_service)
-    client = TestClient(app)
-    resp = client.post("/api/datasets/managed", json=VALID_CREATE_BODY)
-    assert resp.status_code == 201
-```
-
 ## Mocking
 
-### Frontend Mocking
+### Frontend Mocking (Vitest)
 
-**Framework:** `vi.mock()` and `vi.fn()` from Vitest
+**Framework:** `vi` from Vitest (built-in)
 
-**Module mocking pattern:**
+**Module Mocking:**
 ```typescript
-// Mock external dependencies
-vi.mock('sonner', () => ({
-  toast: { success: vi.fn(), error: vi.fn() },
-}))
-
-// Mock internal modules
+// Mock entire modules
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 vi.mock('@/lib/chart-export', () => ({
   sanitizeFilename: (name: string) => name.toLowerCase().replace(/\s+/g, '-'),
 }))
 
-// Mock chart wrappers to avoid browser dependencies
-vi.mock('./ag-chart-wrapper', () => ({
-  AgChartWrapper: (props: { config?: { vizType?: string } }) =>
-    React.createElement('div', { 'data-testid': 'ag-chart', 'data-viztype': props.config?.vizType }),
+// Mock chart libraries to avoid canvas/DOM dependencies
+vi.mock('ag-charts-react', () => ({
+  AgCharts: () => null,
+}))
+
+// Mock hooks to isolate component wiring
+const useManagedDashboardMock = vi.fn()
+vi.mock('@/hooks/use-managed-dashboards', () => ({
+  useManagedDashboard: (id: string | null) => useManagedDashboardMock(id),
+}))
+
+// Mock React component to spy on props
+const dashboardRendererSpy = vi.fn()
+vi.mock('@/components/dashboard/dashboard-renderer', () => ({
+  DashboardRenderer: (props: Record<string, unknown>) => {
+    dashboardRendererSpy(props)
+    return <div data-testid="dashboard-renderer-mock" />
+  },
 }))
 ```
 
-**API mock pattern:** Mock the AG Grid API object with `vi.fn()` methods:
+**Spy Functions:**
 ```typescript
-function mockGridApi() {
-  return {
-    exportDataAsCsv: vi.fn(),
-    exportDataAsExcel: vi.fn(),
-    getColumns: vi.fn(() => [
-      { getColId: () => 'name', getColDef: () => ({ headerName: 'Name' }), isVisible: () => true },
-    ]),
-    autoSizeAllColumns: vi.fn(),
-  }
+const mockClick = vi.fn()
+const onChange = vi.fn()
+vi.spyOn(console, 'error').mockImplementation(() => {})
+```
+
+**Fake Timers:**
+```typescript
+vi.useFakeTimers()
+vi.setSystemTime(new Date('2026-04-05T12:00:00Z'))
+vi.advanceTimersByTime(61_000)
+vi.useRealTimers()
+```
+
+**Browser API Mocking:**
+```typescript
+// ResizeObserver
+class MockResizeObserver {
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
 }
+;(globalThis as unknown as { ResizeObserver: typeof MockResizeObserver }).ResizeObserver = MockResizeObserver
+
+// Clipboard
+const writeText = vi.fn().mockResolvedValue(undefined)
+Object.assign(navigator, { clipboard: { writeText } })
+
+// URL.createObjectURL
+globalThis.URL.createObjectURL = vi.fn().mockReturnValue('blob:test-url')
+globalThis.URL.revokeObjectURL = vi.fn()
 ```
 
-**Timer mocking:** `vi.useFakeTimers()` / `vi.useRealTimers()` with `vi.advanceTimersByTime()`.
+**What to Mock:**
+- External chart libraries (AG Charts, ECharts) — heavy DOM/canvas dependencies
+- Third-party toast libraries (Sonner)
+- Browser APIs not available in jsdom (ResizeObserver, clipboard, URL.createObjectURL)
+- Hooks when testing component wiring (isolate the SUT)
+- Network-dependent services (TanStack Router, API client)
+- Theme provider when testing components
 
-**What to mock:**
-- External services (sonner toast, chart libraries)
-- Browser APIs (clipboard, DOM creation, URL.createObjectURL)
-- Timer-dependent code
+**What NOT to Mock:**
+- Pure logic functions (cross-filter, formatters, URL state, column detection) — test directly
+- Zustand stores — test via `getState()` / `setState()` (no mocking needed)
+- Pydantic models and data transformations
 
-**What NOT to mock:**
-- Pure utility functions under test
-- Zustand stores (test directly via `getState()` / `setState()`)
-- Type imports
+### Backend Mocking (Python)
 
-### Backend Mocking
+**Framework:** `unittest.mock` (MagicMock, AsyncMock, patch)
 
-**Framework:** `unittest.mock` (`AsyncMock`, `MagicMock`, `patch`)
-
-**Async mock pattern:**
+**SQLAlchemy Session Mocking:**
 ```python
-superset = AsyncMock()
-superset.create_dataset = AsyncMock(return_value={"id": 55})
-superset.list_databases = AsyncMock(return_value=[{"id": 5, "database_name": "db_one"}])
+session = AsyncMock()
+mock_result = MagicMock()
+mock_result.scalar_one_or_none = MagicMock(return_value=row)
+session.execute = AsyncMock(return_value=mock_result)
+
+# Multi-query mocking via side_effect
+session.execute = AsyncMock(side_effect=[result1, result2, result3])
 ```
 
-**FastAPI dependency override:**
+**Dependency Override Pattern:**
 ```python
 async def override_db():
     yield session_mock
+
 test_app.dependency_overrides[get_db_session] = override_db
 ```
 
-**SQLAlchemy result mocking:**
+**Service Mocking:**
 ```python
-mock_result = MagicMock()
-mock_result.scalars = MagicMock(return_value=MagicMock(all=MagicMock(return_value=[row])))
-session.execute = AsyncMock(return_value=mock_result)
+sync_service = MagicMock(spec=DatasetSyncService)
+sync_service.sync_dataset = AsyncMock(return_value=42)
+sync_service.delete_synced = AsyncMock()
 ```
-
-**What to mock:**
-- Superset HTTP client (`AsyncMock`)
-- Database sessions (`AsyncMock` + `MagicMock` result chains)
-- External services
-- Internal private state for edge cases (e.g., `registrar._cache.clear()`, `registrar._last_refresh = 0.0`)
-
-**What NOT to mock:**
-- `ConfigStore` (tested against real JSON config files on disk)
-- Pure logic like `MergeEngine`, `uri_builder`, `ConnectionStatusTracker`
-- Pydantic model validation
 
 ## Fixtures and Factories
 
 ### Frontend Test Data Factories
 
+**Inline factory functions at the top of test files:**
 ```typescript
-// Inline factory function pattern
 const makeData = (rows: Record<string, unknown>[]): ChartDataResponse => ({
   chartId: 'test',
   columns: Object.keys(rows[0] ?? {}),
@@ -424,168 +509,167 @@ function makeKpiConfig(overrides: Partial<KpiConfig> & { id: string }): KpiConfi
 }
 ```
 
-**Location:** Inline within each test file. No shared fixture files.
+### Frontend E2E Fixtures
+
+**Curated test catalog in `frontend/e2e/_fixtures.ts`:**
+- `DASHBOARD_NAMES` — canonical dashboard name strings (matched by seed script)
+- `CURATED_DASHBOARDS` — 5 dashboards keyed by handle (sla, aging, matchRate, volume, breaksSummary)
+- `CURATED_CHARTS` — 22 charts covering all 18 chart types
+- `CURATED_DATASETS` — 16 datasets
+- `CURATED_KPIS` — 12 KPIs
+- `waitForDashboardLoad(page, name)` — shared helper that waits for h1 + skeleton removal
 
 ### Backend Test Data Factories
 
+**Factory functions per entity:**
 ```python
-def _make_dataset_row(*, dataset_id="test-uuid-1", name="Test Dataset", ...):
-    """Create a mock RecvizDataset row."""
+def _make_chart_row(*, chart_id: str = "chart-uuid-1", name: str = "Test Chart") -> MagicMock:
     row = MagicMock()
-    row.id = dataset_id
+    row.id = chart_id
     row.name = name
-    # ...
+    row.config = {...}
+    row.created_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
     return row
-
-def _make_entries() -> list[DatabaseEntry]:
-    return [
-        DatabaseEntry(name="db_one", display_name="DB One", sqlalchemy_uri="sqlite:///test.db", ...),
-    ]
 ```
 
-**Pattern:** Private `_make_*` factory functions at module top. Use `MagicMock` for ORM rows, real Pydantic models for config objects.
-
-**pytest fixtures:**
+**Shared constants for valid request bodies:**
 ```python
-@pytest.fixture
-def store():
-    return ConfigStore()
-
-@pytest.fixture
-def mock_registrar():
-    registrar = MagicMock()
-    registrar.get_dialect.return_value = "oracle"
-    return registrar
-
-@pytest.fixture
-def engine(mock_registrar):
-    return QueryEngine(config_store=ConfigStore(), superset_client=MagicMock(), database_registrar=mock_registrar)
+VALID_CREATE_BODY = {
+    "name": "My Chart",
+    "description": "Testing",
+    "datasetId": "dataset-uuid-1",
+    "chartType": "bar",
+    "config": {...},
+}
 ```
 
 ## Coverage
 
-**Requirements:** Not enforced. No coverage thresholds configured.
+**Requirements:** No coverage thresholds enforced. No coverage tooling configured.
 
-**View Coverage (Frontend):**
+**View Coverage:**
 ```bash
-cd frontend
-npx vitest run --coverage
+cd frontend && npx vitest run --coverage   # Vitest coverage (not configured)
+cd backend && python -m pytest --cov=app tests/  # If pytest-cov is installed
 ```
-
-**View Coverage (Backend):**
-```bash
-cd backend
-python -m pytest tests/ --cov=app --cov-report=html
-```
-(Requires `pytest-cov` to be installed.)
 
 ## Test Types
 
-### Unit Tests (Frontend - 13 test files)
+### Unit Tests (Frontend)
 
-**Scope:** Pure logic, store state management, component rendering, hook behavior.
+**17 test files** across:
+- Pure logic utilities: `frontend/src/lib/` (8 files: cross-filter, formatters, kpi-aggregator, kpi-utils, chart-compatibility, chart-export, column-detection, column-merge, dashboard-url-state)
+- Zustand stores: `frontend/src/stores/` (2 files: filter-store, drill-store)
+- Component logic: `frontend/src/components/charts/` (3 files: ag-chart-wrapper, chart-factory, rules-of-hooks)
+- Component render: `frontend/src/components/dashboard/` (1 file: grid-toolbar)
+- Hook behavior: `frontend/src/hooks/` (1 file: use-auto-refresh)
+- Route wiring: `frontend/src/routes/embed/` (1 file: embed route)
 
-**Tested areas:**
-- `frontend/src/lib/formatters.test.ts` -- Number/currency/percentage formatting
-- `frontend/src/lib/cross-filter.test.ts` -- Cross-filter application logic
-- `frontend/src/lib/kpi-aggregator.test.ts` -- KPI recomputation with cross-filters
-- `frontend/src/lib/chart-export.test.ts` -- CSV/TSV generation, file download, clipboard
-- `frontend/src/lib/column-detection.test.ts` -- Auto-detection of column types from data
-- `frontend/src/lib/column-merge.test.ts` -- Column schema merge (unchanged/new/missing)
-- `frontend/src/lib/chart-compatibility.test.ts` -- Chart type vs dataset shape validation
-- `frontend/src/stores/filter-store.test.ts` -- Cross-filter toggle/replace/clear
-- `frontend/src/stores/drill-store.test.ts` -- Drill-down state per chart
-- `frontend/src/hooks/use-auto-refresh.test.ts` -- Timer-based auto-refresh hook
-- `frontend/src/components/dashboard/grid-toolbar.test.tsx` -- Grid toolbar rendering and actions
-- `frontend/src/components/charts/chart-factory.test.tsx` -- Chart type routing (AG vs ECharts)
-- `frontend/src/components/charts/ag-chart-wrapper.test.ts` -- Series builder config mapping
+**Scope:** Pure functions, store state transitions, component rendering, hook lifecycle, route wiring.
 
-### E2E Tests (Frontend - 2 test files)
+### Unit Tests (Backend)
 
-**Scope:** Full-stack rendering validation against real backend data.
+**12 test files** covering:
+- Service logic: `test_query_engine.py`, `test_merge_engine.py`, `test_uri_builder.py`, `test_config_store.py`, `test_database_registrar.py`, `test_connection_status.py`, `test_dataset_sync.py`
+- API endpoints: `test_managed_charts.py`, `test_managed_datasets.py`, `test_managed_kpis.py`, `test_search.py`
+- Seed validation: `test_seed_script.py`
 
-**Tested areas:**
-- `frontend/e2e/chart-showcase.spec.ts` -- 12 chart types render without error, cross-filter activation, drill-down navigation
-- `frontend/e2e/tlm-stats-regression.spec.ts` -- Production dashboard regression (column mapping refactor)
+**Scope:** SQL building, data merging, URI construction, CRUD operations, search ranking, config loading.
 
-### Unit Tests (Backend - 9 test files)
+### E2E Tests (Playwright)
 
-**Scope:** Service logic, API endpoints, data transformations.
+**6 spec files** covering:
+- `chart-showcase.spec.ts` — Smoke test all 5 curated dashboards (no errors, charts render, KPIs show values)
+- `command-palette.spec.ts` — Cmd+K search against curated entities (navigation, type ordering)
+- `dashboard-edit-regression.spec.ts` — Builder page mount regression
+- `dashboard-view-regression.spec.ts` — View route hook upgrade regression
+- `embed.spec.ts` — Embed mode (8 tests: theme, filters, lock, hide params)
+- `share-link.spec.ts` — Bidirectional URL sync, clipboard, replace mode
 
-**Tested areas:**
-- `backend/tests/test_config_store.py` -- Dashboard/data-source JSON config loading
-- `backend/tests/test_database_registrar.py` -- Superset database sync, resolve, cache
-- `backend/tests/test_merge_engine.py` -- Multi-source data merge (outer/inner join)
-- `backend/tests/test_query_engine.py` -- SQL building, dialect handling, filter injection, SQL injection prevention
-- `backend/tests/test_uri_builder.py` -- SQLAlchemy URI construction for Oracle/Hive/PostgreSQL
-- `backend/tests/test_connection_status.py` -- In-memory connection status tracking
-- `backend/tests/test_dataset_sync.py` -- Superset dataset CRUD sync, reconciliation
-- `backend/tests/test_managed_datasets.py` -- Dataset API CRUD endpoints (201, 404, 422, 204, 409)
-- `backend/tests/test_managed_charts.py` -- Chart API CRUD endpoints + reference checks
+**Scope:** Full-stack integration against seeded data. Real API, real database, real rendering.
 
 ## Common Patterns
 
-### Async Testing (Backend)
+### Async Testing (Frontend)
 
-```python
-@pytest.mark.asyncio
-async def test_sync_creates_missing_databases():
-    superset = AsyncMock()
-    registrar = DatabaseRegistrar(superset_client=superset, config_path=None)
-    await registrar.sync()
-    assert superset.create_database.call_count == 2
-```
-
-### Error Testing
-
-**Frontend:**
 ```typescript
-it('does not crash when currencyCode is undefined', () => {
-  expect(() => formatValue(1234.56, { type: 'currency', currencyCode: undefined })).not.toThrow()
+it('calls gridApi.exportDataAsExcel on Excel button click', async () => {
+  const api = mockGridApi()
+  render(<GridToolbar {...defaultProps} gridApi={api as never} />)
+  fireEvent.click(screen.getByRole('button', { name: /excel/i }))
+  await waitFor(() => {
+    expect(api.exportDataAsExcel).toHaveBeenCalledTimes(1)
+  })
 })
 ```
 
-**Backend:**
+### Error Testing (Frontend)
+
+```typescript
+it('shows error toast when clipboard fails', async () => {
+  const { toast } = await import('sonner')
+  const writeText = vi.fn().mockRejectedValue(new Error('denied'))
+  Object.assign(navigator, { clipboard: { writeText } })
+  await copyToClipboard(['a'], [{ a: 1 }])
+  expect(toast.error).toHaveBeenCalledWith('Failed to copy to clipboard')
+})
+```
+
+### Error Testing (Backend)
+
 ```python
-def test_resolve_unknown_raises():
-    with pytest.raises(ValueError, match="not registered"):
-        await registrar.resolve("nonexistent")
-
-def test_create_managed_dataset_empty_name_returns_422():
-    resp = client.post("/api/datasets/managed", json=body)
-    assert resp.status_code == 422
+def test_resolve_database_dynamic_missing_filter(engine):
+    with pytest.raises(ValueError, match="required filter"):
+        engine._resolve_database(data_source_id="tlm_breaks", filters={})
 ```
 
-### Environment Directive Pattern (Frontend)
+### Null/Undefined/Edge Case Testing
 
-Tests that need browser APIs use a per-file directive instead of global config:
 ```typescript
-// @vitest-environment jsdom
+it('returns undefined data as-is', () => {
+  const result = applyCrossFilters(undefined, [
+    { sourceChartId: 'a', column: 'x', value: 'y' },
+  ], 'b')
+  expect(result).toBeUndefined()
+})
+
+it('returns empty string for null', () => {
+  expect(formatValue(null, { type: 'number' })).toBe('')
+})
 ```
-This keeps the default environment as `node` (faster) and only uses `jsdom` where needed. This is configured in `frontend/vitest.config.ts`:
+
+### Console Error Spy Pattern (E2E)
+
 ```typescript
-test: {
-  globals: true,
-  environment: 'node',
-  exclude: ['e2e/**', 'node_modules/**'],
+test('loads without console errors', async ({ page }) => {
+  const consoleErrors: string[] = []
+  page.on('console', (msg) => {
+    if (msg.type() === 'error') consoleErrors.push(msg.text())
+  })
+  await page.goto(`/dashboards/${volume.id}`)
+  await waitForDashboardLoad(page, volume.name)
+  expect(consoleErrors).toHaveLength(0)
+})
+```
+
+### Module Re-import Pattern (Wiring Tests)
+
+For tests that need fresh module state after mock changes:
+
+```typescript
+async function importEmbedPage() {
+  const mod = await import('./$dashboardId')
+  const route = mod.Route as unknown as { component: () => JSX.Element }
+  return route.component
 }
+
+afterEach(() => {
+  cleanup()
+  vi.clearAllMocks()
+  vi.resetModules()
+})
 ```
-
-### Test Data Conventions
-
-- Use realistic domain data (regions: 'APAC'/'EMEA', desks: 'FX'/'EQ', columns: 'break_count', 'amount')
-- Test edge cases: `null`, `undefined`, empty arrays, empty Maps
-- Test both positive and negative paths for every function
-- Verify same-reference returns when no filtering needed (performance optimization tests)
-
-### Vitest Globals
-
-`globals: true` in `vitest.config.ts` means `describe`, `it`, `expect`, `vi`, `beforeEach`, `afterEach` are globally available. However, the codebase explicitly imports them:
-```typescript
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-```
-This is the preferred pattern -- always import explicitly for clarity.
 
 ---
 
-*Testing analysis: 2026-04-06*
+*Testing analysis: 2026-04-09*
