@@ -48,10 +48,10 @@ Requirements for Superset removal and direct database engine. Each maps to roadm
 ### Parity Verification
 
 - [x] **PRTY-01**: All API response shapes preserved — zero breaking frontend changes
-- [ ] **PRTY-02**: Seed data dashboards render correctly with charts, KPIs, grids, and filters
-- [ ] **PRTY-03**: Cross-filtering and drill-down work end-to-end on seed dashboards
-- [ ] **PRTY-04**: Dashboard builder create/edit/save/delete cycle works
-- [ ] **PRTY-05**: Sharing (URL sync), embed mode, and Cmd+K command palette work
+- [x] **PRTY-02**: Seed data dashboards render correctly with charts, KPIs, grids, and filters
+- [x] **PRTY-03**: Cross-filtering and drill-down work end-to-end on seed dashboards
+- [x] **PRTY-04**: Dashboard builder create/edit/save/delete cycle works
+- [x] **PRTY-05**: Sharing (URL sync), embed mode, and Cmd+K command palette work
 - [ ] **PRTY-06**: SQL Explorer executes queries and displays results
 - [ ] **PRTY-07**: Connection management UI creates, tests, and manages connections
 
@@ -115,10 +115,10 @@ Deferred to future milestones. Tracked but not in current roadmap.
 | INFR-04 | Phase 15 | Complete |
 | INFR-05 | Phase 15 | Complete |
 | PRTY-01 | Phase 16 | Complete |
-| PRTY-02 | Phase 16 | Pending |
-| PRTY-03 | Phase 16 | Pending |
-| PRTY-04 | Phase 16 | Pending |
-| PRTY-05 | Phase 16 | Pending |
+| PRTY-02 | Phase 16 | Complete |
+| PRTY-03 | Phase 16 | Complete |
+| PRTY-04 | Phase 16 | Complete |
+| PRTY-05 | Phase 16 | Complete |
 | PRTY-06 | Phase 16 | Pending |
 | PRTY-07 | Phase 16 | Pending |
 
