@@ -67,10 +67,10 @@ Plans:
   2. DatasetSyncService and all Superset dataset sync code are deleted -- dataset CRUD operates purely on `recviz_datasets`
   3. The `superset_id` and `sync_status` columns are removed from the datasets model and database via Alembic migration
   4. Every API response shape is byte-compatible with v1.0 -- frontend code requires zero changes
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
-- [ ] 14-01-PLAN.md -- Rewrite database connection CRUD to use recviz_connections directly
+- [x] 14-01-PLAN.md -- Rewrite database connection CRUD to use recviz_connections directly
 - [ ] 14-02-PLAN.md -- Remove DatasetSyncService + Alembic migration to drop superset_id/sync_status
 
 ### Phase 15: Superset Removal
@@ -106,6 +106,6 @@ Phases execute in numeric order: 12 -> 13 -> 14 -> 15 -> 16
 |-------|----------------|--------|-----------|
 | 12. Engine Foundation | 3/3 | Complete    | 2026-04-09 |
 | 13. Query Execution | 3/3 | Complete    | 2026-04-09 |
-| 14. API Migration | 0/2 | Not started | - |
+| 14. API Migration | 1/2 | In Progress|  |
 | 15. Superset Removal | 0/TBD | Not started | - |
 | 16. Parity Verification | 0/TBD | Not started | - |

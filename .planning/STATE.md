@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Remove Superset -- Direct Database Engine
 status: executing
-stopped_at: Completed 13-03-PLAN.md
-last_updated: "2026-04-09T12:48:30.977Z"
-last_activity: 2026-04-09 -- Phase 14 planning complete
+stopped_at: Completed 14-01-PLAN.md
+last_updated: "2026-04-09T12:53:47.556Z"
+last_activity: 2026-04-09
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 8
-  completed_plans: 6
-  percent: 75
+  completed_plans: 7
+  percent: 88
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-09)
 
 **Core value:** Business users can view, interact with, and customize dashboards over reconciliation data without depending on another team.
-**Current focus:** Phase 13 — Query Execution
+**Current focus:** Phase 14 — API Migration
 
 ## Current Position
 
-Phase: 14
-Plan: Not started
+Phase: 14 (API Migration) — EXECUTING
+Plan: 2 of 2
 Status: Ready to execute
-Last activity: 2026-04-09 -- Phase 14 planning complete
+Last activity: 2026-04-09
 
 Progress: ░░░░░░░░░░ 0%
 
@@ -70,6 +70,7 @@ Progress: ░░░░░░░░░░ 0%
 | Phase 13 P01 | 4min | 2 tasks | 6 files |
 | Phase 13 P02 | 5min | 2 tasks | 4 files |
 | Phase 13 P03 | 3min | 1 tasks | 2 files |
+| Phase 14 P01 | 3min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -96,6 +97,9 @@ Recent decisions affecting current work:
 - [Phase 13]: Old Superset client, DatabaseRegistrar, DatasetSyncService kept in lifespan temporarily (removed in Phase 14/15)
 - [Phase 13]: database_id changed from int to str in SQL Explorer -- frontend treats it as opaque, transparent migration
 - [Phase 13]: Read-only validation runs before DB lookup to fail fast on forbidden SQL
+- [Phase 14]: DatabaseInfo.id changed from int to str (UUID) -- frontend treats as opaque, transparent migration
+- [Phase 14]: All database CRUD endpoints rewritten from Superset proxy to direct SQLAlchemy -- zero httpx/SupersetClient imports remain
+- [Phase 14]: sync endpoint preserved as no-op for API compatibility -- returns {success: true, dataset_count: 0}
 
 ### Pending Todos
 
@@ -109,6 +113,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-09T12:29:09.252Z
-Stopped at: Completed 13-03-PLAN.md
+Last session: 2026-04-09T12:53:47.554Z
+Stopped at: Completed 14-01-PLAN.md
 Resume file: None
