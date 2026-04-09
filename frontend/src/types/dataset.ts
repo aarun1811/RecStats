@@ -7,10 +7,10 @@ export interface ColumnInfo {
 }
 
 export interface DatasetInfo {
-  id: number
+  id: string
   name: string
   tableName: string
-  databaseId: number
+  databaseId: string
   columns?: ColumnInfo[]
   rowCount?: number | null
 }

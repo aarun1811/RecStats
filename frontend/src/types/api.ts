@@ -39,7 +39,7 @@ export interface SqlResult {
 
 export interface SqlHistoryItem {
   sql: string
-  databaseId: number
+  databaseId: string
   executedAt: string
   status: string
   rows: number
