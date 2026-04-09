@@ -47,6 +47,7 @@ export function buildSeries(
   metricColumns: string[],
   categoryColumn: string | undefined,
   selection?: ChartSelection,
+  appearance?: { colorRange?: string[] },
 ) {
   // Resolve category: explicit config > first non-metric string column > columns[0]
   const categoryKey = categoryColumn
@@ -141,7 +142,10 @@ export function buildSeries(
         : nonMetricCols[0] !== xKey
           ? nonMetricCols[0]
           : columns[1] ?? 'y'
-      return [{ type: 'heatmap' as const, xKey, yKey, colorKey }]
+      return [{
+        type: 'heatmap' as const, xKey, yKey, colorKey,
+        ...(appearance?.colorRange ? { colorRange: appearance.colorRange } : {}),
+      }]
     }
 
     case 'treemap': {
@@ -152,7 +156,7 @@ export function buildSeries(
         type: 'treemap' as const,
         labelKey,
         sizeKey,
-        ...(colorKey ? { colorKey, colorRange: ['#43A047', '#FF5722'] } : {}),
+        ...(colorKey ? { colorKey, colorRange: appearance?.colorRange ?? ['#43A047', '#FF5722'] } : {}),
       }]
     }
 
@@ -311,6 +315,7 @@ export const AgChartWrapper = forwardRef<AgChartRef, ChartWrapperProps>(function
       config.metricColumns ?? [],
       config.categoryColumn,
       activeSelection,
+      config.appearance,
     )
     const rows = formatDates(data.data as Record<string, unknown>[], categoryKey)
 

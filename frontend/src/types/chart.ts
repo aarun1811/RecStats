@@ -37,6 +37,8 @@ export interface ChartConfig {
     showXLabel?: boolean
     showYLabel?: boolean
     interactive?: boolean
+    /** Color gradient for heatmap / treemap (array of hex strings) */
+    colorRange?: string[]
   }
 }
 

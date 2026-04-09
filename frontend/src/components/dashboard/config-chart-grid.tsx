@@ -58,6 +58,7 @@ function toChartConfig(chart: DashboardChartConfig): ChartConfig {
     datasourceId: 0, // config-driven charts don't use Superset datasource IDs
     metricColumns,
     // categoryColumn intentionally omitted — resolved at render time as first non-metric string column
+    ...(chart.appearance ? { appearance: chart.appearance } : {}),
   }
 }
 
