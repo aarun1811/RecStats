@@ -1,189 +1,193 @@
 # Project Research Summary
 
-**Project:** RecViz Dashboard Builder
-**Domain:** Internal BI/visualization platform for financial reconciliation (replacing Tableau/Qlik)
-**Researched:** 2026-04-04
+**Project:** RecViz v2.0 -- Remove Superset, Direct Database Engine
+**Domain:** Internal BI platform backend migration (heavyweight dependency removal)
+**Researched:** 2026-04-09
 **Confidence:** HIGH
 
 ## Executive Summary
 
-RecViz is a brownfield evolution of an existing reconciliation visualization platform into a self-service dashboard builder. The existing codebase already handles rendering dashboards from JSON config, querying data via Apache Superset as a headless engine, and displaying results through AG Grid and AG Charts. The core architectural insight is that the dashboard builder is a **config authoring UI** -- it produces the same DashboardConfig structure that the renderer already consumes. This means the builder is an additive layer, not a rewrite. The critical path runs through: database-backed config persistence, dataset metadata with column roles, a drag-and-drop layout editor (react-grid-layout v2), and a chart configurator that maps dataset columns to chart axes. Cross-filtering and drill-down -- the two most expected interactive features -- already have partial implementations in legacy code that must be ported to the config-driven system before the builder can configure them.
+RecViz v2.0 replaces Apache Superset (used as a headless query engine) with direct SQLAlchemy async connections from FastAPI to Oracle/PostgreSQL. This eliminates the Superset process, Redis, and the HTTP proxy layer entirely. The migration is architecturally clean: the frontend never talked to Superset directly, so all changes are behind FastAPI's API surface. Research confirms that SQLAlchemy 2.0.49 with python-oracledb 3.4.2 in thin mode provides a fully async, production-ready query path to Oracle 19c. The critical path is: connection storage table, engine pool, query executor rewrite, API endpoint rewiring, then Superset deletion. Estimated ~880 lines of new code and ~800+ lines deleted -- roughly code-neutral.
 
-The recommended approach is to fix foundational defects first (mock data fallback, financial number formatting, Superset version pinning), then evolve the renderer to support cross-filtering and drill-down, then build the dataset management layer for dev teams, and finally deliver the builder UI for business users. This ordering respects strict dependencies: the builder cannot configure features the renderer does not support, and charts cannot be built without rich dataset metadata. The stack additions are minimal and high-confidence: react-grid-layout v2 for layout, react-hook-form + Zod for chart configuration forms, zundo + immer for undo/redo, SQLAlchemy + Alembic for config persistence.
+The recommended approach is a "build alongside, then swap" strategy. Build the new DataSourceEnginePool and QueryExecutor as new services, wire them into the FastAPI lifespan, verify API response shapes are byte-identical to the Superset-proxied versions, then delete all Superset code in a final cleanup phase. This avoids a risky big-bang cutover. The existing `_build_sql()` template engine and `_resolve_database()` routing logic are reusable as-is -- only the execution layer changes.
 
-The key risks are: (1) client-side cross-filtering failing at production scale on million-row Oracle datasets -- mitigated by a hybrid strategy with a configurable row threshold; (2) dashboard config schema breaking saved dashboards as the product evolves -- mitigated by versioned schemas with migration pipelines from day one; (3) scope creep toward Tableau feature parity -- mitigated by a template-first approach and explicit feature boundaries. The Superset integration requires immediate hardening (version pinning, CSRF handling, adapter layer) before building new features that depend on it.
+The top risks are: (1) PostgreSQL JSONB columns in every ORM model will crash on Oracle -- must be replaced with a cross-dialect type before anything else; (2) Superset's response shape is deeply embedded in frontend parsing -- the new engine must reproduce the exact column/row format; (3) connection pool sizing must account for dashboard concurrency (12-15 queries per page load times concurrent users), not just the number of databases. All three are solvable with known patterns and must be addressed in Phase 1.
 
 ## Key Findings
 
 ### Recommended Stack
 
-The existing core stack (React 19, Vite, TypeScript, Shadcn/ui, AG Grid/Charts, TanStack Router/Query, Zustand, FastAPI, Superset, Redis, PostgreSQL) is established and not changing. Research focused on additions needed for the dashboard builder experience.
+No new libraries are required. The entire migration uses packages already installed (SQLAlchemy 2.0.49, asyncpg 0.31.0) plus one version upgrade (python-oracledb 2.5.1 to 3.4.2). SQLAlchemy's `create_async_engine` with `AsyncAdaptedQueuePool` handles connection pooling for both PostgreSQL and Oracle. Superset, Redis, httpx, psycopg2-binary, and requests are removed.
 
-**New frontend dependencies:**
-- **react-grid-layout v2.2.3**: Dashboard layout editor (drag, drop, resize on 12-column grid) -- industry standard used by Grafana, 1.3M+ weekly downloads, v2 is a full TypeScript rewrite with hooks API
-- **react-hook-form 7.72.1 + Zod 4.3.6**: Chart builder configuration forms -- handles complex nested forms (chart type, column mapping, appearance, filters) with schema validation
-- **zundo 2.3.0 + immer 11.1.4**: Undo/redo for builder operations -- plugs directly into Zustand, essential for builder UX where users expect Ctrl+Z
-- **nanoid 5.1.7**: Unique IDs for new panels/widgets -- tiny, URL-friendly IDs for builder-created elements
-- **react-colorful 5.6.1**: Color picker for chart series customization -- 2.8kB, zero-dependency, works with Shadcn Popover
+**Core technologies (all existing):**
+- **SQLAlchemy 2.0.49**: Query engine via `text()` + `create_async_engine` -- replaces Superset's SQL execution entirely
+- **python-oracledb 3.4.2** (upgrade from 2.5.1): Async Oracle driver in thin mode -- `oracle+oracledb://` auto-selects async dialect
+- **asyncpg 0.31.0**: PostgreSQL async driver -- already in use for metadata, now also for dev data queries
+- **Fernet (cryptography)**: Credential encryption for stored database passwords -- new usage, library likely already transitive
 
-**New backend dependencies:**
-- **SQLAlchemy 2.0 (async) + Alembic**: ORM and migrations for dashboard/dataset config persistence -- replaces JSON files on disk, enables CRUD, versioning, draft/publish states
+**Removed:**
+- Apache Superset (query engine), Redis (cache/broker), httpx (Superset proxy), psycopg2-binary (sync PG driver), requests (transitive)
 
-**Explicitly rejected:** dnd-kit (stalled maintenance), Gridstack.js (no React wrapper), Formik (abandoned), TanStack Form (too simple for builder), react-color (bloated), axios (project uses native fetch).
+**Do NOT add:** orjson/ujson (premature), databases (encode), aiocache/cachetools (defer), Celery (unnecessary), SQLModel (blurs boundaries), pgbouncer (overkill for <50 users)
 
 ### Expected Features
 
-**Must have (table stakes -- P1):**
-- Chart builder: dataset-to-chart pipeline (pick dataset, select columns, choose chart type, preview)
-- Dashboard layout editor: grid-based drag-and-drop with snap and resize
-- Dataset management UI (dev-facing): SQL editor, column metadata, filter mappings
-- Cross-filtering: click chart element to filter all others (zero latency, client-side)
-- Drill-down: aggregated -> breakdown -> detail rows with breadcrumb navigation
-- Save/load dashboards to database with CRUD
-- Global filter bar (configurable per dashboard)
-- Chart/grid export (PNG, CSV, Excel)
-- Fullscreen chart view, manual refresh, auto-refresh
+**Must have (table stakes for Superset parity):**
+- **TS-1: Raw SQL execution** against configured databases via `text()` + async engine
+- **TS-2: Database connection CRUD** stored in `recviz_connections` table (replaces Superset metadata + databases.json)
+- **TS-3: Connection testing** via direct `SELECT 1` / `SELECT 1 FROM DUAL`
+- **TS-4: Dynamic engine pool** -- one async engine per registered connection, lazy creation, dispose on update/delete
+- **TS-5: Dataset query with filter injection** -- reuse existing `_build_sql()` template engine, swap execution layer
+- **TS-6: Dataset metadata without Superset sync** -- delete `DatasetSyncService`, drop `superset_id`/`sync_status` columns
+- **TS-7: Schema browser** -- SQLAlchemy Inspector for table/column introspection (new capability)
+- **TS-8: SQL Explorer execution** -- same as TS-1 behind `/api/sql/execute` endpoint
 
-**Should have (differentiators -- P2):**
-- Dashboard templates for reconciliation (breaks summary, SLA, aging, match rate, volume)
-- Recon-specific KPI library (break count, match rate %, SLA adherence, aging distribution)
-- Saved views / personal bookmarks with URL sharing
-- Conditional formatting with threshold rules for grids and KPIs
-- Cross-filter visual state (Qlik-style dimming of excluded items)
-- Inline chart type switching without entering edit mode
+**Differentiators (free or low-cost improvements):**
+- **D-1: 50-200ms faster per query** (eliminate HTTP double-hop) -- free
+- **D-2: Better error messages** (native Oracle/PG error codes preserved) -- free
+- **D-3: Streaming large result sets** for exports via `StreamingResponse` -- medium effort
+- **D-4: Connection pool observability** (`engine.pool.status()`) -- low effort
+- **D-5: Simplified infrastructure** (Docker: just PostgreSQL; prod: just FastAPI + Oracle) -- free
+- **D-6: Per-query timeout control** -- low effort
+- **D-7: True async all the way down** (no fake-async httpx blocking) -- free
 
-**Defer (v2+):**
-- Multi-dashboard overview (portfolio view across recons)
-- PDF/Excel dashboard export
-- Scheduled report delivery
-- RBAC / row-level security
-- Alerting / threshold notifications
+**Anti-features (Superset complexity we must NOT rebuild):**
+- Superset virtual dataset abstraction (redundant with RecViz datasets)
+- Superset chart data API / JSON-to-SQL compiler (RecViz has simpler template SQL)
+- Redis result caching (TanStack Query handles client-side caching)
+- Superset auth/RBAC (deferred to future milestone)
+- Superset metadata DB (50+ tables -- RecViz has 6)
+- Celery async query execution (use streaming instead)
+
+**Defer to later:**
+- In-memory server-side query cache (only if TanStack Query proves insufficient)
+- Persistent query history (in-memory works for now)
+- Query cost estimation (EXPLAIN before execute)
 
 ### Architecture Approach
 
-The architecture adds a design-time layer (builder) on top of the existing runtime layer (renderer). The foundational pattern is **Config-as-Contract**: the DashboardConfig JSON schema is the contract between builder (producer) and renderer (consumer). Both builder preview and production view use the same renderer -- no parallel rendering paths. The schema evolves backward-compatibly: existing "flow" layout dashboards continue to work, new builder dashboards use a "grid" layout type powered by react-grid-layout.
+The architecture introduces a "dual engine" strategy: one fixed metadata engine (existing `db/engine.py`, unchanged) for RecViz ORM tables, plus a new `DataSourceEnginePool` managing N dynamic engines for user-defined database connections. The pool creates engines lazily on first query, disposes them on connection update/delete, and uses `pool_size=5, max_overflow=10` per engine. A `ConnectionResolver` replaces `DatabaseRegistrar` to map logical database names to connection IDs. The rewritten `QueryExecutor` keeps the existing `_build_sql()` and `_resolve_database()` methods, replacing only the `execute()` call from Superset HTTP to direct `text()` execution.
 
 **Major components:**
-1. **Dataset Manager** (dev-team tool) -- SQL editor, column metadata with roles (dimension/measure/temporal), filter mappings, validation. Produces DatasetConfig objects that business users consume.
-2. **Dashboard Builder** (business user tool) -- Layout editor (react-grid-layout canvas), widget palette, chart/KPI/grid configurators, cross-filter/drill-down rule editor. Produces DashboardConfig objects.
-3. **Dashboard Renderer** (existing, evolved) -- Renders DashboardConfig into interactive UI. Needs cross-filtering, drill-down, and chart panel features ported from legacy code. Accepts `mode` prop for view vs. builder preview.
-4. **Config Persistence Layer** (new) -- SQLAlchemy ORM replacing JSON files. Dashboards table + dashboard_versions table. Draft/published lifecycle. CRUD API via FastAPI.
-5. **Widget Registry** -- Maps widget `kind` strings to React components, configurator panels, and default configs. New widget types are added by registering, not modifying switch statements.
+1. **DataSourceEnginePool** -- manages async SQLAlchemy engines per database connection (create, cache, dispose, test)
+2. **QueryExecutor** (rewritten `query_engine.py`) -- builds SQL via existing template engine, executes via engine pool, returns identical response shape
+3. **ConnectionResolver** (replaces `DatabaseRegistrar`) -- maps logical DB names to `recviz_connections` row IDs, caches in-memory, invalidated on CRUD
+4. **RecvizConnection ORM model** -- new `recviz_connections` table with encrypted credentials
+5. **PortableJSON type** -- `JSON().with_variant(JSONB, "postgresql")` cross-dialect type replacing all JSONB columns
+
+**Key architectural decisions:**
+- One engine per database (not one shared engine) because each connection targets a different physical DB
+- `text()` for all data queries (not ORM) because recon table schemas are unknown at compile time
+- Fernet encryption for passwords (build URI at runtime from decrypted fields, never store full URI)
+- API response shapes kept byte-identical to avoid any frontend changes
 
 ### Critical Pitfalls
 
-1. **Silent mock data fallback masking production failures** -- Every backend route returns hardcoded mock data on any exception (22 instances). Analysts could see fabricated financial numbers. Fix: remove all mock fallbacks immediately, return HTTP 502/503, move mocks behind explicit `MOCK_MODE` env var. Address in Phase 1.
+1. **JSONB columns crash on Oracle (P1)** -- All 5 ORM models import `JSONB` from `sqlalchemy.dialects.postgresql`. Replace with `PortableJSON = JSON().with_variant(JSONB(), "postgresql")`. Must be Phase 1 -- nothing works on Oracle without this.
 
-2. **Client-side cross-filtering on million-row datasets** -- Current design fetches rows to browser for filtering. Works at demo scale, collapses at production scale (memory exhaustion, stale aggregates). Fix: hybrid strategy -- client-side for <50K rows, backend query with debounce for larger datasets. Address before building cross-filter UI.
+2. **Superset response shape deeply embedded in frontend (P2)** -- Frontend parses `columns` as `[{column_name, name, type}]` objects and `data`/`rows` as column-keyed dicts. The new engine must reproduce this exact format. Build a response adapter and test against every existing dashboard.
 
-3. **Dashboard config schema without versioning** -- As the product evolves, saved dashboards break silently when schema changes. Fix: add `schemaVersion` field from day one, build migration pipeline (v1->v2->...->vN), validate with Zod/Pydantic on load. Address in builder foundation.
+3. **Connection pool exhaustion under concurrent load (P3)** -- A dashboard fires 12-15 queries on load. 10 concurrent users = 120-150 concurrent queries. Size pools for dashboard concurrency (`pool_size=10, max_overflow=20`), set `pool_timeout=10` (fast failure), `pool_pre_ping=True`, `pool_recycle=1800`.
 
-4. **N+1 query pattern on dashboard load** -- Each chart/KPI triggers a separate API call (11+ per dashboard). With Oracle network latency, load times balloon to 5-10s. Fix: batch queries by data source, add dashboard-level prefetch endpoint, progressive loading (KPIs first). Address before builder ships.
+4. **Engine lifecycle leaks on connection update/delete (P4)** -- Each undisposed engine leaks its entire pool. The `DataSourceEnginePool` must `await engine.dispose()` on every update/delete. Write tests asserting pool status returns to zero after CRUD operations.
 
-5. **Superset API version coupling** -- Unpinned Superset version means `pip install` can silently break the API contract. Fix: pin exact version, build adapter layer for response parsing, integration tests for all 14 consumed endpoints. Address immediately.
+5. **Oracle identifier UPPERCASE breaks column matching (P11)** -- Oracle returns `STATUS` not `status`. The query engine's result adapter must lowercase all column names. One normalization point, not scattered across consumers.
 
-6. **Financial data precision errors** -- JavaScript floating-point produces visible rounding errors on currency values. In reconciliation, a 1-cent discrepancy triggers investigation. Fix: all aggregation in database, `Intl.NumberFormat` for display, shared formatting utilities enforced across all components. Address in Phase 1.
+6. **`database_id` semantic shift (P9)** -- Currently stores Superset integer IDs throughout the stack. Must migrate to string-based logical names. Data migration required for existing datasets. Frontend sends opaque IDs so the type change is transparent if list endpoints return the new format.
+
+7. **No query timeout without Superset (P15)** -- Use `oracledb.call_timeout` + `asyncio.wait_for()` from day one. Different timeouts for dashboard queries (30s), SQL Explorer (60s), schema introspection (10s).
 
 ## Implications for Roadmap
 
-Based on research, suggested phase structure:
+Based on combined research, the migration decomposes into 5 phases with a clear dependency chain.
 
-### Phase 1: Foundation Cleanup and Renderer Evolution
-**Rationale:** The existing codebase has critical defects (mock data fallback, no number formatting, unpinned Superset) that must be fixed before building new features. Additionally, the renderer must support cross-filtering and drill-down before the builder can configure them -- these are the two most expected interactive features from Tableau/Qlik users.
-**Delivers:** A production-hardened renderer with cross-filtering, drill-down, chart panel features (export, fullscreen), database-backed config persistence, and financial number formatting utilities.
-**Addresses (FEATURES.md):** Cross-filtering, drill-down, chart export (PNG/CSV), grid export, fullscreen chart view, manual refresh.
-**Avoids (PITFALLS.md):** Mock data masking failures (Pitfall 5), financial precision errors (Pitfall 10), Superset version coupling (Pitfall 2), CSRF brittleness (Pitfall 8).
+### Phase 1: Engine Foundation
+**Rationale:** Everything depends on the data-query infrastructure. Connection storage, engine pooling, and cross-dialect types must exist before any query can execute. This phase has the highest pitfall density (JSONB, pool sizing, Oracle thin mode, URI format, timeouts, case sensitivity).
+**Delivers:** `recviz_connections` table, `DataSourceEnginePool`, `ConnectionResolver`, `PortableJSON` type, credential encryption, query timeout infrastructure. No API-visible changes yet.
+**Addresses:** TS-2 (connection storage), TS-3 (connection testing), TS-4 (engine pool), foundation for TS-1
+**Avoids:** P1 (JSONB crash), P3 (pool exhaustion), P4 (engine leaks), P7 (thick mode), P14 (URI format), P15 (no timeout), P11 (case sensitivity)
 
-### Phase 2: Dataset Management Layer
-**Rationale:** The chart builder cannot function without rich dataset metadata. Business users need to see friendly column names, understand which columns are dimensions vs. measures, and pick from a curated catalog. This is a dev-team tool that must be built and populated before the builder UI exists.
-**Delivers:** Dataset CRUD API, column metadata with roles (dimension/measure/temporal), dataset manager UI (SQL editor, column editor, validation), column introspection via Superset.
-**Addresses (FEATURES.md):** Dataset management UI, column metadata/friendly names.
-**Uses (STACK.md):** SQLAlchemy 2.0 (dataset persistence), Monaco editor (SQL editing, already installed).
+### Phase 2: Query Execution + API Migration
+**Rationale:** With engines available, rewrite the query execution path and rewire API endpoints. This is where the frontend starts talking to the new code. Response shape fidelity is critical.
+**Delivers:** `QueryExecutor` (rewritten), databases.py CRUD against `recviz_connections`, sql.py direct execution, managed_datasets.py cleanup (remove sync), schema browser endpoints. Main.py lifespan rewrite.
+**Addresses:** TS-1 (raw SQL), TS-5 (dataset queries with filters), TS-6 (remove dataset sync), TS-7 (schema browser), TS-8 (SQL Explorer), D-1 (faster queries), D-2 (better errors), D-6 (timeout control), D-7 (true async)
+**Avoids:** P2 (response shape mismatch), P5 (superset_id orphans), P9 (database_id semantic shift), P10 (SQL injection surface), P12 (async session leaks)
 
-### Phase 3: Dashboard Builder Core
-**Rationale:** With datasets available and the renderer supporting all interactive features, the builder can be built. This is the capstone phase -- it depends on both prior phases. The builder produces DashboardConfig objects that the existing renderer already consumes.
-**Delivers:** Layout editor (react-grid-layout canvas), widget palette, chart configurator (dataset picker -> column mapper -> chart type picker -> preview), KPI configurator, filter configurator, builder store with undo/redo, save/publish workflow.
-**Addresses (FEATURES.md):** Chart builder, dashboard layout editor, configurable filter bar, save/load dashboards, KPI card builder.
-**Uses (STACK.md):** react-grid-layout v2, react-hook-form + Zod, zundo + immer, nanoid, react-colorful.
-**Avoids (PITFALLS.md):** Config schema without versioning (Pitfall 3), builder scope creep (Pitfall 6), layout persistence without undo (Pitfall 9).
+### Phase 3: Superset Removal + Cleanup
+**Rationale:** Only after the new engine is verified working do we delete Superset code. This is the "cut the cord" phase. Systematic removal across 29 files that reference Superset.
+**Delivers:** Delete `superset_client.py`, `database_registrar.py`, `dataset_sync.py`, `superset/` directory. Remove Redis and Superset from Docker Compose. Clean config, dependencies, health endpoint. Rename `superset_db_*` connection names.
+**Addresses:** D-5 (simplified infrastructure), cleanup of all Superset ghost references
+**Avoids:** P13 (incomplete removal -- use systematic grep), P17 (Redis left behind), P18 (psycopg2-binary confusion)
 
-### Phase 4: Dashboard Rendering Optimization
-**Rationale:** Once users start building dashboards with 10-15 panels, the N+1 query pattern becomes the dominant UX issue. This must be addressed before widespread adoption. Also includes query performance tuning for Oracle production deployment.
-**Delivers:** Dashboard-level batch data endpoint, query deduplication via TanStack Query keys, progressive loading (KPIs -> charts -> grid), Superset Redis cache tuning, Oracle connection pool optimization, IntersectionObserver for off-screen chart deferral.
-**Addresses (FEATURES.md):** Auto-refresh (configurable), progressive loading.
-**Avoids (PITFALLS.md):** N+1 query pattern (Pitfall 4), Oracle query performance (Pitfall 7).
+### Phase 4: Hardening + Observability
+**Rationale:** With Superset gone, add production-grade features that were impossible or unnecessary before. Pool monitoring, streaming exports, SQL safety, dialect validation.
+**Delivers:** Pool observability endpoint (`/api/health/pools`), streaming CSV/Excel exports, read-only transaction enforcement, SQL statement classifier (reject DDL/DML), portable SQL subset documentation for dev team
+**Addresses:** D-3 (streaming results), D-4 (pool observability), enhanced security (P10 hardening)
+**Avoids:** P6 (dialect differences in user SQL), P10 (SQL injection from filter interpolation)
 
-### Phase 5: Advanced Builder Features and Templates
-**Rationale:** With the core builder working and performance optimized, add the features that differentiate RecViz from generic BI tools. Templates are the biggest value-add -- they reduce time-to-first-dashboard from hours to minutes and embed reconciliation domain expertise.
-**Delivers:** Dashboard templates (5-8 recon-specific: breaks summary, SLA, aging, match rate, volume, operational summary), cross-filter rule configurator UI, drill-down level configurator UI, saved views with URL sharing, conditional formatting for grids and KPIs, inline chart type switching.
-**Addresses (FEATURES.md):** Dashboard templates, recon KPI library, saved views, conditional formatting, cross-filter visual state, inline chart type switching, shareable URLs.
-
-### Phase 6: Export, Polish, and Production Readiness
-**Rationale:** Final phase before broad rollout. Focuses on the features that matter for daily operational use: dashboard PDF export, data freshness indicators, embed mode hardening, and authentication groundwork.
-**Delivers:** Dashboard PDF export (WeasyPrint), data freshness indicator, embed mode improvements, dashboard categorization/search for scale, authentication middleware (API key minimum).
-**Addresses (FEATURES.md):** PDF dashboard export, multi-dashboard overview, RBAC groundwork.
+### Phase 5: Verification + Migration
+**Rationale:** Final validation that every dashboard, chart, KPI, grid, and SQL Explorer query works identically to the Superset-backed version. Data migration for existing datasets with Superset integer IDs.
+**Delivers:** Full regression testing, data migration script (Superset IDs to logical names), Oracle-specific test coverage, deployment documentation
+**Addresses:** Confidence that v1.0 parity is achieved
+**Avoids:** P6 (silent wrong data from dialect differences), P19 (false confidence from PG-only testing)
 
 ### Phase Ordering Rationale
 
-- **Phases 1-2-3 form a strict dependency chain:** The builder (Phase 3) cannot configure features the renderer does not support (Phase 1), and the chart configurator cannot offer column-to-axis mapping without dataset metadata (Phase 2).
-- **Phase 4 after Phase 3:** Optimization is driven by real builder output. Until users create multi-panel dashboards, the N+1 problem is theoretical. But it must be addressed before widespread adoption.
-- **Phase 5 after Phase 3-4:** Templates and advanced features enhance the builder. The core loop (place -> configure -> preview -> save) must work first.
-- **Phase 6 is decoupled:** Export and polish can happen in parallel with Phase 5 if resources allow.
-- **Foundation cleanup (Phase 1) is non-negotiable first:** Mock data fallback, financial precision, and Superset hardening are pre-existing defects. Building new features on top of mock-data-masking-errors is building on sand.
+- **Phase 1 before Phase 2:** The engine pool is a prerequisite for every query execution path. Building it first allows Phase 2 to focus purely on API wiring without infrastructure concerns.
+- **Phase 2 before Phase 3:** "Build alongside, then swap" is safer than "delete then rebuild." Phase 2 can be tested while Superset is still present as a fallback.
+- **Phase 3 after verification:** Deleting Superset code is irreversible (in terms of easy rollback). Do it only after the new path is proven.
+- **Phase 4 is optional for parity** but important for production readiness. It can be done in parallel with Phase 5 or deferred.
+- **Phases 1-3 are the critical path.** Phases 4-5 are hardening.
 
 ### Research Flags
 
 Phases likely needing deeper research during planning:
-- **Phase 1 (Cross-filtering port):** The hybrid client/server cross-filter strategy needs careful API design. Research the exact data flow, query parameterization, and threshold configuration.
-- **Phase 2 (Dataset management):** Column role auto-detection heuristics (when is a string column a dimension vs. identifier?) need validation against real Oracle schema shapes.
-- **Phase 3 (Builder core):** react-grid-layout v2 integration patterns, widget registry design, and builder store undo/redo architecture would benefit from prototyping.
-- **Phase 5 (Templates):** Recon-specific template design requires domain expert input -- which KPIs, which visualizations, which default filters for each recon pattern.
+- **Phase 1:** Oracle connection string formats for RHEL production (TNS aliases vs Easy Connect), pool sizing validation under realistic concurrent load
+- **Phase 2:** Exact Superset response shapes for every endpoint (need to capture and snapshot current responses as test fixtures)
+- **Phase 4:** Parameterized query migration for `_build_sql()` filter injection -- the current string interpolation must be replaced with bind parameters, which changes how templates work
 
-Phases with standard patterns (skip deep research):
-- **Phase 4 (Optimization):** Well-documented patterns: batch endpoints, TanStack Query key deduplication, progressive loading with IntersectionObserver, Redis cache tuning.
-- **Phase 6 (Export/Polish):** WeasyPrint PDF generation is well-documented. Authentication middleware is standard FastAPI.
+Phases with standard patterns (skip research-phase):
+- **Phase 3:** Pure deletion/cleanup -- well-defined file list, systematic grep, no design decisions
+- **Phase 5:** Testing and verification -- standard integration test patterns
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All packages verified on npm with exact versions, peer dependencies confirmed compatible with React 19 / Zustand 5. Brownfield project -- most stack is already installed and running. |
-| Features | HIGH | Primary sources: Tableau/Qlik official docs, BI buyer guides, reconciliation domain analysis. Feature prioritization aligned with industry table stakes. Competitor analysis covers 4 major BI tools. |
-| Architecture | HIGH | Existing codebase thoroughly documented (CODEBASE_GUIDE.md). Architecture follows established patterns from Grafana, Metabase, Superset. Config-as-contract is proven. |
-| Pitfalls | HIGH | Combines codebase-specific analysis (22 mock data instances, N+1 queries, unpinned Superset) with industry patterns (schema versioning, cross-filter scaling, Oracle performance). All pitfalls have concrete prevention strategies. |
+| Stack | HIGH | All libraries already installed or have verified async Oracle support. Version compatibility confirmed via PyPI and official docs. |
+| Features | HIGH | Complete audit of every Superset API call RecViz makes. Feature list derived from codebase analysis, not speculation. Migration surface fully mapped (files to delete, modify, create). |
+| Architecture | HIGH | Dual-engine pattern is standard for multi-database FastAPI. DataSourceEnginePool pattern verified in SQLAlchemy docs and community projects. Existing code reuse paths clearly identified. |
+| Pitfalls | HIGH | 19 pitfalls identified from codebase analysis, SQLAlchemy docs, python-oracledb docs, and community patterns. Phase-specific warnings mapped. Critical pitfalls have concrete prevention strategies. |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **Authentication strategy:** No auth exists on any endpoint. The research identifies this as a Phase 6 concern, but the exact approach (SSO/SAML/OIDC vs. API keys vs. both) needs a decision from stakeholders before implementation.
-- **Oracle production performance:** Dev uses PostgreSQL with seed data. Oracle production performance characteristics are estimated, not measured. Load testing with production-scale data is essential before the builder ships (recommended during Phase 4).
-- **Superset version selection:** Research recommends pinning but does not specify which version. The exact version to pin (latest stable vs. current installed) needs verification during Phase 1.
-- **Multi-user concurrent editing:** Research recommends optimistic locking (version counter) but does not design the full conflict resolution UX. This needs design attention during Phase 3 builder planning.
-- **Elasticsearch dataset integration:** The dataset manager needs to support ES-backed datasets for search/realtime use cases. The exact ES aggregation-to-chart mapping is not covered in research.
+- **Oracle production connection format:** The RHEL servers may use TNS aliases, not host:port Easy Connect strings. The `uri_builder.py` update needs to support both. Validate with the deployment team during Phase 1 planning.
+- **Exact Superset response shapes:** Need to capture actual Superset API responses as JSON fixtures before removing Superset. Run every endpoint with real data and snapshot the output. This becomes the contract test suite.
+- **`_build_sql()` parameterization:** The current filter injection uses string interpolation (`str.replace`). Converting to SQLAlchemy bind parameters is the right long-term fix but changes how the template system works. Needs design during Phase 2 planning -- may be deferred to Phase 4 if the existing escaping is sufficient for internal use.
+- **Oracle 19c vs 21c JSON support:** If production Oracle is 21c+, `sa.JSON()` maps natively and the `OracleJSON` TypeDecorator is unnecessary. Confirm Oracle version with infrastructure team.
+- **Connection credential encryption key management:** Fernet key from env var works for single-server deployment. If RecViz scales to multiple servers, key distribution needs a solution. Defer to auth milestone.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- [react-grid-layout GitHub & npm](https://github.com/react-grid-layout/react-grid-layout) -- v2.2.3 verified, TypeScript rewrite, hooks API
-- [Grafana Dashboard JSON Model & Schema v2](https://grafana.com/docs/grafana/latest/dashboards/build-dashboards/view-dashboard-json-model/) -- layout persistence, panel structure, versioning patterns
-- [Tableau Dashboard Creation & Filter Actions](https://help.tableau.com/current/pro/desktop/en-us/dashboards_create.htm) -- feature expectations, cross-filtering model, layout patterns
-- [Qlik Associative Selection Model](https://help.qlik.com/en-US/sense/November2025/Subsystems/Hub/Content/Sense_Hub/Selections/associative-selection-model.htm) -- green/white/gray states, cross-filter UX
-- [Apache Superset REST API & Caching Docs](https://superset.apache.org/docs/api/) -- API endpoints, cache config, CSRF behavior
-- [Superset GitHub Issues](https://github.com/apache/superset/) -- CSRF (#8382, #32751), Oracle performance (#8568), API breaking changes (UPDATING.md)
-- [react-hook-form](https://react-hook-form.com/) -- complex nested form patterns, field arrays, resolver integration
+- [SQLAlchemy 2.0 Oracle Dialect](https://docs.sqlalchemy.org/en/20/dialects/oracle.html) -- async dialect, connection URLs, type mapping
+- [SQLAlchemy 2.0 Async I/O](https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html) -- create_async_engine, async sessions, run_sync
+- [SQLAlchemy 2.0 Connection Pooling](https://docs.sqlalchemy.org/en/20/core/pooling.html) -- AsyncAdaptedQueuePool configuration
+- [python-oracledb Async Docs](https://python-oracledb.readthedocs.io/en/latest/user_guide/asyncio.html) -- thin mode, async connections, call_timeout
+- [python-oracledb Thin vs Thick Mode](https://python-oracledb.readthedocs.io/en/latest/user_guide/appendix_b.html) -- mode selection, feature matrix
+- [SQLAlchemy Oracle Async Issue #10679](https://github.com/sqlalchemy/sqlalchemy/issues/10679) -- oracledb_async dialect confirmed in 2.0.25
+- RecViz codebase audit: `superset_client.py`, `query_engine.py`, `database_registrar.py`, `dataset_sync.py`, all API routes
 
 ### Secondary (MEDIUM confidence)
-- [ilert: Why React-Grid-Layout Was Our Best Choice](https://www.ilert.com/blog/building-interactive-dashboards-why-react-grid-layout-was-our-best-choice) -- production case study
-- [Power BI Conditional Formatting & Bookmarks](https://learn.microsoft.com/en-us/power-bi/create-reports/desktop-conditional-table-formatting) -- saved views, formatting patterns
-- [Reconciliation Dashboard Patterns](https://www.osfin.ai/blog/reconciliation-dashboard) -- domain-specific KPIs, recon visualizations
-- [NeoXam Reconciliation Dashboards](https://www.neoxam.com/aro/reconciliation-dashboards-reporting-audit-trails/) -- breaks, aging, SLA monitoring
-- [SmartStream TLM Reconciliations](https://www.smartstream-stp.com/resources/tlm-reconciliations-premium/) -- TLM View dashboard features
+- [SQLAlchemy JSON with_variant Discussion #9112](https://github.com/sqlalchemy/sqlalchemy/discussions/9112) -- cross-database JSON patterns
+- [Alembic dialect support](https://deepwiki.com/sqlalchemy/alembic/3.4-dialect-support) -- migration compatibility
+- [RecViz RHEL Oracle Deployment Design](docs/superpowers/specs/2026-04-09-rhel-oracle-no-sudo-deployment-design.md) -- verified async Oracle, JSON on 19c
 
 ### Tertiary (LOW confidence)
-- [Dashboard Software Buyer's Guide 2026](https://www.basedash.com/blog/dashboard-software-the-complete-guide-for-modern-teams-in-2026) -- market trends, AI features (deferred)
-- [BI Failure Rates](https://designingforanalytics.com/resources/failure-rates-for-analytics-bi-iot-and-big-data-projects-85-yikes/) -- scope creep risk calibration
+- Community blog posts on FastAPI + multi-database SQLAlchemy patterns -- used for pattern validation, not specific implementation details
 
 ---
-*Research completed: 2026-04-04*
+*Research completed: 2026-04-09*
 *Ready for roadmap: yes*
