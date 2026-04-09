@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+import json
 import logging
+import uuid
 from contextlib import asynccontextmanager
+from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import select
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
@@ -15,13 +20,82 @@ from starlette.responses import Response
 from app.api.router import api_router
 from app.config import settings
 from app.db.engine import engine
+from app.db.models.connection import RecvizConnection
 from app.services.connection_status import ConnectionStatusTracker
 from app.services.database_registrar import DatabaseRegistrar
+from app.services.encryption import EncryptionService
+from app.services.engine_manager import EngineManager
 from app.services.query_engine import QueryEngine
 from app.services.superset_client import SupersetClient
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+async def _migrate_json_connections(
+    session_factory,
+    config_path: str,
+    encryption: EncryptionService,
+) -> int:
+    """Migrate databases.json entries to recviz_connections table.
+
+    Idempotent: skips entries where name already exists.
+    Returns count of newly inserted connections.
+    """
+    path = Path(config_path)
+    if not path.exists():
+        logger.info("No databases.json found at %s, skipping migration", config_path)
+        return 0
+
+    data = json.loads(path.read_text())
+    databases = data.get("databases", [])
+    if not databases:
+        return 0
+
+    count = 0
+    async with session_factory() as session:
+        for db_entry in databases:
+            # Check if already migrated
+            result = await session.execute(
+                select(RecvizConnection).where(RecvizConnection.name == db_entry["name"])
+            )
+            if result.scalar_one_or_none() is not None:
+                continue
+
+            # Parse URI into fields
+            uri = db_entry["sqlalchemy_uri"]
+            parsed = urlparse(uri)
+
+            connection = RecvizConnection(
+                id=str(uuid.uuid4()),
+                name=db_entry["name"],
+                display_name=db_entry.get("display_name", db_entry["name"]),
+                backend=db_entry.get("dialect", "postgresql"),
+                host=parsed.hostname or "localhost",
+                port=parsed.port or 5432,
+                database_name=_extract_database(parsed, db_entry.get("dialect", "postgresql")),
+                username=parsed.username or "",
+                encrypted_password=encryption.encrypt(parsed.password or ""),
+                schema_name=db_entry.get("schema", db_entry.get("schema_name", "")),
+                extra_params={"type": db_entry.get("type", "")} if db_entry.get("type") else None,
+            )
+            session.add(connection)
+            count += 1
+            logger.info("Migrated connection: %s", db_entry["name"])
+
+        await session.commit()
+
+    return count
+
+
+def _extract_database(parsed, dialect: str) -> str:
+    """Extract database name from parsed URI."""
+    if dialect == "oracle":
+        # Oracle uses ?service_name=X query param
+        params = parse_qs(parsed.query)
+        return params.get("service_name", ["ORCL"])[0]
+    # PostgreSQL uses /dbname path
+    return parsed.path.lstrip("/") if parsed.path else "postgres"
 
 
 @asynccontextmanager
@@ -73,9 +147,38 @@ async def lifespan(app: FastAPI):
         await session.commit()
     logger.info("Dataset reconciliation complete")
 
+    # 6. Initialize EncryptionService and EngineManager (Phase 12 -- engine foundation)
+    encryption = EncryptionService(settings.recviz_encryption_key)
+    engine_manager = EngineManager(encryption=encryption)
+    app.state.engine_manager = engine_manager
+    app.state.encryption = encryption
+    logger.info("EngineManager initialized")
+
+    # 7. Auto-migrate databases.json to recviz_connections table (D-02)
+    migrated_count = await _migrate_json_connections(
+        session_factory=async_session_factory,
+        config_path=settings.databases_config_path,
+        encryption=encryption,
+    )
+    if migrated_count > 0:
+        logger.info("Migrated %d connections from databases.json", migrated_count)
+
+    # 8. Pre-warm engine pool for all registered connections (D-08)
+    async with async_session_factory() as session:
+        result = await session.execute(select(RecvizConnection))
+        connections = result.scalars().all()
+        for conn in connections:
+            try:
+                await engine_manager.get_engine_for_connection(conn)
+                logger.info("Pre-warmed engine for connection: %s", conn.name)
+            except Exception as exc:
+                logger.warning("Failed to pre-warm connection %s: %s", conn.name, exc)
+
     yield
 
-    # Shutdown: dispose async engine and close HTTP client
+    # Shutdown: dispose data source engines, then metadata engine, then HTTP client
+    await engine_manager.dispose_all()
+    logger.info("All data source engines disposed")
     await engine.dispose()
     await http.aclose()
 

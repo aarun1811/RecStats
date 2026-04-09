@@ -13,6 +13,7 @@ from app.db.engine import async_session_factory
 from app.models.data_source_config import DataSourceConfig
 from app.services.config_store import ConfigStore
 from app.services.dataset_sync import DatasetSyncService
+from app.services.engine_manager import EngineManager
 from app.services.query_engine import QueryEngine
 from app.services.superset_client import SupersetClient
 
@@ -59,6 +60,14 @@ def get_dataset_sync(request: Request) -> DatasetSyncService:
 
 
 DatasetSyncDep = Annotated[DatasetSyncService, Depends(get_dataset_sync)]
+
+
+def get_engine_manager(request: Request) -> EngineManager:
+    """Return the EngineManager from app state."""
+    return request.app.state.engine_manager
+
+
+EngineManagerDep = Annotated[EngineManager, Depends(get_engine_manager)]
 
 
 # --------------------------------------------------------------------------- #
