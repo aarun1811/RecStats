@@ -148,7 +148,7 @@ async def lifespan(app: FastAPI):
     logger.info("Dataset reconciliation complete")
 
     # 6. Initialize EncryptionService and EngineManager (Phase 12 -- engine foundation)
-    encryption = EncryptionService(settings.recviz_encryption_key)
+    encryption = EncryptionService(settings.recviz_encryption_key.get_secret_value())
     engine_manager = EngineManager(encryption=encryption)
     app.state.engine_manager = engine_manager
     app.state.encryption = encryption

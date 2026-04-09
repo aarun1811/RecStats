@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings
 
 
@@ -13,7 +14,7 @@ class Settings(BaseSettings):
     databases_config_path: str = str(
         Path(__file__).parent / "config" / "databases.json"
     )
-    recviz_encryption_key: str = "ZtmS2OQUhct4iBQmAcreQftJoeodRw4h7Rz3fU8ZPG4="
+    recviz_encryption_key: SecretStr  # No default -- MUST be set via RECVIZ_ENCRYPTION_KEY env var
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
