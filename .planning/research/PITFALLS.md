@@ -1,410 +1,778 @@
-# Pitfalls Research
+# Domain Pitfalls: Removing Superset, Building Direct Database Engine
 
-**Domain:** Internal BI/visualization platform for financial reconciliation (replacing Tableau/Qlik)
-**Researched:** 2026-04-04
-**Confidence:** HIGH (combines verified codebase analysis, Superset documentation, enterprise BI patterns, and financial domain specifics)
+**Domain:** Removing heavyweight dependency (Superset) from working BI platform, replacing with direct SQLAlchemy query engine
+**Researched:** 2026-04-09
+**Confidence:** HIGH (verified via codebase analysis, SQLAlchemy 2.0/2.1 docs, python-oracledb docs, and cross-referenced community patterns)
+
+---
 
 ## Critical Pitfalls
 
-### Pitfall 1: Client-Side Cross-Filtering on Million-Row Datasets
-
-**What goes wrong:**
-The existing codebase already shows this pattern: `use-breaks-data.ts` fetches up to 1,000 rows from the backend so that KPIs can be recomputed client-side when cross-filters are active. At production scale (millions of rows across 12,000 reconciliations), this approach collapses. Browsers cap memory per tab at roughly 1-2 GB. Downloading even 100K rows of recon data to the browser for client-side filtering causes: (a) multi-second fetch times, (b) `useMemo` recalculations that block the main thread and freeze the UI, and (c) stale aggregates when the in-browser dataset is only a sample of the full data.
-
-**Why it happens:**
-Cross-filtering is architecturally the easiest feature to build client-side because it avoids network round-trips. The current CLAUDE.md explicitly states "Cross-filters: client-side only, Zustand, useMemo on cached data, zero network calls." This works for small demo datasets but breaks at production volumes.
-
-**How to avoid:**
-Implement a hybrid cross-filter strategy. For aggregated chart data (typically < 10K data points), client-side filtering via `useMemo` on already-fetched chart response data is fine. For KPI recomputation and grid drill-down, send the cross-filter context to the backend and let the database compute filtered aggregates. The Superset SQL Lab API already supports parameterized queries -- inject cross-filter predicates as WHERE clauses alongside global filters. Keep cross-filter state in Zustand (already planned) but use it to construct backend query parameters, not to filter raw data in the browser.
-
-Define a threshold: datasets under 50K rows can be cross-filtered client-side; above that, cross-filter interactions trigger a backend query with debounce (300ms) and `keepPreviousData` in TanStack Query for seamless transitions.
-
-**Warning signs:**
-- Chart click interactions take > 500ms to update other panels
-- Browser memory usage exceeds 500MB on dashboard load
-- KPI values differ between initial load and after applying a cross-filter (sample bias)
-- `useMemo` computations appearing in React Profiler as > 16ms (frame budget)
-
-**Phase to address:**
-Cross-filtering implementation phase. This must be the architectural decision BEFORE building cross-filter UI. Do not retrofit -- the data flow is fundamentally different between client-side and hybrid approaches.
+Mistakes that cause rewrites, data corruption, or production outages.
 
 ---
 
-### Pitfall 2: Superset API Version Coupling Without Pinning
+### Pitfall 1: PostgreSQL JSONB Columns in Every ORM Model Break on Oracle
 
 **What goes wrong:**
-The current `requirements.txt` specifies `apache-superset` without a version pin. Superset has a history of breaking REST API changes between major versions: Superset 4.0 removed fields from the `GET /api/v1/dashboard` response, Superset 5.0 enforced CSRF on the guest token endpoint, and the `fetch_csrf_token` behavior changed in a recent PR. Running `pip install` on a different day pulls a different Superset version with incompatible API behavior. The custom `SupersetClient` at `backend/app/services/superset_client.py` hardcodes endpoint paths and response parsing that may silently break.
+Every metadata model in the codebase uses `JSONB` imported directly from `sqlalchemy.dialects.postgresql`:
+
+```python
+from sqlalchemy.dialects.postgresql import JSONB
+# Used in: RecvizDataSource, RecvizDataset, RecvizDashboard, RecvizChart, RecvizKpi
+config: Mapped[dict] = mapped_column(JSONB, nullable=False)
+```
+
+Oracle does not have a native JSONB type. SQLAlchemy's oracledb dialect does not yet support the generic `JSON` type with full round-trip fidelity for Oracle. When you switch `recviz_db_url` to an Oracle connection string, every `CREATE TABLE` and every ORM query touching these columns will fail. This is not a runtime subtlety -- it is a hard crash on startup when Alembic tries to run migrations.
 
 **Why it happens:**
-Superset is treated as an internal dependency ("just pip install it"), not as an external API contract. The REST API is not formally versioned with stability guarantees -- the `/api/v1/` prefix stays the same even when response shapes change. Most teams discover this during a routine `pip install --upgrade` or a Docker rebuild.
+During v1.0, the dev environment was PostgreSQL and production was planned as PostgreSQL (for metadata). The JSONB import was the natural choice. Nobody tested against Oracle because Superset owned the data-query connections and metadata lived in PostgreSQL. Now that production targets Oracle for everything (metadata + data queries), every model is dialect-incompatible.
 
-**How to avoid:**
-1. Pin Superset to an exact version in `requirements.txt` (e.g., `apache-superset==4.1.1`).
-2. Create an integration test suite for the `SupersetClient` that validates every API endpoint RecViz depends on (the 14 endpoints listed in INTEGRATIONS.md). Run these tests before any Superset version upgrade.
-3. Wrap all Superset response parsing behind a versioned adapter layer in `superset_client.py`. If Superset changes a response shape, only the adapter changes -- not every consumer.
-4. Monitor Superset's UPDATING.md for breaking changes before upgrading. Set a quarterly cadence for Superset version reviews.
+**Consequences:**
+- Application cannot start in production
+- Alembic migrations fail against Oracle
+- All 5 Alembic migration files explicitly reference `JSONB`
+- Every ORM model file imports from `sqlalchemy.dialects.postgresql`
 
-**Warning signs:**
-- `pip install` succeeds but `SupersetClient.authenticate()` fails with unexpected response shapes
-- CSRF errors appearing in logs after a Superset restart/rebuild
-- Chart data queries returning empty results or 400 errors that previously worked
-- `GET /api/v1/dashboard` responses missing expected fields
+**Prevention:**
+Replace all `JSONB` columns with a cross-dialect type. Two options:
 
-**Phase to address:**
-Infrastructure/foundation phase (before any new feature development). Pin the version immediately. Build the adapter layer when implementing the builder's dataset management (which requires more Superset API surface area).
-
----
-
-### Pitfall 3: Dashboard Config Schema Without Versioning or Migration
-
-**What goes wrong:**
-The dashboard builder will produce JSON configuration objects (layout positions, chart configs, filter definitions, KPI sources) that get stored persistently. As the product evolves, the schema inevitably changes: new fields are added (e.g., cross-filter settings), old fields are renamed, chart types get new options, layout grid dimensions change. Without schema versioning, saved dashboards break silently when loaded by newer code. Users see blank charts, missing filters, or layout explosions. With 100+ dashboards expected, manual migration is not viable.
-
-**Why it happens:**
-Teams building dashboard builders almost always treat the config format as an internal implementation detail rather than a versioned contract. The existing config-driven system already has this problem -- JSON files in `backend/app/config/dashboards/` have no version field. There is no migration system. Every schema change requires manually updating every config file, and the number of files only grows.
-
-**How to avoid:**
-1. Add a `schemaVersion: number` field to every dashboard config from day one.
-2. Build a migration pipeline: a chain of transform functions `v1 -> v2 -> v3 -> ... -> vN` that runs on config load. Each migration is a pure function that takes the old shape and returns the new shape.
-3. Store configs in the database (Oracle/PostgreSQL) with the version field, not as JSON files on disk.
-4. Write a migration for every schema change. No exceptions. Even "just adding an optional field" gets a migration that sets the default.
-5. Validate loaded configs against a Zod schema (frontend) or Pydantic model (backend) after migration. Reject configs that don't pass validation rather than rendering broken dashboards.
-
-**Warning signs:**
-- "It works on new dashboards but old dashboards are broken"
-- TypeScript errors about missing properties on loaded dashboard configs
-- Backend validation errors when loading saved dashboards after a deploy
-- Users reporting that dashboards they saved last week look different now
-
-**Phase to address:**
-Builder foundation phase. The migration system must exist BEFORE the first dashboard is saved through the builder UI. Retrofitting is exponentially harder because you have to handle an unknown number of unversioned configs in the wild.
-
----
-
-### Pitfall 4: N+1 Query Pattern on Dashboard Load
-
-**What goes wrong:**
-The existing codebase already exhibits this: `ConfigChartGrid` renders each chart as a separate `QueryChartItem`, each with its own `useDataSourceQuery` hook. A dashboard with 6 charts + 4 KPIs + 1 filter options request = 11 independent API calls, each triggering a separate SQL query via Superset. Against Oracle over the network, each query has ~100-200ms of connection overhead before execution even begins. A dashboard with 10 panels takes 1-2 seconds just in connection overhead, plus actual query time. At scale (complex queries on millions of rows), dashboard load times balloon to 5-10+ seconds.
-
-**Why it happens:**
-The component-level data fetching pattern (each component fetches its own data) is a React best practice for loose coupling. But it creates an N+1 problem when N components all need data from the same database within the same page load.
-
-**How to avoid:**
-1. **Batch data source queries:** Charts sharing the same data source should share the same query response. Group chart configs by `dataSourceId`, execute one query per unique data source, and fan out results to individual chart components. TanStack Query's shared query keys already deduplicate this -- ensure all charts using the same data source + filters produce the same query key.
-2. **Dashboard-level data prefetch:** Add a `POST /api/dashboards/{id}/load` endpoint that accepts the full filter state and returns all data sources needed for the dashboard in a single response. Execute queries in parallel on the backend (using `asyncio.gather`). This reduces 11 round-trips to 1.
-3. **Progressive loading:** Load KPIs first (smallest payload), then charts (medium), then grid (largest). Show skeleton loaders for each stage. This is already documented in CLAUDE.md -- implement it properly.
-4. **Redis caching at the query level:** Superset already caches queries in Redis. Ensure `DATA_CACHE_CONFIG` has appropriate TTL (5-10 minutes for recon data that refreshes every ~10 minutes). This makes repeat dashboard loads near-instant.
-
-**Warning signs:**
-- Network tab showing > 5 concurrent API calls on dashboard load
-- Dashboard load time exceeding 3 seconds on warm cache
-- Backend logs showing identical SQL queries executing multiple times within 1 second
-- Users complaining about "slow dashboards" even when database queries are fast (< 200ms each)
-
-**Phase to address:**
-Early in the dashboard rendering optimization phase, before the builder ships. If users build dashboards with 10-15 panels (likely for recon data), the N+1 problem becomes the dominant UX issue.
-
----
-
-### Pitfall 5: Silent Mock Data Fallback Masking Production Failures
-
-**What goes wrong:**
-Every backend API route currently follows a `try: superset_call() except Exception: return MOCK_DATA` pattern (documented in CONCERNS.md with 22 instances). In development this feels convenient -- the app "always works." In production, this is catastrophic for a financial data platform. Users see hardcoded numbers (e.g., "149,819 total breaks") with zero indication that the real data source failed. Analysts make decisions based on stale mock data. Auditors see fabricated numbers. When the Superset connection drops for 5 minutes, nobody notices because the dashboards still render with fake data.
-
-**Why it happens:**
-The mock fallback was built for developer convenience -- keep the frontend working even without Superset running. But it was implemented at the wrong layer (API handlers) instead of behind an explicit dev-mode toggle.
-
-**How to avoid:**
-1. Remove all `except Exception: return MOCK_DATA` patterns immediately. Replace with proper error handling that returns HTTP 502/503 status codes when Superset is unavailable.
-2. Move mock data behind an explicit `MOCK_MODE=true` environment variable. When `MOCK_MODE` is false (production), errors propagate to the frontend.
-3. Add structured error responses: `{"error": "superset_unavailable", "message": "Query engine is temporarily unavailable", "retry_after": 30}`.
-4. Frontend already has error boundary and TanStack Query error state support. Use them. Display clear error states ("Data source unavailable - showing last cached data" or "Unable to load data - please retry").
-5. Add health check monitoring: the existing `GET /health` endpoint checks Superset connectivity. Surface this status in the frontend header as a connection indicator.
-
-**Warning signs:**
-- KPI values that never change despite filter changes (mock data is static)
-- All dashboards showing identical data regardless of date range
-- No errors in backend logs despite known Superset downtime
-- Dashboard data that doesn't match what analysts see when querying Oracle directly
-
-**Phase to address:**
-First phase. This is a pre-existing defect that must be fixed before any new feature development. Every new endpoint added inherits this pattern if not addressed.
-
----
-
-### Pitfall 6: Dashboard Builder Scope Creep Into Full IDE
-
-**What goes wrong:**
-Teams building Tableau/Qlik replacements consistently over-scope the builder. The initial plan is "let business users arrange charts on a canvas." Then requests arrive for: conditional formatting rules, calculated fields, custom SQL (now you are building a SQL editor for non-technical users -- explicitly out of scope), dynamic parameters, dashboard-to-dashboard navigation, custom color palettes, annotations, trend lines, forecasting, thresholds, alerts. Each is "just one more feature." After 6 months, the builder is 80% built but feels 20% complete because it cannot match Tableau's 20+ years of feature depth.
-
-**Why it happens:**
-Tableau and Qlik have massive feature sets. Users migrating from these tools bring expectations calibrated to that feature depth. Every demo triggers "but in Tableau I could..." requests. The team has no prior Tableau/Qlik experience (stated in the context), so they lack calibration for which features are table stakes vs. nice-to-have vs. years of investment.
-
-**How to avoid:**
-1. Define the builder's scope explicitly and defend it. The PROJECT.md already says "Dev team creates datasets, business users build dashboards from datasets." This is the right boundary. Business users should NOT be able to write SQL, create calculated fields, or configure complex data transformations.
-2. Use a template-first approach: provide 5-8 pre-built dashboard templates (KPI overview, breaks analysis, aging report, trend analysis, comparison). Business users customize these (change data source, adjust filters, rearrange layout) rather than building from scratch.
-3. Implement a feature request backlog with ROI scoring. "How many of our 100+ dashboards need this feature?" If the answer is < 10%, defer it.
-4. Ship the builder with the minimum viable feature set, get it into users' hands within 2-3 phases, and iterate based on actual usage data rather than anticipated needs.
-
-**Warning signs:**
-- Builder phase estimated at > 3 months of work
-- Feature requests that start with "In Tableau you can..."
-- Builder UI becoming complex enough to need its own tutorial/documentation
-- More time spent on builder UX than on core dashboard rendering/performance
-
-**Phase to address:**
-Research and planning phase (now). Define the builder's feature boundary before implementation begins. Revisit the boundary at each phase transition.
-
----
-
-### Pitfall 7: Oracle Query Performance Without Pre-Aggregation
-
-**What goes wrong:**
-Oracle is the primary production data source with millions of recon rows. Running ad-hoc `GROUP BY` aggregations across millions of rows for every dashboard load is slow (5-30+ seconds per query depending on complexity). Superset adds its own `GROUP BY` on top, so a poorly written data source SQL that already aggregates will cause double-aggregation. Dashboard auto-refresh every 10 minutes means these expensive queries run continuously. Multiple users viewing the same dashboard multiply the load.
-
-A known Superset issue (GitHub #8568) documents "Superset dashboard runs very slow when Datasource as Oracle database" -- Oracle's query planner and network latency make it particularly susceptible to the aggregation-on-demand pattern.
-
-**Why it happens:**
-In development with PostgreSQL and seed data (1M transactions, ~150K breaks), queries run in < 200ms. Oracle in production with real data volumes, network latency, and concurrent users is 10-50x slower. The team does not discover this until production deployment.
-
-**How to avoid:**
-1. **Create materialized views** in Oracle for common dashboard aggregations (daily break counts by status/aging/entity, auto-match rates by recon, trend data). These pre-compute the expensive `GROUP BY` operations on a schedule (every 10-30 minutes).
-2. **Design data source SQL to query aggregated tables**, not raw transaction tables. The QueryEngine's SQL templates should target `mv_daily_break_summary` rather than `SELECT COUNT(*) FROM breaks GROUP BY ...`.
-3. **Configure Superset's Redis cache aggressively** for recon data: `DATA_CACHE_CONFIG` with 5-10 minute TTL matches the data freshness requirement. Cache hits avoid Oracle entirely.
-4. **Tune SQLAlchemy connection pooling**: `pool_size=30`, `max_overflow=10`, `pool_timeout=30`, `pool_recycle=1800`. These are recommended for Superset-to-Oracle connections.
-5. **Set query timeouts** at both the Superset level (`SQLLAB_ASYNC_TIME_LIMIT_SEC`) and the Oracle connection level to prevent runaway queries from consuming database resources.
-6. **Load test with production-scale data** before deploying. Create a PostgreSQL dataset that mirrors Oracle's volume and query patterns.
-
-**Warning signs:**
-- Dashboard load time > 3 seconds in development (will be 5-10x worse in production)
-- SQL queries using `SELECT *` or aggregating raw tables with > 1M rows
-- Superset cache hit rate below 50% (check via stats logging)
-- Oracle DBA complaints about high query load from the RecViz service account
-
-**Phase to address:**
-Data layer / infrastructure phase, before building dashboards that users will depend on. Materialized views and connection tuning must be in place before the builder ships.
-
----
-
-### Pitfall 8: Superset CSRF and Session Management Brittleness
-
-**What goes wrong:**
-The `SupersetClient` authenticates via `POST /api/v1/security/login`, fetches a CSRF token from `/api/v1/security/csrf_token/`, and uses a simple 25-minute timer for token refresh. This has multiple failure modes: (a) CSRF tokens must be used in the same session they were created -- if the httpx client doesn't persist cookies correctly, every mutating API call fails with "CSRF session token is missing"; (b) Superset 5.0+ enforces CSRF on additional endpoints that were previously unprotected; (c) the retry-on-401 logic has only one retry attempt; (d) clock skew between the FastAPI server and Superset can cause pre-emptive or late re-authentication.
-
-**Why it happens:**
-Superset's CSRF implementation is tied to Flask's session management, which uses cookies. HTTP API clients (like httpx) don't manage cookies the way browsers do. The Superset GitHub has dozens of open issues about CSRF token problems in API integrations (issues #8382, #16398, #17206, #19525, discussions #32751, #34738).
-
-**How to avoid:**
-1. Ensure the httpx `AsyncClient` instance is long-lived and persists cookies across requests (already the case if using a single client instance, which the codebase does via `app.state.superset`).
-2. Configure Superset to relax CSRF for API-only access: set `WTF_CSRF_ENABLED = False` for the API endpoints if RecViz is the only consumer and runs in a trusted network (common for headless Superset deployments). Alternatively, use `WTF_CSRF_EXEMPT_LIST` to exempt specific API routes.
-3. Add retry logic with re-authentication: on any 400/403 response mentioning "CSRF", re-fetch the CSRF token and retry. Current code only retries on 401.
-4. Make the token refresh interval configurable (not hardcoded to 25 minutes). Set it to match Superset's `PERMANENT_SESSION_LIFETIME` config minus a safety margin.
-5. Add health monitoring: log CSRF token age, authentication state, and failure counts. Alert on repeated auth failures.
-
-**Warning signs:**
-- Intermittent 400 "CSRF session token is missing" errors in backend logs
-- Mutating operations (database registration, dataset sync) failing while read operations succeed
-- Errors that appear only after the service has been running for > 25 minutes
-- Authentication failures after Superset restarts (stale tokens)
-
-**Phase to address:**
-Infrastructure / backend hardening phase. Fix before the builder ships, because the builder will require mutating Superset API calls (creating datasets, registering databases) that are CSRF-protected.
-
----
-
-### Pitfall 9: Layout Persistence Without Undo/Redo or Conflict Resolution
-
-**What goes wrong:**
-The dashboard builder allows users to rearrange panels, resize charts, and customize layouts. Every layout change must be persisted. Without undo/redo, a user who accidentally drags a panel or resizes a chart has no way back. Without debounced auto-save, users lose work on browser crashes. Without conflict resolution, two users editing the same dashboard overwrite each other's changes (last-write-wins). In financial operations where dashboards are critical daily tools, any of these is a show-stopper.
-
-**Why it happens:**
-Layout persistence seems simple (save the grid positions array to the database). But the UX around persistence -- save timing, undo/redo, draft vs. published states, multi-user conflicts -- is where dashboard builders get stuck. React Grid Layout emits `onLayoutChange` on every drag pixel, creating a flood of state updates that must be debounced before persisting.
-
-**How to avoid:**
-1. **Undo/redo from day one:** Maintain a history stack of layout states (capped at ~50 entries). Ctrl+Z/Ctrl+Y support. This is non-negotiable for a builder UX.
-2. **Explicit save, not auto-save for layout changes:** Show a "Save" button and "Unsaved changes" indicator. Auto-save is appropriate for filter selections, not for structural layout changes.
-3. **Draft/published states:** Edits create a draft version. Explicit "Publish" makes changes visible to other users. This prevents half-finished layouts from disrupting other users.
-4. **Debounce `onLayoutChange` aggressively:** Update local state immediately for UI responsiveness, but debounce backend persistence to 1-2 seconds after the last change.
-5. **Optimistic locking for concurrent edits:** Store a version counter with each dashboard. On save, compare versions. If someone else saved in between, show a conflict dialog rather than silently overwriting.
-
-**Warning signs:**
-- Users afraid to touch the layout because they can't undo
-- "My dashboard looks different than yesterday" reports from users who didn't make changes
-- Rapid-fire API calls in the network tab during drag operations
-- Data loss complaints after browser crashes during editing
-
-**Phase to address:**
-Builder UI phase. Undo/redo and save semantics must be designed before building the layout editor. They affect the entire state architecture.
-
----
-
-### Pitfall 10: Financial Data Precision and Display Errors
-
-**What goes wrong:**
-Reconciliation data involves currency amounts, rates, and computed differences (breaks). JavaScript's floating-point arithmetic produces well-known precision errors: `0.1 + 0.2 = 0.30000000000000004`. When a KPI shows a break amount of `$1,234,567.8900000001` instead of `$1,234,567.89`, users lose trust in the entire platform. Worse, rounding errors in aggregations (summing millions of small amounts) can produce visible discrepancies between drill-down totals and summary KPIs. In financial operations, a 1-cent discrepancy triggers investigation.
-
-**Why it happens:**
-JavaScript uses IEEE 754 double-precision floating point for all numbers. Most BI tools handle this transparently because they do all arithmetic server-side (in the database, which uses DECIMAL types). RecViz's cross-filter design does client-side aggregation on raw numbers, which introduces floating-point errors.
-
-**How to avoid:**
-1. **All aggregation happens in the database or backend.** Never sum, average, or compute differences in JavaScript. The database's DECIMAL/NUMBER types handle this correctly.
-2. **Format display values, don't compute them.** Backend returns pre-computed, pre-formatted values where possible. KPI values come from the database's `SUM()`, not from `array.reduce()` in React.
-3. **Use `Intl.NumberFormat` for all currency/number display.** This handles locale-specific formatting and rounding correctly:
-   ```typescript
-   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 })
+1. **`with_variant()` pattern** (recommended):
+   ```python
+   from sqlalchemy import JSON
+   from sqlalchemy.dialects.postgresql import JSONB
+   
+   # Use JSONB on PostgreSQL (dev), generic JSON on Oracle (prod)
+   JsonColumn = JSON().with_variant(JSONB(), "postgresql")
    ```
-4. **For unavoidable client-side math** (cross-filter KPI recomputation on small datasets), round results to the appropriate precision before display: `Math.round(value * 100) / 100` for 2-decimal currency.
-5. **Test with real financial data patterns:** Large sums of small amounts, very large amounts (> 1 billion), negative amounts, zero amounts, mixed currencies.
 
-**Warning signs:**
-- Numbers with > 2 decimal places appearing in currency displays
-- KPI summary not matching the sum of drill-down detail rows
-- Users reporting "the numbers don't add up" even when the data is correct
-- Break amounts showing as `-0.00` or `0.000000001` instead of `0.00`
+2. **Custom TypeDecorator** wrapping CLOB for Oracle:
+   ```python
+   class CrossDbJSON(TypeDecorator):
+       impl = Text  # Falls back to CLOB on Oracle
+       cache_ok = True
+       def process_bind_param(self, value, dialect):
+           return json.dumps(value) if value is not None else None
+       def process_result_value(self, value, dialect):
+           return json.loads(value) if value is not None else None
+   ```
 
-**Phase to address:**
-Foundational formatting utilities phase (very early). Create a shared `formatCurrency()`, `formatNumber()`, `formatPercentage()` utility module and enforce its use across all components. Never use `toFixed()` or string interpolation for financial numbers.
+Option 1 is simpler if Oracle 21c+ is available (native JSON type). Option 2 works on Oracle 12c+. The existing five migration files must also be rewritten to use the same cross-dialect type.
+
+**Detection:** Try running Alembic against an Oracle database. It will fail immediately.
+
+**Phase:** Must be addressed in Phase 1 (engine/model foundation) before anything else works.
 
 ---
 
-## Technical Debt Patterns
+### Pitfall 2: Superset Response Shape is Deeply Embedded in Frontend
 
-Shortcuts that seem reasonable but create long-term problems.
+**What goes wrong:**
+The current `QueryEngine.execute()` returns a response shaped by Superset's SQL Lab API:
+```python
+{
+    "columns": result.get("columns", []),  # Superset column format
+    "rows": result.get("data", []),        # Superset uses "data" key
+    "row_count": len(rows),
+    "truncated": truncated,
+}
+```
 
-| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
-|----------|-------------------|----------------|-----------------|
-| JSON config files on disk instead of database | No DB schema needed, easy to edit | No versioning, no migration, no concurrent edits, server restart needed for changes | Only during initial development; migrate to DB before builder ships |
-| In-memory Python dicts for state (`_views`, `_jobs`, `_query_history`) | No DB dependency for prototyping | Lost on restart, not shared across workers, not thread-safe | Never in production; acceptable only in local dev with explicit `DEV_MODE` flag |
-| `except Exception: return MOCK_DATA` everywhere | App always renders something | Masks production failures, shows fake financial data to analysts | Never. Replace with proper error handling immediately |
-| Hardcoded Superset admin credentials as defaults | Easy local setup | Security vulnerability if `.env` is missing in production | Only in local dev; production must require explicit env vars (fail fast on missing) |
-| Client-side row model for AG Grid | Simpler implementation, no server-side pagination API needed | Browser memory exhaustion above ~100K rows | Acceptable for dashboards showing aggregated data (< 10K rows); use Server-Side Row Model for detail grids |
-| Single SQL query per chart component | Clean component architecture | N+1 problem on dashboards with many panels | Acceptable for < 4 panels per dashboard; optimize for larger dashboards |
+Meanwhile, `sql.py` (SQL Explorer) returns the raw Superset shape:
+```python
+{
+    "status": "success",
+    "columns": result.get("columns", []),
+    "data": result.get("data", []),
+    "row_count": len(result.get("data", [])),
+}
+```
 
-## Integration Gotchas
+Superset's `columns` format is `[{"column_name": "FOO", "name": "FOO", "type": "STRING", ...}]`. The frontend's `builder-panel-content.tsx` has explicit normalization code:
+```typescript
+/** Normalize column names returned by /api/sql/execute (may be strings or {column_name, name}). */
+```
 
-Common mistakes when connecting to external services.
+If the new direct query engine returns columns in a different format (SQLAlchemy's `cursor.description` returns tuples of `(name, type_code, ...)`), every frontend consumer will break silently -- charts render empty, grids show no columns, KPI cards show zero.
 
-| Integration | Common Mistake | Correct Approach |
-|-------------|----------------|------------------|
-| Superset REST API | Treating it as a stable, versioned API | Pin Superset version, build adapter layer, test all 14 consumed endpoints before upgrades |
-| Superset CSRF tokens | Fetching token once and reusing forever | Re-fetch on session expiry; persist cookies in httpx client; handle "CSRF missing" errors with retry |
-| Superset SQLLab | Sending raw user SQL without limits or timeouts | Add `LIMIT` clause enforcement, configure `SQLLAB_ASYNC_TIME_LIMIT_SEC`, use read-only DB users |
-| Oracle via SQLAlchemy | Using default connection pool settings | Configure `pool_size=30`, `max_overflow=10`, `pool_timeout=30`, `pool_recycle=1800` for Oracle |
-| Oracle date functions | Using PostgreSQL date syntax (`NOW()`, `INTERVAL`) | Use Oracle-specific functions (`SYSDATE`, `TRUNC()`, `ADD_MONTHS()`). The QueryEngine already handles some dialect differences -- ensure all date operations are dialect-aware |
-| Redis cache | Assuming cache is always populated | Handle cache misses gracefully; set appropriate TTLs; warm caches on deploy for critical dashboards |
-| Elasticsearch (future) | Treating ES as a relational database | ES excels at search and aggregation, not joins. Design ES queries for search/autocomplete, not for dashboard data |
+**Why it happens:**
+The Superset API has an idiosyncratic response shape that frontend code has adapted to over 11 phases. The response contract is implicit (no shared schema), so changes to the backend response shape cascade unpredictably.
 
-## Performance Traps
+**Consequences:**
+- Charts render with no data (columns don't match expected keys)
+- AG Grid shows "No Rows To Show" even when data exists
+- KPI cards compute as 0/NaN
+- SQL Explorer results panel breaks
+- Cross-filter and drill-down break (they parse column metadata)
 
-Patterns that work at small scale but fail as usage grows.
+**Prevention:**
+1. Document the exact response contract Superset currently returns (column format, data format, error format)
+2. Build the new query engine to return the **exact same response shape**
+3. Write integration tests that assert response shape before and after
+4. Key fields to preserve: `columns` (array of objects with `column_name` and `name` keys), `data`/`rows` (array of row-objects keyed by column name), `status`, `row_count`
 
-| Trap | Symptoms | Prevention | When It Breaks |
-|------|----------|------------|----------------|
-| Client-side aggregation of raw rows | Freezing UI, incorrect totals | Do all aggregation in database; backend returns pre-computed results | > 50K rows in cross-filter context |
-| One API call per chart panel | Dashboard load time > 3s | Batch queries by data source; deduplicate via TanStack Query keys; add dashboard-level prefetch endpoint | > 6 panels per dashboard, or Oracle latency > 100ms |
-| AG Grid Client-Side Row Model for detail data | Browser memory > 1GB, tab crashes | Use Server-Side Row Model with pagination for grids showing raw recon data | > 100K rows in grid |
-| No Superset query caching | Oracle overloaded, queries timing out | Configure `DATA_CACHE_CONFIG` in Redis with 5-10 min TTL | > 10 concurrent users viewing dashboards with auto-refresh |
-| Rendering all charts simultaneously | Layout jank, CPU spike, dropped frames | Progressive loading: KPIs -> charts -> grid. Use `IntersectionObserver` to defer off-screen chart rendering | > 8 charts per dashboard |
-| Storing layout configs as JSON files | Server restart required for changes, no concurrent edits | Migrate to database storage with API endpoints for CRUD | > 20 dashboards, or when builder ships |
-| Unthrottled auto-refresh | Redundant queries flooding the backend | Pause refresh when tab is hidden (`document.visibilityState`); only refresh if data is stale (compare with `staleTime`) | > 20 dashboards with auto-refresh across concurrent users |
+**Detection:** Run the full seed data suite from Phase 10 against the new engine. If any dashboard, chart, or KPI card renders differently, the shape changed.
 
-## Security Mistakes
+**Phase:** Phase 1 (query engine replacement). Build a response adapter that normalizes SQLAlchemy results into the existing Superset shape.
 
-Domain-specific security issues beyond general web security.
+---
 
-| Mistake | Risk | Prevention |
-|---------|------|------------|
-| SQL Explorer forwarding arbitrary SQL to Superset | Data exfiltration, accidental DML (UPDATE/DELETE) on recon tables | Parse SQL to reject non-SELECT statements; use read-only database users; add query audit logging |
-| No authentication on any endpoint | Any user/script on the network can query all recon data and execute SQL | Implement at minimum an API key middleware for internal use before production; SSO/OIDC for production |
-| Hardcoded default admin credentials for Superset (`admin`/`admin`) | Unauthorized access to Superset if `.env` is missing | Remove defaults; require explicit env vars; fail fast on startup if credentials are not set |
-| `X-Frame-Options: ALLOWALL` on all endpoints | Clickjacking attacks on the API | Restrict to `SAMEORIGIN` or specific allowed origins via CSP headers |
-| SQLAlchemy URIs containing embedded passwords | Credentials appear in logs, error messages, Superset metadata | Use Superset's encrypted credentials feature; sanitize URIs in log output |
-| No audit trail for dashboard changes | Cannot track who changed what, when. Compliance risk in financial operations | Add audit logging for all dashboard CRUD operations (create, edit, delete, publish) with user ID, timestamp, and before/after snapshots |
+### Pitfall 3: Connection Pool Exhaustion Under Concurrent Dashboard Load
 
-## UX Pitfalls
+**What goes wrong:**
+The current architecture uses a single httpx client to proxy queries through Superset. Superset manages its own connection pools to databases. When you replace this with direct SQLAlchemy engines, you own every connection pool.
 
-Common user experience mistakes in this domain.
+A dashboard with 6 charts, 4 KPIs, and filter-option queries fires 12-15 concurrent requests on page load. If 10 users load dashboards simultaneously, that is 120-150 concurrent database connections. SQLAlchemy's default `pool_size=5` with `max_overflow=10` means a maximum of 15 connections per engine. With 4 database entries (TCOSPRD, TFINPRD, TWMPRD, reconmgmt), that is 60 max connections total -- but all hitting the same Oracle instance.
 
-| Pitfall | User Impact | Better Approach |
-|---------|-------------|-----------------|
-| Showing > 12 KPIs per dashboard | 40% lower engagement; cognitive overload; users don't know where to focus | Limit to 4-6 KPIs per dashboard; additional metrics available via drill-down or secondary views |
-| No visual hierarchy between KPIs | Every metric looks equally important; users miss critical breaks | Use size, color, and position to signal importance. Primary KPIs (total breaks, auto-match rate) get hero treatment; secondary metrics are smaller |
-| Flat filter bar without context | Users don't understand what filters affect; unclear which filters are active | Show active filter count badge, "clear all" button, and visual feedback (highlight/dim) on affected panels when filters change |
-| Builder with blank canvas start | Business users stare at an empty screen; don't know where to begin | Template-first approach: offer pre-built layouts users can customize. "Start from template" > "Start from scratch" |
-| Chart type selection by name only | Users don't know which chart type fits their data; pick wrong visualization | Show chart type recommendations based on selected columns (e.g., "1 category + 1 metric = bar chart"). Visual thumbnails for each type |
-| No indication of data freshness | Users don't know if they're seeing today's data or yesterday's | Show "Last refreshed: X minutes ago" on every dashboard. Use subtle visual indicator (green = fresh, amber = > 30 min, red = > 1 hour). Pair with manual refresh button |
-| Cross-filter without visual feedback | Users click a chart segment and nothing visually happens; or they don't know cross-filtering exists | Highlight the source selection; dim/highlight affected panels; show a cross-filter breadcrumb bar (the legacy codebase has this pattern) |
-| Layout editor that allows broken layouts | Users create overlapping panels, empty gaps, or layouts that look bad at different zoom levels | Snap-to-grid with collision prevention; minimum panel sizes; maximum panel count per dashboard; layout validation before publish |
+Oracle's default `PROCESSES` parameter is often 150-300. You will exhaust it. When you do, new connections hang for `pool_timeout` seconds (default 30), then raise `TimeoutError`. The user sees every chart stuck in loading state for 30 seconds, then a cascade of errors.
 
-## "Looks Done But Isn't" Checklist
+**Why it happens:**
+Superset managed connection pooling internally and recycled connections across its own workers. The FastAPI app was a thin HTTP proxy that never held database connections. Now every concurrent request needs a real database connection, and the pool math changes dramatically.
 
-Things that appear complete but are missing critical pieces.
+**Consequences:**
+- Dashboard pages hang for 30+ seconds under moderate load
+- `QueuePool limit of size X overflow Y reached` errors
+- Oracle `ORA-12519: TNS:no appropriate service handler found` errors
+- Cascading timeouts that make the entire app appear down
 
-- [ ] **Dashboard rendering:** Often missing error states for individual panels -- one failed chart should not blank the whole dashboard. Verify: each chart, KPI, and grid handles loading/error/empty states independently.
-- [ ] **Filter bar:** Often missing reset-to-defaults, missing "Apply" button (filters should not trigger queries on every keystroke), missing filter persistence across navigation. Verify: filter state survives route changes, URL sync works for sharing.
-- [ ] **Charts:** Often missing empty state ("No data matches your filters"), missing loading skeleton, missing axis label truncation for long labels (recon entity names can be 40+ characters). Verify all three states.
-- [ ] **AG Grid:** Often missing column auto-sizing to content, missing Excel-style copy (Ctrl+C on selected cells), missing column reorder persistence. These are expected by finance users. Verify they work.
-- [ ] **Dark mode:** Often broken in AG Grid themes, chart tooltips, Monaco editor, and PDF exports. Verify every component in both themes after each phase.
-- [ ] **Builder save flow:** Often missing validation before save (empty title, no charts, duplicate names), missing confirmation on destructive actions (delete dashboard, remove panel). Verify with QA checklist.
-- [ ] **Embed mode:** Often missing locked filter handling, missing theme parameter, missing error state when dashboard ID is invalid. Verify: `?filter.lock=region&theme=dark` works.
-- [ ] **Cross-filtering:** Often missing clear selection action (how does the user undo a cross-filter click?), missing indicator of what is cross-filtered. Verify: click to filter, click again to clear, visual breadcrumb shows active cross-filters.
-- [ ] **Export (chart-level):** Often missing: PNG export captures loading state or no-data state, CSV export doesn't include filters applied, clipboard copy loses formatting. Verify exports contain the correct data with correct formatting.
-- [ ] **Number formatting:** Often missing: locale-aware thousand separators, negative number display (parentheses vs minus sign for finance), percentage formatting (x100 or not). Verify with real recon data patterns.
+**Prevention:**
+1. **Size pools based on dashboard concurrency, not the number of databases.** Formula: `pool_size = max_concurrent_users * avg_queries_per_page_load / num_workers`. For 10 users, 15 queries each, 4 workers: `pool_size = ceil(10 * 15 / 4) = 38` per engine is too high. Instead, use `pool_size=10, max_overflow=20` and rely on query queuing.
 
-## Recovery Strategies
+2. **Use `pool_pre_ping=True`** to detect stale connections before checkout (Oracle connections go stale after network timeouts, firewall idle kills).
 
-When pitfalls occur despite prevention, how to recover.
+3. **Use `pool_recycle=1800`** (30 minutes) to prevent Oracle from killing idle connections.
 
-| Pitfall | Recovery Cost | Recovery Steps |
-|---------|---------------|----------------|
-| Client-side cross-filter at scale | MEDIUM | Add backend query endpoint for cross-filter aggregations; change cross-filter hook to use backend above threshold; keep client-side for small datasets |
-| Superset version break | LOW-MEDIUM | Rollback Superset to pinned version; update adapter layer for new API shape; re-pin at new version |
-| Dashboard config schema breakage | HIGH | Write retroactive migration for all saved configs; add version field to existing configs (assume v0); test migration on backup data first |
-| N+1 query performance | MEDIUM | Add dashboard-level batch endpoint; adjust query keys for deduplication; implement progressive loading |
-| Mock data masking production failure | LOW | Remove mock fallback; add proper error responses; deploy -- frontend error states already exist in config-driven components |
-| Builder scope creep | HIGH | Freeze feature scope; ship what exists; create backlog for future phases; communicate explicitly with users about what is/isn't supported |
-| Oracle query performance | MEDIUM-HIGH | Create materialized views; rewrite data source SQL to target views; tune connection pool; this requires DBA involvement and schema changes |
-| CSRF/session failures | LOW | Disable CSRF for API-only access in trusted network; or implement proper cookie-based session management in httpx client |
-| Layout persistence without undo | MEDIUM | Retrofit undo/redo stack into existing state management; add version counter for optimistic locking; more work if users have already saved layouts |
-| Financial precision errors | LOW-MEDIUM | Create centralized formatting utilities; replace all inline number formatting; audit all client-side arithmetic |
+4. **Set `pool_timeout=10`** (not the default 30) so users get a fast error instead of a 30-second hang.
 
-## Pitfall-to-Phase Mapping
+5. **Monitor pool usage** by logging `engine.pool.status()` on a periodic task.
 
-How roadmap phases should address these pitfalls.
+6. **Consider python-oracledb's native connection pool** (`oracledb.create_pool_async()`) instead of SQLAlchemy's pool for data-query engines. It supports Oracle Application Continuity, dead connection detection, and connection draining -- features SQLAlchemy's pool lacks.
 
-| Pitfall | Prevention Phase | Verification |
-|---------|------------------|--------------|
-| Mock data fallback masking failures | Phase 1 (Foundation cleanup) | All endpoints return HTTP errors when Superset is down; frontend shows error states; zero instances of `except Exception: return MOCK_DATA` |
-| Financial data precision | Phase 1 (Foundation) | Shared formatting utilities exist; no raw `toFixed()` or string interpolation for numbers; all KPI/grid values use `Intl.NumberFormat` |
-| Superset version pinning | Phase 1 (Infrastructure) | `requirements.txt` has exact Superset version pin; integration tests exist for all 14 consumed API endpoints |
-| CSRF/session hardening | Phase 1 (Backend) | CSRF strategy decided (disable for API or handle properly); retry logic covers 400/403 CSRF errors; token refresh is configurable |
-| N+1 query pattern | Phase 2 (Dashboard rendering optimization) | Dashboard-level batch endpoint exists; charts sharing data sources share query keys; progressive loading implemented |
-| Oracle query performance | Phase 2 (Data layer) | Materialized views created for common aggregations; connection pool tuned; load tested with production-scale data |
-| Dashboard config schema versioning | Phase 3 (Builder foundation) | Schema version field exists on all configs; migration pipeline exists; Zod/Pydantic validation on load |
-| Cross-filtering at scale | Phase 3 (Interactivity) | Hybrid cross-filter strategy implemented; client-side for < 50K rows; backend for larger datasets; threshold is configurable |
-| Builder scope control | Phase 3 (Builder planning) | Feature boundary document exists; template-first approach implemented; feature request backlog with ROI scoring |
-| Layout persistence + undo/redo | Phase 4 (Builder UI) | Undo/redo stack works (Ctrl+Z/Y); explicit save with unsaved indicator; optimistic locking for concurrent edits |
-| Silent data staleness | Phase 4 (Polish) | Data freshness indicator on every dashboard; auto-refresh pauses when tab is hidden; manual refresh button works |
+**Detection:** Load test with 5+ concurrent users each loading a dashboard with 10+ data panels.
+
+**Phase:** Phase 1 (engine setup). Pool configuration must be correct from the start; retrofitting under load is painful.
+
+---
+
+### Pitfall 4: Two Engines for One App -- Metadata vs Data Query Lifecycle Mismatch
+
+**What goes wrong:**
+The app needs two kinds of database access:
+1. **Metadata engine** (fixed, known at startup): reads/writes `recviz_*` tables. Currently `db/engine.py` -- one engine, one session factory.
+2. **Data-query engines** (dynamic, per-connection-config): executes user-provided SQL against various databases. Currently done via Superset; needs to become direct SQLAlchemy.
+
+The metadata engine has a clean lifecycle (create at startup, dispose at shutdown). Data-query engines are more complex: they are created when a user adds a database connection, updated when connection params change, and should be disposed when a connection is deleted.
+
+The pitfall: storing data-query engines in a global dictionary (`dict[str, AsyncEngine]`) and forgetting to dispose them on update/delete. Each undisposed engine leaks its entire connection pool. If a user updates a connection's password 5 times, you have 5 orphaned pools holding connections to Oracle.
+
+**Why it happens:**
+The current `DatabaseRegistrar` stores name-to-Superset-ID mappings and doesn't manage any connection objects. The new registrar must manage actual SQLAlchemy engines, which have lifecycles. It is natural to treat engine creation as cheap (it is not -- each engine creates a pool and background threads).
+
+**Consequences:**
+- Connection pool leaks (each leaked engine holds `pool_size` connections)
+- Oracle connection limit slowly consumed until restart
+- Memory leak from orphaned pool threads
+- `dispose()` not awaited properly in async context causes warnings
+
+**Prevention:**
+1. Wrap data-query engines in a `ConnectionRegistry` class with explicit `add`, `update`, `remove` methods
+2. `update` must `await old_engine.dispose()` before creating a new engine
+3. `remove` must `await engine.dispose()`
+4. Use `weakref.ref` or explicit reference counting if engines are shared across concurrent requests during disposal
+5. On shutdown, iterate all engines and dispose them (add to lifespan handler)
+6. Write a test that creates/updates/removes connections and asserts pool status returns to zero
+
+**Detection:** Monitor Oracle's `V$SESSION` view for sessions from your app. If the count grows after connection updates, you have leaks.
+
+**Phase:** Phase 1 (connection management). The `ConnectionRegistry` pattern must be designed before any data queries execute.
+
+---
+
+### Pitfall 5: The `superset_id` Column and Sync Machinery Breaks Feature Parity
+
+**What goes wrong:**
+The `RecvizDataset` model has a `superset_id` column (Integer, nullable) and a `sync_status` column. The entire `DatasetSyncService` exists to sync datasets bidirectionally with Superset. The frontend's dataset management UI shows sync status indicators.
+
+When Superset is removed:
+- `superset_id` becomes meaningless but still exists in the DB schema and ORM model
+- `sync_status` (unsynced/synced/error) no longer makes sense
+- `DatasetSyncService.reconcile()` runs on every startup and will crash without Superset
+- The `database_id` field currently stores **Superset's** database ID (an integer assigned by Superset), not the logical database name. After removal, there is no Superset to assign IDs.
+
+**Why it happens:**
+The dataset model was designed around Superset as the query execution target. The `database_id` field is a Superset foreign key, not a RecViz concept. Removing Superset means this field has no referent.
+
+**Consequences:**
+- Startup crash from `DatasetSyncService.reconcile()` trying to call Superset
+- Existing datasets in the database have `database_id` values that reference Superset IDs, not logical database names
+- Frontend dataset forms select databases using Superset IDs; these must change to logical names
+- Data migration needed: map old Superset IDs to new logical database names
+
+**Prevention:**
+1. Add a new `database_name` field (String) to `RecvizDataset` referencing the logical name from `databases.json`
+2. Write a data migration that maps existing `database_id` (Superset integer) to the corresponding `database_name` (from the registrar cache)
+3. Remove `superset_id` and `sync_status` columns in a migration
+4. Remove `DatasetSyncService` entirely
+5. Update frontend to use `database_name` (string) instead of `database_id` (integer)
+6. Do NOT just skip this -- orphaned Superset-specific columns will confuse future developers
+
+**Detection:** Try to create a new dataset after removing Superset. The database selection dropdown will either be empty or show meaningless integer IDs.
+
+**Phase:** Phase 2 (schema migration after engine foundation is in place).
+
+---
+
+## Major Pitfalls
+
+Mistakes that cause significant rework or subtle bugs.
+
+---
+
+### Pitfall 6: Oracle SQL Dialect Differences That Silently Return Wrong Data
+
+**What goes wrong:**
+The codebase already has dialect-aware SQL generation in `QueryEngine._build_date_range_clause()` with separate Oracle and PostgreSQL branches. But user-written dataset SQL (from the Dataset Builder) and data-source config SQL are written by the dev team and stored in the database. These queries likely use PostgreSQL syntax during development and Oracle syntax in production.
+
+Key differences that **silently return wrong results** (no error, just wrong data):
+
+| Pattern | PostgreSQL | Oracle | Silent Failure Mode |
+|---------|-----------|--------|-------------------|
+| NULL concatenation | `'a' \|\| NULL` = NULL | `'a' \|\| NULL` = `'a'` | Filters break: WHERE clause evaluates differently |
+| Date arithmetic | `CURRENT_DATE - INTERVAL '7 days'` | `SYSDATE - 7` | PostgreSQL syntax errors on Oracle; Oracle syntax errors on PostgreSQL |
+| TRUNC on dates | `date_trunc('month', col)` | `TRUNC(col, 'MM')` | Function not found error |
+| Boolean values | `WHERE col = true` | `WHERE col = 1` | Oracle has no boolean literal `true`/`false` in SQL |
+| LIMIT | `LIMIT 100` | `FETCH FIRST 100 ROWS ONLY` (12c+) or `WHERE ROWNUM <= 100` | Syntax error on Oracle |
+| String quoting | Single or double quotes for identifiers (`"col"`) | Double quotes for identifiers, single for strings | Case sensitivity: `"Status"` vs `STATUS` |
+| Empty string vs NULL | `''` is empty string | `''` is NULL | `WHERE col = ''` returns 0 rows on Oracle |
+| NVL vs COALESCE | COALESCE only | NVL or COALESCE | NVL doesn't exist in PostgreSQL |
+| DECODE | Not available | `DECODE(col, 'A', 1, 'B', 2, 0)` | Used in existing `_build_date_range_clause()` -- breaks on PostgreSQL |
+| FROM DUAL | Not needed | Required for `SELECT SYSDATE FROM DUAL` | Syntax error or different behavior |
+
+**Why it happens:**
+Developers write and test SQL against PostgreSQL locally. Oracle-specific syntax is never tested until production. The current `_build_date_range_clause` method shows this awareness for date ranges but it is not applied systematically. User-defined dataset SQL has no dialect validation at all.
+
+**Consequences:**
+- Dashboards show correct data in dev, wrong data in prod
+- Date-range filters silently exclude rows on one platform but not the other
+- NULL handling differences cause aggregate mismatches (SUM, COUNT)
+- Filter values that work in dev fail in prod
+
+**Prevention:**
+1. **Enforce a "portable SQL subset" for user-written dataset SQL.** Document which functions are safe: COALESCE (not NVL), CASE (not DECODE), ISO date literals, standard JOIN syntax.
+2. **Add a dialect-aware SQL validator** that parses user SQL and flags Oracle-isms or PostgreSQL-isms.
+3. **Move the date-range clause pattern to a general SQL dialect adapter** that handles all known dialect differences (not just date ranges).
+4. **The `_build_date_range_clause` method already uses `DECODE` for Oracle** -- this must be preserved but should be part of a broader `DialectAdapter` class.
+5. **Test every seed dataset SQL against both PostgreSQL and Oracle** (even if the Oracle test is via a CI container).
+
+**Detection:** Compare query results row-by-row between PostgreSQL dev and Oracle prod for the same dataset with the same filters. Differences mean dialect bugs.
+
+**Phase:** Phase 1 (build dialect awareness into the new query engine from day one). Phase 3 (add SQL validation to dataset management).
+
+---
+
+### Pitfall 7: python-oracledb Async Only Works in Thin Mode
+
+**What goes wrong:**
+python-oracledb has two modes:
+- **Thin mode** (default): Pure Python, no Oracle Client libraries needed. Supports asyncio.
+- **Thick mode**: Requires Oracle Client libraries (like `instantclient`). Does NOT support asyncio.
+
+If someone calls `oracledb.init_oracle_client()` anywhere in the codebase (even in a utility script or test), the entire process switches to Thick mode permanently. After that, all async operations (`create_async_engine` with `oracle+oracledb://`) will fail with cryptic errors about coroutines.
+
+The RHEL production servers may have Oracle Client libraries installed system-wide. If python-oracledb auto-detects them and switches to Thick mode, async breaks.
+
+**Why it happens:**
+python-oracledb's mode selection is process-global and happens once. There is no per-engine mode setting. Thick mode is required for certain features (Kerberos auth, Oracle wallet with auto-login, LDAP lookups, Advanced Queuing) but is incompatible with async.
+
+**Consequences:**
+- App works in dev (no Oracle Client installed, Thin mode auto-selected)
+- App crashes in production if `init_oracle_client()` is called or if thick mode is triggered
+- Error messages are confusing: `TypeError: An asyncio.Future, a coroutine or an awaitable is required` or similar
+
+**Prevention:**
+1. **Never call `oracledb.init_oracle_client()`** anywhere in the codebase
+2. **Add a startup check:**
+   ```python
+   import oracledb
+   if oracledb.is_thin_mode() is False:
+       raise RuntimeError("python-oracledb is in Thick mode; async is not supported")
+   ```
+3. **Document this constraint** in deployment guides
+4. **Use `service_name` (not SID)** in connection strings -- Thin mode requires Easy Connect syntax which only supports service names
+
+**Detection:** Add the thin mode check to the FastAPI lifespan startup. Log the mode on startup.
+
+**Phase:** Phase 1 (engine setup). This is a configuration/deployment concern, not a code complexity concern.
+
+---
+
+### Pitfall 8: Alembic Migrations Must Work on Both PostgreSQL and Oracle
+
+**What goes wrong:**
+Current Alembic migrations import PostgreSQL-specific types:
+```python
+from sqlalchemy.dialects.postgresql import JSONB
+sa.Column("config", JSONB, nullable=False)
+```
+
+The Alembic env uses `recviz_db_url` which will be an Oracle URL in production. Running these migrations against Oracle will fail because JSONB doesn't exist in Oracle's dialect.
+
+But you cannot simply delete the old migrations and write new ones. If any dev or staging environment has already run the existing migrations, Alembic's `recviz_alembic_version` table tracks which migration was last applied. Deleting or modifying existing migration files breaks that lineage.
+
+**Why it happens:**
+Alembic migrations are immutable history. You can write new migrations that alter column types, but you cannot retroactively change what migration 001 does without breaking environments that already ran it.
+
+**Consequences:**
+- Fresh Oracle deployments fail on migration 001 (JSONB)
+- Existing PostgreSQL dev environments fail if old migrations are modified
+- If migration history is reset, existing data is lost
+
+**Prevention:**
+1. **Write a new migration (005 or later) that alters column types** from PostgreSQL-specific to cross-dialect. For PostgreSQL environments, this is a no-op (JSON and JSONB are compatible). For Oracle environments, this migration does the initial type setup.
+2. **Use `op.alter_column()` with dialect-conditional logic:**
+   ```python
+   from alembic import op
+   import sqlalchemy as sa
+   
+   def upgrade():
+       bind = op.get_bind()
+       if bind.dialect.name == "oracle":
+           # Oracle: alter to CLOB or JSON (21c+)
+           ...
+       # PostgreSQL: no change needed (JSONB stays)
+   ```
+3. **Or: create a separate migration path for Oracle** using Alembic's `branching` feature. This is more complex but cleaner for long-term maintenance.
+4. **Best option for a clean break:** Since this is v2.0 and production has never run (metadata is new), consider resetting the migration lineage for Oracle with a single `001_v2_initial.py` that creates tables with cross-dialect types. Keep old migrations for PostgreSQL dev continuity.
+
+**Detection:** Run `alembic upgrade head` against an Oracle test database. It will fail on the first migration.
+
+**Phase:** Phase 1 (must be resolved before any production deployment).
+
+---
+
+### Pitfall 9: The `database_id` Semantic Shift Breaks Data Query Routing
+
+**What goes wrong:**
+Throughout the codebase, `database_id` means "the integer ID that Superset assigned to this database connection." This appears in:
+- `RecvizDataset.database_id` (ORM model)
+- `DatabaseRegistrar.resolve()` returns a Superset integer ID
+- `QueryEngine.execute()` passes `db_id` (Superset integer) to `superset.execute_sql(database_id=db_id, ...)`
+- Frontend SQL Explorer sends `database_id: int` in `SqlRequest`
+- Frontend dataset forms store `database_id` as an integer
+
+After removing Superset, databases are identified by logical name (string like "superset_db_TCOSPRD") or by a RecViz-assigned ID. The integer IDs from Superset are meaningless.
+
+**Why it happens:**
+Superset's API uses integer IDs for everything. The entire data flow was built around "get integer ID from Superset, pass it to Superset." Now the ID space changes.
+
+**Consequences:**
+- SQL Explorer sends `database_id: 1` but the new engine has no concept of integer database IDs
+- Datasets reference `database_id: 3` but the new registrar uses string names
+- API contracts between frontend and backend break
+- Existing dataset records in the database have orphaned integer references
+
+**Prevention:**
+1. **Define a new identifier scheme early.** Use the logical database `name` from `databases.json` as the canonical identifier. It is already unique and human-readable.
+2. **Update all API contracts** to accept `database_name: str` (or `database: str`) instead of `database_id: int`
+3. **Write a data migration** for existing `RecvizDataset` records: map Superset integer IDs to logical names using the `DatabaseRegistrar._cache` (which holds both)
+4. **Update the frontend forms** to show a dropdown of database names instead of passing integer IDs
+5. **The SQL Explorer's `SqlRequest` model** must change from `database_id: int = 1` to `database: str`
+6. **Deprecation path:** Accept both `database_id` (int) and `database` (str) in API endpoints during migration, prefer string
+
+**Detection:** After switching to the new engine, try the SQL Explorer. If `database_id` is still an integer, the query will route to the wrong database or fail.
+
+**Phase:** Phase 2 (API contract changes). Coordinate with frontend changes.
+
+---
+
+### Pitfall 10: Losing Superset's Built-In Query Security (SQL Injection Surface)
+
+**What goes wrong:**
+Superset validates and sandboxes SQL queries before execution. It strips dangerous statements (DROP, ALTER, DELETE, INSERT, UPDATE), enforces row limits, and restricts access to specific schemas. The current RecViz code passes raw SQL directly to Superset and relies on Superset's safeguards.
+
+When you execute SQL directly via SQLAlchemy, there is no sandboxing layer. The `QueryEngine._build_sql()` method uses string interpolation to inject filter values:
+```python
+quoted = f"'{str(fval).replace(chr(39), chr(39)*2)}'"
+expr = expr.replace("{{value}}", str(val).replace("'", "''"))
+```
+
+This escaping is manual and fragile. If a filter value contains `' OR 1=1 --`, the current escaping handles it (single-quote doubling), but the defense is one missed edge case from a SQL injection.
+
+Additionally, the SQL Explorer allows dev-team users to execute arbitrary SQL. Without Superset's guardrails, a typo like `DROP TABLE` actually executes.
+
+**Why it happens:**
+Superset was acting as a security boundary that nobody explicitly designed for. Removing it removes that boundary without replacing it.
+
+**Consequences:**
+- SQL injection via maliciously crafted filter values
+- Accidental destructive SQL from the SQL Explorer
+- No row limit enforcement (a `SELECT *` from a 10M row table returns all rows)
+
+**Prevention:**
+1. **Use SQLAlchemy's `text()` with bound parameters** instead of string interpolation for filter values:
+   ```python
+   from sqlalchemy import text
+   stmt = text("SELECT ... WHERE col = :value")
+   result = await conn.execute(stmt, {"value": filter_value})
+   ```
+2. **Enforce read-only mode** on data-query connections. Use SQLAlchemy's `execution_options(postgresql_readonly=True)` for PostgreSQL, or `SET TRANSACTION READ ONLY` for Oracle.
+3. **Enforce row limits** in the query engine: wrap user SQL in a limiting outer query or use `FETCH FIRST N ROWS ONLY`.
+4. **Add a SQL statement classifier** that rejects DDL and DML (only allow SELECT and WITH statements). A simple regex check: if the statement does not start with `SELECT` or `WITH`, reject it.
+5. **The filter interpolation in `_build_sql`** must be migrated to parameterized queries. The `{{value}}` template pattern must use bind parameters, not string replacement.
+
+**Detection:** Code review the query engine for any string concatenation or `.replace()` calls that build SQL. Every one is a potential injection point.
+
+**Phase:** Phase 1 (build parameterized query support into the new engine from day one). This is not something to retrofit later.
+
+---
+
+## Moderate Pitfalls
+
+Mistakes that cause significant debugging time or poor UX.
+
+---
+
+### Pitfall 11: Oracle Identifier Case Sensitivity Surprise
+
+**What goes wrong:**
+Oracle stores all unquoted identifiers in UPPERCASE. SQLAlchemy returns column names from `cursor.description` in the case the database stores them. If your table was created with `CREATE TABLE recon_data (status VARCHAR2(50))`, Oracle stores the column as `STATUS`.
+
+When the query engine returns results, column names will be `STATUS`, `RECON_ID`, `MATCH_RATE` etc. But the frontend's chart configs, KPI configs, and dashboard data-source configs all reference columns in lowercase: `status`, `recon_id`, `match_rate`.
+
+This means every chart will have zero data because the column mapping fails silently.
+
+**Why it happens:**
+Superset normalized column names to lowercase. The SQLAlchemy raw SQL result does not perform this normalization by default.
+
+**Consequences:**
+- All charts show empty (column names don't match config)
+- AG Grid shows columns but no data in cells
+- KPI calculations return 0/NaN
+- Debugging is frustrating because the data is there -- it is just keyed by `STATUS` instead of `status`
+
+**Prevention:**
+1. **Lowercase all column names in the query engine's result adapter:**
+   ```python
+   columns = [col.lower() for col in result.keys()]
+   rows = [dict(zip(columns, row)) for row in result.fetchall()]
+   ```
+2. **Add this normalization once in the query engine**, not in every consumer
+3. **Test with Oracle tables that have UPPERCASE column names** (which is all Oracle tables by default)
+
+**Detection:** Run a dashboard against Oracle data. If everything shows empty but the raw SQL returns data, it is a case mismatch.
+
+**Phase:** Phase 1 (result normalization in the query engine).
+
+---
+
+### Pitfall 12: Async Session Leaks from Exception Paths
+
+**What goes wrong:**
+The current `get_db_session()` dependency properly handles commit/rollback:
+```python
+async with async_session_factory() as session:
+    try:
+        yield session
+        await session.commit()
+    except Exception:
+        await session.rollback()
+        raise
+```
+
+But when you add data-query engines (separate from the metadata engine), the pattern is different. Data queries use raw connections, not ORM sessions. A common mistake:
+```python
+async with engine.connect() as conn:
+    result = await conn.execute(text(sql))
+    # If an exception occurs here, the connection context manager handles it
+    # But if you return a streaming result...
+    return result  # Connection closed, result cursor invalidated!
+```
+
+The danger is fetching results lazily. If you return a result proxy from an `async with` block, the connection closes and the result becomes unusable.
+
+**Why it happens:**
+ORM sessions and raw connections have different lifecycles. The ORM session dependency pattern (yield in a generator) works because FastAPI manages the generator lifecycle. Raw connections don't have this automatic management.
+
+**Consequences:**
+- Intermittent `InterfaceError: connection already closed` errors
+- Results that sometimes work and sometimes don't (race condition)
+- Connection pool gradually fills with connections in unknown states
+- Hard to reproduce: depends on timing and garbage collection
+
+**Prevention:**
+1. **Always fetch all results within the connection context:**
+   ```python
+   async with engine.connect() as conn:
+       result = await conn.execute(text(sql))
+       rows = result.fetchall()
+       columns = list(result.keys())
+   # Return the fully-materialized data, not the result proxy
+   return {"columns": columns, "rows": rows}
+   ```
+2. **Never yield a connection or result proxy** from a FastAPI dependency
+3. **Use `result.mappings().all()`** to get dict-like rows instead of tuples
+4. **Set `pool_pre_ping=True`** to catch stale connections from interrupted requests
+
+**Detection:** Run load tests and watch for `connection already closed` or `cursor already closed` errors in logs.
+
+**Phase:** Phase 1 (query execution patterns).
+
+---
+
+### Pitfall 13: Removing Superset But Keeping Its Ghost in Config and Startup
+
+**What goes wrong:**
+The removal is not just deleting `superset_client.py`. Superset is woven throughout:
+
+1. **`config.py`**: `superset_url`, `superset_username`, `superset_password` settings
+2. **`main.py`**: Entire lifespan imports and initializes SupersetClient, authenticates, creates DatabaseRegistrar with Superset, creates DatasetSyncService with Superset
+3. **`dependencies.py`**: `SupersetDep` dependency, `get_superset_client()`
+4. **`requirements.txt`**: `httpx` (still needed for other things?), `redis`, `psycopg2-binary` (still needed?)
+5. **`databases.json`**: Database names prefixed `superset_db_*`
+6. **Docker Compose**: Superset container, Redis container
+7. **`.env` files**: Superset credentials
+8. **Health check**: `/health` endpoint reports `"superset": True`
+9. **Test superset endpoint**: `/api/test-superset`
+10. **Alembic config**: `alembic.ini` hardcodes `postgresql+asyncpg://` URL
+11. **29 files reference Superset** (from grep results)
+
+If even one import path is missed, the app crashes on startup with `ModuleNotFoundError` or `AttributeError`.
+
+**Why it happens:**
+Superset integration was built incrementally over 11 phases. It is not isolated behind a single interface -- it leaked into config, startup, dependencies, error handling, tests, and even database naming conventions.
+
+**Consequences:**
+- ImportError crashes from stale imports
+- Startup hangs trying to connect to non-existent Superset
+- Dead config values confuse new developers
+- Tests fail because they mock `SupersetClient` which no longer exists
+
+**Prevention:**
+1. **Use `grep -r superset` systematically** to find every reference (already done: 29 files)
+2. **Remove in dependency order:** config -> client -> services -> dependencies -> routes -> tests -> docker
+3. **Do NOT leave any Superset code "commented out for later."** Delete it.
+4. **Rename `superset_db_*` database names** to just the logical names (`TCOSPRD`, `TFINPRD`, etc.)
+5. **Update the health endpoint** to report database connectivity instead of Superset status
+6. **Remove `redis` from requirements.txt** (no longer needed)
+7. **Keep `httpx`** only if needed for other external API calls; otherwise remove it
+8. **Update `databases_config_path` default** and the JSON file content
+
+**Detection:** After removal, run `grep -ri superset` across the entire codebase. Any remaining references (outside comments explaining the migration) are incomplete removal.
+
+**Phase:** Phase 3 (cleanup phase after the new engine is working). Do not remove Superset code in the same phase you build the replacement -- build the replacement first, verify it works, then remove the old code.
+
+---
+
+### Pitfall 14: Oracle Connection String Differences Between Dev and Prod
+
+**What goes wrong:**
+The current `uri_builder.py` builds Oracle URIs as:
+```python
+f"oracle://{user_part}{host}:{port}/?service_name={db_part}"
+```
+
+For the new async engine, the URI must be:
+```python
+f"oracle+oracledb://{user_part}{host}:{port}/?service_name={db_part}"
+```
+
+Note the `+oracledb` driver specifier. Without it, SQLAlchemy tries to use `cx_Oracle` (the old, deprecated driver). With `create_async_engine`, it must be `oracle+oracledb://` (which auto-selects async) or explicitly `oracle+oracledb_async://`.
+
+Additionally, Oracle Easy Connect strings have different formats depending on Oracle version:
+- Oracle 12c+: `host:port/service_name`
+- Oracle 19c+: `host:port/service_name?connect_timeout=5&transport_connect_timeout=3`
+- TNS alias: requires `tnsnames.ora` configuration
+
+The RHEL production servers may use TNS aliases, not host:port connection strings. python-oracledb Thin mode supports TNS aliases only if `tnsnames.ora` is in a known location or `TNS_ADMIN` env var is set.
+
+**Why it happens:**
+The URI builder was written for Superset's consumption (which uses cx_Oracle under the hood). The driver prefix, async suffix, and connection parameter format are all different for direct SQLAlchemy + python-oracledb.
+
+**Consequences:**
+- `ModuleNotFoundError: No module named 'cx_Oracle'` if driver prefix is wrong
+- Silent fallback to sync mode if `_async` suffix is missing with `create_async_engine`
+- Connection failures in production if TNS configuration is not set up
+- Timeout differences between dev (localhost PostgreSQL) and prod (network Oracle)
+
+**Prevention:**
+1. **Update `uri_builder.py`** to generate `oracle+oracledb://` format
+2. **Add a `for_async` parameter** that appends `_async` suffix when needed
+3. **Support TNS alias connections** via `connect_args`:
+   ```python
+   create_async_engine(
+       "oracle+oracledb://@",
+       connect_args={"user": "...", "password": "...", "dsn": "tns_alias"}
+   )
+   ```
+4. **Add connection timeout parameters** for production (network latency):
+   ```python
+   connect_args={"tcp_connect_timeout": 5}
+   ```
+5. **Test the URI builder** with both PostgreSQL and Oracle URLs, both sync and async
+
+**Detection:** Try to create an async engine with the current URI builder output. It will either use the wrong driver or fail to connect.
+
+**Phase:** Phase 1 (engine setup).
+
+---
+
+### Pitfall 15: No Query Timeout Without Superset
+
+**What goes wrong:**
+Superset enforces query timeouts. The current httpx client has a 120-second timeout (`httpx.AsyncClient(timeout=120.0)`). When you remove Superset, there is no timeout on direct database queries.
+
+A user writes `SELECT * FROM large_table` (10M rows). Without a timeout, the query runs until it exhausts memory, crashes the connection, or the user gives up and refreshes (which starts a new query while the old one still runs, consuming the connection).
+
+Oracle queries can also encounter lock waits. A query blocked by a row lock will wait indefinitely by default.
+
+**Why it happens:**
+Superset's SQL Lab has built-in query timeout enforcement. The httpx client had a timeout. Direct SQLAlchemy connections have no timeout by default.
+
+**Consequences:**
+- Runaway queries consume connections from the pool indefinitely
+- Memory exhaustion from unbounded result sets
+- Users trigger multiple retries, each consuming a connection
+- Oracle lock contention causes indefinite hangs
+
+**Prevention:**
+1. **Set `statement_timeout` on the connection level:**
+   - PostgreSQL: `SET statement_timeout = '60s'` (via `connect_args` or execution options)
+   - Oracle: `ALTER SESSION SET SQL_TRACE = FALSE; -- No direct equivalent; use python-oracledb's cancel()`
+2. **Use python-oracledb's `call_timeout`** parameter:
+   ```python
+   connect_args={"call_timeout": 60000}  # milliseconds
+   ```
+3. **Wrap query execution in `asyncio.wait_for()`:**
+   ```python
+   try:
+       result = await asyncio.wait_for(conn.execute(stmt), timeout=60.0)
+   except asyncio.TimeoutError:
+       # Connection may be in unknown state; dispose it
+   ```
+4. **Enforce row limits** at the SQL level: wrap user queries in `SELECT * FROM (user_query) WHERE ROWNUM <= 10001` (Oracle) or `LIMIT 10001` (PostgreSQL). The +1 detects truncation.
+5. **The SQL Explorer should have its own timeout** separate from dashboard queries (higher limit for ad-hoc exploration).
+
+**Detection:** Execute a `SELECT * FROM` on a large table. Without timeouts, it will hang.
+
+**Phase:** Phase 1 (query engine). Timeouts must be present from the first query execution.
+
+---
+
+## Minor Pitfalls
+
+Mistakes that cause confusion or require small fixes.
+
+---
+
+### Pitfall 16: Oracle's Empty String = NULL Surprises
+
+**What goes wrong:**
+In Oracle, an empty string `''` is treated as `NULL`. In PostgreSQL, `''` and `NULL` are distinct values. This affects:
+- `WHERE status = ''` returns zero rows on Oracle (should use `WHERE status IS NULL`)
+- `INSERT INTO t(col) VALUES ('')` stores NULL in Oracle
+- `COALESCE(col, '')` behaves differently: on PostgreSQL it returns `''` for NULL values; on Oracle it still returns NULL if the column is empty-string-as-NULL
+
+**Prevention:**
+1. Never store empty strings in columns that should be nullable; use NULL consistently
+2. In filter generation, map empty string filter values to `IS NULL` checks
+3. Document this for the dev team writing dataset SQL
+
+**Phase:** Phase 1 (dialect adapter).
+
+---
+
+### Pitfall 17: Forgetting to Remove Redis Dependencies
+
+**What goes wrong:**
+`requirements.txt` includes `redis==4.6.0`. The config has `redis_url` setting. Even though Redis is not imported directly in current app code (Superset used it internally), leaving the dependency:
+- Confuses developers about what the app needs
+- May cause import errors if redis package is not installed in the production venv
+- Docker Compose still starts a Redis container, wasting resources
+
+**Prevention:**
+1. Remove `redis` from `requirements.txt`
+2. Remove `redis_url` from `Settings` class
+3. Remove Redis from Docker Compose
+4. Verify no imports of redis exist
+
+**Phase:** Phase 3 (cleanup).
+
+---
+
+### Pitfall 18: The `psycopg2-binary` vs `asyncpg` Confusion
+
+**What goes wrong:**
+`requirements.txt` has both `psycopg2-binary` (sync PostgreSQL driver) and `asyncpg` (async PostgreSQL driver). The metadata engine uses `asyncpg` (via `postgresql+asyncpg://`). The `psycopg2-binary` is there because Superset needed it (or old sync code). After removal, having both causes confusion about which driver is canonical.
+
+In production (Oracle), neither is needed for data queries -- only `python-oracledb` is needed. But metadata might still be in PostgreSQL (dev) or Oracle (prod).
+
+**Prevention:**
+1. For dev: keep `asyncpg` for metadata PostgreSQL
+2. For prod: add `python-oracledb` for both metadata and data queries
+3. Remove `psycopg2-binary` unless explicitly needed (check if Alembic offline mode uses it)
+4. Document which driver is used for which purpose
+
+**Phase:** Phase 1 (requirements cleanup).
+
+---
+
+### Pitfall 19: Testing Against PostgreSQL Gives False Confidence for Oracle
+
+**What goes wrong:**
+All development and testing happens against PostgreSQL. The test suite (`test_query_engine.py`, `test_database_registrar.py`, etc.) only covers PostgreSQL behavior. Tests pass. Production runs Oracle and behaves differently.
+
+Specific test blind spots:
+- JSONB operations work in tests, fail on Oracle
+- Column names are lowercase in test results, uppercase in Oracle
+- Date arithmetic uses PostgreSQL syntax in test data
+- Empty string handling is PostgreSQL-semantic in tests
+
+**Prevention:**
+1. **Add an Oracle test profile** that runs key integration tests against an Oracle container (Oracle XE 21c is available as a Docker image for CI)
+2. **If Oracle containers are not available** (corporate policy), at minimum:
+   - Write unit tests that mock Oracle-style column names (UPPERCASE)
+   - Write unit tests for the dialect adapter's Oracle branches
+   - Write tests for the JSONB->CLOB type decorator
+3. **Document known differences** in a developer-facing reference table
+
+**Phase:** Throughout all phases. Each phase should include dialect-aware test coverage.
+
+---
+
+## Phase-Specific Warnings
+
+| Phase Topic | Likely Pitfall | Mitigation |
+|-------------|---------------|------------|
+| Engine Foundation (Phase 1) | JSONB columns crash on Oracle | Use `with_variant()` or TypeDecorator from day one |
+| Engine Foundation (Phase 1) | Connection pool exhaustion | Size pools for dashboard concurrency, not demo data |
+| Engine Foundation (Phase 1) | No query timeout | Add `call_timeout` + `asyncio.wait_for()` from first query |
+| Engine Foundation (Phase 1) | Oracle case sensitivity | Lowercase all column names in result adapter |
+| Engine Foundation (Phase 1) | python-oracledb Thick mode | Add thin mode startup check |
+| Engine Foundation (Phase 1) | URI format wrong for async | Update `uri_builder.py` for `oracle+oracledb://` |
+| Schema Migration (Phase 2) | `database_id` references Superset IDs | Migrate to `database_name` (string) |
+| Schema Migration (Phase 2) | `superset_id` column orphaned | Remove via Alembic migration |
+| Schema Migration (Phase 2) | Alembic migrations use JSONB | Write cross-dialect migration |
+| API Parity (Phase 2) | Response shape mismatch | Build adapter matching Superset's exact response format |
+| API Parity (Phase 2) | Frontend sends integer `database_id` | Accept both int and string during transition |
+| SQL Security (Phase 1-2) | No query sandboxing | Parameterized queries + read-only mode + row limits |
+| Superset Removal (Phase 3) | Incomplete removal (29 files) | Systematic grep + ordered removal |
+| Superset Removal (Phase 3) | Redis dependency left behind | Remove from requirements, config, Docker |
+| Dialect Compatibility (All) | PostgreSQL SQL works in dev, fails in prod | Portable SQL subset + dialect adapter + Oracle test profile |
+| Dataset SQL (Phase 2-3) | User SQL uses PostgreSQL-isms | SQL validator + developer documentation |
+
+---
 
 ## Sources
 
-- RecViz codebase analysis: `.planning/codebase/CONCERNS.md`, `.planning/codebase/INTEGRATIONS.md`, `.planning/codebase/ARCHITECTURE.md`
-- Apache Superset UPDATING.md: https://github.com/apache/superset/blob/master/UPDATING.md
-- Superset caching configuration: https://superset.apache.org/docs/configuration/cache/
-- Superset async queries via Celery: https://superset.apache.org/docs/configuration/async-queries-celery/
-- Superset CSRF issues: https://github.com/apache/superset/discussions/32751, https://github.com/apache/superset/issues/8382
-- Superset Oracle performance: https://github.com/apache/superset/issues/8568
-- Superset query timeout: https://github.com/apache/superset/issues/27473
-- AG Grid Server-Side Row Model: https://www.ag-grid.com/react-data-grid/server-side-model/
-- AG Charts large dataset optimization: https://blog.ag-grid.com/optimizing-large-data-set-visualisations-with-the-m4-algorithm/
-- Dashboard design principles: https://www.uxpin.com/studio/blog/dashboard-design-principles/
-- BI dashboard design best practices: https://julius.ai/articles/business-intelligence-dashboard-design-best-practices
-- Cross-filtering patterns: https://square.github.io/crossfilter/, https://cloud.google.com/looker/docs/cross-filtering-dashboards
-- Reconciliation dashboard patterns: https://www.osfin.ai/blog/reconciliation-dashboard, https://www.neoxam.com/aro/reconciliation-dashboards-reporting-audit-trails/
-- BI failure rates and lessons: https://designingforanalytics.com/resources/failure-rates-for-analytics-bi-iot-and-big-data-projects-85-yikes/
-- Build vs. buy analytics: https://www.sigmainfo.net/blog/custom-analytics-modules-vs-third-party-bi-tools-the-saas-builders-decision-framework-for-2026/
-- Superset performance optimization: https://celerdata.com/glossary/best-practices-to-optimize-apache-superset-dashboards, https://preset.io/blog/the-data-engineers-guide-to-lightning-fast-apache-superset-dashboards/
-
----
-*Pitfalls research for: RecViz internal BI platform for financial reconciliation*
-*Researched: 2026-04-04*
+- [SQLAlchemy 2.1 Oracle Dialect Documentation](https://docs.sqlalchemy.org/en/21/dialects/oracle.html)
+- [SQLAlchemy 2.0 Connection Pooling](https://docs.sqlalchemy.org/en/20/core/pooling.html)
+- [python-oracledb Async Programming](https://python-oracledb.readthedocs.io/en/latest/user_guide/asyncio.html)
+- [python-oracledb Thin vs Thick Mode](https://python-oracledb.readthedocs.io/en/latest/user_guide/appendix_b.html)
+- [python-oracledb Connection Handling](https://python-oracledb.readthedocs.io/en/latest/user_guide/connection_handling.html)
+- [Oracle to PostgreSQL Conversion Guide (PostgreSQL Wiki)](https://wiki.postgresql.org/wiki/Oracle_to_Postgres_Conversion)
+- [FastAPI SQLAlchemy QueuePool Exhaustion Discussion](https://github.com/fastapi/fastapi/discussions/10450)
+- [FastAPI Async Session Lifecycle Discussion](https://github.com/fastapi/fastapi/discussions/11321)
+- [SQLAlchemy JSON Column Support for Oracle Discussion](https://github.com/sqlalchemy/sqlalchemy/discussions/10374)
+- [python-oracledb JSON Data Type Support](https://python-oracledb.readthedocs.io/en/latest/user_guide/json_data_type.html)
+- [EDB: Porting Between Oracle and PostgreSQL](https://www.enterprisedb.com/postgres-tutorials/porting-between-oracle-and-postgresql)
+- [Oracle to PostgreSQL ROWNUM Migration](https://www.enterprisedb.com/blog/oracle-postgresql-rownum-and-rowid)
