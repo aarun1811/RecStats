@@ -19,7 +19,7 @@ from starlette.responses import Response
 
 from app.api.router import api_router
 from app.config import settings
-from app.db.engine import engine
+from app.db.engine import async_session_factory, engine
 from app.db.models.connection import RecvizConnection
 from app.services.connection_resolver import ConnectionResolver
 from app.services.connection_status import ConnectionStatusTracker
@@ -135,27 +135,14 @@ async def lifespan(app: FastAPI):
     )
     logger.info("QueryEngine initialized — ready to serve")
 
-    # 5. Create DatasetSyncService and reconcile unsynced datasets
-    from app.db.engine import async_session_factory
-    from app.services.dataset_sync import DatasetSyncService
-
-    dataset_sync = DatasetSyncService(superset=superset)
-    app.state.dataset_sync = dataset_sync
-    logger.info("DatasetSyncService initialized")
-
-    async with async_session_factory() as session:
-        await dataset_sync.reconcile(session)
-        await session.commit()
-    logger.info("Dataset reconciliation complete")
-
-    # 6. Initialize EncryptionService and EngineManager (Phase 12 -- engine foundation)
+    # 5. Initialize EncryptionService and EngineManager (Phase 12 -- engine foundation)
     encryption = EncryptionService(settings.recviz_encryption_key.get_secret_value())
     engine_manager = EngineManager(encryption=encryption)
     app.state.engine_manager = engine_manager
     app.state.encryption = encryption
     logger.info("EngineManager initialized")
 
-    # 7. Auto-migrate databases.json to recviz_connections table (D-02)
+    # 6. Auto-migrate databases.json to recviz_connections table (D-02)
     migrated_count = await _migrate_json_connections(
         session_factory=async_session_factory,
         config_path=settings.databases_config_path,
@@ -164,7 +151,7 @@ async def lifespan(app: FastAPI):
     if migrated_count > 0:
         logger.info("Migrated %d connections from databases.json", migrated_count)
 
-    # 8. Pre-warm engine pool for all registered connections (D-08)
+    # 7. Pre-warm engine pool for all registered connections (D-08)
     async with async_session_factory() as session:
         result = await session.execute(select(RecvizConnection))
         connections = result.scalars().all()
@@ -175,14 +162,14 @@ async def lifespan(app: FastAPI):
             except Exception as exc:
                 logger.warning("Failed to pre-warm connection %s: %s", conn.name, exc)
 
-    # 9. Create ConnectionResolver and sync from DB (Phase 13 -- query execution)
+    # 8. Create ConnectionResolver and sync from DB (Phase 13 -- query execution)
     connection_resolver = ConnectionResolver()
     async with async_session_factory() as session:
         await connection_resolver.sync(session)
     app.state.connection_resolver = connection_resolver
     logger.info("ConnectionResolver synced (%d connections)", len(connection_resolver._cache))
 
-    # 10. Create QueryExecutor (replaces Superset-backed QueryEngine)
+    # 9. Create QueryExecutor (replaces Superset-backed QueryEngine)
     # Overwrites the old QueryEngine from step 4 -- all data source queries
     # now execute directly against the database via EngineManager.
     app.state.query_engine = QueryExecutor(
