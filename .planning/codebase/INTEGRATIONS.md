@@ -4,173 +4,142 @@
 
 ## APIs & External Services
 
-**Apache Superset (Headless Query Engine):**
-- Purpose: SQL query execution, dataset management, database connection management
-- SDK/Client: Custom async client (`backend/app/services/superset_client.py`) using `httpx.AsyncClient`
-- Auth: Username/password login to `/api/v1/security/login`, JWT Bearer token + CSRF token
-- Token refresh: Auto re-auth on 401 or after 25 minutes (Superset default expiry is 30 min)
-- Base URL env var: `superset_url` (default: `http://localhost:8088`)
-- Credentials env vars: `superset_username`, `superset_password`
-- Superset API endpoints used:
-  - `POST /api/v1/security/login` - Authentication
-  - `GET /api/v1/security/csrf_token/` - CSRF token
-  - `POST /api/v1/chart/data` - Chart data queries
-  - `GET/POST /api/v1/chart/` - Chart CRUD
-  - `GET/POST/PUT/DELETE /api/v1/dataset/` - Dataset CRUD
-  - `POST /api/v1/sqllab/execute/` - Ad-hoc SQL execution
-  - `GET/POST/PUT/DELETE /api/v1/database/` - Database connection CRUD
-  - `POST /api/v1/database/test_connection/` - Database connection testing
-  - `GET /api/v1/dashboard/` - Dashboard listing
+**None.** RecViz is a fully self-contained, on-prem application. It does not call any external SaaS APIs, third-party services, or cloud endpoints. All data access is direct database connections managed internally.
 
-**Frontend API Client:**
-- Implementation: Custom `fetch`-based client (`frontend/src/lib/api-client.ts`)
-- Base URL: `VITE_API_BASE_URL` env var (default: `http://localhost:8000`)
-- Features: Auto snake_case-to-camelCase key transformation (skips `rows`, `columns`, `data`, `config` keys), structured `ApiError` class
-- Frontend never talks to Superset directly; all requests go through FastAPI
+**Internal API (Frontend to Backend):**
+- Frontend SPA communicates with FastAPI backend via REST API
+- Base URL: `VITE_API_BASE_URL` (defaults to `http://localhost:8000`)
+- Client: Custom `fetch`-based API client at `frontend/src/lib/api-client.ts`
+- Auto snake_case-to-camelCase key transformation on responses
+- Structured error handling via `ApiError` class
+- No authentication tokens or API keys required (auth not implemented)
 
 ## Data Storage
 
-**PostgreSQL 16 (Docker):**
-- Purpose 1: Superset metadata store
-  - Connection: `postgresql://recviz:recviz_dev@localhost:5432/superset_meta`
-  - Managed by: Superset's internal Alembic migrations
-- Purpose 2: RecViz application metadata (dashboards, charts, datasets, KPIs, data sources)
-  - Connection env var: `recviz_db_url` (default: `postgresql+asyncpg://recviz:recviz_dev@localhost:5432/superset_meta`)
-  - Client: SQLAlchemy 2.0 async with asyncpg driver (`backend/app/db/engine.py`)
-  - Session factory: `async_session_factory` (pool_size=10, max_overflow=5)
-  - Migrations: Alembic with custom `recviz_alembic_version` table (avoids Superset migration conflicts)
-  - Tables: `recviz_dashboards`, `recviz_charts`, `recviz_datasets`, `recviz_kpis`, `recviz_data_sources`
-  - All use JSONB columns for flexible config storage
-- Purpose 3: Recon data (dev stand-in for Oracle)
-  - Connection env var: `recon_db_url` (default: `postgresql://recviz:recviz_dev@localhost:5432/recon_data`)
-  - Database created by: `docker/init-db.sql`
-  - Seeded by: `scripts/seed-postgres.py`
-- Docker config: `docker-compose.yml` service `postgres` (image: `postgres:16-alpine`)
+### Databases
 
-**Oracle (Production):**
-- Purpose: Primary reconciliation data (TLM Consumer, TLM Finance, TLM Wealth, ReconMgmt)
-- Driver: `python-oracledb` in thin mode (no Oracle Instant Client required)
-- Compatibility shim: `superset/superset_config.py` aliases `oracledb` as `cx_Oracle` and sets `oracledb.version = "8.3.0"` for SQLAlchemy 1.4 compatibility
-- Connection pattern: `oracle://user:pass@host:1521/?service_name=SERVICE`
-- Schema: `RECON_OWNER` (production), empty in dev
-- Configured via: `backend/app/config/databases.prod.json`
-- Query dialect handling: `backend/app/services/query_engine.py` generates Oracle-specific SQL (SYSDATE, TRUNC, DECODE for date ranges)
+**PostgreSQL 16 (Metadata + Dev Data):**
+- Container: `recviz-postgres` via `docker-compose.yml`
+- Two databases on the same instance:
+  - `superset_meta` - RecViz application metadata (dashboards, charts, KPIs, datasets, data sources, connections)
+  - `recon_data` - Development stand-in for Oracle recon data
+- Init script: `docker/init-db.sql` creates the `recon_data` database
+- Metadata connection (async): `recviz_db_url` env var, uses `asyncpg` driver
+  - Engine: `backend/app/db/engine.py` - pool_size=10, max_overflow=5
+  - Session factory: `async_session_factory` with `expire_on_commit=False`
+- ORM: SQLAlchemy 2.0 declarative style with `Mapped[T]` + `mapped_column()`
+- Base class: `backend/app/db/base.py`
+- All table names prefixed with `recviz_` (e.g., `recviz_dashboards`, `recviz_connections`)
+- Portable JSON type: `backend/app/db/types.py` - `PortableJSON` uses JSONB on PostgreSQL, CLOB+JSON serialization on Oracle
 
-**Hive (Production - Historical):**
-- Purpose: Historical/batch reconciliation data
-- Driver: `pyhive` + `thrift` (installed in Superset container)
-- Connection pattern: `hive://user@host:10000/database`
-- Configured via: `backend/app/config/databases.prod.json`
+**Oracle (Production Recon Data):**
+- Driver: `oracledb` thin mode (no Oracle Instant Client required)
+- Async dialect: `oracle+oracledb://` via SQLAlchemy `create_async_engine`
+- URI builder: `backend/app/services/uri_builder.py` - supports `oracle`, `postgresql`, `hive`, `elasticsearch` backends
+- Default port: 1521
+- Connection format: `oracle+oracledb://user:pass@host:port/?service_name=SID`
+- SQL dialect handling: Oracle-specific date functions (`SYSDATE`, `TRUNC`, `DECODE`), `OFFSET FETCH` pagination, UPPERCASE column normalization
 
-**Redis 7 (Docker):**
-- Purpose 1: Superset query result cache (DB 0 for general, DB 1 for data + filter state)
-- Purpose 2: Superset Celery broker (DB 2) and result backend (DB 3)
-- Purpose 3: Superset SQL Lab results backend (DB 4, via `cachelib.redis.RedisCache`)
-- Connection: `redis://localhost:6379` (env var: `redis_url`)
-- Docker config: `docker-compose.yml` service `redis` (image: `redis:7-alpine`)
-- Note: Backend has `redis` Python package installed but does not directly use Redis yet
+**Connection Management (Dynamic):**
+- Connections stored in `recviz_connections` table (`backend/app/db/models/connection.py`)
+- Fields: id, name, display_name, backend, host, port, database_name, username, encrypted_password, schema_name, extra_params, status
+- Passwords encrypted at rest via Fernet (AES-128-CBC + HMAC-SHA256): `backend/app/services/encryption.py`
+- Encryption key: `RECVIZ_ENCRYPTION_KEY` env var (Fernet-generated, URL-safe base64, 32 bytes)
+- Engine pool per connection: `backend/app/services/engine_manager.py`
+  - Pool settings: pool_size=5, max_overflow=10, pool_timeout=30s, pool_recycle=1800s, pool_pre_ping=True
+  - Engines created lazily, cached by connection UUID, disposed on update/delete
+  - Pre-warmed at startup for all registered connections
+- Connection resolver: `backend/app/services/connection_resolver.py` - in-memory cache of name-to-UUID mappings (no passwords cached)
+- Connection status tracker: `backend/app/services/connection_status.py` - in-memory, resets on restart
+- Test endpoint: `POST /api/databases/test` - creates disposable single-connection engine, executes health check
+- CRUD: `backend/app/api/databases.py` - full create/read/update/delete for connections
 
-**SQLite (Local Dev Alternative):**
-- Purpose: Superset metadata when running Superset natively (not in Docker)
-- Location: `~/.superset/superset_local.db`
-- Configured in: `superset/superset_config_local.py`
-- SQL Lab results: `~/.superset/sqllab_results` (FileSystemCache)
+### Database Models (RecViz Metadata)
+
+| Table | Model File | Purpose |
+|-------|-----------|---------|
+| `recviz_connections` | `backend/app/db/models/connection.py` | Database connection credentials |
+| `recviz_dashboards` | `backend/app/db/models/dashboard.py` | Dashboard definitions (JSONB config) |
+| `recviz_charts` | `backend/app/db/models/chart.py` | Chart definitions |
+| `recviz_kpis` | `backend/app/db/models/kpi.py` | KPI definitions |
+| `recviz_datasets` | `backend/app/db/models/dataset.py` | Dataset definitions |
+| `recviz_data_sources` | `backend/app/db/models/data_source.py` | Data source query configs (JSONB) |
+
+### Migrations
+
+- Alembic with async support: `backend/app/migrations/`
+- Uses `recviz_alembic_version` table (not default `alembic_version`) to avoid conflicts with Superset
+- 7 migrations: initial schema through connection/portable-JSON additions
+- Config: `backend/app/migrations/alembic.ini`
 
 **File Storage:**
-- No external file storage service
-- Dashboard configs stored in PostgreSQL JSONB columns
-- Database connection configs stored as JSON files: `backend/app/config/databases.json`
+- Local filesystem only (no S3, Azure Blob, or equivalent)
+- Export endpoints (`backend/app/api/export.py`) are stubs - no actual file generation
 
 **Caching:**
-- Server-side: Redis via Superset (query results cached 5-10 minutes)
-- Client-side: TanStack Query (`frontend/src/lib/query-client.ts`)
-  - `staleTime`: 5 minutes
-  - `gcTime`: 30 minutes
-  - `retry`: 1
-  - `refetchOnWindowFocus`: false
-- Local dev (native Superset): SimpleCache (in-memory, no Redis needed)
+- No server-side cache (Redis removed with Superset)
+- Client-side: TanStack Query with staleTime=5min, gcTime=30min (`frontend/src/lib/query-client.ts`)
+- In-memory caches in backend:
+  - `ConnectionResolver._cache` - name-to-UUID mappings, synced from DB at startup
+  - `ConnectionStatusTracker._status` - connection health, resets on restart
+  - `EngineManager._engines` - SQLAlchemy engine pool per connection
+  - `_query_history` in `backend/app/api/sql.py` - last 200 SQL Explorer queries (single-worker only)
 
 ## Authentication & Identity
 
-**Auth Provider:**
-- None implemented for RecViz users
-- Superset internal auth: username/password (`admin`/`admin` for dev)
-- Backend authenticates to Superset via `POST /api/v1/security/login` at startup
-- No user authentication on any RecViz API endpoint
-- Planned: SSO/SAML/OIDC (not yet implemented)
+**Auth Provider:** None implemented
 
-**CORS Configuration:**
-- FastAPI (`backend/app/main.py`): Allows `http://localhost:5173`, `http://localhost:3000`, `http://localhost:4200`
-- Superset (`superset/superset_config.py`): Allows `http://localhost:5173`, `http://localhost:8000`
-- X-Frame-Options: `ALLOWALL` (set via custom middleware for iframe embedding)
+- No authentication middleware on any endpoint
+- No authorization checks
+- CORS configured for localhost origins: `http://localhost:5173`, `http://localhost:3000`, `http://localhost:4200`
+- X-Frame-Options: SAMEORIGIN (set via `XFrameOptionsMiddleware` in `backend/app/main.py`)
+- Future auth strategy: likely SSO/SAML/OIDC (noted in CLAUDE.md, not implemented)
 
 ## Monitoring & Observability
 
 **Error Tracking:**
-- None (no Sentry, Datadog, etc.)
+- No external error tracking service (no Sentry, Datadog, etc.)
+- Backend: Python `logging` module, `logging.basicConfig(level=logging.INFO)` in `backend/app/main.py`
+- Frontend: TanStack Query `onError` handler toasts errors via Sonner (`frontend/src/lib/query-client.ts`)
 
 **Logs:**
-- Backend: Python `logging` module (basicConfig at INFO level in `backend/app/main.py`)
-- Frontend: `sonner` toast notifications for API errors (via TanStack Query's `QueryCache.onError` in `frontend/src/lib/query-client.ts`)
-- Superset: Default Superset logging
-- Error sanitization: `backend/app/core/errors.py` strips connection strings and truncates to 500 chars
+- Backend: Standard Python logging, one logger per module (`logger = logging.getLogger(__name__)`)
+- Used for: startup events, connection status, query execution errors
+- Error sanitization: `backend/app/core/errors.py` - `sanitize_detail()` truncates to 500 chars, redacts connection URIs
+- No structured logging (no JSON log format)
+- No log aggregation service
 
-**Health Checks:**
-- FastAPI: `GET /health` returns `{"status": "ok", "superset": true}` (`backend/app/main.py`)
-- Superset: `GET /health` (checked by Docker healthcheck)
-- PostgreSQL: `pg_isready` (Docker healthcheck)
-- Redis: `redis-cli ping` (Docker healthcheck)
-- Database connection status: In-memory tracker (`backend/app/services/connection_status.py`) with states: `connected`, `unreachable`, `untested`
+**Health Check:**
+- `GET /health` returns `{"status": "ok"}` (`backend/app/main.py`)
+- Database connection health tracked in-memory by `ConnectionStatusTracker`
 
 ## CI/CD & Deployment
 
 **Hosting:**
-- On-premises RHEL servers (corporate environment, no cloud)
-- Deployment archive exists: `deployment/recviz-deploy-20260409-1134.tar.gz`
+- On-prem RHEL servers (corporate environment)
+- No cloud hosting
 
 **CI Pipeline:**
-- None detected (no `.github/workflows/`, no `Jenkinsfile`, no `.gitlab-ci.yml`)
+- None configured
+- No `.github/workflows/`, Jenkinsfile, or CI config files present
+- No automated test execution in CI
 
-**Docker:**
-- `docker-compose.yml` - PostgreSQL 16 + Redis 7 + Superset (3 services)
-- `superset/Dockerfile` - Custom Superset image with Oracle + Hive drivers
-- `superset/superset-entrypoint.sh` - Runs DB migrations, creates admin user, starts Superset
+**Docker (Development Only):**
+- `docker-compose.yml` - PostgreSQL 16 Alpine container only
+- No application Dockerfiles (no `frontend/Dockerfile` or `backend/Dockerfile`)
+- Docker not used in production
 
 ## Environment Configuration
 
-**Required env vars (backend):**
-- `superset_url` - Superset base URL (default: `http://localhost:8088`)
-- `superset_username` - Superset login (default: `admin`)
-- `superset_password` - Superset login (default: `admin`)
-- `redis_url` - Redis connection (default: `redis://localhost:6379/0`)
-- `recon_db_url` - Recon data database (default: `postgresql://recviz:recviz_dev@localhost:5432/recon_data`)
-- `recviz_db_url` - RecViz metadata database (default: `postgresql+asyncpg://recviz:recviz_dev@localhost:5432/superset_meta`)
-- `databases_config_path` - Path to databases.json (default: `backend/app/config/databases.json`)
-
-**Required env vars (frontend):**
-- `VITE_API_BASE_URL` - FastAPI backend URL (default: `http://localhost:8000`)
+**Required env vars:**
+- `RECVIZ_ENCRYPTION_KEY` - Fernet encryption key for database credential encryption (**mandatory, no default**)
+- `recon_db_url` - PostgreSQL connection string for recon data (has dev default)
+- `recviz_db_url` - Async PostgreSQL connection for RecViz metadata (has dev default)
+- `VITE_API_BASE_URL` - Frontend API target (defaults to `http://localhost:8000`)
 
 **Secrets location:**
-- `backend/.env` file (not committed to git)
-- Docker Compose inline env vars for dev defaults
-- Production database passwords in `databases.prod.json` (placeholder `CHANGE_ME` values)
-
-## Database Registration Flow
-
-**Startup sequence** (defined in `backend/app/main.py` lifespan):
-1. Create shared `httpx.AsyncClient` (120s timeout)
-2. Authenticate `SupersetClient` to Superset
-3. `DatabaseRegistrar` reads `databases.json` and syncs entries to Superset via API
-4. Initialize `ConnectionStatusTracker` (in-memory, resets on restart)
-5. Create `QueryEngine` (routes queries through Superset SQL Lab)
-6. `DatasetSyncService` reconciles unsynced RecViz datasets to Superset virtual datasets
-7. On shutdown: dispose SQLAlchemy engine, close httpx client
-
-**Dynamic database routing** (`backend/app/services/query_engine.py`):
-- Data sources can use static routing (fixed database) or dynamic routing (database selected by filter value)
-- `DatabaseRegistrar` maps logical names to Superset numeric IDs
-- SQL dialect-aware query building: Oracle (SYSDATE, TRUNC), PostgreSQL (CURRENT_DATE, INTERVAL), SQLite (date())
-- Schema prefix stripping when target database has no schema
+- `backend/.env` file (exists, not committed to git)
+- Database passwords encrypted in `recviz_connections.encrypted_password` column via Fernet
 
 ## Webhooks & Callbacks
 
@@ -180,33 +149,49 @@
 **Outgoing:**
 - None
 
-## Export Integration
+## API Routes
 
-**Current state: Stubbed** (`backend/app/api/export.py`)
-- `POST /api/export/pdf` - Returns pending job ID (no actual PDF generation)
-- `POST /api/export/excel` - Returns pending job ID (no actual Excel generation)
-- `GET /api/export/{job_id}/status` - In-memory job status lookup
-- Planned: WeasyPrint or Playwright for PDF, openpyxl for Excel (per CLAUDE.md)
+All backend API routes registered in `backend/app/api/router.py`:
 
-## Embed Support
+| Route Prefix | File | Purpose |
+|-------------|------|---------|
+| `/api/dashboards` | `backend/app/api/managed_dashboards.py` | Dashboard CRUD |
+| `/api/data-sources` | `backend/app/api/data_sources.py` | Data source config + query execution |
+| `/api/databases` | `backend/app/api/databases.py` | Database connection CRUD + test |
+| `/api/kpis` | `backend/app/api/managed_kpis.py` | KPI CRUD |
+| `/api/charts` | `backend/app/api/managed_charts.py` | Chart CRUD |
+| `/api/datasets` | `backend/app/api/managed_datasets.py` | Dataset CRUD |
+| `/api/sql` | `backend/app/api/sql.py` | SQL Explorer (execute, databases, history) |
+| `/api/search` | `backend/app/api/search.py` | Cross-entity search (ilike on name/description) |
+| `/api/export` | `backend/app/api/export.py` | PDF/Excel export stubs (not implemented) |
+| `/api/views` | `backend/app/api/views.py` | Saved views |
+| `/health` | `backend/app/main.py` | Health check endpoint |
 
-**Dashboard embedding:**
-- Route: `frontend/src/routes/embed/dashboards/`
-- X-Frame-Options middleware set to `ALLOWALL` in `backend/app/main.py`
-- Allows iframe embedding of dashboards in external applications
+## Query Execution Pipeline
 
-## Scripts & Tooling
+Direct database execution (no Superset proxy):
 
-**Setup scripts** (`scripts/`):
-- `seed-postgres.py` - Seeds PostgreSQL with sample recon data
-- `generate-seed-db.py` - Generates seed database content
-- `setup-superset-local.sh` - Sets up Superset for native (non-Docker) local dev
-- `mock-audit.sh` - Mock audit script
+1. **Frontend** calls `api.get('/api/data-sources/{id}/data?filters=...')` via `frontend/src/lib/api-client.ts`
+2. **Route handler** resolves data source config via `ConfigStoreDep` (`backend/app/core/dependencies.py`)
+3. **QueryExecutor** (`backend/app/services/query_engine.py`):
+   - Resolves target database via `ConnectionResolver` (static or dynamic routing)
+   - Builds SQL from template: replaces `{{filters}}`, `{{values}}`, `{{date_range_clause}}` placeholders
+   - Wraps with dialect-aware pagination (`backend/app/services/query_utils.py`)
+   - Executes via `EngineManager.get_engine_for_connection()` -> `AsyncEngine.connect()` -> `text(sql)`
+   - 30-second timeout for dashboard queries, 60-second for SQL Explorer
+4. **Response** shaped by `build_result_response()` - normalizes Oracle UPPERCASE columns, maps DB types to RecViz types (string/number/date)
+5. **Frontend** receives response, TanStack Query caches it for 5 minutes
 
-**Seed data** (`seed/`):
-- `create_recon_db.py` - Creates recon database
-- `register_superset.py` - Registers databases in Superset
-- `register_test_datasets.py` - Creates test datasets
+## Supported Database Backends
+
+| Backend | Async Driver | Sync Driver | Dialect | Default Port | Status |
+|---------|-------------|-------------|---------|--------------|--------|
+| PostgreSQL | `asyncpg` | `psycopg2` | `postgresql+asyncpg` | 5432 | Active (dev + metadata) |
+| Oracle | `oracledb` | `oracledb` | `oracle+oracledb` | 1521 | Production target |
+| Hive | Not async | `pyhive` | `hive` | 10000 | URI builder only (no async support) |
+| Elasticsearch | Not async | N/A | `elasticsearch+http(s)` | 9200 | URI builder only (not in requirements) |
+
+Note: Hive and Elasticsearch are defined in `uri_builder.py` sync URI builder but lack async dialect support. Only PostgreSQL and Oracle are supported for async execution via `EngineManager`.
 
 ---
 

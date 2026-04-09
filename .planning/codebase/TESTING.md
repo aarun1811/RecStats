@@ -2,163 +2,142 @@
 
 **Analysis Date:** 2026-04-09
 
-## Test Frameworks
+## Test Framework
 
-### Frontend Unit Tests
-
-**Runner:**
-- Vitest 4.1+ (latest major)
+**Frontend Unit Tests:**
+- Runner: Vitest 4.1.2
 - Config: `frontend/vitest.config.ts`
+- Environment: `node` by default, `jsdom` via per-file `// @vitest-environment jsdom` pragma
+- Assertion library: Vitest built-in (`expect`, `describe`, `it`)
+- React testing: `@testing-library/react` 16.3.2 + `@testing-library/jest-dom` 6.9.1
+- JSDOM: `jsdom` 29.0.1 (devDependency)
 
-**Assertion Library:**
-- Vitest built-in (`expect`, `describe`, `it`, `vi`)
-- `@testing-library/jest-dom` available but NOT globally wired (no `setupFiles` in vitest config)
-- Use `expect(element).toBeDefined()` or `expect(element).toBeTruthy()` instead of `toBeInTheDocument()`
-
-**Run Commands:**
-```bash
-cd frontend
-npx vitest                   # Watch mode (default)
-npx vitest run               # Single run
-npx vitest run --coverage    # Coverage (no coverage config detected)
-```
-
-**Environment:**
-- Default: `node` (from `frontend/vitest.config.ts`: `environment: 'node'`)
-- Override per-file with `// @vitest-environment jsdom` at top of file (used for component tests and DOM-dependent utils)
-- `jsdom` v29 available as devDependency
-- E2E tests excluded: `exclude: ['e2e/**', 'node_modules/**']`
-
-### Frontend E2E Tests
-
-**Runner:**
-- Playwright 1.59+
+**Frontend E2E Tests:**
+- Runner: Playwright 1.59.1
 - Config: `frontend/playwright.config.ts`
+- Browser: Chromium only (Desktop Chrome device)
+- Sequential execution: `fullyParallel: false`, `workers: 1`
+- Timeout: 30s per test, 10s per assertion, 120s for webServer startup
+- Auto-starts `pnpm dev` if not already running (reuses existing server)
+- Reporter: HTML
+- Traces: on first retry only
+- Screenshots: only on failure
+
+**Backend Unit Tests:**
+- Runner: pytest (not in `requirements.txt` -- installed separately)
+- Async support: `pytest-asyncio` (via `@pytest.mark.asyncio`)
+- HTTP testing: `fastapi.testclient.TestClient` (sync wrapper)
+- Mocking: `unittest.mock` (`MagicMock`, `AsyncMock`, `patch`)
+- No conftest.py detected
+- No pytest config file detected (no `pytest.ini`, `pyproject.toml`, `setup.cfg`)
 
 **Run Commands:**
 ```bash
-cd frontend
-npx playwright test --reporter=list    # Run all E2E tests
-npx playwright test embed.spec.ts      # Run a specific spec
-npx playwright show-report             # View HTML report
+# Frontend unit tests
+cd frontend && npx vitest              # Watch mode (default)
+cd frontend && npx vitest run          # Single run
+cd frontend && npx vitest run --coverage  # Coverage (not configured yet)
+
+# Frontend E2E tests (requires full stack running)
+cd frontend && npx playwright test --reporter=list
+
+# Backend tests
+cd backend && python -m pytest tests/  # Run all backend tests
+cd backend && python -m pytest tests/test_query_engine.py  # Single file
 ```
-
-**Prerequisites:**
-- Full stack must be running: Docker Compose (PostgreSQL + Redis), Superset, FastAPI backend, frontend dev server
-- Frontend dev server auto-started by `webServer` config if not already running
-- Seeded curated test data must exist in the database (via `seed-postgres.py`)
-
-**Configuration:**
-- `testDir`: `./e2e`
-- `fullyParallel`: false (sequential)
-- `workers`: 1
-- `timeout`: 30 seconds
-- `expect.timeout`: 10 seconds
-- `baseURL`: `http://localhost:5173`
-- `trace`: on first retry
-- `screenshot`: only on failure
-- Browser: Chromium (Desktop Chrome) only
-- Retries: 0 locally, 2 on CI
-
-### Backend Tests
-
-**Runner:**
-- pytest (version from requirements not pinned, installed in venv)
-- No pytest config file detected (no `pytest.ini`, `pyproject.toml`, or `setup.cfg`)
-
-**Assertion Library:**
-- Standard `assert` statements
-- `pytest.raises` for exception assertions
-
-**Run Commands:**
-```bash
-cd backend
-python -m pytest tests/         # Run all backend tests
-python -m pytest tests/ -v      # Verbose output
-python -m pytest tests/test_query_engine.py  # Run specific file
-```
-
-**Async Support:**
-- `pytest-asyncio` for async test functions
-- Decorator: `@pytest.mark.asyncio`
 
 ## Test File Organization
 
-**Frontend Unit Tests — Co-located:**
+**Frontend Unit Tests -- co-located with source:**
 ```
 frontend/src/
-  lib/
-    cross-filter.ts              # Source
-    cross-filter.test.ts         # Test (same directory)
-    formatters.ts
-    formatters.test.ts
-    kpi-aggregator.ts
-    kpi-aggregator.test.ts
-  stores/
-    filter-store.ts
-    filter-store.test.ts
-    drill-store.ts
-    drill-store.test.ts
-  components/
-    charts/
-      ag-chart-wrapper.tsx
-      ag-chart-wrapper.test.ts   # Pure logic test (node env)
-      ag-chart-wrapper.rules-of-hooks.test.tsx  # Component render test (jsdom)
-      chart-factory.tsx
-      chart-factory.test.tsx
-    dashboard/
-      grid-toolbar.tsx
-      grid-toolbar.test.tsx
-  routes/
-    embed/dashboards/
-      $dashboardId.tsx
-      $dashboardId.test.tsx       # Wiring test with mocked deps
+├── lib/
+│   ├── cross-filter.ts
+│   ├── cross-filter.test.ts          # Tests next to source
+│   ├── formatters.ts
+│   ├── formatters.test.ts
+│   ├── kpi-aggregator.ts
+│   ├── kpi-aggregator.test.ts
+│   ├── kpi-utils.ts
+│   ├── kpi-utils.test.ts
+│   ├── dashboard-url-state.ts
+│   ├── dashboard-url-state.test.ts
+│   ├── chart-compatibility.ts
+│   ├── chart-compatibility.test.ts
+│   ├── chart-export.ts
+│   ├── chart-export.test.ts
+│   ├── column-detection.ts
+│   ├── column-detection.test.ts
+│   ├── column-merge.ts
+│   └── column-merge.test.ts
+├── stores/
+│   ├── filter-store.ts
+│   ├── filter-store.test.ts
+│   ├── drill-store.ts
+│   └── drill-store.test.ts
+├── hooks/
+│   ├── use-auto-refresh.ts
+│   └── use-auto-refresh.test.ts
+└── components/
+    └── charts/
+        └── ag-chart-wrapper.rules-of-hooks.test.tsx
 ```
 
-**Frontend E2E Tests — Separate directory:**
+**Frontend E2E Tests -- separate directory:**
 ```
 frontend/e2e/
-  _fixtures.ts                    # Shared test fixtures (CURATED_DASHBOARDS, CURATED_CHARTS, etc.)
-  _dashboard-names.json           # Dashboard name cross-check data
-  chart-showcase.spec.ts          # Dashboard smoke tests (all 5 curated dashboards)
-  command-palette.spec.ts         # Cmd+K palette search tests
-  dashboard-edit-regression.spec.ts  # Builder page mount regression
-  dashboard-view-regression.spec.ts  # View route hook regression
-  embed.spec.ts                   # Embed mode tests (8 tests for hide/theme/filter params)
-  share-link.spec.ts              # Share URL bidirectional sync tests
+├── _fixtures.ts                       # Shared fixtures (curated entity catalog)
+├── chart-showcase.spec.ts             # Dashboard smoke tests (all 5 curated)
+├── command-palette.spec.ts            # Cmd+K palette search tests
+├── dashboard-edit-regression.spec.ts  # Builder edit regression
+├── dashboard-view-regression.spec.ts  # View route hook regression
+├── embed.spec.ts                      # Embed mode (?theme, ?filter, ?hide)
+├── share-link.spec.ts                 # URL filter-state sync + Share button
+├── parity-builder.spec.ts            # Builder parity after engine migration
+├── parity-connections.spec.ts         # Connections page parity
+├── parity-dashboards.spec.ts         # Dashboard rendering + cross-filter parity
+└── parity-explorer.spec.ts           # SQL Explorer parity
 ```
 
-**Backend Tests — Separate `tests/` directory:**
+**Backend Tests -- separate `tests/` directory:**
 ```
 backend/tests/
-  __init__.py
-  test_config_store.py            # ConfigStore unit tests
-  test_connection_status.py       # Connection status tracker tests
-  test_database_registrar.py      # Database registrar (async, mocked Superset)
-  test_dataset_sync.py            # Dataset sync service tests
-  test_managed_charts.py          # Chart CRUD API endpoint tests
-  test_managed_datasets.py        # Dataset CRUD API endpoint tests
-  test_managed_kpis.py            # KPI CRUD API endpoint tests
-  test_merge_engine.py            # MergeEngine unit tests
-  test_query_engine.py            # QueryEngine SQL building + routing tests
-  test_search.py                  # Search API endpoint tests
-  test_seed_script.py             # Seed script validation tests
-  test_uri_builder.py             # URI builder utility tests
+├── __init__.py
+├── test_config_store.py               # ConfigStore CRUD
+├── test_connection_model.py           # Connection ORM model
+├── test_connection_resolver.py        # ConnectionResolver logic
+├── test_connection_status.py          # ConnectionStatusTracker
+├── test_databases_api.py              # Database management API endpoints
+├── test_encryption.py                 # EncryptionService (Fernet)
+├── test_engine_manager.py             # EngineManager pool management
+├── test_managed_charts.py             # Chart CRUD API endpoints
+├── test_managed_datasets.py           # Dataset CRUD API endpoints
+├── test_managed_kpis.py               # KPI CRUD API endpoints
+├── test_merge_engine.py               # MergeEngine join logic
+├── test_portable_json.py              # Portable JSON export/import
+├── test_query_engine.py               # QueryExecutor (direct DB execution)
+├── test_query_utils.py                # Query utility functions
+├── test_search.py                     # Search API
+├── test_seed_script.py                # Seed script validation
+├── test_sql_api.py                    # SQL Explorer API + read-only enforcement
+└── test_uri_builder.py                # URI builder (Oracle/Hive/PostgreSQL)
 ```
+
+**Naming convention:**
+- Frontend unit: `{source-file-name}.test.ts(x)` co-located with source
+- Frontend E2E: `{feature-name}.spec.ts` in `frontend/e2e/`
+- Backend: `test_{module_name}.py` in `backend/tests/`
 
 ## Test Structure
 
-### Frontend Unit Test Pattern (Pure Logic)
-
-Tests for pure functions use `describe/it` blocks with direct imports:
-
+**Frontend Unit Test Pattern (pure logic -- `lib/`, `stores/`):**
 ```typescript
 import { describe, it, expect } from 'vitest'
+import { applyCrossFilters } from './cross-filter'
 import type { CrossFilter } from '@/types/filter'
-import { applyCrossFilters, rowPassesCrossFilters } from './cross-filter'
 
 describe('applyCrossFilters', () => {
-  const makeData = (rows: Record<string, unknown>[]): ChartDataResponse => ({
+  const makeData = (rows: Record<string, unknown>[]) => ({
     chartId: 'test',
     columns: Object.keys(rows[0] ?? {}),
     data: rows,
@@ -175,20 +154,19 @@ describe('applyCrossFilters', () => {
     ]
     const result = applyCrossFilters(data, filters, 'chart-b')
     expect(result?.data).toHaveLength(1)
+    expect(result?.data.every((r) => r.region === 'APAC')).toBe(true)
   })
 })
 ```
 
-### Frontend Unit Test Pattern (Zustand Store)
-
-Store tests use `useStore.setState()` for setup and `useStore.getState()` for assertions:
-
+**Frontend Zustand Store Test Pattern:**
 ```typescript
 import { describe, it, expect, beforeEach } from 'vitest'
 import { useFilterStore } from './filter-store'
 
 describe('filter-store crossFilters', () => {
   beforeEach(() => {
+    // Reset store state before each test
     useFilterStore.setState({
       crossFilters: [],
       values: {},
@@ -208,38 +186,7 @@ describe('filter-store crossFilters', () => {
 })
 ```
 
-### Frontend Unit Test Pattern (Component Render)
-
-Component tests use `@testing-library/react` with `jsdom` environment:
-
-```typescript
-// @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-
-vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
-
-describe('GridToolbar', () => {
-  beforeEach(() => { vi.clearAllMocks() })
-
-  it('renders search input with placeholder', () => {
-    render(<GridToolbar {...defaultProps} />)
-    expect(screen.getByPlaceholderText('Quick filter...')).toBeDefined()
-  })
-
-  it('calls gridApi on button click', () => {
-    const api = mockGridApi()
-    render(<GridToolbar {...defaultProps} gridApi={api as never} />)
-    fireEvent.click(screen.getByRole('button', { name: /csv/i }))
-    expect(api.exportDataAsCsv).toHaveBeenCalledTimes(1)
-  })
-})
-```
-
-### Frontend Unit Test Pattern (Hook Render)
-
-Hook tests use `renderHook` from `@testing-library/react`:
-
+**Frontend Hook Test Pattern (jsdom required):**
 ```typescript
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -259,18 +206,115 @@ describe('useAutoRefresh', () => {
 })
 ```
 
-### Frontend E2E Test Pattern
+**Frontend Component Test Pattern (jsdom, mocks):**
+```typescript
+// @vitest-environment jsdom
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
+import { cleanup, render } from '@testing-library/react'
+import { AgChartWrapper } from './ag-chart-wrapper'
 
-E2E tests use Playwright with shared fixtures from `frontend/e2e/_fixtures.ts`:
+// Mock heavy dependencies
+vi.mock('ag-charts-react', () => ({ AgCharts: () => null }))
+vi.mock('@/lib/chart-themes', () => ({
+  getAgChartsTheme: () => ({ palette: { fills: [], strokes: [] }, overrides: {} }),
+}))
 
+describe('AgChartWrapper -- Rules of Hooks guard', () => {
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn>
+  beforeEach(() => { consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {}) })
+  afterEach(() => { consoleErrorSpy.mockRestore(); cleanup() })
+
+  it('renders isLoading state without hook count warnings', () => {
+    render(<AgChartWrapper chartId="test" config={BASE_CONFIG} isLoading={true} />)
+    for (const call of consoleErrorSpy.mock.calls) {
+      expect(String(call[0] ?? '')).not.toMatch(/Rendered fewer hooks/)
+    }
+  })
+})
+```
+
+**Backend Unit Test Pattern (sync functions):**
+```python
+def test_oracle_full_uri():
+    """Oracle with all fields uses oracle:// dialect and service_name param."""
+    result = build_sqlalchemy_uri(
+        "oracle", host="orahost", port=1521, database="MYSERVICE",
+        username="user", password="pass",
+    )
+    assert result == "oracle://user:pass@orahost:1521/?service_name=MYSERVICE"
+```
+
+**Backend Async Test Pattern:**
+```python
+@pytest.mark.asyncio
+async def test_get_data_source():
+    config = _sample_config("tlm_breaks", "dynamic")
+    row = _make_data_source_row("tlm_breaks", "TLM Breaks", config)
+
+    session = AsyncMock()
+    session.get = AsyncMock(return_value=row)
+
+    store = ConfigStore(session=session)
+    result = await store.get_data_source("tlm_breaks")
+
+    assert result is not None
+    assert isinstance(result, DataSourceConfig)
+    assert result.id == "tlm_breaks"
+```
+
+**Backend API Test Pattern (FastAPI TestClient):**
+```python
+def _create_test_app(session_mock: AsyncMock) -> FastAPI:
+    """Create a minimal FastAPI app with mocked dependencies."""
+    from app.api.managed_charts import router
+    from app.core.dependencies import get_db_session
+
+    test_app = FastAPI()
+    test_app.include_router(router)
+
+    async def override_db():
+        yield session_mock
+
+    test_app.dependency_overrides[get_db_session] = override_db
+    return test_app
+
+def test_create_managed_chart_returns_201():
+    session = AsyncMock()
+    session.add = MagicMock()
+    session.flush = AsyncMock()
+
+    app = _create_test_app(session)
+    client = TestClient(app)
+
+    resp = client.post("/api/charts/managed", json=VALID_CREATE_BODY)
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["name"] == "My Chart"
+```
+
+## E2E Test Structure
+
+**Shared fixtures in `frontend/e2e/_fixtures.ts`:**
+```typescript
+export const CURATED_DASHBOARDS = {
+  sla: { id: 'dash-sla', name: 'Phase 10 · SLA Overview' },
+  aging: { id: 'dash-aging', name: 'Phase 10 · Aging Analysis' },
+  // ...
+} as const
+
+export async function waitForDashboardLoad(page: Page, dashboardName: string): Promise<void> {
+  await page.locator('h1', { hasText: dashboardName }).waitFor({ state: 'visible', timeout: 15_000 })
+  await expect(page.locator('[data-slot="skeleton"]')).toHaveCount(0, { timeout: 15_000 })
+}
+```
+
+**E2E Test Pattern (Playwright):**
 ```typescript
 import { expect, test } from '@playwright/test'
 import { CURATED_DASHBOARDS, waitForDashboardLoad } from './_fixtures'
 
-const { volume } = CURATED_DASHBOARDS
-
 test.describe('Dashboard view route', () => {
-  test('loads with title visible', async ({ page }) => {
+  test('curated dashboard loads with title visible and no console errors', async ({ page }) => {
     const consoleErrors: string[] = []
     page.on('console', (msg) => {
       if (msg.type() === 'error') consoleErrors.push(msg.text())
@@ -286,210 +330,84 @@ test.describe('Dashboard view route', () => {
 })
 ```
 
-### Backend Test Pattern (Service Unit)
-
-Pure unit tests using pytest fixtures and standard assertions:
-
-```python
-import pytest
-from unittest.mock import MagicMock
-from app.services.query_engine import QueryEngine
-
-@pytest.fixture
-def mock_registrar():
-    registrar = MagicMock()
-    registrar.get_dialect.return_value = "oracle"
-    return registrar
-
-@pytest.fixture
-def engine(mock_registrar):
-    return QueryEngine(superset_client=MagicMock(), database_registrar=mock_registrar)
-
-def test_build_sql_with_filters(engine):
-    sql = engine._build_sql(data_source_id="tlm_breaks", filters={"recon": ["AGENT_01"]})
-    assert "b.agent_code IN ('AGENT_01')" in sql
-```
-
-### Backend Test Pattern (API Endpoint)
-
-API tests create a minimal FastAPI app with mocked dependencies:
-
-```python
-from unittest.mock import AsyncMock, MagicMock
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
-
-def _make_chart_row(*, chart_id: str = "chart-uuid-1", name: str = "Test") -> MagicMock:
-    row = MagicMock()
-    row.id = chart_id
-    row.name = name
-    row.config = {"column_mapping": {...}}
-    return row
-
-def _create_test_app(session_mock: AsyncMock) -> FastAPI:
-    from app.api.managed_charts import router
-    from app.core.dependencies import get_db_session
-
-    test_app = FastAPI()
-    test_app.include_router(router)
-
-    async def override_db():
-        yield session_mock
-
-    test_app.dependency_overrides[get_db_session] = override_db
-    return test_app
-
-def test_list_managed_charts_returns_list():
-    row = _make_chart_row()
-    session = AsyncMock()
-    mock_result = MagicMock()
-    mock_result.scalars = MagicMock(return_value=MagicMock(all=MagicMock(return_value=[row])))
-    session.execute = AsyncMock(return_value=mock_result)
-
-    app = _create_test_app(session)
-    client = TestClient(app)
-
-    resp = client.get("/api/charts/managed")
-    assert resp.status_code == 200
-    assert len(resp.json()) == 1
-```
-
-### Backend Test Pattern (Async Service)
-
-Async tests use `@pytest.mark.asyncio` with `AsyncMock`:
-
-```python
-import pytest
-from unittest.mock import AsyncMock
-
-@pytest.mark.asyncio
-async def test_sync_creates_missing_databases():
-    superset = AsyncMock()
-    superset.list_databases = AsyncMock(return_value=[])
-    superset.create_database = AsyncMock(side_effect=lambda p: {"id": 99})
-    registrar = DatabaseRegistrar(superset_client=superset, config_path=None)
-    registrar._entries = _make_entries()
-    await registrar.sync()
-    assert superset.create_database.call_count == 2
-```
+**E2E conventions:**
+- Curated test entities seeded by `seed-postgres.py` (slugs in `_fixtures.ts`)
+- `waitForDashboardLoad()` shared helper waits for h1 + all skeletons removed
+- Console error capture via `page.on('console')` with filtering for expected noise
+- Generous timeouts: 15s for dashboard load, 10s for element visibility, 5s for UI transitions
+- `data-slot="skeleton"` used as stability indicator (0 skeletons = fully loaded)
+- `test.setTimeout(60_000)` for tests involving Monaco editor or query execution
 
 ## Mocking
 
-### Frontend Mocking (Vitest)
-
-**Framework:** `vi` from Vitest (built-in)
-
-**Module Mocking:**
+**Frontend -- Vitest `vi.mock()`:**
 ```typescript
-// Mock entire modules
+// Module-level mock (hoisted automatically)
+vi.mock('ag-charts-react', () => ({ AgCharts: () => null }))
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
-vi.mock('@/lib/chart-export', () => ({
-  sanitizeFilename: (name: string) => name.toLowerCase().replace(/\s+/g, '-'),
+vi.mock('@/lib/chart-themes', () => ({
+  getAgChartsTheme: () => ({ palette: { fills: [], strokes: [] }, overrides: {} }),
 }))
 
-// Mock chart libraries to avoid canvas/DOM dependencies
-vi.mock('ag-charts-react', () => ({
-  AgCharts: () => null,
-}))
+// Per-test spies
+const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
-// Mock hooks to isolate component wiring
-const useManagedDashboardMock = vi.fn()
-vi.mock('@/hooks/use-managed-dashboards', () => ({
-  useManagedDashboard: (id: string | null) => useManagedDashboardMock(id),
-}))
-
-// Mock React component to spy on props
-const dashboardRendererSpy = vi.fn()
-vi.mock('@/components/dashboard/dashboard-renderer', () => ({
-  DashboardRenderer: (props: Record<string, unknown>) => {
-    dashboardRendererSpy(props)
-    return <div data-testid="dashboard-renderer-mock" />
-  },
-}))
-```
-
-**Spy Functions:**
-```typescript
-const mockClick = vi.fn()
-const onChange = vi.fn()
-vi.spyOn(console, 'error').mockImplementation(() => {})
-```
-
-**Fake Timers:**
-```typescript
+// Fake timers
 vi.useFakeTimers()
-vi.setSystemTime(new Date('2026-04-05T12:00:00Z'))
 vi.advanceTimersByTime(61_000)
 vi.useRealTimers()
-```
 
-**Browser API Mocking:**
-```typescript
-// ResizeObserver
-class MockResizeObserver {
-  observe(): void {}
-  unobserve(): void {}
-  disconnect(): void {}
-}
-;(globalThis as unknown as { ResizeObserver: typeof MockResizeObserver }).ResizeObserver = MockResizeObserver
-
-// Clipboard
-const writeText = vi.fn().mockResolvedValue(undefined)
-Object.assign(navigator, { clipboard: { writeText } })
-
-// URL.createObjectURL
+// Browser API stubs
 globalThis.URL.createObjectURL = vi.fn().mockReturnValue('blob:test-url')
 globalThis.URL.revokeObjectURL = vi.fn()
+Object.assign(navigator, { clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } })
+```
+
+**Backend -- `unittest.mock`:**
+```python
+from unittest.mock import AsyncMock, MagicMock, patch
+
+# Mock ORM rows with spec
+row = MagicMock(spec=RecvizDataSource)
+row.id = "ds1"
+row.config = {...}
+
+# Mock async session
+session = AsyncMock()
+session.get = AsyncMock(return_value=row)
+session.execute = AsyncMock(return_value=mock_result)
+session.flush = AsyncMock()
+
+# Mock async context manager (for engine.connect())
+class _AsyncContextManager:
+    def __init__(self, value):
+        self._value = value
+    async def __aenter__(self):
+        return self._value
+    async def __aexit__(self, *args):
+        return False
+
+# Patch module-level dependency
+with patch("app.services.query_engine.async_session_factory", mock_factory):
+    await executor.execute(ds, filters={})
 ```
 
 **What to Mock:**
-- External chart libraries (AG Charts, ECharts) — heavy DOM/canvas dependencies
-- Third-party toast libraries (Sonner)
-- Browser APIs not available in jsdom (ResizeObserver, clipboard, URL.createObjectURL)
-- Hooks when testing component wiring (isolate the SUT)
-- Network-dependent services (TanStack Router, API client)
-- Theme provider when testing components
+- External services (Superset, databases) -- always mock in unit tests
+- AG Charts enterprise components (`ag-charts-react`) -- mock to avoid canvas/WebGL
+- Browser APIs (`ResizeObserver`, `clipboard`, `URL.createObjectURL`) -- stub in jsdom
+- Theme provider (`useTheme`) -- mock to return fixed theme in component tests
+- DB sessions and ORM results -- mock with `AsyncMock` / `MagicMock`
 
 **What NOT to Mock:**
-- Pure logic functions (cross-filter, formatters, URL state, column detection) — test directly
-- Zustand stores — test via `getState()` / `setState()` (no mocking needed)
-- Pydantic models and data transformations
-
-### Backend Mocking (Python)
-
-**Framework:** `unittest.mock` (MagicMock, AsyncMock, patch)
-
-**SQLAlchemy Session Mocking:**
-```python
-session = AsyncMock()
-mock_result = MagicMock()
-mock_result.scalar_one_or_none = MagicMock(return_value=row)
-session.execute = AsyncMock(return_value=mock_result)
-
-# Multi-query mocking via side_effect
-session.execute = AsyncMock(side_effect=[result1, result2, result3])
-```
-
-**Dependency Override Pattern:**
-```python
-async def override_db():
-    yield session_mock
-
-test_app.dependency_overrides[get_db_session] = override_db
-```
-
-**Service Mocking:**
-```python
-sync_service = MagicMock(spec=DatasetSyncService)
-sync_service.sync_dataset = AsyncMock(return_value=42)
-sync_service.delete_synced = AsyncMock()
-```
+- Pure functions (cross-filter, formatters, URL state, column detection) -- test directly
+- Zustand stores -- test via `getState()` / `setState()` (no mocking needed)
+- Pydantic models -- test validation directly
+- Query utility functions -- test directly
 
 ## Fixtures and Factories
 
-### Frontend Test Data Factories
-
-**Inline factory functions at the top of test files:**
+**Frontend -- inline factory helpers:**
 ```typescript
 const makeData = (rows: Record<string, unknown>[]): ChartDataResponse => ({
   chartId: 'test',
@@ -507,168 +425,233 @@ function makeKpiConfig(overrides: Partial<KpiConfig> & { id: string }): KpiConfi
     ...overrides,
   }
 }
-```
 
-### Frontend E2E Fixtures
-
-**Curated test catalog in `frontend/e2e/_fixtures.ts`:**
-- `DASHBOARD_NAMES` — canonical dashboard name strings (matched by seed script)
-- `CURATED_DASHBOARDS` — 5 dashboards keyed by handle (sla, aging, matchRate, volume, breaksSummary)
-- `CURATED_CHARTS` — 22 charts covering all 18 chart types
-- `CURATED_DATASETS` — 16 datasets
-- `CURATED_KPIS` — 12 KPIs
-- `waitForDashboardLoad(page, name)` — shared helper that waits for h1 + skeleton removal
-
-### Backend Test Data Factories
-
-**Factory functions per entity:**
-```python
-def _make_chart_row(*, chart_id: str = "chart-uuid-1", name: str = "Test Chart") -> MagicMock:
-    row = MagicMock()
-    row.id = chart_id
-    row.name = name
-    row.config = {...}
-    row.created_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
-    return row
-```
-
-**Shared constants for valid request bodies:**
-```python
-VALID_CREATE_BODY = {
-    "name": "My Chart",
-    "description": "Testing",
-    "datasetId": "dataset-uuid-1",
-    "chartType": "bar",
-    "config": {...},
+function makeMeta(overrides: Partial<DatasetColumnMeta> & { name: string }): DatasetColumnMeta {
+  return {
+    displayName: overrides.name,
+    dataType: 'string',
+    role: 'dimension',
+    aggregation: 'NONE',
+    formatPreset: 'none',
+    formatString: '',
+    ...overrides,
+  }
 }
 ```
+
+**Backend -- private factory functions (prefixed with underscore):**
+```python
+def _make_data_source_row(ds_id: str, name: str, config: dict) -> MagicMock:
+    """Create a mock RecvizDataSource row."""
+    row = MagicMock(spec=RecvizDataSource)
+    row.id = ds_id
+    row.name = name
+    row.config = config
+    return row
+
+def _make_ds(
+    ds_id: str = "test_ds",
+    query: str = "SELECT * FROM test_table WHERE 1=1 {{filters}}",
+    database: str = "test_db",
+    routing_type: str = "static",
+) -> DataSourceConfig:
+    """Create a DataSourceConfig for testing."""
+    return DataSourceConfig(id=ds_id, ...)
+```
+
+**Backend -- pytest fixtures:**
+```python
+@pytest.fixture
+def mock_resolver():
+    resolver = MagicMock()
+    resolver.resolve = AsyncMock(return_value="uuid-1234")
+    resolver.get_dialect.return_value = "postgresql"
+    return resolver
+
+@pytest.fixture
+def mock_engine_manager():
+    mgr = MagicMock()
+    mgr.get_engine_for_connection = AsyncMock()
+    return mgr
+```
+
+**E2E fixtures:** Curated entity catalog in `frontend/e2e/_fixtures.ts` -- shared across all specs. Entities are seeded by `seed-postgres.py` and verified by `test_seed_script.py`.
 
 ## Coverage
 
-**Requirements:** No coverage thresholds enforced. No coverage tooling configured.
+**Requirements:** None enforced. No coverage thresholds configured.
 
 **View Coverage:**
 ```bash
-cd frontend && npx vitest run --coverage   # Vitest coverage (not configured)
-cd backend && python -m pytest --cov=app tests/  # If pytest-cov is installed
+cd frontend && npx vitest run --coverage  # Vitest coverage (requires @vitest/coverage-v8)
+cd frontend && npx playwright test --reporter=list  # Playwright has built-in reporter
 ```
+
+**Note:** Coverage tooling (`@vitest/coverage-v8` or `@vitest/coverage-istanbul`) is not in `package.json` devDependencies. Must be installed separately to generate coverage reports.
 
 ## Test Types
 
-### Unit Tests (Frontend)
+**Unit Tests (Frontend -- 17 files, ~2500 lines):**
+- Pure logic: `cross-filter.test.ts`, `formatters.test.ts`, `kpi-aggregator.test.ts`, `kpi-utils.test.ts`, `dashboard-url-state.test.ts`, `chart-compatibility.test.ts`, `chart-export.test.ts`, `column-detection.test.ts`, `column-merge.test.ts`
+- Store state: `filter-store.test.ts`, `drill-store.test.ts`
+- Hook behavior: `use-auto-refresh.test.ts`
+- Component rendering: `ag-chart-wrapper.rules-of-hooks.test.tsx`
+- Scope: Test pure functions, store mutations, and hook lifecycle. No network calls.
 
-**17 test files** across:
-- Pure logic utilities: `frontend/src/lib/` (8 files: cross-filter, formatters, kpi-aggregator, kpi-utils, chart-compatibility, chart-export, column-detection, column-merge, dashboard-url-state)
-- Zustand stores: `frontend/src/stores/` (2 files: filter-store, drill-store)
-- Component logic: `frontend/src/components/charts/` (3 files: ag-chart-wrapper, chart-factory, rules-of-hooks)
-- Component render: `frontend/src/components/dashboard/` (1 file: grid-toolbar)
-- Hook behavior: `frontend/src/hooks/` (1 file: use-auto-refresh)
-- Route wiring: `frontend/src/routes/embed/` (1 file: embed route)
+**Unit Tests (Backend -- 19 files, ~4500 lines):**
+- Service logic: `test_query_engine.py`, `test_config_store.py`, `test_merge_engine.py`, `test_uri_builder.py`, `test_encryption.py`, `test_connection_status.py`, `test_connection_resolver.py`, `test_engine_manager.py`, `test_query_utils.py`
+- API endpoints: `test_managed_charts.py`, `test_managed_datasets.py`, `test_managed_kpis.py`, `test_databases_api.py`, `test_sql_api.py`, `test_search.py`
+- Data integrity: `test_seed_script.py`, `test_portable_json.py`, `test_connection_model.py`
+- Scope: Test services with mocked DB/engine. Test API endpoints with FastAPI TestClient + dependency overrides.
 
-**Scope:** Pure functions, store state transitions, component rendering, hook lifecycle, route wiring.
+**E2E Tests (Frontend -- 10 files, ~1300 lines):**
+- Dashboard rendering: `chart-showcase.spec.ts`, `dashboard-view-regression.spec.ts`, `parity-dashboards.spec.ts`
+- Dashboard editing: `dashboard-edit-regression.spec.ts`, `parity-builder.spec.ts`
+- Features: `embed.spec.ts`, `share-link.spec.ts`, `command-palette.spec.ts`
+- Connections: `parity-connections.spec.ts`
+- SQL Explorer: `parity-explorer.spec.ts`
+- Scope: Full-stack tests requiring Docker + backend + frontend running. Test against seeded curated data.
 
-### Unit Tests (Backend)
-
-**12 test files** covering:
-- Service logic: `test_query_engine.py`, `test_merge_engine.py`, `test_uri_builder.py`, `test_config_store.py`, `test_database_registrar.py`, `test_connection_status.py`, `test_dataset_sync.py`
-- API endpoints: `test_managed_charts.py`, `test_managed_datasets.py`, `test_managed_kpis.py`, `test_search.py`
-- Seed validation: `test_seed_script.py`
-
-**Scope:** SQL building, data merging, URI construction, CRUD operations, search ranking, config loading.
-
-### E2E Tests (Playwright)
-
-**6 spec files** covering:
-- `chart-showcase.spec.ts` — Smoke test all 5 curated dashboards (no errors, charts render, KPIs show values)
-- `command-palette.spec.ts` — Cmd+K search against curated entities (navigation, type ordering)
-- `dashboard-edit-regression.spec.ts` — Builder page mount regression
-- `dashboard-view-regression.spec.ts` — View route hook upgrade regression
-- `embed.spec.ts` — Embed mode (8 tests: theme, filters, lock, hide params)
-- `share-link.spec.ts` — Bidirectional URL sync, clipboard, replace mode
-
-**Scope:** Full-stack integration against seeded data. Real API, real database, real rendering.
+**Integration Tests:**
+- Not a distinct category. Backend API tests with `FastAPI.TestClient` serve as integration tests (test route -> handler -> mock service).
+- E2E tests serve as true integration tests (browser -> frontend -> backend -> database).
 
 ## Common Patterns
 
-### Async Testing (Frontend)
-
-```typescript
-it('calls gridApi.exportDataAsExcel on Excel button click', async () => {
-  const api = mockGridApi()
-  render(<GridToolbar {...defaultProps} gridApi={api as never} />)
-  fireEvent.click(screen.getByRole('button', { name: /excel/i }))
-  await waitFor(() => {
-    expect(api.exportDataAsExcel).toHaveBeenCalledTimes(1)
-  })
-})
-```
-
-### Error Testing (Frontend)
-
-```typescript
-it('shows error toast when clipboard fails', async () => {
-  const { toast } = await import('sonner')
-  const writeText = vi.fn().mockRejectedValue(new Error('denied'))
-  Object.assign(navigator, { clipboard: { writeText } })
-  await copyToClipboard(['a'], [{ a: 1 }])
-  expect(toast.error).toHaveBeenCalledWith('Failed to copy to clipboard')
-})
-```
-
-### Error Testing (Backend)
-
+**Async Testing (Backend):**
 ```python
-def test_resolve_database_dynamic_missing_filter(engine):
+@pytest.mark.asyncio
+async def test_execute_calls_resolver_resolve(
+    mock_resolver, mock_engine_manager, mock_status_tracker, mock_conn_record
+):
+    from app.services.query_engine import QueryExecutor
+
+    ds = _make_ds(database="my_db")
+    engine, _ = _build_mock_engine(rows=[(1, "a")], cursor_description=[...])
+    mock_engine_manager.get_engine_for_connection.return_value = engine
+
+    executor = QueryExecutor(
+        engine_manager=mock_engine_manager,
+        connection_resolver=mock_resolver,
+        status_tracker=mock_status_tracker,
+    )
+
+    with _patch_session(mock_conn_record):
+        await executor.execute(ds, filters={})
+
+    mock_resolver.resolve.assert_awaited_once_with("my_db")
+```
+
+**Error Testing (Backend):**
+```python
+def test_resolve_database_dynamic_missing_filter_raises(mock_resolver):
+    ds = _make_ds(routing_type="dynamic", route_by_filter="region", mapping={"US": "us_db"})
+    executor = QueryExecutor(engine_manager=MagicMock(), connection_resolver=mock_resolver)
+
     with pytest.raises(ValueError, match="required filter"):
-        engine._resolve_database(data_source_id="tlm_breaks", filters={})
+        executor._resolve_database(ds, filters={})
 ```
 
-### Null/Undefined/Edge Case Testing
-
-```typescript
-it('returns undefined data as-is', () => {
-  const result = applyCrossFilters(undefined, [
-    { sourceChartId: 'a', column: 'x', value: 'y' },
-  ], 'b')
-  expect(result).toBeUndefined()
-})
-
-it('returns empty string for null', () => {
-  expect(formatValue(null, { type: 'number' })).toBe('')
-})
+**Parametrized Testing (Backend):**
+```python
+@pytest.mark.parametrize("sql,label", [
+    ("INSERT INTO users (name) VALUES ('x')", "INSERT"),
+    ("DELETE FROM users WHERE id = 1", "DELETE"),
+    ("DROP TABLE users", "DROP TABLE"),
+])
+def test_destructive_sql_rejected(self, sql, label):
+    resp = client.post("/api/sql/execute", json={"sql": sql, "database_id": "uuid-1234"})
+    assert resp.status_code == 400
 ```
 
-### Console Error Spy Pattern (E2E)
+**Class-based Test Organization (Backend -- larger test files):**
+```python
+class TestReadOnlyEnforcement:
+    """Tests 2-7: POST /api/sql/execute with destructive SQL returns 400."""
 
+    @pytest.mark.parametrize(...)
+    def test_destructive_sql_rejected(self, sql, label):
+        ...
+
+class TestHistoryTracking:
+    def test_success_records_history(self):
+        ...
+```
+
+**Console Error Monitoring (E2E):**
 ```typescript
-test('loads without console errors', async ({ page }) => {
+test('renders without console errors', async ({ page }) => {
   const consoleErrors: string[] = []
   page.on('console', (msg) => {
-    if (msg.type() === 'error') consoleErrors.push(msg.text())
+    if (msg.type() !== 'error') return
+    const text = msg.text()
+    if (text.includes('Failed to load resource')) return  // Filter noise
+    consoleErrors.push(text)
   })
-  await page.goto(`/dashboards/${volume.id}`)
-  await waitForDashboardLoad(page, volume.name)
-  expect(consoleErrors).toHaveLength(0)
+
+  await page.goto('/dashboards/dash-sla')
+  await waitForDashboardLoad(page, 'Phase 10 · SLA Overview')
+  expect(consoleErrors, consoleErrors.join('\n')).toHaveLength(0)
 })
 ```
 
-### Module Re-import Pattern (Wiring Tests)
+**FastAPI Dependency Override Pattern (Backend):**
+```python
+def _create_test_app():
+    from app.api.sql import router
+    from app.core.dependencies import get_db_session, get_engine_manager
 
-For tests that need fresh module state after mock changes:
+    app = FastAPI()
+    app.include_router(router)
+    return app
 
-```typescript
-async function importEmbedPage() {
-  const mod = await import('./$dashboardId')
-  const route = mod.Route as unknown as { component: () => JSX.Element }
-  return route.component
-}
+def _override_deps(app, engine_manager=None, session=None):
+    from app.core.dependencies import get_db_session, get_engine_manager
 
-afterEach(() => {
-  cleanup()
-  vi.clearAllMocks()
-  vi.resetModules()
-})
+    if engine_manager is not None:
+        app.dependency_overrides[get_engine_manager] = lambda: engine_manager
+    if session is not None:
+        async def override_session():
+            yield session
+        app.dependency_overrides[get_db_session] = override_session
 ```
+
+## Where to Add New Tests
+
+**New frontend pure logic:**
+- Create `{module-name}.test.ts` next to the source file in `frontend/src/lib/`
+- Import from `vitest`: `describe`, `it`, `expect`
+- Use inline factory helpers for test data
+
+**New frontend hook:**
+- Create `use-{name}.test.ts` next to the hook in `frontend/src/hooks/`
+- Add `// @vitest-environment jsdom` pragma at top
+- Use `renderHook` from `@testing-library/react`
+
+**New frontend component:**
+- Create `{component-name}.test.tsx` next to the component
+- Add `// @vitest-environment jsdom` pragma
+- Mock heavy dependencies (AG Charts, Monaco, theme provider)
+
+**New frontend store:**
+- Create `{name}-store.test.ts` next to the store in `frontend/src/stores/`
+- Reset store state in `beforeEach` via `useStore.setState()`
+- Test via `useStore.getState().action()` + `useStore.getState().field`
+
+**New E2E test:**
+- Create `{feature}.spec.ts` in `frontend/e2e/`
+- Import shared fixtures from `_fixtures.ts`
+- Use `waitForDashboardLoad()` for dashboard-dependent tests
+
+**New backend service test:**
+- Create `test_{service_name}.py` in `backend/tests/`
+- Use `@pytest.mark.asyncio` for async tests
+- Create `_make_*` factory helpers and `@pytest.fixture` for shared mocks
+
+**New backend API test:**
+- Create `test_{router_name}.py` in `backend/tests/`
+- Use `_create_test_app()` + `TestClient` + dependency overrides pattern
+- Test all CRUD operations: 201 create, 200 read, 200 update, 204 delete, 404 not found
 
 ---
 
