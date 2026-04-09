@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 from sqlalchemy import DateTime, Integer, String, Text, func
-from sqlalchemy.dialects.postgresql import JSONB
+from app.db.types import PortableJSON
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -20,7 +20,7 @@ class RecvizDataset(Base):
     database_id: Mapped[int] = mapped_column(Integer, nullable=False)
     superset_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     sql: Mapped[str] = mapped_column(Text, nullable=False)
-    columns: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    columns: Mapped[list] = mapped_column(PortableJSON(), nullable=False, default=list)
     sync_status: Mapped[str] = mapped_column(
         String(32), nullable=False, default="unsynced", server_default="unsynced"
     )
