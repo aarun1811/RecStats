@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -96,6 +99,25 @@ class XFrameOptionsMiddleware(BaseHTTPMiddleware):
 app.add_middleware(XFrameOptionsMiddleware)
 
 app.include_router(api_router)
+
+
+# --------------------------------------------------------------------------- #
+# Static SPA serving — production only (no nginx available on RHEL deployment)
+# --------------------------------------------------------------------------- #
+FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
+
+if FRONTEND_DIST.exists():
+    logger.info("Frontend dist/ found at %s — mounting SPA", FRONTEND_DIST)
+
+    @app.exception_handler(404)
+    async def spa_fallback(request: Request, exc):
+        if request.url.path.startswith("/api/") or request.url.path == "/health":
+            return JSONResponse({"detail": "Not Found"}, status_code=404)
+        return FileResponse(FRONTEND_DIST / "index.html")
+
+    app.mount("/", StaticFiles(directory=str(FRONTEND_DIST), html=True), name="spa")
+else:
+    logger.info("Frontend dist/ NOT found — SPA serving disabled (dev mode)")
 
 
 @app.get("/health")

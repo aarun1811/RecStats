@@ -15,3 +15,6 @@ alembic==1.18.4
 
 # Encryption
 cryptography==44.0.3
+
+# Oracle driver (thin mode, no Instant Client needed)
+oracledb==2.5.1
