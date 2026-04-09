@@ -11,6 +11,8 @@ from typing import Sequence, Union
 import sqlalchemy as sa
 from alembic import op
 
+from app.db.types import PortableJSON
+
 # revision identifiers, used by Alembic.
 revision: str = "005"
 down_revision: Union[str, None] = "004"
@@ -31,7 +33,7 @@ def upgrade() -> None:
         sa.Column("username", sa.String(256), nullable=False),
         sa.Column("encrypted_password", sa.Text(), nullable=False),
         sa.Column("schema_name", sa.String(256), server_default=""),
-        sa.Column("extra_params", sa.Text(), nullable=True),
+        sa.Column("extra_params", PortableJSON(), nullable=True),
         sa.Column("status", sa.String(32), server_default="untested"),
         sa.Column("last_tested_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column(
