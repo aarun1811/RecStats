@@ -42,10 +42,8 @@ class DatasetResponse(CamelModel):
     name: str
     description: str
     database_id: int
-    superset_id: int | None
     sql: str
     columns: list[ColumnMetaSchema]
-    sync_status: str
     schema_version: int
     created_at: datetime
     updated_at: datetime
