@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from typing import TYPE_CHECKING
 
 from sqlalchemy import text
@@ -113,6 +114,9 @@ class EngineManager:
                 await conn.execute(text(test_sql))
             return True, "Connection successful"
         except Exception as exc:
-            return False, str(exc)
+            # Strip potential connection URIs from error messages to avoid leaking credentials
+            raw_msg = str(exc)
+            sanitized = re.sub(r"(://)[^@]*@", r"\1***:***@", raw_msg)
+            return False, sanitized
         finally:
             await engine.dispose()
