@@ -197,8 +197,8 @@ app.add_middleware(
 class XFrameOptionsMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):  # type: ignore[override]
         response: Response = await call_next(request)
-        # Allow framing from any origin (internal tool, no auth)
-        response.headers["X-Frame-Options"] = "ALLOWALL"
+        # Restrict framing to same origin (internal tool)
+        response.headers["X-Frame-Options"] = "SAMEORIGIN"
         return response
 
 
