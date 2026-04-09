@@ -21,8 +21,8 @@ Requirements for Superset removal and direct database engine. Each maps to roadm
 - [ ] **QENG-02**: Raw SQL execution via SQLAlchemy `text()` + `AsyncConnection.execute()` with configurable timeout
 - [ ] **QENG-03**: Dataset SQL execution with filter injection, pagination (LIMIT/OFFSET or OFFSET FETCH), and sorting
 - [ ] **QENG-04**: SQL Explorer direct execution with read-only enforcement (reject INSERT/UPDATE/DELETE/DROP/ALTER/CREATE/TRUNCATE)
-- [ ] **QENG-05**: Column type detection from cursor description mapped to RecViz column types (string, number, date, currency)
-- [ ] **QENG-06**: Oracle UPPERCASE column name normalization to lowercase (match frontend config expectations)
+- [x] **QENG-05**: Column type detection from cursor description mapped to RecViz column types (string, number, date, currency)
+- [x] **QENG-06**: Oracle UPPERCASE column name normalization to lowercase (match frontend config expectations)
 
 ### Dataset Management
 
@@ -33,7 +33,7 @@ Requirements for Superset removal and direct database engine. Each maps to roadm
 ### Cross-Dialect Compatibility
 
 - [x] **DIAL-01**: Replace all JSONB column types with portable `sa.JSON()` using `with_variant` for PostgreSQL/Oracle
-- [ ] **DIAL-02**: SQL pagination works on both PostgreSQL (LIMIT/OFFSET) and Oracle (OFFSET FETCH FIRST N ROWS ONLY)
+- [x] **DIAL-02**: SQL pagination works on both PostgreSQL (LIMIT/OFFSET) and Oracle (OFFSET FETCH FIRST N ROWS ONLY)
 - [x] **DIAL-03**: Alembic migrations execute successfully on both PostgreSQL and Oracle
 - [ ] **DIAL-04**: Date range clauses work on both dialects (existing `_build_date_range_clause` already handles this)
 
@@ -100,13 +100,13 @@ Deferred to future milestones. Tracked but not in current roadmap.
 | QENG-02 | Phase 13 | Pending |
 | QENG-03 | Phase 13 | Pending |
 | QENG-04 | Phase 13 | Pending |
-| QENG-05 | Phase 13 | Pending |
-| QENG-06 | Phase 13 | Pending |
+| QENG-05 | Phase 13 | Complete |
+| QENG-06 | Phase 13 | Complete |
 | DATA-01 | Phase 14 | Pending |
 | DATA-02 | Phase 14 | Pending |
 | DATA-03 | Phase 14 | Pending |
 | DIAL-01 | Phase 12 | Complete |
-| DIAL-02 | Phase 13 | Pending |
+| DIAL-02 | Phase 13 | Complete |
 | DIAL-03 | Phase 12 | Complete |
 | DIAL-04 | Phase 13 | Pending |
 | INFR-01 | Phase 15 | Pending |

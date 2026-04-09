@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Remove Superset -- Direct Database Engine
 status: executing
-stopped_at: Completed 12-03-PLAN.md
-last_updated: "2026-04-09T12:08:27.468Z"
-last_activity: 2026-04-09 -- Phase 13 planning complete
+stopped_at: Completed 13-01-PLAN.md
+last_updated: "2026-04-09T12:17:38.657Z"
+last_activity: 2026-04-09
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 6
-  completed_plans: 3
-  percent: 50
+  completed_plans: 4
+  percent: 67
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-09)
 
 **Core value:** Business users can view, interact with, and customize dashboards over reconciliation data without depending on another team.
-**Current focus:** Phase 12 — Engine Foundation
+**Current focus:** Phase 13 — Query Execution
 
 ## Current Position
 
-Phase: 13
-Plan: Not started
+Phase: 13 (Query Execution) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
-Last activity: 2026-04-09 -- Phase 13 planning complete
+Last activity: 2026-04-09
 
 Progress: ░░░░░░░░░░ 0%
 
@@ -66,6 +66,7 @@ Progress: ░░░░░░░░░░ 0%
 | Phase 12 P01 | 2min | 2 tasks | 8 files |
 | Phase 12 P02 | 3min | 3 tasks | 9 files |
 | Phase 12 P03 | 5min | 3 tasks | 6 files |
+| Phase 13 P01 | 4min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -85,6 +86,9 @@ Recent decisions affecting current work:
 - [Phase 12]: Disposable engine for connection testing: pool_size=1, max_overflow=0 -- avoids cache pollution
 - [Phase 12]: databases.json auto-migration is idempotent (checks by name) -- safe for repeated startups
 - [Phase 12]: Migration 005 uses sa.Text() for extra_params -- portable across PostgreSQL and Oracle
+- [Phase 13]: ConnectionInfo uses NamedTuple for lightweight immutable cache entries
+- [Phase 13]: Query utilities centralized in query_utils.py -- both QueryExecutor and SQL Explorer import from here
+- [Phase 13]: detect_column_type checks date patterns before number to handle TIMESTAMP WITH TIME ZONE correctly
 
 ### Pending Todos
 
@@ -98,6 +102,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-09T11:21:39.590Z
-Stopped at: Completed 12-03-PLAN.md
+Last session: 2026-04-09T12:17:38.655Z
+Stopped at: Completed 13-01-PLAN.md
 Resume file: None
