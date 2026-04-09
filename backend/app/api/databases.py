@@ -39,7 +39,13 @@ def _get_status_tracker(request: Request) -> ConnectionStatusTracker | None:
 
 
 def _get_encryption(request: Request) -> EncryptionService:
-    return request.app.state.encryption
+    encryption = getattr(request.app.state, "encryption", None)
+    if encryption is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Encryption service not available",
+        )
+    return encryption
 
 
 def _build_response(conn: RecvizConnection, status_info: dict) -> dict:
