@@ -169,6 +169,7 @@ async def create_database(
         session.add(connection)
         await session.flush()
     except IntegrityError:
+        await session.rollback()
         raise HTTPException(
             status_code=409,
             detail={"error": "duplicate_name", "message": f"A connection named '{name}' already exists"},
