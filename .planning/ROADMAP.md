@@ -83,7 +83,10 @@ Plans:
   3. The `httpx` dependency is removed from requirements (no more Superset HTTP proxy calls)
   4. Docker Compose contains only PostgreSQL for local dev -- `docker compose up` starts a single container
   5. The application starts and serves all endpoints with only FastAPI + database (no Superset process, no Redis process)
-**Plans**: TBD
+**Plans:** 1 plan
+
+Plans:
+- [ ] 15-01-PLAN.md -- Delete all Superset code, remove Redis/httpx deps, simplify Docker, clean all references
 
 ### Phase 16: Parity Verification
 **Goal**: Every v1.0 feature works identically with the new direct engine -- proven by automated tests and manual walkthrough against seed data dashboards
@@ -107,5 +110,5 @@ Phases execute in numeric order: 12 -> 13 -> 14 -> 15 -> 16
 | 12. Engine Foundation | 3/3 | Complete    | 2026-04-09 |
 | 13. Query Execution | 3/3 | Complete    | 2026-04-09 |
 | 14. API Migration | 2/2 | Complete    | 2026-04-09 |
-| 15. Superset Removal | 0/TBD | Not started | - |
+| 15. Superset Removal | 0/1 | Not started | - |
 | 16. Parity Verification | 0/TBD | Not started | - |
