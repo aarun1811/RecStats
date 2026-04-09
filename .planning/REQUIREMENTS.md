@@ -39,11 +39,11 @@ Requirements for Superset removal and direct database engine. Each maps to roadm
 
 ### Infrastructure Cleanup
 
-- [ ] **INFR-01**: Delete all Superset code — superset_client.py, database_registrar.py, dataset_sync.py, superset/ directory
-- [ ] **INFR-02**: Remove Redis from Docker Compose and all config references
-- [ ] **INFR-03**: Remove httpx dependency (no more Superset HTTP proxy calls)
-- [ ] **INFR-04**: Docker Compose simplified to PostgreSQL-only for local dev
-- [ ] **INFR-05**: Production deployment requires only FastAPI + Oracle — no Docker, no Redis, no Superset
+- [x] **INFR-01**: Delete all Superset code — superset_client.py, database_registrar.py, dataset_sync.py, superset/ directory
+- [x] **INFR-02**: Remove Redis from Docker Compose and all config references
+- [x] **INFR-03**: Remove httpx dependency (no more Superset HTTP proxy calls)
+- [x] **INFR-04**: Docker Compose simplified to PostgreSQL-only for local dev
+- [x] **INFR-05**: Production deployment requires only FastAPI + Oracle — no Docker, no Redis, no Superset
 
 ### Parity Verification
 
@@ -109,11 +109,11 @@ Deferred to future milestones. Tracked but not in current roadmap.
 | DIAL-02 | Phase 13 | Complete |
 | DIAL-03 | Phase 12 | Complete |
 | DIAL-04 | Phase 13 | Complete |
-| INFR-01 | Phase 15 | Pending |
-| INFR-02 | Phase 15 | Pending |
-| INFR-03 | Phase 15 | Pending |
-| INFR-04 | Phase 15 | Pending |
-| INFR-05 | Phase 15 | Pending |
+| INFR-01 | Phase 15 | Complete |
+| INFR-02 | Phase 15 | Complete |
+| INFR-03 | Phase 15 | Complete |
+| INFR-04 | Phase 15 | Complete |
+| INFR-05 | Phase 15 | Complete |
 | PRTY-01 | Phase 16 | Pending |
 | PRTY-02 | Phase 16 | Pending |
 | PRTY-03 | Phase 16 | Pending |

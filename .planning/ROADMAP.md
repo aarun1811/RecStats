@@ -19,7 +19,7 @@
 - [x] **Phase 12: Engine Foundation** - Connection storage table, credential encryption, cross-dialect types, async engine pool, and URI builder (completed 2026-04-09)
 - [x] **Phase 13: Query Execution** - QueryExecutor rewrite with direct SQL execution, filter injection, column detection, and Oracle normalization (completed 2026-04-09)
 - [x] **Phase 14: API Migration** - Rewrite database/dataset/SQL endpoints to use direct engine, remove all Superset sync code (completed 2026-04-09)
-- [ ] **Phase 15: Superset Removal** - Delete all Superset code, remove Redis, simplify Docker Compose, clean dependencies
+- [x] **Phase 15: Superset Removal** - Delete all Superset code, remove Redis, simplify Docker Compose, clean dependencies (completed 2026-04-09)
 - [ ] **Phase 16: Parity Verification** - Full regression testing confirming every v1.0 feature works identically with the new engine
 
 ## Phase Details
@@ -83,10 +83,10 @@ Plans:
   3. The `httpx` dependency is removed from requirements (no more Superset HTTP proxy calls)
   4. Docker Compose contains only PostgreSQL for local dev -- `docker compose up` starts a single container
   5. The application starts and serves all endpoints with only FastAPI + database (no Superset process, no Redis process)
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
-- [ ] 15-01-PLAN.md -- Delete all Superset code, remove Redis/httpx deps, simplify Docker, clean all references
+- [x] 15-01-PLAN.md -- Delete all Superset code, remove Redis/httpx deps, simplify Docker, clean all references
 
 ### Phase 16: Parity Verification
 **Goal**: Every v1.0 feature works identically with the new direct engine -- proven by automated tests and manual walkthrough against seed data dashboards
@@ -110,5 +110,5 @@ Phases execute in numeric order: 12 -> 13 -> 14 -> 15 -> 16
 | 12. Engine Foundation | 3/3 | Complete    | 2026-04-09 |
 | 13. Query Execution | 3/3 | Complete    | 2026-04-09 |
 | 14. API Migration | 2/2 | Complete    | 2026-04-09 |
-| 15. Superset Removal | 0/1 | Not started | - |
+| 15. Superset Removal | 1/1 | Complete   | 2026-04-09 |
 | 16. Parity Verification | 0/TBD | Not started | - |
