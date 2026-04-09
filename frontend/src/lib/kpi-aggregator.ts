@@ -31,6 +31,9 @@ export function recomputeKpis(
 
   for (const kpi of kpiConfigs) {
     let total = 0
+    let count = 0
+    let min = Infinity
+    let max = -Infinity
     const missingColumns = new Set<string>()
 
     for (const source of kpi.sources) {
@@ -47,10 +50,27 @@ export function recomputeKpis(
       const filtered = applyCrossFiltersToRows(data.rows, crossFilters)
       for (const row of filtered) {
         const val = row[source.metric]
-        if (val != null) total += Number(val)
+        if (val != null) {
+          const n = Number(val)
+          if (!Number.isNaN(n)) {
+            total += n
+            count += 1
+            if (n < min) min = n
+            if (n > max) max = n
+          }
+        }
       }
     }
-    kpiValues.set(kpi.id, total)
+
+    const agg = kpi.aggregation ?? 'SUM'
+    let value: number
+    if (agg === 'AVG' && count > 0) value = total / count
+    else if (agg === 'COUNT') value = count
+    else if (agg === 'MIN') value = min === Infinity ? 0 : min
+    else if (agg === 'MAX') value = max === -Infinity ? 0 : max
+    else value = total
+
+    kpiValues.set(kpi.id, value)
 
     if (missingColumns.size > 0) {
       partialMatches.push({
