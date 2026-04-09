@@ -1,18 +1,28 @@
 # RecViz
 
-## Current State
+## Current Milestone: v2.0 Remove Superset — Direct Database Engine
 
-**Shipped:** v1.0 (2026-04-08) — 11 phases, 42 plans, ~6 months of work. Full archived roadmap at `.planning/milestones/v1.0-ROADMAP.md`. v1.0 ships the complete BI platform: foundation hardening, cross-filter + drill-down, chart/grid interactions, Oracle/Hive connectivity, dataset/chart/KPI/dashboard libraries, dashboard builder, sharing/embed/Cmd+K palette, comprehensive seed at 100k tier with 5 curated GRU-realistic dashboards.
+**Goal:** Rip out Superset and Redis entirely. FastAPI queries databases directly via SQLAlchemy. Full v1.0 feature parity with zero Docker in production.
 
-**Documented exceptions:** SHAR-01 Saved Views and DATA-03 Elasticsearch deferred to next milestone. Phase 10 closeout (`10-CLOSEOUT.md`) tracks open visual bugs (donut, combo) and deferred plans (10-02 autonomous walk, 10-03 UAT runbook handoff).
+**Target features:**
+- Direct SQLAlchemy query engine (asyncpg for PostgreSQL dev, python-oracledb for Oracle prod)
+- Both metadata tables and data queries through the same database engine
+- Connection management built into FastAPI (no Superset API calls)
+- Dataset SQL execution directly against configured databases
+- Remove Superset dependency, config, init scripts entirely
+- Remove Redis from infrastructure
+- Remove Hive/ES driver code (deferred to future milestone)
+- Dev: PostgreSQL via Docker (metadata + data queries)
+- Prod: Oracle only, no Docker — FastAPI runs natively, all tables in Oracle
+- All v1.0 features continue working
 
-**Next milestone:** Run `/gsd-new-milestone` to start the next cycle. Candidates listed in `.planning/ROADMAP.md` Next-milestone candidates section.
+**Previous:** v1.0 shipped 2026-04-08 — 11 phases, 42 plans. Full archived roadmap at `.planning/milestones/v1.0-ROADMAP.md`.
 
 ---
 
 ## What This Is
 
-RecViz is an internal BI and visualization platform replacing Tableau and Qlik View for Citi's Global Reconciliation Unit (GRU). It provides a dashboard builder where the dev team creates datasets (SQL queries against Oracle/Hive/ES) and business users build, view, and customize dashboards from those datasets. Apache Superset serves as the headless query engine; a custom React frontend delivers the premium UI and builder experience.
+RecViz is an internal BI and visualization platform replacing Tableau and Qlik View for Citi's Global Reconciliation Unit (GRU). It provides a dashboard builder where the dev team creates datasets (SQL queries against Oracle) and business users build, view, and customize dashboards from those datasets. FastAPI serves as the backend with a direct SQLAlchemy query engine; a custom React frontend delivers the premium UI and builder experience.
 
 ## Core Value
 
@@ -50,7 +60,15 @@ Business users can view, interact with, and customize dashboards over reconcilia
 
 ### Active
 
-- [ ] Saved views — save current filter state as a named bookmark (deferred from Phase 9 to next milestone alongside reports/exports)
+- [ ] Direct SQLAlchemy query engine replacing Superset proxy (PostgreSQL dev, Oracle prod)
+- [ ] Connection management built into FastAPI (create, test, status tracking)
+- [ ] Dataset SQL execution directly against configured databases
+- [ ] Superset dependency fully removed (pip, config, init scripts)
+- [ ] Redis removed from infrastructure
+- [ ] Hive/ES driver code removed (deferred)
+- [ ] Docker Compose simplified to PostgreSQL-only (dev)
+- [ ] Production runs without Docker — Oracle for metadata + data queries
+- [ ] All v1.0 features maintain full parity (dashboards, builder, cross-filter, drill-down, sharing, embed, Cmd+K)
 
 ### Recently shipped
 
@@ -73,7 +91,7 @@ Business users can view, interact with, and customize dashboards over reconcilia
 - **Team:** GRU Dev team at Citi. Builds tooling for the Global Reconciliation Unit.
 - **Problem:** Currently depend on a separate BI team to build/modify Tableau and Qlik View dashboards. Every small change has a turnaround dependency. Licensing costs are high.
 - **Scale:** ~12,000 reconciliations across GRU. Potentially 100+ dashboards needed. Millions of rows per query. This makes the dashboard builder the core product — hand-crafting dashboards in config files doesn't scale.
-- **Data sources:** Oracle (primary recon data), Hive (historical/batch), Elasticsearch (search/real-time). All accessed via Superset's database connectivity.
+- **Data sources:** Oracle (primary recon data). Hive and Elasticsearch deferred to future milestone. Accessed directly via SQLAlchemy (python-oracledb for Oracle, asyncpg for PostgreSQL dev).
 - **Recon tools:** SmartStream TLM and others. RecViz doesn't care which tool produced the data — it queries database tables.
 - **Users:** Recon analysts (daily operational use), team leads/managers (performance tracking), senior leadership (summaries), auditors/compliance (periodic reporting).
 - **Data freshness:** Combination of yesterday's batch data and near-real-time. Configurable auto-refresh (~10 min default) + manual refresh.
@@ -85,9 +103,10 @@ Business users can view, interact with, and customize dashboards over reconcilia
 
 - **Tech stack**: React 19 + Vite 6 + TypeScript 5 + Shadcn/ui + AG Grid/Charts Enterprise + FastAPI + Superset — established in existing codebase
 - **Desktop only**: Optimize for large screens and data density. No mobile/tablet.
-- **Superset as engine**: Keep Superset as headless query engine — best free option for multi-source query, caching, dataset management
-- **No direct Superset UI**: Frontend never exposes Superset's UI to users. All queries proxied through FastAPI.
-- **Data volume**: Millions of rows — aggregation-first, caching critical (Redis via Superset + TanStack Query client-side)
+- **No Superset**: Superset removed in v2.0. FastAPI queries databases directly via SQLAlchemy.
+- **No Redis**: No caching layer. TanStack Query handles client-side caching.
+- **No Docker in prod**: Production runs natively on Oracle. Docker only for local dev (PostgreSQL).
+- **Data volume**: Millions of rows — aggregation-first, TanStack Query client-side caching.
 - **Corporate environment**: On-prem deployment, no cloud services. All dependencies must be self-hostable.
 
 ## Key Decisions
@@ -95,7 +114,9 @@ Business users can view, interact with, and customize dashboards over reconcilia
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
 | Build on existing codebase | Working foundation with config-driven dashboards, clean architecture. Fresh start would discard months of work. | — Pending |
-| Superset as headless engine | Best free option for multi-DB connectivity, caching, dataset management. Building from scratch would be inferior. | ✓ Good |
+| Superset as headless engine | Was best free option for multi-DB connectivity. Removed in v2.0 — too heavyweight, direct SQLAlchemy simpler. | ⚠️ Revisit |
+| Remove Superset + Redis (v2.0) | Simplify architecture — FastAPI queries DB directly via SQLAlchemy. No Redis cache, no Superset dependency. PostgreSQL dev, Oracle prod. | — Pending |
+| No Docker in production | Prod runs natively on Oracle. Docker only for local dev convenience (PostgreSQL). | — Pending |
 | Dashboard builder is the core product | 12,000 recons, 100+ dashboards needed. Can't hand-craft configs. Builder must be first-class. | — Pending |
 | Dev team creates datasets, business users build dashboards | Two-tier model: SQL expertise stays with devs, dashboard composition goes to business users. | — Pending |
 | Desktop only | Corporate environment, large screens. No responsive design complexity. | ✓ Good |
@@ -122,4 +143,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-08 after Phase 9 completion*
+*Last updated: 2026-04-09 after milestone v2.0 initialization*
