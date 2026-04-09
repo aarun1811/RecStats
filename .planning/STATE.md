@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Remove Superset -- Direct Database Engine
 status: executing
-stopped_at: Phase 12 context gathered
-last_updated: "2026-04-09T11:02:37.851Z"
-last_activity: 2026-04-09 -- Phase 12 planning complete
+stopped_at: Completed 12-01-PLAN.md
+last_updated: "2026-04-09T11:09:32.832Z"
+last_activity: 2026-04-09
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 3
-  completed_plans: 0
-  percent: 0
+  completed_plans: 1
+  percent: 33
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-09)
 
 **Core value:** Business users can view, interact with, and customize dashboards over reconciliation data without depending on another team.
-**Current focus:** Phase 12 -- Engine Foundation (v2.0)
+**Current focus:** Phase 12 — Engine Foundation
 
 ## Current Position
 
-Phase: 12 (first of 5 in v2.0) — Engine Foundation
-Plan: —
+Phase: 12 (Engine Foundation) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
-Last activity: 2026-04-09 -- Phase 12 planning complete
+Last activity: 2026-04-09
 
 Progress: ░░░░░░░░░░ 0%
 
@@ -62,6 +62,7 @@ Progress: ░░░░░░░░░░ 0%
 - Trend: Stable (later phases more complex due to integration scope)
 
 *Updated after each plan completion*
+| Phase 12 P01 | 2min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -75,6 +76,7 @@ Recent decisions affecting current work:
 - [v2.0]: One AsyncEngine per registered database, not a shared engine -- each targets a different physical DB
 - [v2.0]: Fernet encryption for credentials (key from env var) -- build URI at runtime from decrypted fields
 - [v2.0]: API response shapes must be byte-identical to Superset-proxied versions -- zero frontend changes
+- [Phase 12]: TypeDecorator with load_dialect_impl for PortableJSON -- sa.JSON() does NOT compile on Oracle in SA 2.0.49
 
 ### Pending Todos
 
@@ -88,6 +90,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-09T10:40:22.955Z
-Stopped at: Phase 12 context gathered
-Resume file: .planning/phases/12-engine-foundation/12-CONTEXT.md
+Last session: 2026-04-09T11:09:32.830Z
+Stopped at: Completed 12-01-PLAN.md
+Resume file: None

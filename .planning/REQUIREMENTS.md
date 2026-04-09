@@ -32,7 +32,7 @@ Requirements for Superset removal and direct database engine. Each maps to roadm
 
 ### Cross-Dialect Compatibility
 
-- [ ] **DIAL-01**: Replace all JSONB column types with portable `sa.JSON()` using `with_variant` for PostgreSQL/Oracle
+- [x] **DIAL-01**: Replace all JSONB column types with portable `sa.JSON()` using `with_variant` for PostgreSQL/Oracle
 - [ ] **DIAL-02**: SQL pagination works on both PostgreSQL (LIMIT/OFFSET) and Oracle (OFFSET FETCH FIRST N ROWS ONLY)
 - [ ] **DIAL-03**: Alembic migrations execute successfully on both PostgreSQL and Oracle
 - [ ] **DIAL-04**: Date range clauses work on both dialects (existing `_build_date_range_clause` already handles this)
@@ -105,7 +105,7 @@ Deferred to future milestones. Tracked but not in current roadmap.
 | DATA-01 | Phase 14 | Pending |
 | DATA-02 | Phase 14 | Pending |
 | DATA-03 | Phase 14 | Pending |
-| DIAL-01 | Phase 12 | Pending |
+| DIAL-01 | Phase 12 | Complete |
 | DIAL-02 | Phase 13 | Pending |
 | DIAL-03 | Phase 12 | Pending |
 | DIAL-04 | Phase 13 | Pending |
