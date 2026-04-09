@@ -86,6 +86,19 @@ def mock_conn_record():
     return record
 
 
+class _AsyncContextManager:
+    """Minimal async context manager for mocking engine.connect()."""
+
+    def __init__(self, value):
+        self._value = value
+
+    async def __aenter__(self):
+        return self._value
+
+    async def __aexit__(self, *args):
+        return False
+
+
 def _build_mock_engine(rows, cursor_description):
     """Build a mock async engine that returns the given rows + description.
 
@@ -99,10 +112,9 @@ def _build_mock_engine(rows, cursor_description):
     # conn.execute(text(sql)) returns a coroutine that resolves to mock_result
     mock_conn.execute = AsyncMock(return_value=mock_result)
 
-    mock_engine = AsyncMock()
-    # engine.connect() is an async context manager
-    mock_engine.connect.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
-    mock_engine.connect.return_value.__aexit__ = AsyncMock(return_value=False)
+    mock_engine = MagicMock()
+    # engine.connect() returns an async context manager (not a coroutine)
+    mock_engine.connect.return_value = _AsyncContextManager(mock_conn)
 
     return mock_engine, mock_conn
 
@@ -116,8 +128,7 @@ def _patch_session(mock_conn_record):
     mock_session.execute = AsyncMock(return_value=mock_result)
 
     mock_factory = MagicMock()
-    mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
-    mock_factory.return_value.__aexit__ = AsyncMock(return_value=False)
+    mock_factory.return_value = _AsyncContextManager(mock_session)
 
     return patch("app.services.query_engine.async_session_factory", mock_factory)
 
@@ -312,9 +323,8 @@ async def test_execute_marks_unreachable_on_operational_error(
     mock_conn.execute = AsyncMock(
         side_effect=OperationalError("conn failed", {}, Exception())
     )
-    mock_engine = AsyncMock()
-    mock_engine.connect.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
-    mock_engine.connect.return_value.__aexit__ = AsyncMock(return_value=False)
+    mock_engine = MagicMock()
+    mock_engine.connect.return_value = _AsyncContextManager(mock_conn)
     mock_engine_manager.get_engine_for_connection.return_value = mock_engine
 
     executor = QueryExecutor(
