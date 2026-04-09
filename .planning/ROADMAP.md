@@ -16,7 +16,7 @@
 - v2.0 starts at Phase 12 to avoid confusion.
 - Decimal phases (12.1, 12.2): Urgent insertions if needed (marked with INSERTED).
 
-- [ ] **Phase 12: Engine Foundation** - Connection storage table, credential encryption, cross-dialect types, async engine pool, and URI builder
+- [x] **Phase 12: Engine Foundation** - Connection storage table, credential encryption, cross-dialect types, async engine pool, and URI builder (completed 2026-04-09)
 - [ ] **Phase 13: Query Execution** - QueryExecutor rewrite with direct SQL execution, filter injection, column detection, and Oracle normalization
 - [ ] **Phase 14: API Migration** - Rewrite database/dataset/SQL endpoints to use direct engine, remove all Superset sync code
 - [ ] **Phase 15: Superset Removal** - Delete all Superset code, remove Redis, simplify Docker Compose, clean dependencies
@@ -34,12 +34,12 @@
   3. The engine pool lazily creates one AsyncEngine per registered database and disposes it cleanly on connection update or delete (no pool leaks)
   4. All existing ORM models (dashboards, charts, datasets, KPIs, connections) use portable `JSON` column types that work on both PostgreSQL and Oracle
   5. Alembic migrations run successfully on both PostgreSQL (dev) and Oracle (prod) after the JSONB-to-JSON migration
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 - [x] 12-01-PLAN.md -- PortableJSON TypeDecorator + replace JSONB in all 5 ORM models
 - [x] 12-02-PLAN.md -- RecvizConnection model + EncryptionService + async URI builder + config
-- [ ] 12-03-PLAN.md -- EngineManager service + Alembic migration 005 + FastAPI startup wiring
+- [x] 12-03-PLAN.md -- EngineManager service + Alembic migration 005 + FastAPI startup wiring
 
 ### Phase 13: Query Execution
 **Goal**: Raw SQL and dataset queries execute directly against configured databases with proper pagination, column typing, timeout enforcement, and Oracle compatibility -- no Superset in the query path
@@ -95,7 +95,7 @@ Phases execute in numeric order: 12 -> 13 -> 14 -> 15 -> 16
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 12. Engine Foundation | 2/3 | In Progress|  |
+| 12. Engine Foundation | 3/3 | Complete   | 2026-04-09 |
 | 13. Query Execution | 0/TBD | Not started | - |
 | 14. API Migration | 0/TBD | Not started | - |
 | 15. Superset Removal | 0/TBD | Not started | - |
