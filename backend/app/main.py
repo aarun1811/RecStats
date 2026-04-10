@@ -2,7 +2,34 @@
 
 from __future__ import annotations
 
+# --------------------------------------------------------------------------- #
+# CRITICAL: Oracle thick mode init MUST happen before any `from app.*` import
+# that might transitively load oracledb or create engines. Thick mode is
+# required for Oracle databases using national character sets not supported by
+# thin mode (e.g. NCS 871). Instant Client at /opt/oraclient/19.3_64/lib/ is
+# pre-installed by infra.
+# --------------------------------------------------------------------------- #
 import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+import oracledb
+
+try:
+    oracledb.init_oracle_client(lib_dir="/opt/oraclient/19.3_64/lib")
+    logger.info(
+        "oracledb %s thick mode initialized (Instant Client at /opt/oraclient/19.3_64/lib)",
+        oracledb.__version__,
+    )
+except Exception as e:
+    logger.warning(
+        "oracledb thick mode init failed (%s) -- falling back to thin mode", e
+    )
+
+# --------------------------------------------------------------------------- #
+# Remaining imports -- now safe to load app modules
+# --------------------------------------------------------------------------- #
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -24,20 +51,6 @@ from app.services.connection_status import ConnectionStatusTracker
 from app.services.encryption import EncryptionService
 from app.services.engine_manager import EngineManager
 from app.services.query_engine import QueryExecutor
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-# Enable thick mode for Oracle — required for databases using national
-# character set IDs not supported by thin mode (e.g. NCS 871).
-# Instant Client at /opt/oraclient/19.3_64/lib/ is pre-installed by infra.
-import oracledb
-
-try:
-    oracledb.init_oracle_client(lib_dir="/opt/oraclient/19.3_64/lib")
-    logger.info("oracledb thick mode initialized (Instant Client at /opt/oraclient/19.3_64/lib)")
-except Exception:
-    logger.warning("oracledb thick mode init failed — falling back to thin mode")
 
 
 @asynccontextmanager
@@ -112,25 +125,30 @@ app.add_middleware(XFrameOptionsMiddleware)
 app.include_router(api_router)
 
 
+# Direct routes MUST be registered BEFORE the StaticFiles mount below,
+# otherwise the mount catches every path under / and the direct routes
+# become unreachable.
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+
 # --------------------------------------------------------------------------- #
-# Static SPA serving — production only (no nginx available on RHEL deployment)
+# Static SPA serving -- production only (no nginx available on RHEL deploy)
 # --------------------------------------------------------------------------- #
 FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 
 if FRONTEND_DIST.exists():
-    logger.info("Frontend dist/ found at %s — mounting SPA", FRONTEND_DIST)
+    logger.info("Frontend dist/ found at %s -- mounting SPA", FRONTEND_DIST)
 
     @app.exception_handler(404)
     async def spa_fallback(request: Request, exc):
-        if request.url.path.startswith("/api/") or request.url.path == "/health":
+        # /api/* 404s stay as JSON 404s (do NOT fall through to index.html)
+        if request.url.path.startswith("/api/"):
             return JSONResponse({"detail": "Not Found"}, status_code=404)
+        # Everything else serves index.html so TanStack Router handles it
         return FileResponse(FRONTEND_DIST / "index.html")
 
     app.mount("/", StaticFiles(directory=str(FRONTEND_DIST), html=True), name="spa")
 else:
-    logger.info("Frontend dist/ NOT found — SPA serving disabled (dev mode)")
-
-
-@app.get("/health")
-async def health():
-    return {"status": "ok"}
+    logger.info("Frontend dist/ NOT found -- SPA serving disabled (dev mode)")

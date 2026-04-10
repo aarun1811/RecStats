@@ -16,5 +16,7 @@ alembic==1.18.4
 # Encryption
 cryptography==44.0.3
 
-# Oracle driver (thin mode, no Instant Client needed)
-oracledb==2.5.1
+# Oracle driver
+# >=3.0 required for async thick mode support (prod uses thick mode for
+# Oracle DBs with unsupported national character sets, e.g. NCS 871).
+oracledb>=3.3.0
