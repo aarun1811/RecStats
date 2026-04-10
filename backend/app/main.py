@@ -28,6 +28,17 @@ from app.services.query_engine import QueryExecutor
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Enable thick mode for Oracle — required for databases using national
+# character set IDs not supported by thin mode (e.g. NCS 871).
+# Instant Client at /opt/oraclient/19.3_64/lib/ is pre-installed by infra.
+import oracledb
+
+try:
+    oracledb.init_oracle_client(lib_dir="/opt/oraclient/19.3_64/lib")
+    logger.info("oracledb thick mode initialized (Instant Client at /opt/oraclient/19.3_64/lib)")
+except Exception:
+    logger.warning("oracledb thick mode init failed — falling back to thin mode")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
