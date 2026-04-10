@@ -10,6 +10,8 @@ from typing import Sequence, Union
 import sqlalchemy as sa
 from alembic import op
 
+from app.db.types import PortableJSON
+
 # revision identifiers, used by Alembic.
 revision: str = "003"
 down_revision: Union[str, None] = "002"
@@ -25,7 +27,7 @@ def upgrade() -> None:
         sa.Column("description", sa.String(1024), server_default=""),
         sa.Column("dataset_id", sa.String(128), nullable=False),
         sa.Column("chart_type", sa.String(64), nullable=False),
-        sa.Column("config", sa.JSON(), nullable=False, server_default="{}"),
+        sa.Column("config", PortableJSON(), nullable=False, server_default="{}"),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
