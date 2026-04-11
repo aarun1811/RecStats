@@ -24,6 +24,7 @@ import {
   Search,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { ApiError } from '@/lib/api-client'
 import { useDatabases } from '@/hooks/use-databases'
 import { useTables } from '@/hooks/use-tables'
 import { useTableColumns } from '@/hooks/use-table-columns'
@@ -240,8 +241,17 @@ function ExpandableTable({
               <Skeleton className="h-3 w-1/2" />
             </div>
           ) : error ? (
-            <div className="text-[11px] text-destructive px-2 py-1">
-              Failed to load columns
+            <div
+              className="text-[11px] text-destructive px-2 py-1 whitespace-normal break-words"
+              title={
+                error instanceof ApiError
+                  ? error.detail ?? error.userMessage
+                  : String(error)
+              }
+            >
+              {error instanceof ApiError
+                ? error.userMessage || 'Failed to load columns'
+                : 'Failed to load columns'}
             </div>
           ) : columns && columns.length > 0 ? (
             columns.map((col) => (

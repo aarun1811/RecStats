@@ -28,7 +28,12 @@ from app.services.uri_builder import build_sync_uri
 
 logger = logging.getLogger(__name__)
 
-TABLE_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_$#]{0,29}$")
+# Oracle 12.2+ and PostgreSQL both allow identifiers up to 128 bytes.
+# The pattern allows the standard SQL identifier charset (letter/underscore
+# start, alphanumerics + underscore afterwards) plus Oracle's $ and # which
+# are legal in unquoted Oracle identifiers. We reject anything with
+# whitespace, quotes, semicolons, or other SQL-injection markers.
+TABLE_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_$#]{0,127}$")
 
 
 def _normalize_nullable(raw) -> bool:

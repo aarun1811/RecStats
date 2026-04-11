@@ -103,13 +103,22 @@ def _mock_engine_manager(rows=None, raise_exc: Exception | None = None) -> Magic
 
 
 def test_table_name_regex_rejects_injection():
-    """The table_name validator should reject SQL injection attempts."""
+    """The table_name validator should reject SQL injection attempts
+    while accepting any legal Oracle/Postgres identifier up to 128 chars."""
     from app.api.databases import TABLE_NAME_RE
 
+    # Legal short identifiers
     assert TABLE_NAME_RE.match("ITEMS") is not None
     assert TABLE_NAME_RE.match("message_feed") is not None
     assert TABLE_NAME_RE.match("TBL$1") is not None    # Oracle allows $
     assert TABLE_NAME_RE.match("T_123") is not None
+
+    # Legal long identifier (Oracle 12.2+ and PostgreSQL both allow 128).
+    # Regression guard for the v7-safe Issue 4 fix: the earlier regex capped
+    # at 30 chars, which rejected real production table names on modern
+    # Oracle schemas.
+    assert TABLE_NAME_RE.match("A" * 128) is not None
+    assert TABLE_NAME_RE.match("A" * 64) is not None
 
     # Bad ones
     assert TABLE_NAME_RE.match("1_LEADING_DIGIT") is None
@@ -117,7 +126,8 @@ def test_table_name_regex_rejects_injection():
     assert TABLE_NAME_RE.match("ITEMS; SELECT 1") is None
     assert TABLE_NAME_RE.match("ITEMS'--") is None
     assert TABLE_NAME_RE.match("") is None
-    assert TABLE_NAME_RE.match("A" * 31) is None       # too long (max 30)
+    # Out-of-bound: 129 chars (one over the 128 max).
+    assert TABLE_NAME_RE.match("A" * 129) is None
 
 
 def test_nullable_normalization():
