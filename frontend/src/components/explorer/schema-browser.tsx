@@ -32,20 +32,35 @@ import type { SchemaTable } from '@/types/schema'
 interface SchemaBrowserProps {
   onInsertTable: (tableName: string) => void
   onInsertColumn: (columnName: string) => void
+  /** Optional controlled database selection. When provided, the
+   * internal Select becomes read-only and the browser surfaces
+   * changes via onSelectedDbIdChange. When omitted, the browser
+   * manages its own internal state (original behavior). */
+  selectedDbId?: string
+  onSelectedDbIdChange?: (dbId: string) => void
 }
 
-export function SchemaBrowser({
-  onInsertTable,
-  onInsertColumn,
-}: SchemaBrowserProps) {
+export function SchemaBrowser(props: SchemaBrowserProps) {
+  const { onInsertTable, onInsertColumn } = props
   const { data: databases = [], isLoading: dbsLoading } = useDatabases()
-  const [selectedDbId, setSelectedDbId] = useState<string>('')
+  const [internalSelectedDbId, setInternalSelectedDbId] = useState<string>('')
+
+  const isControlled = props.selectedDbId !== undefined
+  const selectedDbId = isControlled ? (props.selectedDbId ?? '') : internalSelectedDbId
+  const setSelectedDbId = (dbId: string) => {
+    if (isControlled) {
+      props.onSelectedDbIdChange?.(dbId)
+    } else {
+      setInternalSelectedDbId(dbId)
+    }
+  }
 
   useEffect(() => {
-    if (!selectedDbId && databases.length > 0) {
-      setSelectedDbId(databases[0].id)
+    if (isControlled) return
+    if (!internalSelectedDbId && databases.length > 0) {
+      setInternalSelectedDbId(databases[0].id)
     }
-  }, [databases, selectedDbId])
+  }, [databases, internalSelectedDbId, isControlled])
 
   const { data: tables, isLoading: tablesLoading, error: tablesError } =
     useTables(selectedDbId || null)
@@ -79,20 +94,26 @@ export function SchemaBrowser({
         </div>
       </div>
 
-      <div className="p-2 border-b shrink-0">
-        <Select value={selectedDbId} onValueChange={setSelectedDbId}>
-          <SelectTrigger className="h-8 text-xs">
-            <SelectValue placeholder="Select database" />
-          </SelectTrigger>
-          <SelectContent>
-            {databases.map((db) => (
-              <SelectItem key={db.id} value={db.id}>
-                {db.databaseName}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      {/* Internal database dropdown — only rendered in uncontrolled mode.
+          When the parent owns selectedDbId (Explorer page), the parent's
+          header dropdown is the single source of truth and this internal
+          one would be a duplicate. */}
+      {!isControlled && (
+        <div className="p-2 border-b shrink-0">
+          <Select value={selectedDbId} onValueChange={setSelectedDbId}>
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue placeholder="Select database" />
+            </SelectTrigger>
+            <SelectContent>
+              {databases.map((db) => (
+                <SelectItem key={db.id} value={db.id}>
+                  {db.databaseName}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       <div className="p-2 border-b shrink-0">
         <div className="relative">

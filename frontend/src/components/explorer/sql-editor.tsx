@@ -19,9 +19,21 @@ interface SqlEditorProps {
   onChange: (value: string) => void
   onRun: () => void
   isRunning: boolean
+  /** Optional extra disable reason — e.g. no database selected.
+   * When true, the Run button is disabled regardless of value/isRunning. */
+  disabled?: boolean
+  /** Optional helper text shown next to the Run button when disabled. */
+  disabledReason?: string
 }
 
-export function SqlEditor({ value, onChange, onRun, isRunning }: SqlEditorProps) {
+export function SqlEditor({
+  value,
+  onChange,
+  onRun,
+  isRunning,
+  disabled = false,
+  disabledReason,
+}: SqlEditorProps) {
   const editorRef = useRef<MonacoEditor | null>(null)
   const onRunRef = useRef(onRun)
   onRunRef.current = onRun
@@ -51,10 +63,21 @@ export function SqlEditor({ value, onChange, onRun, isRunning }: SqlEditorProps)
       <div className="flex items-center justify-between px-4 py-2 border-b bg-muted/40 shrink-0">
         <span className="text-sm font-medium tracking-tight">SQL Editor</span>
         <div className="flex items-center gap-3">
-          <span className="text-xs text-muted-foreground items-center gap-1 hidden sm:flex">
-            <Kbd>{IS_MAC ? '⌘' : 'Ctrl'}</Kbd>+<Kbd>↵</Kbd> to run
-          </span>
-          <Button size="sm" onClick={onRun} disabled={isRunning || !value.trim()} className="h-7">
+          {disabled && disabledReason ? (
+            <span className="text-xs text-muted-foreground italic">
+              {disabledReason}
+            </span>
+          ) : (
+            <span className="text-xs text-muted-foreground items-center gap-1 hidden sm:flex">
+              <Kbd>{IS_MAC ? '⌘' : 'Ctrl'}</Kbd>+<Kbd>↵</Kbd> to run
+            </span>
+          )}
+          <Button
+            size="sm"
+            onClick={onRun}
+            disabled={disabled || isRunning || !value.trim()}
+            className="h-7"
+          >
             {isRunning ? (
               <Loader2 className="mr-1.5 size-3.5 animate-spin" />
             ) : (
