@@ -14,7 +14,7 @@ export const Route = createFileRoute('/_app/explorer/')({
   component: Explorer,
 })
 
-const DEFAULT_SQL = `SELECT * FROM breaks WHERE desk = 'Operations' LIMIT 20`
+const DEFAULT_SQL = ''
 
 function Explorer() {
   const [sql, setSql] = useState(DEFAULT_SQL)
