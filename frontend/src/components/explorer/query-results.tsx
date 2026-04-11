@@ -5,7 +5,7 @@ import { useTheme } from '@/components/layout/theme-provider'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Download, Copy, BarChart3, CheckCircle2, XCircle, Clock, Save } from 'lucide-react'
+import { Download, Copy, CheckCircle2, XCircle, Clock, Save } from 'lucide-react'
 import { toast } from 'sonner'
 import type { SqlResult } from '@/types/api'
 
@@ -13,7 +13,6 @@ interface QueryResultsProps {
   result: SqlResult | null
   isLoading: boolean
   executionTime: number | null
-  onChartIt: () => void
   onSaveAsDataset?: () => void
 }
 
@@ -24,7 +23,7 @@ const DEFAULT_COL_DEF: ColDef = {
   minWidth: 80,
 }
 
-export function QueryResults({ result, isLoading, executionTime, onChartIt, onSaveAsDataset }: QueryResultsProps) {
+export function QueryResults({ result, isLoading, executionTime, onSaveAsDataset }: QueryResultsProps) {
   const gridRef = useRef<AgGridReact>(null)
   const [gridApi, setGridApi] = useState<GridApi | null>(null)
   const { resolvedTheme } = useTheme()
@@ -126,10 +125,6 @@ export function QueryResults({ result, isLoading, executionTime, onChartIt, onSa
           )}
         </div>
         <div className="flex items-center gap-1.5">
-          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={onChartIt}>
-            <BarChart3 className="mr-1 size-3" />
-            Chart It
-          </Button>
           <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleCopy}>
             <Copy className="mr-1 size-3" />
             Copy

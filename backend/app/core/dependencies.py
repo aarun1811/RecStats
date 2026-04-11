@@ -1,15 +1,21 @@
-"""FastAPI dependency injection for shared services."""
+"""FastAPI dependency injection for shared services.
+
+Sync-only: see ``app/db/engine.py`` for the rationale for the async→sync
+conversion. Route handlers that use ``DbSessionDep`` should be defined as
+``def`` (not ``async def``) so FastAPI runs them in its threadpool rather
+than blocking the event loop.
+"""
 
 from __future__ import annotations
 
 import logging
-from collections.abc import AsyncGenerator
+from collections.abc import Generator
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Path, Request
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
-from app.db.engine import async_session_factory
+from app.db.engine import session_factory
 from app.models.data_source_config import DataSourceConfig
 from app.services.config_store import ConfigStore
 from app.services.connection_resolver import ConnectionResolver
@@ -19,18 +25,18 @@ from app.services.query_engine import QueryEngine
 logger = logging.getLogger(__name__)
 
 
-async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
-    """Yield a per-request async DB session with auto commit/rollback."""
-    async with async_session_factory() as session:
+def get_db_session() -> Generator[Session, None, None]:
+    """Yield a per-request sync DB session with auto commit/rollback."""
+    with session_factory() as session:
         try:
             yield session
-            await session.commit()
+            session.commit()
         except Exception:
-            await session.rollback()
+            session.rollback()
             raise
 
 
-DbSessionDep = Annotated[AsyncSession, Depends(get_db_session)]
+DbSessionDep = Annotated[Session, Depends(get_db_session)]
 
 
 def get_config_store(session: DbSessionDep) -> ConfigStore:
@@ -67,12 +73,13 @@ ConnectionResolverDep = Annotated[ConnectionResolver, Depends(get_connection_res
 # ResolvedDataSourceDep — eliminates lookup + 404 duplication across endpoints
 # --------------------------------------------------------------------------- #
 
-async def get_resolved_data_source(
+
+def get_resolved_data_source(
     data_source_id: str = Path(...),
     config_store: ConfigStore = Depends(get_config_store),
 ) -> DataSourceConfig:
     """Resolve a data source config by ID, raising 404 if not found."""
-    ds = await config_store.get_data_source(data_source_id)
+    ds = config_store.get_data_source(data_source_id)
     if ds is None:
         raise HTTPException(
             status_code=404, detail=f"Data source '{data_source_id}' not found"

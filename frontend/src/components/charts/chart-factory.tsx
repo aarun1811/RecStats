@@ -3,7 +3,6 @@ import { toast } from 'sonner'
 
 import type { ChartWrapperProps, ChartRef, AgChartRef, EChartRef } from '@/types/chart'
 import {
-  exportFilename,
   triggerDownloadFromDataURL,
   downloadCSV,
   copyToClipboard as copyDataToClipboard,

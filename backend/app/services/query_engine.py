@@ -1,8 +1,14 @@
-"""QueryExecutor -- direct SQL execution against async engine pool.
+"""QueryExecutor -- direct SQL execution against sync engine pool.
 
 Replaces the Superset-backed QueryEngine. Dataset SQL templates are built
 via _build_sql() (filter injection, date range clauses) and executed directly
 against the target database engine via text() + EngineManager.
+
+Converted from async to sync on 2026-04-10 — see ``app/db/engine.py`` for
+the rationale. Per-query execution timeouts are enforced at the driver level
+via ``EngineManager._connect_args_for_backend`` (oracledb ``call_timeout``
+for Oracle, psycopg2 ``statement_timeout`` for PostgreSQL); SQLAlchemy's
+``pool_timeout`` only bounds connection acquisition.
 
 Response shape is identical to the Superset-era output:
   {columns: [{column_name, name, type, is_date}], rows: [{col: val}], row_count, truncated}
@@ -10,15 +16,14 @@ Response shape is identical to the Superset-era output:
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import re
 from typing import TYPE_CHECKING
 
 from sqlalchemy import select, text
 from sqlalchemy.exc import DBAPIError, OperationalError
+from sqlalchemy.orm import Session
 
-from app.db.engine import async_session_factory
 from app.db.models.connection import RecvizConnection as ConnModel
 from app.models.data_source_config import DataSourceConfig
 from app.services.connection_status import ConnectionStatusTracker
@@ -32,16 +37,15 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_MAX_ROWS = 10_000
 
-# Query timeout for dashboard queries (seconds)
-_QUERY_TIMEOUT = 30.0
-
 
 class QueryExecutor:
     """Builds SQL from config templates, resolves dynamic DB routing,
-    and executes queries directly via async engine pool.
+    and executes queries directly via the sync engine pool.
 
     Data source configs are resolved per-request by the caller (via
-    ResolvedDataSourceDep or ConfigStore) and passed directly to execute().
+    ResolvedDataSourceDep or ConfigStore) and passed directly to execute(),
+    along with the request-scoped metadata-DB session used to look up the
+    target RecvizConnection row (avoids opening a second session).
     """
 
     def __init__(
@@ -164,20 +168,23 @@ class QueryExecutor:
 
         return sql
 
-    async def execute(
+    def execute(
         self,
         ds: DataSourceConfig,
         filters: dict,
+        session: Session,
         max_rows: int = DEFAULT_MAX_ROWS,
     ) -> dict:
         """Execute a query for the given data source config and filters.
 
-        Uses direct text() execution against the async engine pool instead of
-        proxying through Superset. Response shape is identical to Superset-era
-        output for zero-change frontend compatibility.
+        Uses direct text() execution against the sync engine pool. The
+        provided ``session`` (request-scoped metadata DB session) is used
+        to look up the target RecvizConnection row — avoids opening a
+        second session per request. Response shape is identical to the
+        Superset-era output for zero-change frontend compatibility.
         """
         db_name = self._resolve_database(ds, filters)
-        connection_id = await self._resolver.resolve(db_name)
+        connection_id = self._resolver.resolve(db_name)
         dialect = self._resolver.get_dialect(db_name)
         sql = self._build_sql(ds, filters, dialect=dialect, db_name=db_name)
 
@@ -185,34 +192,24 @@ class QueryExecutor:
         sql = wrap_with_pagination(sql, limit=max_rows, offset=0, dialect=dialect)
 
         try:
-            # Get the RecvizConnection record to build engine
-            async with async_session_factory() as session:
-                result = await session.execute(
-                    select(ConnModel).where(ConnModel.id == connection_id)
-                )
-                conn_record = result.scalar_one()
-            engine = await self._engine_manager.get_engine_for_connection(conn_record)
+            # Look up the RecvizConnection via the request-scoped session
+            result = session.execute(
+                select(ConnModel).where(ConnModel.id == connection_id)
+            )
+            conn_record = result.scalar_one()
+            engine = self._engine_manager.get_engine_for_connection(conn_record)
 
-            async with engine.connect() as conn:
-                result = await asyncio.wait_for(
-                    conn.execute(text(sql)),
-                    timeout=_QUERY_TIMEOUT,
-                )
+            with engine.connect() as conn:
+                result = conn.execute(text(sql))
                 # Get column descriptions before consuming rows
                 cursor_desc = result.cursor.description or []
-                # Pass raw type info (OID int or type object) — let
-                # build_result_response handle OID-to-name mapping
                 column_descriptions = [
                     (col[0], col[1])
                     for col in cursor_desc
                 ]
                 rows = result.fetchall()
 
-        except asyncio.TimeoutError:
-            if self._status_tracker:
-                self._status_tracker.mark_unreachable(connection_id)
-            raise
-        except (OperationalError, DBAPIError) as exc:
+        except (OperationalError, DBAPIError):
             if self._status_tracker:
                 self._status_tracker.mark_unreachable(connection_id)
             raise
@@ -224,37 +221,36 @@ class QueryExecutor:
 
         return build_result_response(column_descriptions, rows, max_rows=max_rows)
 
-    async def execute_distinct(
+    def execute_distinct(
         self,
         ds: DataSourceConfig,
         column: str,
         filters: dict,
+        session: Session,
     ) -> list[str]:
         """Execute a distinct values query for a specific column.
 
-        Returns a list of string values, excluding nulls.
+        Returns a list of string values, excluding nulls. The provided
+        ``session`` is the request-scoped metadata DB session used to
+        look up the target connection row.
         """
         db_name = self._resolve_database(ds, filters)
-        connection_id = await self._resolver.resolve(db_name)
+        connection_id = self._resolver.resolve(db_name)
         dialect = self._resolver.get_dialect(db_name)
         sql = self._build_sql(ds, filters, column=column, dialect=dialect, db_name=db_name)
 
         try:
-            async with async_session_factory() as session:
-                result = await session.execute(
-                    select(ConnModel).where(ConnModel.id == connection_id)
-                )
-                conn_record = result.scalar_one()
-            engine = await self._engine_manager.get_engine_for_connection(conn_record)
+            result = session.execute(
+                select(ConnModel).where(ConnModel.id == connection_id)
+            )
+            conn_record = result.scalar_one()
+            engine = self._engine_manager.get_engine_for_connection(conn_record)
 
-            async with engine.connect() as conn:
-                result = await asyncio.wait_for(
-                    conn.execute(text(sql)),
-                    timeout=_QUERY_TIMEOUT,
-                )
+            with engine.connect() as conn:
+                result = conn.execute(text(sql))
                 rows = result.fetchall()
 
-        except (asyncio.TimeoutError, OperationalError, DBAPIError) as exc:
+        except (OperationalError, DBAPIError):
             if self._status_tracker:
                 self._status_tracker.mark_unreachable(connection_id)
             raise

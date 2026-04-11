@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { AgCharts } from 'ag-charts-react'
-import type { AgChartOptions } from 'ag-charts-community'
+import type { AgChartOptions } from 'ag-charts-enterprise'
 import { useTheme } from '@/components/layout/theme-provider'
 import {
   Dialog,
@@ -43,12 +43,16 @@ function pickDefaults(columns: string[], data: Record<string, unknown>[]) {
 
 export function ChartBuilderDialog({ open, onOpenChange, result }: ChartBuilderDialogProps) {
   const { resolvedTheme } = useTheme()
-  const defaults = pickDefaults(result.columns, result.data as Record<string, unknown>[])
+  const columnNames = useMemo(
+    () => result.columns.map((c) => c.column_name ?? c.name),
+    [result.columns],
+  )
+  const defaults = pickDefaults(columnNames, result.data as Record<string, unknown>[])
   const [chartType, setChartType] = useState<ChartType>('bar')
   const [xColumn, setXColumn] = useState(defaults.x)
   const [yColumn, setYColumn] = useState(defaults.y)
 
-  const chartOptions = useMemo<AgChartOptions>(() => {
+  const chartOptions = useMemo((): AgChartOptions => {
     const data = result.data as Record<string, unknown>[]
     const theme = resolvedTheme === 'dark' ? 'ag-default-dark' : 'ag-default'
 
@@ -64,7 +68,7 @@ export function ChartBuilderDialog({ open, onOpenChange, result }: ChartBuilderD
           },
         ],
         background: { visible: false },
-      }
+      } as unknown as AgChartOptions
     }
 
     return {
@@ -83,7 +87,7 @@ export function ChartBuilderDialog({ open, onOpenChange, result }: ChartBuilderD
         { type: 'number', position: 'left' },
       ],
       background: { visible: false },
-    }
+    } as unknown as AgChartOptions
   }, [chartType, xColumn, yColumn, result.data, resolvedTheme])
 
   return (
@@ -116,7 +120,7 @@ export function ChartBuilderDialog({ open, onOpenChange, result }: ChartBuilderD
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {result.columns.map((col) => (
+                {columnNames.map((col) => (
                   <SelectItem key={col} value={col}>
                     {col}
                   </SelectItem>
@@ -132,7 +136,7 @@ export function ChartBuilderDialog({ open, onOpenChange, result }: ChartBuilderD
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {result.columns.map((col) => (
+                {columnNames.map((col) => (
                   <SelectItem key={col} value={col}>
                     {col}
                   </SelectItem>

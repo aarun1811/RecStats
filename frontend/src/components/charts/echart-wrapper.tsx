@@ -319,27 +319,30 @@ export const EChartWrapper = forwardRef<EChartRef, ChartWrapperProps>(function E
   }, [data?.columns, config.categoryColumn, config.metricColumns])
 
   type EChartEventHandler = (...args: unknown[]) => void
+  type EChartClickParams = { name?: string; value?: unknown; data?: Record<string, unknown> }
   const onEvents = useMemo((): Record<string, EChartEventHandler> | undefined => {
     const events: Record<string, EChartEventHandler> = {}
     if (onChartClick) {
-      events.click = (params: { name?: string; value?: unknown; data?: Record<string, unknown> }) => {
+      events.click = ((...args: unknown[]) => {
+        const params = (args[0] ?? {}) as EChartClickParams
         onChartClick({
           chartId,
           column: resolvedCategoryKey,
           value: (params.name ?? params.value ?? '') as string | number,
           row: (params.data ?? {}) as Record<string, unknown>,
         })
-      }
+      }) as EChartEventHandler
     }
     if (onChartDoubleClick) {
-      events.dblclick = (params: { name?: string; value?: unknown; data?: Record<string, unknown> }) => {
+      events.dblclick = ((...args: unknown[]) => {
+        const params = (args[0] ?? {}) as EChartClickParams
         onChartDoubleClick({
           chartId,
           column: resolvedCategoryKey,
           value: (params.name ?? params.value ?? '') as string | number,
           row: (params.data ?? {}) as Record<string, unknown>,
         })
-      }
+      }) as EChartEventHandler
     }
     return Object.keys(events).length > 0 ? events : undefined
   }, [onChartClick, onChartDoubleClick, chartId, resolvedCategoryKey])

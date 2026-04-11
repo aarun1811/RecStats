@@ -27,11 +27,18 @@ router = APIRouter(prefix="/api/charts/managed", tags=["managed-charts"])
 
 
 def _to_response(chart: RecvizChart) -> ChartResponse:
-    """Convert a SQLAlchemy model to a Pydantic response."""
+    """Convert a SQLAlchemy model to a Pydantic response.
+
+    Note on ``description``: Oracle treats empty strings as NULL at the
+    DB level (a well-known Oracle quirk). A row saved with
+    ``description=""`` comes back as ``None`` on Oracle, which fails
+    ``ChartResponse.description: str`` validation. Coerce to ``""``
+    here so the API contract stays ``description is always a string``.
+    """
     return ChartResponse(
         id=chart.id,
         name=chart.name,
-        description=chart.description,
+        description=chart.description or "",
         dataset_id=chart.dataset_id,
         chart_type=chart.chart_type,
         config=ChartConfigSchema(**chart.config),
@@ -44,16 +51,16 @@ def _to_response(chart: RecvizChart) -> ChartResponse:
 
 
 @router.get("", response_model=list[ChartResponse])
-async def list_managed_charts(session: DbSessionDep):
+def list_managed_charts(session: DbSessionDep):
     """List all RecViz-managed charts."""
     stmt = select(RecvizChart).order_by(RecvizChart.updated_at.desc())
-    result = await session.execute(stmt)
+    result = session.execute(stmt)
     charts = result.scalars().all()
     return [_to_response(c) for c in charts]
 
 
 @router.post("", response_model=ChartResponse, status_code=201)
-async def create_managed_chart(
+def create_managed_chart(
     body: ChartCreate,
     session: DbSessionDep,
 ):
@@ -73,16 +80,16 @@ async def create_managed_chart(
     )
 
     session.add(chart)
-    await session.flush()
+    session.flush()
 
     return _to_response(chart)
 
 
 @router.get("/{chart_id}", response_model=ChartResponse)
-async def get_managed_chart(chart_id: str, session: DbSessionDep):
+def get_managed_chart(chart_id: str, session: DbSessionDep):
     """Get a single managed chart by ID."""
     stmt = select(RecvizChart).where(RecvizChart.id == chart_id)
-    result = await session.execute(stmt)
+    result = session.execute(stmt)
     chart = result.scalar_one_or_none()
 
     if chart is None:
@@ -92,14 +99,14 @@ async def get_managed_chart(chart_id: str, session: DbSessionDep):
 
 
 @router.put("/{chart_id}", response_model=ChartResponse)
-async def update_managed_chart(
+def update_managed_chart(
     chart_id: str,
     body: ChartUpdate,
     session: DbSessionDep,
 ):
     """Update a managed chart."""
     stmt = select(RecvizChart).where(RecvizChart.id == chart_id)
-    result = await session.execute(stmt)
+    result = session.execute(stmt)
     chart = result.scalar_one_or_none()
 
     if chart is None:
@@ -119,25 +126,25 @@ async def update_managed_chart(
 
 
 @router.delete("/{chart_id}", status_code=204)
-async def delete_managed_chart(chart_id: str, session: DbSessionDep):
+def delete_managed_chart(chart_id: str, session: DbSessionDep):
     """Delete a managed chart."""
     stmt = select(RecvizChart).where(RecvizChart.id == chart_id)
-    result = await session.execute(stmt)
+    result = session.execute(stmt)
     chart = result.scalar_one_or_none()
 
     if chart is None:
         raise HTTPException(status_code=404, detail="Chart not found")
 
-    await session.delete(chart)
+    session.delete(chart)
 
     return Response(status_code=204)
 
 
 @router.get("/{chart_id}/references", response_model=ChartDeleteCheck)
-async def get_chart_references(chart_id: str, session: DbSessionDep):
+def get_chart_references(chart_id: str, session: DbSessionDep):
     """Check what references a chart (dashboards, etc.)."""
     stmt = select(RecvizChart).where(RecvizChart.id == chart_id)
-    result = await session.execute(stmt)
+    result = session.execute(stmt)
     chart = result.scalar_one_or_none()
 
     if chart is None:

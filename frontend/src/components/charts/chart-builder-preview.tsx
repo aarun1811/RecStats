@@ -55,7 +55,7 @@ export function ChartBuilderPreview({ state, onPreviewData, allComplete }: Chart
   // Fetch chart data for live preview when mapping is configured
   useEffect(() => {
     const shouldFetchChart =
-      (state.step === 'mapping' || state.step === 'appearance' || state.step === 'save') &&
+      (state.step === 'mapping' || state.step === 'appearance') &&
       state.dataset &&
       state.chartType &&
       state.columnMapping &&
@@ -263,7 +263,7 @@ export function ChartBuilderPreview({ state, onPreviewData, allComplete }: Chart
 
       {/* Steps 3-4: Live chart preview */}
       {state.dataset &&
-        (state.step === 'mapping' || state.step === 'appearance' || state.step === 'save') && (
+        (state.step === 'mapping' || state.step === 'appearance') && (
           <div className="flex flex-1 flex-col">
             {chartLoading && (
               <div className="flex flex-1 items-center justify-center">

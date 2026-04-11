@@ -8,7 +8,6 @@ Provides:
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from datetime import datetime
 
@@ -50,7 +49,7 @@ class SqlRequest(CamelModel):
 
 
 @router.post("/execute")
-async def execute_sql(
+def execute_sql(
     body: SqlRequest,
     engine_manager: EngineManagerDep,
     session: DbSessionDep,
@@ -80,7 +79,7 @@ async def execute_sql(
     # 2. Look up connection record
     from app.db.models.connection import RecvizConnection
 
-    result = await session.execute(
+    result = session.execute(
         select(RecvizConnection).where(RecvizConnection.id == body.database_id)
     )
     conn_record = result.scalar_one_or_none()
@@ -105,14 +104,14 @@ async def execute_sql(
         dialect=conn_record.backend,
     )
 
-    # 4. Execute directly via engine (Threat T-13-09: 60s timeout)
+    # 4. Execute directly via engine. Per-query execution timeout is
+    # enforced at the driver level by EngineManager (oracledb call_timeout
+    # for Oracle, psycopg2 statement_timeout for PostgreSQL); SQLAlchemy's
+    # pool_timeout only bounds connection acquisition.
     try:
-        engine = await engine_manager.get_engine_for_connection(conn_record)
-        async with engine.connect() as conn:
-            db_result = await asyncio.wait_for(
-                conn.execute(text(paginated_sql)),
-                timeout=60.0,  # 60s for SQL Explorer (longer than dashboard 30s)
-            )
+        engine = engine_manager.get_engine_for_connection(conn_record)
+        with engine.connect() as conn:
+            db_result = conn.execute(text(paginated_sql))
             cursor_desc = db_result.cursor.description or []
             column_descriptions = [
                 (col[0], col[1])
@@ -135,19 +134,6 @@ async def execute_sql(
             "row_count": shaped["row_count"],
         }
 
-    except asyncio.TimeoutError:
-        logger.warning("SQL query timed out after 60s")
-        record["status"] = "error"
-        record["error"] = "Query timed out"
-        _record_history(record)
-        raise HTTPException(
-            status_code=504,
-            detail={
-                "error": "query_timeout",
-                "message": "Query timed out after 60 seconds",
-                "detail": None,
-            },
-        )
     except Exception as e:
         logger.exception("Error during SQL execution")
         record["status"] = "error"
@@ -164,10 +150,10 @@ async def execute_sql(
 
 
 @router.get("/databases")
-async def list_databases(session: DbSessionDep):
+def list_databases(session: DbSessionDep):
     from app.db.models.connection import RecvizConnection
 
-    result = await session.execute(
+    result = session.execute(
         select(
             RecvizConnection.id,
             RecvizConnection.name,
@@ -188,5 +174,5 @@ async def list_databases(session: DbSessionDep):
 
 
 @router.get("/history")
-async def get_history():
+def get_history():
     return _query_history[:50]

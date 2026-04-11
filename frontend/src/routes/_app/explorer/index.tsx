@@ -1,12 +1,21 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
+import { Database } from 'lucide-react'
+
 import { useSqlExecute } from '@/hooks/use-sql-execute'
+import { useDatabases } from '@/hooks/use-databases'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { SqlEditor } from '@/components/explorer/sql-editor'
 import { SchemaBrowser } from '@/components/explorer/schema-browser'
 import { QueryResults } from '@/components/explorer/query-results'
 import { QueryHistory } from '@/components/explorer/query-history'
-import { ChartBuilderDialog } from '@/components/explorer/chart-builder-dialog'
 import { SaveAsDatasetDialog } from '@/components/explorer/save-as-dataset-dialog'
 import type { SqlResult } from '@/types/api'
 
@@ -14,23 +23,32 @@ export const Route = createFileRoute('/_app/explorer/')({
   component: Explorer,
 })
 
-const DEFAULT_SQL = `SELECT * FROM breaks WHERE desk = 'Operations' LIMIT 20`
+const DEFAULT_SQL = ''
 
 function Explorer() {
+  const { data: databases = [] } = useDatabases()
+
+  const [selectedDbId, setSelectedDbId] = useState<string>('')
   const [sql, setSql] = useState(DEFAULT_SQL)
   const [result, setResult] = useState<SqlResult | null>(null)
   const [executionTime, setExecutionTime] = useState<number | null>(null)
-  const [chartOpen, setChartOpen] = useState(false)
   const [saveDialogOpen, setSaveDialogOpen] = useState(false)
   const [activeTab, setActiveTab] = useState('results')
 
   const executeMutation = useSqlExecute()
 
+  // Auto-select the first database when the list first loads.
+  useEffect(() => {
+    if (!selectedDbId && databases.length > 0) {
+      setSelectedDbId(databases[0].id)
+    }
+  }, [databases, selectedDbId])
+
   const handleRun = useCallback(() => {
-    if (!sql.trim() || executeMutation.isPending) return
+    if (!sql.trim() || !selectedDbId || executeMutation.isPending) return
     const start = performance.now()
     executeMutation.mutate(
-      { sql },
+      { sql, databaseId: selectedDbId },
       {
         onSuccess: (data) => {
           setResult(data)
@@ -50,7 +68,7 @@ function Explorer() {
         },
       },
     )
-  }, [sql, executeMutation])
+  }, [sql, selectedDbId, executeMutation])
 
   const handleInsertTable = useCallback((tableName: string) => {
     setSql((prev) => prev + (prev.endsWith(' ') ? '' : ' ') + tableName)
@@ -65,16 +83,31 @@ function Explorer() {
     setActiveTab('results')
   }, [])
 
-  const handleChartIt = useCallback(() => {
-    if (result?.status === 'success' && result.data.length > 0) {
-      setChartOpen(true)
-    }
-  }, [result])
-
   return (
     <div className="flex flex-col h-[calc(100vh-3.5rem)]">
-      <div className="px-6 pt-4 pb-3 shrink-0">
+      <div className="px-6 pt-4 pb-3 shrink-0 flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold tracking-tight">Data Explorer</h1>
+        <div className="flex items-center gap-2">
+          <Database className="size-4 text-muted-foreground" />
+          <Select value={selectedDbId} onValueChange={setSelectedDbId}>
+            <SelectTrigger className="h-8 w-56 text-xs">
+              <SelectValue placeholder="Select database" />
+            </SelectTrigger>
+            <SelectContent>
+              {databases.length === 0 ? (
+                <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                  No databases registered
+                </div>
+              ) : (
+                databases.map((db) => (
+                  <SelectItem key={db.id} value={db.id}>
+                    {db.databaseName}
+                  </SelectItem>
+                ))
+              )}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* IDE layout: schema sidebar (left) + editor/results (right) */}
@@ -84,6 +117,8 @@ function Explorer() {
           <SchemaBrowser
             onInsertTable={handleInsertTable}
             onInsertColumn={handleInsertColumn}
+            selectedDbId={selectedDbId}
+            onSelectedDbIdChange={setSelectedDbId}
           />
         </div>
 
@@ -96,6 +131,8 @@ function Explorer() {
               onChange={setSql}
               onRun={handleRun}
               isRunning={executeMutation.isPending}
+              disabled={!selectedDbId}
+              disabledReason={!selectedDbId ? 'Select a database to run queries' : undefined}
             />
           </div>
 
@@ -123,7 +160,6 @@ function Explorer() {
                   result={result}
                   isLoading={executeMutation.isPending}
                   executionTime={executionTime}
-                  onChartIt={handleChartIt}
                   onSaveAsDataset={
                     result?.status === 'success'
                       ? () => setSaveDialogOpen(true)
@@ -139,22 +175,13 @@ function Explorer() {
         </div>
       </div>
 
-      {/* Chart Builder Dialog */}
-      {result?.status === 'success' && result.data.length > 0 && (
-        <ChartBuilderDialog
-          open={chartOpen}
-          onOpenChange={setChartOpen}
-          result={result}
-        />
-      )}
-
       {/* Save as Dataset Dialog */}
       <SaveAsDatasetDialog
         open={saveDialogOpen}
         onOpenChange={setSaveDialogOpen}
         sql={sql}
-        databaseId={null}
-        columns={result?.columns ?? []}
+        databaseId={selectedDbId || null}
+        columns={(result?.columns ?? []).map((c) => c.column_name ?? c.name)}
         rows={result?.data ?? []}
       />
     </div>

@@ -25,11 +25,18 @@ router = APIRouter(prefix="/api/dashboards/managed", tags=["managed-dashboards"]
 
 
 def _to_response(dashboard: RecvizDashboard) -> DashboardResponse:
-    """Convert a SQLAlchemy model to a Pydantic response."""
+    """Convert a SQLAlchemy model to a Pydantic response.
+
+    Note on ``description``: Oracle treats empty strings as NULL at the
+    DB level (a well-known Oracle quirk). A row saved with
+    ``description=""`` comes back as ``None`` on Oracle, which fails
+    ``DashboardResponse.description: str`` validation. Coerce to ``""``
+    here — same fix as managed_kpis / managed_datasets / managed_charts.
+    """
     return DashboardResponse(
         id=dashboard.id,
         name=dashboard.name,
-        description=dashboard.description,
+        description=dashboard.description or "",
         config=dashboard.config,
         created_at=dashboard.created_at,
         updated_at=dashboard.updated_at,
@@ -40,16 +47,16 @@ def _to_response(dashboard: RecvizDashboard) -> DashboardResponse:
 
 
 @router.get("", response_model=list[DashboardResponse])
-async def list_managed_dashboards(session: DbSessionDep):
+def list_managed_dashboards(session: DbSessionDep):
     """List all RecViz-managed dashboards."""
     stmt = select(RecvizDashboard).order_by(RecvizDashboard.updated_at.desc())
-    result = await session.execute(stmt)
+    result = session.execute(stmt)
     dashboards = result.scalars().all()
     return [_to_response(d) for d in dashboards]
 
 
 @router.post("", response_model=DashboardResponse, status_code=201)
-async def create_managed_dashboard(
+def create_managed_dashboard(
     body: DashboardCreate,
     session: DbSessionDep,
 ):
@@ -67,16 +74,16 @@ async def create_managed_dashboard(
     )
 
     session.add(dashboard)
-    await session.flush()
+    session.flush()
 
     return _to_response(dashboard)
 
 
 @router.get("/{dashboard_id}", response_model=DashboardResponse)
-async def get_managed_dashboard(dashboard_id: str, session: DbSessionDep):
+def get_managed_dashboard(dashboard_id: str, session: DbSessionDep):
     """Get a single managed dashboard by ID."""
     stmt = select(RecvizDashboard).where(RecvizDashboard.id == dashboard_id)
-    result = await session.execute(stmt)
+    result = session.execute(stmt)
     dashboard = result.scalar_one_or_none()
 
     if dashboard is None:
@@ -86,14 +93,14 @@ async def get_managed_dashboard(dashboard_id: str, session: DbSessionDep):
 
 
 @router.put("/{dashboard_id}", response_model=DashboardResponse)
-async def update_managed_dashboard(
+def update_managed_dashboard(
     dashboard_id: str,
     body: DashboardUpdate,
     session: DbSessionDep,
 ):
     """Update a managed dashboard."""
     stmt = select(RecvizDashboard).where(RecvizDashboard.id == dashboard_id)
-    result = await session.execute(stmt)
+    result = session.execute(stmt)
     dashboard = result.scalar_one_or_none()
 
     if dashboard is None:
@@ -111,15 +118,15 @@ async def update_managed_dashboard(
 
 
 @router.delete("/{dashboard_id}", status_code=204)
-async def delete_managed_dashboard(dashboard_id: str, session: DbSessionDep):
+def delete_managed_dashboard(dashboard_id: str, session: DbSessionDep):
     """Delete a managed dashboard."""
     stmt = select(RecvizDashboard).where(RecvizDashboard.id == dashboard_id)
-    result = await session.execute(stmt)
+    result = session.execute(stmt)
     dashboard = result.scalar_one_or_none()
 
     if dashboard is None:
         raise HTTPException(status_code=404, detail="Dashboard not found")
 
-    await session.delete(dashboard)
+    session.delete(dashboard)
 
     return Response(status_code=204)

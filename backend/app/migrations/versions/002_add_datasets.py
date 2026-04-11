@@ -9,7 +9,8 @@ from typing import Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.dialects.postgresql import JSONB
+
+from app.db.types import PortableJSON
 
 # revision identifiers, used by Alembic.
 revision: str = "002"
@@ -27,7 +28,7 @@ def upgrade() -> None:
         sa.Column("database_id", sa.Integer(), nullable=False),
         sa.Column("superset_id", sa.Integer(), nullable=True),
         sa.Column("sql", sa.Text(), nullable=False),
-        sa.Column("columns", JSONB, nullable=False, server_default="[]"),
+        sa.Column("columns", PortableJSON(), nullable=False, server_default="[]"),
         sa.Column(
             "sync_status",
             sa.String(32),

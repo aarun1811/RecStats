@@ -19,11 +19,11 @@ const DEFAULT_THRESHOLDS: ThresholdConfig = {
 
 export function StepThresholds({
   thresholds,
-  name,
-  description,
+  name: _name,
+  description: _description,
   onThresholdsChange,
-  onNameChange,
-  onDescriptionChange,
+  onNameChange: _onNameChange,
+  onDescriptionChange: _onDescriptionChange,
 }: StepThresholdsProps) {
   const enabled = thresholds !== null
 

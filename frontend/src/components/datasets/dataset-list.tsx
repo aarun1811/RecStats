@@ -30,7 +30,7 @@ export function DatasetList() {
   const [databaseFilter, setDatabaseFilter] = useState<string>('all')
 
   const databaseMap = useMemo(() => {
-    const map = new Map<number, { name: string; backend: string }>()
+    const map = new Map<string, { name: string; backend: string }>()
     for (const db of databases) {
       map.set(db.id, { name: db.databaseName, backend: db.backend })
     }
@@ -50,8 +50,7 @@ export function DatasetList() {
     }
 
     if (databaseFilter !== 'all') {
-      const dbId = Number(databaseFilter)
-      result = result.filter((ds) => ds.databaseId === dbId)
+      result = result.filter((ds) => ds.databaseId === databaseFilter)
     }
 
     return result

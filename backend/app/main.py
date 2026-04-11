@@ -2,32 +2,69 @@
 
 from __future__ import annotations
 
+# --------------------------------------------------------------------------- #
+# CRITICAL: Oracle thick mode init MUST happen before any `from app.*` import
+# that might transitively load oracledb or create engines. Thick mode is
+# required for Oracle databases using national character sets not supported by
+# thin mode (e.g. NCS 871). Instant Client at /opt/oraclient/19.3_64/lib/ is
+# pre-installed by infra.
+# --------------------------------------------------------------------------- #
 import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+import oracledb
+
+try:
+    oracledb.init_oracle_client(lib_dir="/opt/oraclient/19.3_64/lib")
+    logger.info(
+        "oracledb %s thick mode initialized (Instant Client at /opt/oraclient/19.3_64/lib)",
+        oracledb.__version__,
+    )
+except Exception as e:
+    logger.warning(
+        "oracledb thick mode init failed (%s) -- falling back to thin mode", e
+    )
+
+# --------------------------------------------------------------------------- #
+# Remaining imports -- now safe to load app modules
+# --------------------------------------------------------------------------- #
+import concurrent.futures
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import select
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from sqlalchemy import select, update
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
 from app.api.router import api_router
 from app.config import settings
-from app.db.engine import async_session_factory, engine
+from app.db.engine import engine, session_factory
 from app.db.models.connection import RecvizConnection
 from app.services.connection_resolver import ConnectionResolver
 from app.services.connection_status import ConnectionStatusTracker
 from app.services.encryption import EncryptionService
 from app.services.engine_manager import EngineManager
 from app.services.query_engine import QueryExecutor
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from app.services.uri_builder import build_sync_uri
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """FastAPI lifespan.
+
+    Must be declared ``async`` because FastAPI requires it, but the body is
+    all sync — startup is one-time work and blocking the event loop during
+    it is fine. Once startup completes, FastAPI serves requests in its
+    threadpool via ``def`` handlers (see ``app/db/engine.py`` rationale).
+    """
     # 1. Create connection status tracker (in-memory, resets on restart)
     status_tracker = ConnectionStatusTracker()
     app.state.connection_status = status_tracker
@@ -41,20 +78,90 @@ async def lifespan(app: FastAPI):
     logger.info("EngineManager initialized")
 
     # 3. Pre-warm engine pool for all registered connections
-    async with async_session_factory() as session:
-        result = await session.execute(select(RecvizConnection))
+    with session_factory() as session:
+        result = session.execute(select(RecvizConnection))
         connections = result.scalars().all()
         for conn in connections:
             try:
-                await engine_manager.get_engine_for_connection(conn)
+                engine_manager.get_engine_for_connection(conn)
                 logger.info("Pre-warmed engine for connection: %s", conn.name)
             except Exception as exc:
                 logger.warning("Failed to pre-warm connection %s: %s", conn.name, exc)
 
+    # 3b. Startup health-check sweep — persist per-connection status
+    logger.info("Running startup health-check sweep...")
+    sweep_start = datetime.now(timezone.utc)
+
+    # Reload connection rows in a fresh session
+    with session_factory() as session:
+        result = session.execute(select(RecvizConnection))
+        conn_rows = result.scalars().all()
+        # Snapshot the fields we need — the session closes before check_one runs
+        conn_snapshots = [
+            {
+                "id": c.id,
+                "name": c.name,
+                "backend": c.backend,
+                "host": c.host,
+                "port": c.port,
+                "database_name": c.database_name,
+                "username": c.username,
+                "encrypted_password": c.encrypted_password,
+            }
+            for c in conn_rows
+        ]
+
+    def check_one(snapshot: dict) -> tuple[str, bool, str]:
+        try:
+            password = encryption.decrypt(snapshot["encrypted_password"])
+            uri = build_sync_uri(
+                backend=snapshot["backend"],
+                host=snapshot["host"],
+                port=snapshot["port"],
+                database=snapshot["database_name"],
+                username=snapshot["username"],
+                password=password,
+            )
+            success, msg = EngineManager.test_connection(uri, snapshot["backend"], timeout=10)
+            return (snapshot["id"], success, msg)
+        except Exception as exc:
+            return (snapshot["id"], False, str(exc))
+
+    if conn_snapshots:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+            sweep_results = list(pool.map(check_one, conn_snapshots))
+
+        with session_factory() as session:
+            now = datetime.now(timezone.utc)
+            for conn_id, success, msg in sweep_results:
+                session.execute(
+                    update(RecvizConnection)
+                    .where(RecvizConnection.id == conn_id)
+                    .values(
+                        status="connected" if success else "unreachable",
+                        last_tested_at=now,
+                    )
+                )
+                if not success:
+                    logger.warning("Startup health check for %s: %s", conn_id, msg)
+            session.commit()
+
+        duration = (datetime.now(timezone.utc) - sweep_start).total_seconds()
+        connected_count = sum(1 for _, ok, _ in sweep_results if ok)
+        unreachable_count = len(sweep_results) - connected_count
+        logger.info(
+            "Startup sweep done in %.1fs: %d connected, %d unreachable",
+            duration,
+            connected_count,
+            unreachable_count,
+        )
+    else:
+        logger.info("Startup sweep: no registered connections to check")
+
     # 4. Create ConnectionResolver and sync from DB
     connection_resolver = ConnectionResolver()
-    async with async_session_factory() as session:
-        await connection_resolver.sync(session)
+    with session_factory() as session:
+        connection_resolver.sync(session)
     app.state.connection_resolver = connection_resolver
     logger.info("ConnectionResolver synced (%d connections)", len(connection_resolver._cache))
 
@@ -68,10 +175,10 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    # Shutdown: dispose data source engines, then metadata engine
-    await engine_manager.dispose_all()
+    # Shutdown: dispose data source engines, then metadata engine (both sync now)
+    engine_manager.dispose_all()
     logger.info("All data source engines disposed")
-    await engine.dispose()
+    engine.dispose()
 
 
 app = FastAPI(title="RecViz API", version="0.1.0", lifespan=lifespan)
@@ -98,6 +205,30 @@ app.add_middleware(XFrameOptionsMiddleware)
 app.include_router(api_router)
 
 
+# Direct routes MUST be registered BEFORE the StaticFiles mount below,
+# otherwise the mount catches every path under / and the direct routes
+# become unreachable.
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+# --------------------------------------------------------------------------- #
+# Static SPA serving -- production only (no nginx available on RHEL deploy)
+# --------------------------------------------------------------------------- #
+FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
+
+if FRONTEND_DIST.exists():
+    logger.info("Frontend dist/ found at %s -- mounting SPA", FRONTEND_DIST)
+
+    @app.exception_handler(404)
+    async def spa_fallback(request: Request, exc):
+        # /api/* 404s stay as JSON 404s (do NOT fall through to index.html)
+        if request.url.path.startswith("/api/"):
+            return JSONResponse({"detail": "Not Found"}, status_code=404)
+        # Everything else serves index.html so TanStack Router handles it
+        return FileResponse(FRONTEND_DIST / "index.html")
+
+    app.mount("/", StaticFiles(directory=str(FRONTEND_DIST), html=True), name="spa")
+else:
+    logger.info("Frontend dist/ NOT found -- SPA serving disabled (dev mode)")

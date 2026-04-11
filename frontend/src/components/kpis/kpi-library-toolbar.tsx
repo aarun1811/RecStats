@@ -1,4 +1,4 @@
-import { Gauge, LayoutGrid, List, Plus, Search } from 'lucide-react'
+import { LayoutGrid, List, Plus, Search } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 
 import { Button } from '@/components/ui/button'

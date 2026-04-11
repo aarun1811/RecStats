@@ -20,7 +20,7 @@ export function DataSourceRow({ database, onClick }: DataSourceRowProps) {
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate">{database.databaseName}</p>
         <p className="text-xs text-muted-foreground">
-          {BACKEND_LABELS[backendKey] || database.backend} &middot; {database.datasetCount} tables
+          {BACKEND_LABELS[backendKey] || database.backend}
         </p>
       </div>
       <div className="flex items-center gap-1.5 shrink-0">

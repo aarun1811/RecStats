@@ -21,7 +21,7 @@ export function StepSave({
   onChange,
   onSave,
   isSaving,
-  mode,
+  mode: _mode,
   isChartComplete,
 }: StepSaveProps) {
   const saveDisabled = !isChartComplete || isSaving

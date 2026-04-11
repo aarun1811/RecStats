@@ -75,7 +75,7 @@ export function DataSourceCard({ database, onClick }: DataSourceCardProps) {
         <div>
           <p className="text-sm font-medium truncate">{database.databaseName}</p>
           <p className="text-xs text-muted-foreground">
-            {BACKEND_LABELS[backendKey] || database.backend} &middot; {database.datasetCount} tables
+            {BACKEND_LABELS[backendKey] || database.backend}
           </p>
         </div>
       </div>

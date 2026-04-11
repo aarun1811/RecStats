@@ -33,7 +33,7 @@ export function ChartFullscreenDialog({
   // Defer chart rendering until dialog animation completes so AG Charts
   // reads the final container size, not the mid-animation 0px.
   const [ready, setReady] = useState(false)
-  const timerRef = useRef<ReturnType<typeof setTimeout>>()
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     if (open) {
