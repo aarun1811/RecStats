@@ -27,11 +27,18 @@ router = APIRouter(prefix="/api/charts/managed", tags=["managed-charts"])
 
 
 def _to_response(chart: RecvizChart) -> ChartResponse:
-    """Convert a SQLAlchemy model to a Pydantic response."""
+    """Convert a SQLAlchemy model to a Pydantic response.
+
+    Note on ``description``: Oracle treats empty strings as NULL at the
+    DB level (a well-known Oracle quirk). A row saved with
+    ``description=""`` comes back as ``None`` on Oracle, which fails
+    ``ChartResponse.description: str`` validation. Coerce to ``""``
+    here so the API contract stays ``description is always a string``.
+    """
     return ChartResponse(
         id=chart.id,
         name=chart.name,
-        description=chart.description,
+        description=chart.description or "",
         dataset_id=chart.dataset_id,
         chart_type=chart.chart_type,
         config=ChartConfigSchema(**chart.config),

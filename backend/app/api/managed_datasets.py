@@ -26,11 +26,18 @@ router = APIRouter(prefix="/api/datasets/managed", tags=["managed-datasets"])
 
 
 def _to_response(ds: RecvizDataset) -> DatasetResponse:
-    """Convert a SQLAlchemy model to a Pydantic response."""
+    """Convert a SQLAlchemy model to a Pydantic response.
+
+    Note on ``description``: Oracle treats empty strings as NULL at the
+    DB level (a well-known Oracle quirk). A row saved with
+    ``description=""`` comes back as ``None`` on Oracle, which fails
+    ``DatasetResponse.description: str`` validation. Coerce to ``""``
+    here so the API contract stays ``description is always a string``.
+    """
     return DatasetResponse(
         id=ds.id,
         name=ds.name,
-        description=ds.description,
+        description=ds.description or "",
         database_id=ds.database_id,
         sql=ds.sql,
         columns=ds.columns,

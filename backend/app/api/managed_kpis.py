@@ -27,11 +27,19 @@ router = APIRouter(prefix="/api/kpis/managed", tags=["managed-kpis"])
 
 
 def _to_response(kpi: RecvizKpi) -> KpiResponse:
-    """Convert a SQLAlchemy model to a Pydantic response."""
+    """Convert a SQLAlchemy model to a Pydantic response.
+
+    Note on ``description``: Oracle treats empty strings as NULL at the
+    DB level (a well-known Oracle quirk — there's no distinction between
+    ``''`` and ``NULL`` in VARCHAR2 columns). A row saved with
+    ``description=""`` comes back as ``None`` on Oracle, which fails
+    ``KpiResponse.description: str`` validation. Coerce to ``""`` here
+    so the API contract stays ``description is always a string``.
+    """
     return KpiResponse(
         id=kpi.id,
         name=kpi.name,
-        description=kpi.description,
+        description=kpi.description or "",
         dataset_id=kpi.dataset_id,
         metric_column=kpi.metric_column,
         aggregation=kpi.aggregation,
