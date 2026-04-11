@@ -154,7 +154,7 @@ function Explorer() {
         onOpenChange={setSaveDialogOpen}
         sql={sql}
         databaseId={null}
-        columns={result?.columns ?? []}
+        columns={(result?.columns ?? []).map((c) => c.column_name ?? c.name)}
         rows={result?.data ?? []}
       />
     </div>

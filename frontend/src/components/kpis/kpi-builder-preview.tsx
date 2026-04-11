@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Gauge } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 
 import { cn } from '@/lib/utils'
@@ -40,7 +39,7 @@ export function KpiBuilderPreview({
   metricColumn,
   aggregation,
   format,
-  trend,
+  trend: _trend,
   thresholds,
   subtitle,
   name,

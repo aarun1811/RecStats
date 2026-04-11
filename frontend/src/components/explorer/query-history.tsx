@@ -1,6 +1,5 @@
 import { useSqlHistory } from '@/hooks/use-sql-history'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
@@ -12,7 +11,7 @@ import {
   TimelineIndicator,
   TimelineSeparator,
 } from '@/components/ui/timeline'
-import { CheckCircle2, XCircle, Trash2, History } from 'lucide-react'
+import { CheckCircle2, XCircle, History } from 'lucide-react'
 
 interface QueryHistoryProps {
   onLoadQuery: (sql: string) => void

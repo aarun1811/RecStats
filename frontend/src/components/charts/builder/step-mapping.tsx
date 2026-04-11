@@ -75,9 +75,6 @@ export function StepMapping({ chartType, columns, mapping, onChange }: StepMappi
   const allOtherDimensions = columns.filter(
     (c) => !categoryOptions.some((o) => o.name === c.name),
   )
-  const allOtherMetrics = columns.filter(
-    (c) => !measureColumns.some((o) => o.name === c.name),
-  )
 
   function updateCategoryColumn(value: string) {
     onChange({ ...mapping, categoryColumn: value })

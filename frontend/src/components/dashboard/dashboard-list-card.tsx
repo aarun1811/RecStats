@@ -60,7 +60,7 @@ export function DashboardListCard({
     >
       {/* Hero — layout silhouette */}
       <div className="relative h-[180px] overflow-hidden">
-        <DashboardMiniMap config={dashboard.config as Record<string, unknown> | undefined} />
+        <DashboardMiniMap config={dashboard.config as unknown as Record<string, unknown> | undefined} />
 
         {/* Bottom fade — masks the silhouette edge into the metadata strip */}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-card to-transparent" />

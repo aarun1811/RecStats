@@ -80,7 +80,7 @@ export function DatasetEditor({ mode, dataset, isLoading }: DatasetEditorProps) 
   }, [dataset])
 
   const handleRunQuery = useCallback(() => {
-    const dbId = Number(databaseId)
+    const dbId = databaseId
     if (!sql.trim() || !dbId || sqlExecute.isPending) return
 
     sqlExecute.mutate(
@@ -125,7 +125,7 @@ export function DatasetEditor({ mode, dataset, isLoading }: DatasetEditorProps) 
       return
     }
 
-    const dbId = Number(databaseId)
+    const dbId = databaseId
     if (!dbId) {
       toast.error('Please select a database')
       return

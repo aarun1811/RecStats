@@ -1,8 +1,8 @@
-"""Unit tests for URI builder — Oracle, Hive, PostgreSQL dialects + async URIs."""
+"""Unit tests for URI builder — Oracle, Hive, PostgreSQL dialects + sync URIs."""
 
 import pytest
 
-from app.services.uri_builder import build_async_uri, build_sqlalchemy_uri
+from app.services.uri_builder import build_sqlalchemy_uri, build_sync_uri
 
 
 def test_oracle_full_uri():
@@ -57,30 +57,30 @@ def test_oracle_special_chars_in_password():
     assert result.startswith("oracle://")
 
 
-# --- Async URI builder tests ---
+# --- Sync URI builder tests (post async -> sync conversion) ---
 
 
-def test_async_postgresql_uri():
-    """Async PostgreSQL uses postgresql+asyncpg:// dialect."""
-    result = build_async_uri(
+def test_sync_postgresql_uri():
+    """Sync PostgreSQL uses postgresql+psycopg2:// dialect."""
+    result = build_sync_uri(
         "postgresql", host="pghost", port=5432, database="mydb",
         username="u", password="p",
     )
-    assert result == "postgresql+asyncpg://u:p@pghost:5432/mydb"
+    assert result == "postgresql+psycopg2://u:p@pghost:5432/mydb"
 
 
-def test_async_oracle_uri():
-    """Async Oracle uses oracle+oracledb:// dialect with service_name."""
-    result = build_async_uri(
+def test_sync_oracle_uri():
+    """Sync Oracle uses oracle+oracledb:// dialect with service_name."""
+    result = build_sync_uri(
         "oracle", host="orahost", port=1521, database="MYSERVICE",
         username="u", password="p",
     )
     assert result == "oracle+oracledb://u:p@orahost:1521/?service_name=MYSERVICE"
 
 
-def test_async_oracle_special_chars():
-    """Async Oracle password with special chars is URL-encoded."""
-    result = build_async_uri(
+def test_sync_oracle_special_chars():
+    """Sync Oracle password with special chars is URL-encoded."""
+    result = build_sync_uri(
         "oracle", host="orahost", database="SVC",
         username="admin", password="p@ss/w0rd",
     )
@@ -88,24 +88,24 @@ def test_async_oracle_special_chars():
     assert result.startswith("oracle+oracledb://")
 
 
-def test_async_unsupported_backend():
-    """Async URI with unsupported backend raises ValueError."""
-    with pytest.raises(ValueError, match="Unsupported async backend"):
-        build_async_uri("hive", host="hivehost", database="default")
+def test_sync_unsupported_backend():
+    """Sync URI with unsupported backend raises ValueError."""
+    with pytest.raises(ValueError, match="Unsupported sync backend"):
+        build_sync_uri("hive", host="hivehost", database="default")
 
 
-def test_async_default_port_postgresql():
-    """Async PostgreSQL without port defaults to 5432."""
-    result = build_async_uri(
+def test_sync_default_port_postgresql():
+    """Sync PostgreSQL without port defaults to 5432."""
+    result = build_sync_uri(
         "postgresql", host="pghost", database="mydb",
         username="u", password="p",
     )
     assert ":5432/" in result
 
 
-def test_async_default_port_oracle():
-    """Async Oracle without port defaults to 1521."""
-    result = build_async_uri(
+def test_sync_default_port_oracle():
+    """Sync Oracle without port defaults to 1521."""
+    result = build_sync_uri(
         "oracle", host="orahost", database="SVC",
         username="u", password="p",
     )

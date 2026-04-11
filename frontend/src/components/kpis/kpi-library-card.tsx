@@ -19,7 +19,7 @@ import type { FormatNumberOptions } from '@/types/formatting'
 interface KpiLibraryCardProps {
   kpi: RecvizKpi
   datasetName: string
-  datasetDatabaseId: number | undefined
+  datasetDatabaseId: string | undefined
   datasetSql: string | undefined
   onClick: () => void
 }

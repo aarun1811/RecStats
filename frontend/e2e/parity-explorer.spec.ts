@@ -93,10 +93,6 @@ test.describe('PRTY-06: SQL Explorer parity', () => {
 
     // Wait for results -- either success or error
     // The results panel should show either "Success" badge or "Query Error"
-    const resultArea = page.locator('[class*="flex-1"]').filter({
-      has: page.locator('text=/Success|Query Error|rows/'),
-    })
-
     // Wait for results to appear (success or error)
     await expect(
       page.locator('text=/Success|Query Error|read.only/i'),

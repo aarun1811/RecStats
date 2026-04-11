@@ -1,7 +1,10 @@
 import { useRef, useCallback } from 'react'
 import Editor, { type OnMount } from '@monaco-editor/react'
-import type { editor } from 'monaco-editor'
 import { useTheme } from '@/components/layout/theme-provider'
+
+// Editor instance type inferred from OnMount callback param — avoids needing
+// to install the optional `monaco-editor` peer dep just for a type.
+type MonacoEditor = Parameters<OnMount>[0]
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Play, Loader2 } from 'lucide-react'
@@ -15,7 +18,7 @@ interface SqlEditorProps {
 }
 
 export function SqlEditor({ value, onChange, onRun, isRunning }: SqlEditorProps) {
-  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null)
+  const editorRef = useRef<MonacoEditor | null>(null)
   const onRunRef = useRef(onRun)
   onRunRef.current = onRun
   const { resolvedTheme } = useTheme()
