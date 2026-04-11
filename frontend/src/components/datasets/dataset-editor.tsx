@@ -80,11 +80,10 @@ export function DatasetEditor({ mode, dataset, isLoading }: DatasetEditorProps) 
   }, [dataset])
 
   const handleRunQuery = useCallback(() => {
-    const dbId = databaseId
-    if (!sql.trim() || !dbId || sqlExecute.isPending) return
+    if (!sql.trim() || !databaseId || sqlExecute.isPending) return
 
     sqlExecute.mutate(
-      { sql, databaseId: dbId, limit: 1000 },
+      { sql, databaseId, limit: 1000 },
       {
         onSuccess: (result) => {
           setQueryResult(result)
@@ -125,8 +124,7 @@ export function DatasetEditor({ mode, dataset, isLoading }: DatasetEditorProps) 
       return
     }
 
-    const dbId = databaseId
-    if (!dbId) {
+    if (!databaseId) {
       toast.error('Please select a database')
       return
     }
@@ -141,7 +139,7 @@ export function DatasetEditor({ mode, dataset, isLoading }: DatasetEditorProps) 
         {
           name: name.trim(),
           description: description.trim(),
-          databaseId: dbId,
+          databaseId,
           sql,
           columns: cleanColumns,
         },
