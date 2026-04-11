@@ -16,7 +16,7 @@ import re
 import threading
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Engine, create_engine, text
+from sqlalchemy import Engine, create_engine, event, text
 
 from app.services.encryption import EncryptionService
 from app.services.uri_builder import build_sync_uri
@@ -50,24 +50,42 @@ HEALTH_CHECK_SQL = {
 def _connect_args_for_backend(backend: str | None) -> dict:
     """Return per-backend connect_args to enforce a server-side query timeout.
 
-    Oracle (thick mode via oracledb): ``call_timeout`` is in milliseconds
-    and cancels any round-trip call exceeding the limit.
-
     PostgreSQL (psycopg2): the ``-c statement_timeout=<ms>`` option sets a
     per-session statement timeout at connection time.
+
+    Oracle: NOT handled here -- ``call_timeout`` is a ``Connection``
+    attribute on python-oracledb, not a ``connect()`` kwarg. It is set via
+    a SQLAlchemy ``connect`` event listener in ``EngineManager.get_engine``
+    instead. Forwarding it through ``connect_args`` raises
+    ``connect() got an unexpected keyword argument 'call_timeout'``.
 
     Unknown backends get no timeout and fall back to DB/pool defaults.
     """
     if not backend:
         return {}
-    if backend == "oracle":
-        # oracledb call_timeout is in milliseconds
-        return {"call_timeout": QUERY_EXECUTION_TIMEOUT_SECONDS * 1000}
     if backend == "postgresql":
         return {
             "options": f"-c statement_timeout={QUERY_EXECUTION_TIMEOUT_SECONDS * 1000}"
         }
     return {}
+
+
+def _install_oracle_call_timeout(engine: Engine) -> None:
+    """Attach a ``connect`` listener that sets ``call_timeout`` on every new
+    python-oracledb connection.
+
+    ``call_timeout`` is in milliseconds. It bounds a single round-trip call
+    (not the total query duration, but for single-statement workloads the
+    effect is the same -- long-running queries are interrupted).
+    """
+    timeout_ms = QUERY_EXECUTION_TIMEOUT_SECONDS * 1000
+
+    @event.listens_for(engine, "connect")
+    def _set_call_timeout(dbapi_conn, connection_record):  # noqa: ARG001
+        try:
+            dbapi_conn.call_timeout = timeout_ms
+        except Exception as exc:  # noqa: BLE001 - best-effort
+            logger.warning("Failed to set Oracle call_timeout: %s", exc)
 
 
 class EngineManager:
@@ -102,13 +120,15 @@ class EngineManager:
             if engine is not None:
                 return engine
             merged_kwargs = {**DEFAULT_POOL_KWARGS, **pool_kwargs}
-            # Per-backend connect_args to enforce a server-side query timeout
-            # (the old async path used asyncio.wait_for for this; sync needs
-            # a driver/DB-level mechanism instead).
+            # Per-backend connect_args (PostgreSQL only -- Oracle gets its
+            # call_timeout via the event listener below, because it is a
+            # Connection attribute not a connect() kwarg).
             connect_args = _connect_args_for_backend(backend)
             if connect_args:
                 merged_kwargs.setdefault("connect_args", connect_args)
             engine = create_engine(uri, **merged_kwargs)
+            if backend == "oracle":
+                _install_oracle_call_timeout(engine)
             self._engines[connection_id] = engine
             logger.info("Created engine for connection %s", connection_id)
             return engine
@@ -158,9 +178,16 @@ class EngineManager:
 
         Creates a temporary single-connection engine, executes a health check
         query, and immediately disposes the engine. Returns (success, message).
+        The ``timeout`` parameter governs pool acquisition; the single
+        ``SELECT 1`` health check does not need a query-execution timeout.
         """
         test_sql = HEALTH_CHECK_SQL.get(backend, "SELECT 1")
-        connect_args = _connect_args_for_backend(backend)
+        # Only PostgreSQL gets connect_args here; Oracle's call_timeout
+        # cannot be passed as a connect() kwarg (it is a Connection
+        # attribute set via the "connect" event listener below).
+        connect_args = (
+            _connect_args_for_backend(backend) if backend == "postgresql" else {}
+        )
         engine = create_engine(
             uri,
             pool_size=1,
@@ -168,6 +195,8 @@ class EngineManager:
             pool_timeout=timeout,
             connect_args=connect_args,
         )
+        if backend == "oracle":
+            _install_oracle_call_timeout(engine)
         try:
             with engine.connect() as conn:
                 conn.execute(text(test_sql))
