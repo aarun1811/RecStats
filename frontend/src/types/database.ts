@@ -8,7 +8,6 @@ export interface DatabaseInfo {
   backend: DatabaseBackend
   createdOn: string | null
   exposeInSqllab: boolean
-  datasetCount: number
   status: ConnectionStatus
   lastTested: string | null
 }

@@ -56,7 +56,6 @@ def _build_response(conn: RecvizConnection, status_info: dict) -> dict:
         "backend": conn.backend,
         "created_on": conn.created_at.isoformat() if conn.created_at else None,
         "expose_in_sqllab": True,
-        "dataset_count": 0,
         "status": status_info["status"],
         "last_tested": status_info["last_tested"],
     }
@@ -187,7 +186,6 @@ def create_database(
         "backend": body.backend,
         "created_on": connection.created_at.isoformat() if connection.created_at else None,
         "expose_in_sqllab": True,
-        "dataset_count": 0,
         "status": "untested",
         "last_tested": None,
     }
@@ -311,4 +309,4 @@ def test_connection(body: TestConnectionRequest, request: Request) -> dict:
 @router.post("/{db_id}/sync")
 def sync_datasets(db_id: str) -> dict:
     """No-op -- Superset dataset sync removed. Preserved for API compatibility."""
-    return {"success": True, "dataset_count": 0}
+    return {"success": True}

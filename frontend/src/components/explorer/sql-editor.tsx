@@ -10,6 +10,10 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Play, Loader2 } from 'lucide-react'
 import { Kbd } from '@/components/ui/kbd'
 
+const IS_MAC =
+  typeof navigator !== 'undefined' &&
+  /Mac|iPod|iPhone|iPad/.test(navigator.userAgent)
+
 interface SqlEditorProps {
   value: string
   onChange: (value: string) => void
@@ -48,7 +52,7 @@ export function SqlEditor({ value, onChange, onRun, isRunning }: SqlEditorProps)
         <span className="text-sm font-medium tracking-tight">SQL Editor</span>
         <div className="flex items-center gap-3">
           <span className="text-xs text-muted-foreground items-center gap-1 hidden sm:flex">
-            <Kbd>⌘</Kbd>+<Kbd>↵</Kbd> to run
+            <Kbd>{IS_MAC ? '⌘' : 'Ctrl'}</Kbd>+<Kbd>↵</Kbd> to run
           </span>
           <Button size="sm" onClick={onRun} disabled={isRunning || !value.trim()} className="h-7">
             {isRunning ? (

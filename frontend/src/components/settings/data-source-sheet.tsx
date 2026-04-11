@@ -278,7 +278,7 @@ export function DataSourceSheet({
   const handleSync = () => {
     if (!databaseId) return
     syncMutation.mutate(databaseId, {
-      onSuccess: (res) => toast.success(`Synced ${res.datasetCount} datasets`),
+      onSuccess: () => toast.success('Sync complete'),
       onError: () => toast.error('Failed to sync datasets'),
     })
   }

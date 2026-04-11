@@ -92,7 +92,7 @@ export function useSyncDatasets() {
 
   return useMutation({
     mutationFn: (dbId: string) =>
-      api.post<{ success: boolean; datasetCount: number }>(
+      api.post<{ success: boolean }>(
         `/api/databases/${dbId}/sync`,
       ),
     onSuccess: (_data, dbId) => {
