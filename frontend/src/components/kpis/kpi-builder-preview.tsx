@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
 import { api } from '@/lib/api-client'
 import { CountAnimation } from '@/components/shared/count-animation'
@@ -123,109 +124,115 @@ export function KpiBuilderPreview({
     )
   }
 
-  // Step 1: Dataset selected — show column metadata + sample data
+  // Step 1: Dataset selected — show column metadata + sample data.
+  // Both tables live inside a single ScrollArea so the whole preview
+  // panel scrolls as one region when content exceeds the panel height.
+  // Previous flow-layout with two unbounded overflow-auto wrappers
+  // never activated either inner scrollbar — content got clipped.
   if (step === 'dataset' && !showLiveKpi) {
     return (
-      <div className="flex flex-1 flex-col h-full">
-        {/* Column metadata */}
-        <div className="mb-1">
-          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-            Columns
-          </h4>
-          <div className="overflow-auto rounded border">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b bg-muted/30">
-                  <th className="px-3 py-1.5 text-left font-medium">Name</th>
-                  <th className="px-3 py-1.5 text-left font-medium">Type</th>
-                  <th className="px-3 py-1.5 text-left font-medium">Role</th>
-                </tr>
-              </thead>
-              <tbody>
-                {dataset.columns.map((col) => (
-                  <tr key={col.name} className="border-b last:border-b-0">
-                    <td className="px-3 py-1.5 font-mono">{col.name}</td>
-                    <td className="px-3 py-1.5">{col.dataType}</td>
-                    <td className="px-3 py-1.5">
-                      <Badge variant="outline" className="text-xs">
-                        {col.role}
-                      </Badge>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Sample data */}
-        <div className="mt-4">
-          <div className="flex items-center justify-between mb-2">
-            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              Sample Data
+      <ScrollArea className="flex-1 min-h-0 h-full">
+        <div className="pr-2">
+          {/* Column metadata */}
+          <div className="mb-1">
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+              Columns
             </h4>
-            {!sampleData && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 text-xs"
-                onClick={handleLoadSample}
-                disabled={sampleLoading}
-              >
-                {sampleLoading ? 'Loading...' : 'Load'}
-              </Button>
-            )}
-          </div>
-
-          {sampleError && (
-            <p className="text-xs text-destructive">{sampleError}</p>
-          )}
-
-          {sampleLoading && (
-            <div className="space-y-2">
-              <Skeleton className="h-6 w-full" />
-              <Skeleton className="h-6 w-full" />
-              <Skeleton className="h-6 w-full" />
-            </div>
-          )}
-
-          {!sampleData && !sampleLoading && !sampleError && (
-            <p className="text-xs text-muted-foreground">
-              Click Load to see sample rows
-            </p>
-          )}
-
-          {sampleData && sampleData.length > 0 && (
-            <div className="overflow-auto rounded border">
+            <div className="rounded border">
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b bg-muted/30">
-                    {Object.keys(sampleData[0]).map((col) => (
-                      <th
-                        key={col}
-                        className="px-3 py-1.5 text-left font-medium font-mono"
-                      >
-                        {col}
-                      </th>
-                    ))}
+                    <th className="px-3 py-1.5 text-left font-medium">Name</th>
+                    <th className="px-3 py-1.5 text-left font-medium">Type</th>
+                    <th className="px-3 py-1.5 text-left font-medium">Role</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {sampleData.slice(0, 50).map((row, i) => (
-                    <tr key={i} className="border-b last:border-b-0">
-                      {Object.values(row).map((val, j) => (
-                        <td key={j} className="px-3 py-1.5 font-mono">
-                          {val === null ? 'null' : String(val)}
-                        </td>
-                      ))}
+                  {dataset.columns.map((col) => (
+                    <tr key={col.name} className="border-b last:border-b-0">
+                      <td className="px-3 py-1.5 font-mono">{col.name}</td>
+                      <td className="px-3 py-1.5">{col.dataType}</td>
+                      <td className="px-3 py-1.5">
+                        <Badge variant="outline" className="text-xs">
+                          {col.role}
+                        </Badge>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          )}
+          </div>
+
+          {/* Sample data */}
+          <div className="mt-4">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Sample Data
+              </h4>
+              {!sampleData && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 text-xs"
+                  onClick={handleLoadSample}
+                  disabled={sampleLoading}
+                >
+                  {sampleLoading ? 'Loading...' : 'Load'}
+                </Button>
+              )}
+            </div>
+
+            {sampleError && (
+              <p className="text-xs text-destructive">{sampleError}</p>
+            )}
+
+            {sampleLoading && (
+              <div className="space-y-2">
+                <Skeleton className="h-6 w-full" />
+                <Skeleton className="h-6 w-full" />
+                <Skeleton className="h-6 w-full" />
+              </div>
+            )}
+
+            {!sampleData && !sampleLoading && !sampleError && (
+              <p className="text-xs text-muted-foreground">
+                Click Load to see sample rows
+              </p>
+            )}
+
+            {sampleData && sampleData.length > 0 && (
+              <div className="rounded border">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b bg-muted/30">
+                      {Object.keys(sampleData[0]).map((col) => (
+                        <th
+                          key={col}
+                          className="px-3 py-1.5 text-left font-medium font-mono"
+                        >
+                          {col}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sampleData.slice(0, 50).map((row, i) => (
+                      <tr key={i} className="border-b last:border-b-0">
+                        {Object.values(row).map((val, j) => (
+                          <td key={j} className="px-3 py-1.5 font-mono">
+                            {val === null ? 'null' : String(val)}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      </ScrollArea>
     )
   }
 
