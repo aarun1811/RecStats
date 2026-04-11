@@ -16,7 +16,6 @@ import { SqlEditor } from '@/components/explorer/sql-editor'
 import { SchemaBrowser } from '@/components/explorer/schema-browser'
 import { QueryResults } from '@/components/explorer/query-results'
 import { QueryHistory } from '@/components/explorer/query-history'
-import { ChartBuilderDialog } from '@/components/explorer/chart-builder-dialog'
 import { SaveAsDatasetDialog } from '@/components/explorer/save-as-dataset-dialog'
 import type { SqlResult } from '@/types/api'
 
@@ -33,7 +32,6 @@ function Explorer() {
   const [sql, setSql] = useState(DEFAULT_SQL)
   const [result, setResult] = useState<SqlResult | null>(null)
   const [executionTime, setExecutionTime] = useState<number | null>(null)
-  const [chartOpen, setChartOpen] = useState(false)
   const [saveDialogOpen, setSaveDialogOpen] = useState(false)
   const [activeTab, setActiveTab] = useState('results')
 
@@ -84,12 +82,6 @@ function Explorer() {
     setSql(query)
     setActiveTab('results')
   }, [])
-
-  const handleChartIt = useCallback(() => {
-    if (result?.status === 'success' && result.data.length > 0) {
-      setChartOpen(true)
-    }
-  }, [result])
 
   return (
     <div className="flex flex-col h-[calc(100vh-3.5rem)]">
@@ -168,7 +160,6 @@ function Explorer() {
                   result={result}
                   isLoading={executeMutation.isPending}
                   executionTime={executionTime}
-                  onChartIt={handleChartIt}
                   onSaveAsDataset={
                     result?.status === 'success'
                       ? () => setSaveDialogOpen(true)
@@ -183,15 +174,6 @@ function Explorer() {
           </div>
         </div>
       </div>
-
-      {/* Chart Builder Dialog */}
-      {result?.status === 'success' && result.data.length > 0 && (
-        <ChartBuilderDialog
-          open={chartOpen}
-          onOpenChange={setChartOpen}
-          result={result}
-        />
-      )}
 
       {/* Save as Dataset Dialog */}
       <SaveAsDatasetDialog
