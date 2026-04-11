@@ -42,7 +42,7 @@ git branch --show-current     # should show deploy/oracle-v2-20260409
 | Path | Purpose |
 |---|---|
 | `backend/tests/test_schema_introspection.py` | Tests for the two new schema endpoints (Task 6) |
-| `backend/tests/test_connection_status.py` | Tests for the three write paths + read path of persistent status (Task 5) |
+| `backend/tests/test_db_status_persistence.py` | Tests for the three write paths + read path of persistent status (Task 5) — separate file because `test_connection_status.py` already exists and tests the in-memory tracker |
 | `frontend/src/hooks/use-tables.ts` | React Query hook wrapping `GET /api/databases/{id}/tables` (Task 7) |
 | `frontend/src/hooks/use-table-columns.ts` | React Query hook wrapping `GET /api/databases/{id}/tables/{name}/columns` (Task 7) |
 | `frontend/src/types/schema.ts` | Shared TS types for `SchemaTable` and `SchemaColumn` (Task 7) |
@@ -740,16 +740,49 @@ MSGEOF
 **Goal:** connection status survives backend restarts and reflects reality without requiring the user to click Test. Three write paths (create, explicit test, startup sweep) all persist to `recviz_connections.status` + `last_tested_at` columns. The read path reads directly from the DB.
 
 **Files:**
-- Modify: `backend/app/api/databases.py` — `create_database`, `test_connection`, `_build_response`, `list_databases`, `get_database`
-- Modify: `backend/app/main.py` — lifespan to add startup sweep
-- Create: `backend/tests/test_connection_status.py`
+- Modify: `backend/app/api/databases.py` — `create_database`, `test_connection`, `update_database`, `_build_response`, `list_databases`, `get_database`, add `datetime` imports at module level
+- Modify: `backend/app/main.py` — lifespan to add startup sweep, add `concurrent.futures`, `datetime`, `update`, `build_sync_uri` imports at module level
+- Create: `backend/tests/test_db_status_persistence.py` — **NOT** `test_connection_status.py`, which already exists with valid tests for the in-memory `ConnectionStatusTracker`
+- Modify: `backend/tests/test_databases_api.py` — update assertions that will break after the auto-test changes in `create_database`
+
+- [ ] **Step 0: Add module-level imports to `backend/app/api/databases.py` (fixes H1)**
+
+Open `backend/app/api/databases.py`. Find the existing imports block at the top of the file. Add these lines next to the existing `from datetime import ...` (there is none yet — add a new one right after the `uuid` import at line 6):
+
+```python
+from datetime import datetime, timezone
+
+from sqlalchemy import select, update
+```
+
+Wait — `select` is already imported from `sqlalchemy`. Just extend the existing import:
+
+```python
+from sqlalchemy import select
+```
+
+becomes:
+
+```python
+from sqlalchemy import select, update
+```
+
+And add a separate new line for datetime:
+
+```python
+from datetime import datetime, timezone
+```
 
 - [ ] **Step 1: Write the failing test for persist-on-create**
 
-Create `backend/tests/test_connection_status.py`:
+Create `backend/tests/test_db_status_persistence.py` (NOT `test_connection_status.py` — that file already exists and tests `ConnectionStatusTracker`):
 
 ```python
-"""Tests for persistent connection status (Unit 2)."""
+"""Tests for persistent connection status in recviz_connections (Unit 2).
+
+These tests are distinct from `test_connection_status.py`, which covers
+the in-memory `ConnectionStatusTracker`. This file covers the DB column
+persistence added in Unit 2."""
 
 from __future__ import annotations
 
@@ -847,7 +880,7 @@ def test_build_response_untested_default(sqlite_session: Session):
 
 ```bash
 cd /Users/aarun/Workspace/recviz-prod-build/backend
-python -m pytest tests/test_connection_status.py -v 2>&1 | tail -30
+python -m pytest tests/test_db_status_persistence.py -v 2>&1 | tail -30
 ```
 
 Expected: `test_build_response_reads_from_db_column` and `test_build_response_untested_default` FAIL with `TypeError: _build_response() missing 1 required positional argument: 'status_info'` — because the current signature is `_build_response(conn, status_info)`, not `_build_response(conn)`. The first two tests (pure DB write/read) should PASS.
@@ -945,10 +978,41 @@ def get_database(db_id: str, session: DbSessionDep) -> dict:
 
 Remove the `request: Request` parameter from both and the `tracker = _get_status_tracker(request)` calls — we no longer need them for display. Leave `_get_status_tracker` helper function alone — it's still used by other handlers for runtime tracker access.
 
+- [ ] **Step 4b: Update `update_database` to use the one-arg `_build_response`**
+
+**This is the call site the reviewer flagged as B1.** `update_database` in `databases.py` (around line 195-245 pre-patch) also calls `_build_response(conn, status_info)`. Find this block near the end of the function:
+
+```python
+    tracker = _get_status_tracker(request)
+    if tracker:
+        status_info = tracker.get_status(conn.id)
+    else:
+        status_info = {"status": "untested", "last_tested": None}
+
+    return _build_response(conn, status_info)
+```
+
+Replace with:
+
+```python
+    return _build_response(conn)
+```
+
+Delete the `tracker` lookup and `status_info` dict construction — they're no longer needed for display (the status comes from `conn.status` directly). The `_get_status_tracker` helper call and import stay because they're used elsewhere in the file.
+
+After this edit, `grep -n '_build_response(' backend/app/api/databases.py` should show three callers (list_databases, get_database, update_database) and they all pass a single argument. Run the grep to verify before moving on:
+
+```bash
+cd /Users/aarun/Workspace/recviz-prod-build
+grep -n '_build_response(' backend/app/api/databases.py
+```
+
+Expected: three result lines, all with `_build_response(conn)` or `_build_response(connection)`, zero with `status_info`.
+
 - [ ] **Step 5: Rerun the tests to confirm the read path works**
 
 ```bash
-python -m pytest tests/test_connection_status.py -v 2>&1 | tail -30
+python -m pytest tests/test_db_status_persistence.py -v 2>&1 | tail -30
 ```
 
 Expected: all four tests PASS.
@@ -997,8 +1061,8 @@ def create_database(
             detail={"error": "duplicate_name", "message": f"A connection named '{name}' already exists"},
         )
 
-    # NEW: Test the connection and persist the result
-    from datetime import datetime, timezone
+    # NEW: Test the connection and persist the result.
+    # datetime/timezone were added to the module-level imports in Step 0.
     uri = build_sync_uri(
         backend=body.backend,
         host=body.host or "",
@@ -1026,6 +1090,61 @@ def create_database(
 ```
 
 Key additions: the auto-test block after the first `session.flush()`, the status assignment, and the second `session.flush()` to persist status before return. The response is now `_build_response(connection)` (one-arg form).
+
+- [ ] **Step 6b: Update `test_databases_api.py:test_create_database` to mock `EngineManager.test_connection` (fixes B3)**
+
+`backend/tests/test_databases_api.py` has `TestCreateDatabase.test_create_database` at line 217. It POSTs to `/api/databases` and asserts `data["status"] == "untested"`. After Step 6, the create handler runs `EngineManager.test_connection` synchronously, catches any exception, and sets `conn.status = "connected"` or `"unreachable"`. In the test environment, the mock engine manager is set up but `EngineManager.test_connection` is a **staticmethod** that `create_database` calls directly, bypassing the dependency injection — so it will try to actually open a connection to whatever URI the test uses and fail, yielding `"unreachable"`. The test's `assert data["status"] == "untested"` will then fail.
+
+Patch the test to mock the static method. At the top of the test method:
+
+```python
+    def test_create_database(self):
+        """POST /api/databases creates connection with encrypted password, returns 201."""
+        app = _create_test_app()
+        session = _mock_session_returning_one(None)  # session for flush
+        _override_deps(app, session=session, engine_manager=_mock_engine_manager())
+
+        # Mock EngineManager.test_connection (staticmethod) to return success
+        # — otherwise the auto-test in create_database will try to hit a real DB
+        from unittest.mock import patch
+        with patch(
+            "app.api.databases.EngineManager.test_connection",
+            return_value=(True, "Connection successful"),
+        ):
+            client = TestClient(app)
+            resp = client.post("/api/databases", json={
+                "databaseName": "New DB",
+                "backend": "postgresql",
+                "host": "localhost",
+                "port": 5432,
+                "database": "test_db",
+                "username": "admin",
+                "password": "secret",
+            })
+
+        assert resp.status_code == 201
+        data = resp.json()
+        assert "id" in data
+        assert isinstance(data["id"], str)
+        assert data["database_name"] == "New DB"
+        assert data["backend"] == "postgresql"
+        assert data["status"] == "connected"
+        # Verify encryption was called
+        assert app.state.encryption.encrypt.called
+        # Verify resolver was invalidated
+        assert app.state.connection_resolver.invalidate.called
+```
+
+The key changes: (a) wrap the POST call in a `with patch(...)` block that stubs out `EngineManager.test_connection` to return `(True, "Connection successful")`; (b) change the expected `status` from `"untested"` to `"connected"` because the auto-test now always runs.
+
+**Verify the test still runs before committing:**
+
+```bash
+cd /Users/aarun/Workspace/recviz-prod-build/backend
+python -m pytest tests/test_databases_api.py::TestCreateDatabase::test_create_database -v 2>&1 | tail -15
+```
+
+Expected: the test passes. If it errors with something like `AttributeError: 'session' object has no attribute 'flush'`, that's a pre-existing mock mismatch unrelated to this fix — investigate separately.
 
 - [ ] **Step 7: Update `test_connection` endpoint to persist status in DB**
 
@@ -1067,8 +1186,8 @@ def test_connection(
                 tracker.mark_unreachable(body.database_id)
 
         # NEW: Persist to recviz_connections.status if database_id provided
+        # (datetime/timezone imports added at module level in Step 0)
         if body.database_id:
-            from datetime import datetime, timezone
             conn = session.execute(
                 select(RecvizConnection).where(RecvizConnection.id == body.database_id)
             ).scalar_one_or_none()
@@ -1087,17 +1206,39 @@ def test_connection(
         return {"success": False, "message": f"Connection error: {sanitize_detail(e)}"}
 ```
 
+- [ ] **Step 8a: Add module-level imports to `main.py` (fixes H1 consistency concern)**
+
+Open `backend/app/main.py`. In the existing imports block (after the thick-mode init but before the `from app.*` imports), add:
+
+```python
+import concurrent.futures
+from datetime import datetime, timezone
+```
+
+Then extend the existing `from sqlalchemy import select` line:
+
+```python
+from sqlalchemy import select
+```
+
+becomes:
+
+```python
+from sqlalchemy import select, update
+```
+
+Then add a new import with the other `from app.services.*` lines:
+
+```python
+from app.services.uri_builder import build_sync_uri
+```
+
 - [ ] **Step 8: Add the startup sweep to `main.py`**
 
-Open `backend/app/main.py`. Find the lifespan function. After the existing step 3 ("Pre-warm engine pool for all registered connections") and before step 4 ("Create ConnectionResolver and sync from DB"), add a new step:
+Open `backend/app/main.py`. Find the lifespan function. After the existing step 3 ("Pre-warm engine pool for all registered connections") and before step 4 ("Create ConnectionResolver and sync from DB"), add a new step. All imports are already at the module level from Step 8a, so the block body no longer contains inline imports:
 
 ```python
     # 3b. NEW: Startup health-check sweep — persist per-connection status
-    import concurrent.futures
-    from datetime import datetime, timezone
-    from sqlalchemy import update
-    from app.services.uri_builder import build_sync_uri
-
     logger.info("Running startup health-check sweep...")
     sweep_start = datetime.now(timezone.utc)
 
@@ -1180,7 +1321,7 @@ python3.12 -m py_compile backend/app/api/databases.py && echo "OK"
 
 ```bash
 cd /Users/aarun/Workspace/recviz-prod-build/backend
-python -m pytest tests/test_connection_status.py -v 2>&1 | tail -20
+python -m pytest tests/test_db_status_persistence.py -v 2>&1 | tail -20
 ```
 
 Expected: all tests pass.
@@ -1196,7 +1337,8 @@ Fix any blockers. Pay attention to session lifecycle feedback — the snapshot p
 ```bash
 git add backend/app/api/databases.py \
         backend/app/main.py \
-        backend/tests/test_connection_status.py
+        backend/tests/test_db_status_persistence.py \
+        backend/tests/test_databases_api.py
 git commit -m "$(cat <<'MSGEOF'
 feat(databases): persist connection status in DB, auto-test on create and startup
 
@@ -1230,8 +1372,13 @@ Three write paths, one read path:
     as a runtime observation layer for QueryExecutor's mark_connected /
     mark_unreachable during normal query operation.
 
-Test: backend/tests/test_connection_status.py (4 tests) validates the
-read path against an in-memory SQLite session using the real ORM models.
+Test: backend/tests/test_db_status_persistence.py (4 new tests)
+validates the read path against an in-memory SQLite session using the
+real ORM models. Also updates test_databases_api.py:TestCreateDatabase
+to mock EngineManager.test_connection and expect 'connected' instead
+of 'untested' after the auto-test. The existing
+backend/tests/test_connection_status.py (tests for the in-memory
+ConnectionStatusTracker) is left untouched.
 
 Refs: docs/superpowers/specs/2026-04-11-ui-fixes-and-cleanup-design.md
 (section 'Unit 2')
@@ -1285,7 +1432,8 @@ def test_nullable_normalization():
     """nullable values from Oracle and Postgres should normalize to bool."""
     from app.api.databases import _normalize_nullable
 
-    # Oracle returns 'Y' / 'N'
+    # Oracle returns 'Y' / 'N' — test both so a broken predicate like
+    # `raw in ("Y", "YES", "N")` would be caught
     assert _normalize_nullable("Y") is True
     assert _normalize_nullable("N") is False
 
@@ -1293,9 +1441,14 @@ def test_nullable_normalization():
     assert _normalize_nullable("YES") is True
     assert _normalize_nullable("NO") is False
 
+    # Case-insensitive
+    assert _normalize_nullable("y") is True
+    assert _normalize_nullable("n") is False
+
     # Unknown values default to True (permissive)
     assert _normalize_nullable(None) is True
     assert _normalize_nullable("") is True
+    assert _normalize_nullable("maybe") is True
 ```
 
 - [ ] **Step 2: Run the tests to confirm they fail**
@@ -1526,7 +1679,7 @@ python3.12 -m py_compile backend/app/api/databases.py && echo "OK"
 ```bash
 cd /Users/aarun/Workspace/recviz-prod-build/backend
 python -m pytest tests/test_schema_introspection.py -v 2>&1 | tail -10
-python -m pytest tests/test_connection_status.py -v 2>&1 | tail -10
+python -m pytest tests/test_db_status_persistence.py -v 2>&1 | tail -10
 ```
 
 Expected: all tests pass.
@@ -1647,12 +1800,16 @@ export function useTableColumns(dbId: string | null, tableName: string | null) {
 Create `frontend/src/components/explorer/schema-browser.test.tsx`:
 
 ```tsx
+// @vitest-environment jsdom
+
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { SchemaBrowser } from './schema-browser'
 
-// Mock the hooks
+// IMPORTANT: vi.mock factories are hoisted above imports by Vitest's Babel
+// transform, but values defined outside are NOT hoisted. Define the spy
+// INSIDE the factory so the hoist order works, then expose it via the
+// mocked module's own namespace.
 vi.mock('@/hooks/use-databases', () => ({
   useDatabases: () => ({
     data: [
@@ -1671,21 +1828,28 @@ vi.mock('@/hooks/use-tables', () => ({
       { name: 'V_DAILY_STATS', type: 'VIEW' },
     ] : undefined,
     isLoading: false,
+    error: null,
   }),
 }))
 
-const useTableColumnsMock = vi.fn((dbId: string | null, tableName: string | null) => ({
-  data: tableName === 'ITEMS' ? [
-    { name: 'ID', type: 'NUMBER', nullable: false },
-    { name: 'NAME', type: 'VARCHAR2', nullable: true },
-  ] : undefined,
-  isLoading: false,
-}))
+vi.mock('@/hooks/use-table-columns', () => {
+  const mockFn = vi.fn((dbId: string | null, tableName: string | null) => ({
+    data: tableName === 'ITEMS' ? [
+      { name: 'ID', type: 'NUMBER', nullable: false },
+      { name: 'NAME', type: 'VARCHAR2', nullable: true },
+    ] : undefined,
+    isLoading: false,
+    error: null,
+  }))
+  return {
+    useTableColumns: mockFn,
+    __mockFn: mockFn,  // exposed for assertions below
+  }
+})
 
-vi.mock('@/hooks/use-table-columns', () => ({
-  useTableColumns: (dbId: string | null, tableName: string | null) =>
-    useTableColumnsMock(dbId, tableName),
-}))
+// Import AFTER the vi.mock calls above are hoisted
+import { SchemaBrowser } from './schema-browser'
+import * as useTableColumnsModule from '@/hooks/use-table-columns'
 
 function renderWithQuery(ui: React.ReactNode) {
   const qc = new QueryClient({
@@ -1695,6 +1859,10 @@ function renderWithQuery(ui: React.ReactNode) {
 }
 
 describe('SchemaBrowser', () => {
+  const useTableColumnsMock = (useTableColumnsModule as unknown as {
+    __mockFn: ReturnType<typeof vi.fn>
+  }).__mockFn
+
   beforeEach(() => {
     useTableColumnsMock.mockClear()
   })
@@ -1939,9 +2107,10 @@ function ExpandableTable({
 
   return (
     <Collapsible open={expanded} onOpenChange={onToggle}>
+      {/* NO onClick on CollapsibleTrigger — Radix fires onOpenChange
+          automatically on trigger click; adding onClick would double-fire. */}
       <CollapsibleTrigger
         className="flex items-center gap-1.5 w-full px-3 py-1.5 text-xs hover:bg-accent/50 cursor-pointer transition-colors"
-        onClick={onToggle}
       >
         <ChevronRight
           className={cn(
@@ -2282,8 +2451,22 @@ rsync -a \
 mkdir -p /tmp/recviz-staging-v6/frontend
 cp -r /Users/aarun/Workspace/recviz-prod-build/frontend/dist /tmp/recviz-staging-v6/frontend/
 
-# Copy the lifecycle scripts from the previous staging (same ones as v3/v4/v5)
-cp -r /tmp/recviz-staging-v3/scripts /tmp/recviz-staging-v6/
+# Copy the lifecycle scripts from the previous staging or from the
+# repo (whichever is available). Fall back explicitly if the /tmp
+# staging directory has been cleaned up since the last tarball build.
+if [ -d /tmp/recviz-staging-v3/scripts ]; then
+    cp -r /tmp/recviz-staging-v3/scripts /tmp/recviz-staging-v6/
+elif [ -d /tmp/recviz-staging-v5/scripts ]; then
+    cp -r /tmp/recviz-staging-v5/scripts /tmp/recviz-staging-v6/
+else
+    echo "WARN: no /tmp staging scripts dir found. Recreate the scripts"
+    echo "      from docs/superpowers/specs/2026-04-09-rhel-oracle-no-sudo-deployment-design.md"
+    echo "      §7 (start-all.sh, stop-all.sh, status.sh, rotate-logs.sh)."
+    mkdir -p /tmp/recviz-staging-v6/scripts
+    # Subagent should manually create the four bash scripts here using the
+    # content from the deployment design doc section 7.
+    exit 1
+fi
 ```
 
 - [ ] **Step 5: Build the tarball**
