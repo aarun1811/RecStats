@@ -114,3 +114,28 @@ def test_chart_response_coerces_none_description_to_empty_string():
 
     response = _to_response(chart)
     assert response.description == ""
+
+
+def test_dashboard_response_coerces_none_description_to_empty_string():
+    """Dashboard with description=None (Oracle empty-string-as-null) serializes
+    cleanly instead of raising ValidationError.
+
+    Regression for the reviewer's H1 finding: the initial commit of this
+    test file covered KPIs/datasets/charts but missed the fourth managed
+    entity. Dashboards are the same Pydantic shape and would crash the
+    GET /api/dashboards/managed list the same way."""
+    from app.api.managed_dashboards import _to_response
+    from app.db.models.dashboard import RecvizDashboard
+
+    dashboard = RecvizDashboard(
+        id="d-1",
+        name="Breaks Overview",
+        description=None,
+        schema_version=1,
+        config={"layout": [], "filters": []},
+        created_at=datetime(2026, 4, 11, 13, 27, 0, tzinfo=timezone.utc),
+        updated_at=datetime(2026, 4, 11, 13, 27, 0, tzinfo=timezone.utc),
+    )
+
+    response = _to_response(dashboard)
+    assert response.description == ""

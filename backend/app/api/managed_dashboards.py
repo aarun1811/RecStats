@@ -25,11 +25,18 @@ router = APIRouter(prefix="/api/dashboards/managed", tags=["managed-dashboards"]
 
 
 def _to_response(dashboard: RecvizDashboard) -> DashboardResponse:
-    """Convert a SQLAlchemy model to a Pydantic response."""
+    """Convert a SQLAlchemy model to a Pydantic response.
+
+    Note on ``description``: Oracle treats empty strings as NULL at the
+    DB level (a well-known Oracle quirk). A row saved with
+    ``description=""`` comes back as ``None`` on Oracle, which fails
+    ``DashboardResponse.description: str`` validation. Coerce to ``""``
+    here — same fix as managed_kpis / managed_datasets / managed_charts.
+    """
     return DashboardResponse(
         id=dashboard.id,
         name=dashboard.name,
-        description=dashboard.description,
+        description=dashboard.description or "",
         config=dashboard.config,
         created_at=dashboard.created_at,
         updated_at=dashboard.updated_at,
