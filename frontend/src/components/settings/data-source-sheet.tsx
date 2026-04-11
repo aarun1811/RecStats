@@ -37,6 +37,8 @@ import {
   useTestConnection,
   useSyncDatasets,
 } from '@/hooks/use-databases'
+import { useManagedDataset } from '@/hooks/use-managed-datasets'
+import { Badge } from '@/components/ui/badge'
 
 import {
   BACKEND_LABELS,
@@ -496,9 +498,7 @@ function DetailView({
                       </span>
                     </button>
                     {expandedDataset === ds.id && (
-                      <div className="ml-6 pl-2 border-l text-xs text-muted-foreground py-1">
-                        <p className="italic">Column details loaded on demand</p>
-                      </div>
+                      <ExpandedDatasetColumns datasetId={ds.id} />
                     )}
                   </div>
                 ))}
@@ -805,5 +805,70 @@ function FormView({
         </Button>
       </div>
     </>
+  )
+}
+
+// ── Expanded dataset column list ─────────────────────────────
+
+interface ExpandedDatasetColumnsProps {
+  datasetId: string
+}
+
+/**
+ * Renders the column list for a single managed dataset when its row in the
+ * DetailView is expanded. Lazily fetches the full dataset (including its
+ * ``columns`` array) via ``useManagedDataset``, so the parent list query
+ * doesn't have to carry every dataset's full metadata up front.
+ */
+function ExpandedDatasetColumns({ datasetId }: ExpandedDatasetColumnsProps) {
+  const { data: dataset, isLoading, error } = useManagedDataset(datasetId)
+
+  if (isLoading) {
+    return (
+      <div className="ml-6 pl-2 border-l py-1 space-y-1">
+        <Skeleton className="h-3 w-2/3" />
+        <Skeleton className="h-3 w-1/2" />
+        <Skeleton className="h-3 w-3/4" />
+      </div>
+    )
+  }
+
+  if (error || !dataset) {
+    return (
+      <div className="ml-6 pl-2 border-l text-[11px] text-destructive py-1">
+        Failed to load columns
+      </div>
+    )
+  }
+
+  if (dataset.columns.length === 0) {
+    return (
+      <div className="ml-6 pl-2 border-l text-[11px] text-muted-foreground py-1 italic">
+        No columns
+      </div>
+    )
+  }
+
+  return (
+    <div className="ml-6 pl-2 border-l py-1 space-y-0.5">
+      {dataset.columns.map((col) => (
+        <div
+          key={col.name}
+          className="flex items-center gap-2 text-xs text-muted-foreground"
+          title={`${col.displayName || col.name} — ${col.dataType} (${col.role})`}
+        >
+          <span className="font-mono truncate flex-1">{col.name}</span>
+          <Badge
+            variant="outline"
+            className="text-[9px] px-1 py-0 h-3.5 shrink-0 font-mono"
+          >
+            {col.dataType}
+          </Badge>
+          <span className="text-[9px] uppercase tracking-wide text-muted-foreground shrink-0">
+            {col.role}
+          </span>
+        </div>
+      ))}
+    </div>
   )
 }
