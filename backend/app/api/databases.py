@@ -319,44 +319,110 @@ def test_connection(
     session: DbSessionDep,
     request: Request,
 ) -> dict:
-    """Test database connectivity using a disposable engine."""
+    """Test database connectivity using a disposable engine.
+
+    Two modes:
+
+    1. **Detail-panel test** (body has ``database_id`` and no ``host``):
+       Load the stored ``RecvizConnection`` row, decrypt its password,
+       and build the URI from the stored fields. Called by the Settings
+       data-source detail side panel, which only has the id of an
+       already-saved connection, not the credentials.
+
+    2. **Create/edit test** (body has explicit ``host`` + credentials):
+       Build the URI from the body as before. Called by the Create/Edit
+       form before the connection has been saved.
+
+    Either way, the result is persisted to ``recviz_connections.status``
+    when ``database_id`` is provided, and written to the in-memory
+    tracker for runtime observation.
+    """
     tracker = _get_status_tracker(request)
-    try:
-        uri = build_sync_uri(
-            backend=body.backend,
-            host=body.host or "",
-            port=body.port,
-            database=body.database,
-            username=body.username,
-            password=body.password,
-        )
-        success, message = EngineManager.test_connection(uri, body.backend)
 
-        # Update in-memory tracker (runtime observation layer)
-        if tracker and body.database_id is not None:
-            if success:
-                tracker.mark_connected(body.database_id)
-            else:
+    # Detail-panel mode: look up the stored connection and use its creds.
+    if body.database_id and not body.host:
+        encryption = _get_encryption(request)
+        conn = session.execute(
+            select(RecvizConnection).where(RecvizConnection.id == body.database_id)
+        ).scalar_one_or_none()
+        if conn is None:
+            return {
+                "success": False,
+                "message": f"Database connection '{body.database_id}' not found",
+            }
+        try:
+            password = encryption.decrypt(conn.encrypted_password)
+        except Exception as exc:
+            logger.warning(
+                "Failed to decrypt stored credentials for %s: %s", conn.id, exc
+            )
+            return {
+                "success": False,
+                "message": "Failed to decrypt stored credentials",
+            }
+
+        backend = conn.backend
+        try:
+            uri = build_sync_uri(
+                backend=backend,
+                host=conn.host or "",
+                port=conn.port,
+                database=conn.database_name,
+                username=conn.username,
+                password=password,
+            )
+            success, message = EngineManager.test_connection(uri, backend, timeout=10)
+        except Exception as exc:
+            logger.warning("Connection test by database_id failed: %s", exc)
+            if tracker is not None:
                 tracker.mark_unreachable(body.database_id)
+            conn.status = "unreachable"
+            conn.last_tested_at = datetime.now(timezone.utc)
+            session.flush()
+            return {
+                "success": False,
+                "message": f"Connection error: {sanitize_detail(exc)}",
+            }
+    else:
+        # Create/edit mode: URI from body.
+        try:
+            uri = build_sync_uri(
+                backend=body.backend,
+                host=body.host or "",
+                port=body.port,
+                database=body.database,
+                username=body.username,
+                password=body.password,
+            )
+            success, message = EngineManager.test_connection(uri, body.backend)
+        except ValueError as e:
+            return {"success": False, "message": str(e)}
+        except Exception as e:
+            logger.warning("Connection test error: %s", e)
+            if tracker is not None and body.database_id is not None:
+                tracker.mark_unreachable(body.database_id)
+            return {
+                "success": False,
+                "message": f"Connection error: {sanitize_detail(e)}",
+            }
 
-        # Persist to recviz_connections.status if database_id provided
-        if body.database_id:
-            conn = session.execute(
-                select(RecvizConnection).where(RecvizConnection.id == body.database_id)
-            ).scalar_one_or_none()
-            if conn is not None:
-                conn.status = "connected" if success else "unreachable"
-                conn.last_tested_at = datetime.now(timezone.utc)
-                session.flush()
-
-        return {"success": success, "message": message}
-    except ValueError as e:
-        return {"success": False, "message": str(e)}
-    except Exception as e:
-        logger.warning("Connection test error: %s", e)
-        if tracker and body.database_id is not None:
+    # Shared post-branch: update tracker + persist status.
+    if tracker and body.database_id is not None:
+        if success:
+            tracker.mark_connected(body.database_id)
+        else:
             tracker.mark_unreachable(body.database_id)
-        return {"success": False, "message": f"Connection error: {sanitize_detail(e)}"}
+
+    if body.database_id:
+        conn_row = session.execute(
+            select(RecvizConnection).where(RecvizConnection.id == body.database_id)
+        ).scalar_one_or_none()
+        if conn_row is not None:
+            conn_row.status = "connected" if success else "unreachable"
+            conn_row.last_tested_at = datetime.now(timezone.utc)
+            session.flush()
+
+    return {"success": success, "message": message}
 
 
 @router.get("/{db_id}/tables")
