@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from starlette.requests import Request
 

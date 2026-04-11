@@ -7,13 +7,15 @@ persistence added in Unit 2."""
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from types import SimpleNamespace
 
 import pytest
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from app.db.base import Base
 from app.db.models.connection import RecvizConnection
+from app.services.encryption import EncryptionService
 
 
 @pytest.fixture
@@ -96,3 +98,102 @@ def test_build_response_untested_default(sqlite_session: Session):
     response = _build_response(conn)
     assert response["status"] == "untested"
     assert response["last_tested"] is None
+
+
+def _mock_request(encryption: EncryptionService) -> SimpleNamespace:
+    """Minimal Request stand-in exposing only what create_database reads."""
+    return SimpleNamespace(
+        app=SimpleNamespace(
+            state=SimpleNamespace(
+                encryption=encryption,
+                connection_resolver=None,
+            )
+        )
+    )
+
+
+def test_create_database_persists_connected_on_auto_test_success(
+    sqlite_session: Session, monkeypatch: pytest.MonkeyPatch
+):
+    """create_database should auto-test after flush and persist status='connected'.
+
+    This is the real integration surface added in Unit 2: we patch
+    EngineManager.test_connection to return success and verify the row
+    created by create_database has status='connected' + last_tested_at set.
+    """
+    from app.api import databases as databases_api
+    from app.models.database import DatabaseCreate
+
+    monkeypatch.setattr(
+        databases_api.EngineManager,
+        "test_connection",
+        staticmethod(lambda uri, backend, timeout=10: (True, "ok")),
+    )
+
+    encryption = EncryptionService(EncryptionService.generate_key())
+    body = DatabaseCreate(
+        databaseName="TestOra",
+        backend="oracle",
+        host="oracle.local",
+        port=1521,
+        database="ORCL",
+        schemaName="TEST",
+        username="test",
+        password="secret",
+    )
+
+    response = databases_api.create_database(
+        body=body,
+        session=sqlite_session,
+        engine_manager=None,  # not used by create_database beyond type hint
+        request=_mock_request(encryption),  # type: ignore[arg-type]
+    )
+
+    assert response["status"] == "connected"
+    assert response["last_tested"] is not None
+
+    # Row should actually be in the DB with matching status
+    stored = sqlite_session.execute(
+        select(RecvizConnection).where(RecvizConnection.display_name == "TestOra")
+    ).scalar_one()
+    assert stored.status == "connected"
+    assert stored.last_tested_at is not None
+
+
+def test_create_database_persists_unreachable_on_auto_test_failure(
+    sqlite_session: Session, monkeypatch: pytest.MonkeyPatch
+):
+    """When the auto-test raises, create_database still succeeds but persists unreachable."""
+    from app.api import databases as databases_api
+    from app.models.database import DatabaseCreate
+
+    def _raising_test(uri, backend, timeout=10):
+        raise RuntimeError("ORA-12541: no listener")
+
+    monkeypatch.setattr(
+        databases_api.EngineManager,
+        "test_connection",
+        staticmethod(_raising_test),
+    )
+
+    encryption = EncryptionService(EncryptionService.generate_key())
+    body = DatabaseCreate(
+        databaseName="BrokenOra",
+        backend="oracle",
+        host="nowhere",
+        port=1521,
+        database="ORCL",
+        schemaName="TEST",
+        username="test",
+        password="secret",
+    )
+
+    response = databases_api.create_database(
+        body=body,
+        session=sqlite_session,
+        engine_manager=None,
+        request=_mock_request(encryption),  # type: ignore[arg-type]
+    )
+
+    assert response["status"] == "unreachable"
+    assert response["last_tested"] is not None
