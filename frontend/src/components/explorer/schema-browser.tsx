@@ -106,7 +106,7 @@ export function SchemaBrowser({
         </div>
       </div>
 
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 min-h-0">
         {dbsLoading || tablesLoading ? (
           <div className="flex flex-col gap-2 p-3">
             <Skeleton className="h-5 w-3/4" />

@@ -225,6 +225,21 @@ export function DataSourceSheet({
     })
   }
 
+  const handleTestDetailConnection = () => {
+    if (!databaseDetail) return
+    setTestResult(null)
+    const payload: TestConnectionRequest = {
+      backend: databaseDetail.backend,
+      databaseId: databaseDetail.id,
+    }
+    testMutation.mutate(payload, {
+      onSuccess: (res) => {
+        setTestResult(res)
+      },
+      onError: () => setTestResult({ success: false, message: 'Request failed' }),
+    })
+  }
+
   const handleSave = () => {
     const data: DatabaseCreate = {
       databaseName: displayName,
@@ -308,7 +323,7 @@ export function DataSourceSheet({
             onLoadMore={() => fetchNextPage()}
             onEdit={() => onModeChange('edit')}
             onDelete={handleDelete}
-            onTestConnection={handleTestConnection}
+            onTestConnection={handleTestDetailConnection}
             testMutation={testMutation}
             testResult={testResult}
             onSync={handleSync}
