@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, field_serializer
 
 from app.models.base import CamelModel
 
@@ -47,6 +47,24 @@ class DatasetResponse(CamelModel):
     schema_version: int
     created_at: datetime
     updated_at: datetime
+
+    @field_serializer("created_at", "updated_at")
+    def _serialize_datetime_with_utc_offset(self, dt: datetime) -> str:
+        """Emit ISO 8601 with a UTC offset marker, even for naive datetimes.
+
+        Oracle TIMESTAMP WITH TIME ZONE roundtrips via oracledb can yield
+        naive Python datetimes at the Pydantic boundary. Pydantic's default
+        ISO serializer drops the offset for naive datetimes, and the
+        frontend's ``new Date(...)`` parses the result as local time. On
+        an IST deployment that produces a ~5:30h drift → "saved 6 hours
+        ago" for a just-created row.
+
+        Assumes naive datetimes are conceptually UTC — which is true for
+        RecViz since every Python call site uses ``datetime.now(timezone.utc)``.
+        """
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.isoformat()
 
 
 class ReferencingChart(CamelModel):

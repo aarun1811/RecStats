@@ -83,11 +83,12 @@ def test_build_response_reads_from_db_column(sqlite_session: Session):
 
     response = _build_response(conn)
     assert response["status"] == "connected"
-    # Compare against the (possibly tz-stripped on SQLite) reloaded value, not
-    # the original; production stores TIMESTAMPTZ so the round-trip preserves
-    # the offset.
-    assert response["last_tested"] == conn.last_tested_at.isoformat()
+    # _build_response now coerces naive datetimes to UTC-aware via
+    # _utc_isoformat (Unit 1 of v7-safe). On SQLite the ORM strips
+    # tzinfo during roundtrip, so the reloaded conn.last_tested_at is
+    # naive — the response should include the +00:00 offset regardless.
     assert response["last_tested"] is not None
+    assert response["last_tested"].endswith("+00:00")
 
 
 def test_build_response_untested_default(sqlite_session: Session):

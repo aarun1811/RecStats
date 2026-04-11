@@ -72,6 +72,22 @@ def _get_encryption(request: Request) -> EncryptionService:
     return encryption
 
 
+def _utc_isoformat(dt: "datetime | None") -> "str | None":
+    """Return an ISO 8601 string with a UTC offset for an ORM datetime value.
+
+    Mirrors the DatasetResponse @field_serializer for code paths that
+    bypass Pydantic (route handlers returning plain dicts). Naive
+    datetimes are assumed to be conceptually UTC and are rewritten with
+    ``timezone.utc``; already-aware datetimes pass through unchanged.
+    None passes through as None for optional fields.
+    """
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.isoformat()
+
+
 def _build_response(conn: RecvizConnection) -> dict:
     """Build a response dict matching the DatabaseInfo shape from a connection record.
 
@@ -79,15 +95,19 @@ def _build_response(conn: RecvizConnection) -> dict:
     restarts). The in-memory ConnectionStatusTracker is no longer the source
     of truth for display — it only overlays runtime observations during
     normal query operation via QueryExecutor's mark_connected / mark_unreachable.
+
+    Datetime fields go through _utc_isoformat so the Settings data-sources
+    card never receives a naive ISO string from an Oracle TIMESTAMP WITH
+    TIME ZONE roundtrip (same root cause as Issue 3 for the datasets list).
     """
     return {
         "id": conn.id,
         "database_name": conn.display_name,
         "backend": conn.backend,
-        "created_on": conn.created_at.isoformat() if conn.created_at else None,
+        "created_on": _utc_isoformat(conn.created_at),
         "expose_in_sqllab": True,
         "status": conn.status or "untested",
-        "last_tested": conn.last_tested_at.isoformat() if conn.last_tested_at else None,
+        "last_tested": _utc_isoformat(conn.last_tested_at),
     }
 
 
