@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import logging
+import re
 import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 from starlette.requests import Request
 
@@ -26,6 +27,28 @@ from app.services.engine_manager import EngineManager
 from app.services.uri_builder import build_sync_uri
 
 logger = logging.getLogger(__name__)
+
+TABLE_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_$#]{0,29}$")
+
+
+def _normalize_nullable(raw) -> bool:
+    """Normalize an Oracle/Postgres nullable column value to a bool.
+
+    Oracle's all_tab_columns.nullable returns 'Y' / 'N'.
+    Postgres' information_schema.columns.is_nullable returns 'YES' / 'NO'.
+    Anything unrecognized (None, empty string, unknown text) defaults to
+    True (permissive — better to over-report nullable than under-report).
+    """
+    if isinstance(raw, bool):
+        return raw
+    if isinstance(raw, str) and raw:
+        upper = raw.upper()
+        if upper in ("Y", "YES", "TRUE", "T"):
+            return True
+        if upper in ("N", "NO", "FALSE", "F"):
+            return False
+    return True
+
 
 router = APIRouter(prefix="/api/databases", tags=["databases"])
 
@@ -314,6 +337,171 @@ def test_connection(
         if tracker and body.database_id is not None:
             tracker.mark_unreachable(body.database_id)
         return {"success": False, "message": f"Connection error: {sanitize_detail(e)}"}
+
+
+@router.get("/{db_id}/tables")
+def list_schema_tables(
+    db_id: str,
+    session: DbSessionDep,
+    engine_manager: EngineManagerDep,
+) -> list[dict]:
+    """List tables and views in the connection's configured schema.
+
+    Uses live introspection against the data dictionary / information_schema.
+    Returns [{"name": "ITEMS", "type": "TABLE"}, ...]. The schema is
+    determined by the connection's schema_name field (set when the
+    connection is created); if empty, returns a 400.
+    """
+    conn = session.execute(
+        select(RecvizConnection).where(RecvizConnection.id == db_id)
+    ).scalar_one_or_none()
+    if conn is None:
+        raise HTTPException(status_code=404, detail=f"Database '{db_id}' not found")
+
+    if not conn.schema_name:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Connection has no schema configured. Edit the data source and "
+                "set the Schema field to the Oracle owner / PostgreSQL schema name."
+            ),
+        )
+
+    try:
+        engine = engine_manager.get_engine_for_connection(conn)
+    except Exception as exc:
+        logger.warning("Engine creation failed for %s: %s", db_id, exc)
+        raise HTTPException(
+            status_code=503,
+            detail=f"Failed to connect to database: {sanitize_detail(exc)}",
+        )
+
+    if conn.backend == "oracle":
+        sql = text(
+            """
+            SELECT table_name AS name, 'TABLE' AS type
+            FROM all_tables
+            WHERE owner = UPPER(:schema)
+            UNION ALL
+            SELECT view_name AS name, 'VIEW' AS type
+            FROM all_views
+            WHERE owner = UPPER(:schema)
+            ORDER BY 1
+            """
+        )
+    elif conn.backend == "postgresql":
+        sql = text(
+            """
+            SELECT table_name AS name, table_type AS type
+            FROM information_schema.tables
+            WHERE table_schema = :schema
+              AND table_type IN ('BASE TABLE', 'VIEW')
+            ORDER BY table_name
+            """
+        )
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Schema introspection not supported for backend '{conn.backend}'",
+        )
+
+    try:
+        with engine.connect() as db_conn:
+            result = db_conn.execute(sql, {"schema": conn.schema_name})
+            rows = result.fetchall()
+    except Exception as exc:
+        logger.warning("Schema introspection failed for %s: %s", db_id, exc)
+        raise HTTPException(
+            status_code=503,
+            detail=f"Failed to query schema catalog: {sanitize_detail(exc)}",
+        )
+
+    # Normalize the 'type' field: Oracle emits 'TABLE' / 'VIEW' from the literal;
+    # Postgres emits 'BASE TABLE' / 'VIEW' from information_schema.table_type.
+    return [
+        {
+            "name": r[0],
+            "type": "TABLE" if r[1] in ("BASE TABLE", "TABLE") else r[1],
+        }
+        for r in rows
+    ]
+
+
+@router.get("/{db_id}/tables/{table_name}/columns")
+def list_table_columns(
+    db_id: str,
+    table_name: str,
+    session: DbSessionDep,
+    engine_manager: EngineManagerDep,
+) -> list[dict]:
+    """List columns for a specific table/view in the connection's schema."""
+    if not TABLE_NAME_RE.match(table_name):
+        raise HTTPException(status_code=400, detail="Invalid table name")
+
+    conn = session.execute(
+        select(RecvizConnection).where(RecvizConnection.id == db_id)
+    ).scalar_one_or_none()
+    if conn is None:
+        raise HTTPException(status_code=404, detail=f"Database '{db_id}' not found")
+
+    if not conn.schema_name:
+        raise HTTPException(
+            status_code=400,
+            detail="Connection has no schema configured",
+        )
+
+    try:
+        engine = engine_manager.get_engine_for_connection(conn)
+    except Exception as exc:
+        logger.warning("Engine creation failed for %s: %s", db_id, exc)
+        raise HTTPException(
+            status_code=503,
+            detail=f"Failed to connect to database: {sanitize_detail(exc)}",
+        )
+
+    if conn.backend == "oracle":
+        sql = text(
+            """
+            SELECT column_name AS name, data_type AS type, nullable
+            FROM all_tab_columns
+            WHERE owner = UPPER(:schema) AND table_name = UPPER(:table_name)
+            ORDER BY column_id
+            """
+        )
+    elif conn.backend == "postgresql":
+        sql = text(
+            """
+            SELECT column_name AS name, data_type AS type, is_nullable AS nullable
+            FROM information_schema.columns
+            WHERE table_schema = :schema AND table_name = :table_name
+            ORDER BY ordinal_position
+            """
+        )
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Schema introspection not supported for backend '{conn.backend}'",
+        )
+
+    try:
+        with engine.connect() as db_conn:
+            result = db_conn.execute(sql, {"schema": conn.schema_name, "table_name": table_name})
+            rows = result.fetchall()
+    except Exception as exc:
+        logger.warning("Column introspection failed for %s.%s: %s", db_id, table_name, exc)
+        raise HTTPException(
+            status_code=503,
+            detail=f"Failed to query column catalog: {sanitize_detail(exc)}",
+        )
+
+    return [
+        {
+            "name": r[0],
+            "type": r[1],
+            "nullable": _normalize_nullable(r[2]),
+        }
+        for r in rows
+    ]
 
 
 @router.post("/{db_id}/sync")
