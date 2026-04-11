@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import logging
 import uuid
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from starlette.requests import Request
 
@@ -48,16 +49,22 @@ def _get_encryption(request: Request) -> EncryptionService:
     return encryption
 
 
-def _build_response(conn: RecvizConnection, status_info: dict) -> dict:
-    """Build a response dict matching the DatabaseInfo shape from a connection record."""
+def _build_response(conn: RecvizConnection) -> dict:
+    """Build a response dict matching the DatabaseInfo shape from a connection record.
+
+    Reads status + last_tested_at directly from the DB row (persistent across
+    restarts). The in-memory ConnectionStatusTracker is no longer the source
+    of truth for display — it only overlays runtime observations during
+    normal query operation via QueryExecutor's mark_connected / mark_unreachable.
+    """
     return {
         "id": conn.id,
         "database_name": conn.display_name,
         "backend": conn.backend,
         "created_on": conn.created_at.isoformat() if conn.created_at else None,
         "expose_in_sqllab": True,
-        "status": status_info["status"],
-        "last_tested": status_info["last_tested"],
+        "status": conn.status or "untested",
+        "last_tested": conn.last_tested_at.isoformat() if conn.last_tested_at else None,
     }
 
 
@@ -67,38 +74,23 @@ def _build_response(conn: RecvizConnection, status_info: dict) -> dict:
 
 
 @router.get("")
-def list_databases(session: DbSessionDep, request: Request) -> list[dict]:
+def list_databases(session: DbSessionDep) -> list[dict]:
     """List all registered database connections."""
-    tracker = _get_status_tracker(request)
     stmt = select(RecvizConnection).order_by(RecvizConnection.name)
     result = session.execute(stmt)
     connections = result.scalars().all()
-
-    results = []
-    for conn in connections:
-        if tracker:
-            status_info = tracker.get_status(conn.id)
-        else:
-            status_info = {"status": "untested", "last_tested": None}
-        results.append(_build_response(conn, status_info))
-    return results
+    return [_build_response(conn) for conn in connections]
 
 
 @router.get("/{db_id}")
-def get_database(db_id: str, session: DbSessionDep, request: Request) -> dict:
+def get_database(db_id: str, session: DbSessionDep) -> dict:
     """Get a single database connection by ID."""
-    tracker = _get_status_tracker(request)
     stmt = select(RecvizConnection).where(RecvizConnection.id == db_id)
     result = session.execute(stmt)
     conn = result.scalar_one_or_none()
     if conn is None:
         raise HTTPException(status_code=404, detail=f"Database '{db_id}' not found")
-
-    if tracker:
-        status_info = tracker.get_status(conn.id)
-    else:
-        status_info = {"status": "untested", "last_tested": None}
-    return _build_response(conn, status_info)
+    return _build_response(conn)
 
 
 @router.get("/{db_id}/datasets")
@@ -143,10 +135,7 @@ def create_database(
     encryption = _get_encryption(request)
     conn_id = str(uuid.uuid4())
 
-    # Derive a slug-style name from database_name for internal use
     name = body.database_name.lower().replace(" ", "_")
-
-    # Default port by backend
     port = body.port
     if port is None:
         port = 1521 if body.backend == "oracle" else 5432
@@ -162,33 +151,43 @@ def create_database(
         username=body.username or "",
         encrypted_password=encryption.encrypt(body.password or ""),
         schema_name=body.schema_name or "",
+        status="untested",
     )
 
     try:
         session.add(connection)
         session.flush()
     except IntegrityError:
-        # get_db_session dependency handles the actual rollback when the
-        # HTTPException propagates out of the handler.
         raise HTTPException(
             status_code=409,
             detail={"error": "duplicate_name", "message": f"A connection named '{name}' already exists"},
         )
+
+    # Auto-test the connection and persist the result
+    uri = build_sync_uri(
+        backend=body.backend,
+        host=body.host or "",
+        port=port,
+        database=body.database,
+        username=body.username,
+        password=body.password,
+    )
+    try:
+        success, message = EngineManager.test_connection(uri, body.backend, timeout=10)
+    except Exception as exc:
+        logger.warning("Auto-test during create failed with exception: %s", exc)
+        success, message = False, str(exc)
+
+    connection.status = "connected" if success else "unreachable"
+    connection.last_tested_at = datetime.now(timezone.utc)
+    session.flush()
 
     # Invalidate ConnectionResolver cache
     resolver = getattr(request.app.state, "connection_resolver", None)
     if resolver:
         resolver.invalidate(session)
 
-    return {
-        "id": conn_id,
-        "database_name": body.database_name,
-        "backend": body.backend,
-        "created_on": connection.created_at.isoformat() if connection.created_at else None,
-        "expose_in_sqllab": True,
-        "status": "untested",
-        "last_tested": None,
-    }
+    return _build_response(connection)
 
 
 @router.put("/{db_id}")
@@ -234,13 +233,7 @@ def update_database(
     if resolver:
         resolver.invalidate(session)
 
-    tracker = _get_status_tracker(request)
-    if tracker:
-        status_info = tracker.get_status(conn.id)
-    else:
-        status_info = {"status": "untested", "last_tested": None}
-
-    return _build_response(conn, status_info)
+    return _build_response(conn)
 
 
 @router.delete("/{db_id}")
@@ -278,7 +271,11 @@ def delete_database(
 
 
 @router.post("/test")
-def test_connection(body: TestConnectionRequest, request: Request) -> dict:
+def test_connection(
+    body: TestConnectionRequest,
+    session: DbSessionDep,
+    request: Request,
+) -> dict:
     """Test database connectivity using a disposable engine."""
     tracker = _get_status_tracker(request)
     try:
@@ -291,11 +288,24 @@ def test_connection(body: TestConnectionRequest, request: Request) -> dict:
             password=body.password,
         )
         success, message = EngineManager.test_connection(uri, body.backend)
+
+        # Update in-memory tracker (runtime observation layer)
         if tracker and body.database_id is not None:
             if success:
                 tracker.mark_connected(body.database_id)
             else:
                 tracker.mark_unreachable(body.database_id)
+
+        # Persist to recviz_connections.status if database_id provided
+        if body.database_id:
+            conn = session.execute(
+                select(RecvizConnection).where(RecvizConnection.id == body.database_id)
+            ).scalar_one_or_none()
+            if conn is not None:
+                conn.status = "connected" if success else "unreachable"
+                conn.last_tested_at = datetime.now(timezone.utc)
+                session.flush()
+
         return {"success": success, "message": message}
     except ValueError as e:
         return {"success": False, "message": str(e)}

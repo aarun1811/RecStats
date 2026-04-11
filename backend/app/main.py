@@ -30,14 +30,16 @@ except Exception as e:
 # --------------------------------------------------------------------------- #
 # Remaining imports -- now safe to load app modules
 # --------------------------------------------------------------------------- #
+import concurrent.futures
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import select
+from sqlalchemy import select, update
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
@@ -51,6 +53,7 @@ from app.services.connection_status import ConnectionStatusTracker
 from app.services.encryption import EncryptionService
 from app.services.engine_manager import EngineManager
 from app.services.query_engine import QueryExecutor
+from app.services.uri_builder import build_sync_uri
 
 
 @asynccontextmanager
@@ -84,6 +87,76 @@ async def lifespan(app: FastAPI):
                 logger.info("Pre-warmed engine for connection: %s", conn.name)
             except Exception as exc:
                 logger.warning("Failed to pre-warm connection %s: %s", conn.name, exc)
+
+    # 3b. Startup health-check sweep — persist per-connection status
+    logger.info("Running startup health-check sweep...")
+    sweep_start = datetime.now(timezone.utc)
+
+    # Reload connection rows in a fresh session
+    with session_factory() as session:
+        result = session.execute(select(RecvizConnection))
+        conn_rows = result.scalars().all()
+        # Snapshot the fields we need — the session closes before check_one runs
+        conn_snapshots = [
+            {
+                "id": c.id,
+                "name": c.name,
+                "backend": c.backend,
+                "host": c.host,
+                "port": c.port,
+                "database_name": c.database_name,
+                "username": c.username,
+                "encrypted_password": c.encrypted_password,
+            }
+            for c in conn_rows
+        ]
+
+    def check_one(snapshot: dict) -> tuple[str, bool, str]:
+        try:
+            password = encryption.decrypt(snapshot["encrypted_password"])
+            uri = build_sync_uri(
+                backend=snapshot["backend"],
+                host=snapshot["host"],
+                port=snapshot["port"],
+                database=snapshot["database_name"],
+                username=snapshot["username"],
+                password=password,
+            )
+            success, msg = EngineManager.test_connection(uri, snapshot["backend"], timeout=10)
+            return (snapshot["id"], success, msg)
+        except Exception as exc:
+            return (snapshot["id"], False, str(exc))
+
+    if conn_snapshots:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+            sweep_results = list(pool.map(check_one, conn_snapshots))
+
+        with session_factory() as session:
+            now = datetime.now(timezone.utc)
+            for conn_id, success, msg in sweep_results:
+                session.execute(
+                    update(RecvizConnection)
+                    .where(RecvizConnection.id == conn_id)
+                    .values(
+                        status="connected" if success else "unreachable",
+                        last_tested_at=now,
+                    )
+                )
+                if not success:
+                    logger.warning("Startup health check for %s: %s", conn_id, msg)
+            session.commit()
+
+        duration = (datetime.now(timezone.utc) - sweep_start).total_seconds()
+        connected_count = sum(1 for _, ok, _ in sweep_results if ok)
+        unreachable_count = len(sweep_results) - connected_count
+        logger.info(
+            "Startup sweep done in %.1fs: %d connected, %d unreachable",
+            duration,
+            connected_count,
+            unreachable_count,
+        )
+    else:
+        logger.info("Startup sweep: no registered connections to check")
 
     # 4. Create ConnectionResolver and sync from DB
     connection_resolver = ConnectionResolver()
