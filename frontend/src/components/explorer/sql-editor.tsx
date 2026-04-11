@@ -12,7 +12,7 @@ import { Kbd } from '@/components/ui/kbd'
 
 const IS_MAC =
   typeof navigator !== 'undefined' &&
-  /Mac|iPod|iPhone|iPad/.test(navigator.userAgent)
+  /Mac/.test(navigator.userAgent)
 
 interface SqlEditorProps {
   value: string
