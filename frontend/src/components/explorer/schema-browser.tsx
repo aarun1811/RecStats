@@ -121,7 +121,9 @@ export function SchemaBrowser({
         ) : filteredTables.length === 0 ? (
           <div className="px-3 py-4 text-xs text-muted-foreground">
             {tables?.length === 0
-              ? `No tables in schema ${selectedDb?.databaseName ? `'${selectedDb.databaseName}'` : ''}`
+              ? selectedDb
+                ? `No tables in schema '${selectedDb.databaseName}'`
+                : 'No tables in schema'
               : 'No tables match filter.'}
           </div>
         ) : (
@@ -187,10 +189,19 @@ function ExpandableTable({
           )}
         />
         <span
-          className="flex-1 text-left truncate font-medium cursor-pointer hover:text-primary"
+          role="button"
+          tabIndex={0}
+          className="flex-1 text-left truncate font-medium cursor-pointer hover:text-primary rounded-sm focus-visible:outline-2 focus-visible:outline-ring"
           onClick={(e) => {
             e.stopPropagation()
             onInsertTable(table.name)
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              e.stopPropagation()
+              onInsertTable(table.name)
+            }
           }}
           title={`Insert "${table.name}"`}
         >
@@ -217,15 +228,16 @@ function ExpandableTable({
                 key={col.name}
                 className="flex items-center gap-1.5 w-full px-2 py-1 text-xs hover:bg-accent/50 rounded-sm cursor-pointer transition-colors"
                 onClick={() => onInsertColumn(col.name)}
-                title={`Insert "${col.name}"`}
+                title={`Insert "${col.name}" (${col.type}${col.nullable ? ', nullable' : ''})`}
               >
                 <Columns3 className="size-3 shrink-0 text-muted-foreground/60" />
                 <span className="flex-1 text-left truncate">{col.name}</span>
                 <Badge
                   variant="outline"
                   className="text-[9px] px-1 py-0 h-3.5 shrink-0 font-mono"
+                  title={col.type}
                 >
-                  {col.type.length > 8 ? col.type.slice(0, 8) : col.type}
+                  {col.type.length > 8 ? `${col.type.slice(0, 7)}…` : col.type}
                 </Badge>
               </button>
             ))
