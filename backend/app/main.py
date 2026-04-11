@@ -44,7 +44,7 @@ from starlette.responses import Response
 
 from app.api.router import api_router
 from app.config import settings
-from app.db.engine import async_session_factory, engine
+from app.db.engine import engine, session_factory
 from app.db.models.connection import RecvizConnection
 from app.services.connection_resolver import ConnectionResolver
 from app.services.connection_status import ConnectionStatusTracker
@@ -55,6 +55,13 @@ from app.services.query_engine import QueryExecutor
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """FastAPI lifespan.
+
+    Must be declared ``async`` because FastAPI requires it, but the body is
+    all sync — startup is one-time work and blocking the event loop during
+    it is fine. Once startup completes, FastAPI serves requests in its
+    threadpool via ``def`` handlers (see ``app/db/engine.py`` rationale).
+    """
     # 1. Create connection status tracker (in-memory, resets on restart)
     status_tracker = ConnectionStatusTracker()
     app.state.connection_status = status_tracker
@@ -68,20 +75,20 @@ async def lifespan(app: FastAPI):
     logger.info("EngineManager initialized")
 
     # 3. Pre-warm engine pool for all registered connections
-    async with async_session_factory() as session:
-        result = await session.execute(select(RecvizConnection))
+    with session_factory() as session:
+        result = session.execute(select(RecvizConnection))
         connections = result.scalars().all()
         for conn in connections:
             try:
-                await engine_manager.get_engine_for_connection(conn)
+                engine_manager.get_engine_for_connection(conn)
                 logger.info("Pre-warmed engine for connection: %s", conn.name)
             except Exception as exc:
                 logger.warning("Failed to pre-warm connection %s: %s", conn.name, exc)
 
     # 4. Create ConnectionResolver and sync from DB
     connection_resolver = ConnectionResolver()
-    async with async_session_factory() as session:
-        await connection_resolver.sync(session)
+    with session_factory() as session:
+        connection_resolver.sync(session)
     app.state.connection_resolver = connection_resolver
     logger.info("ConnectionResolver synced (%d connections)", len(connection_resolver._cache))
 
@@ -95,10 +102,10 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    # Shutdown: dispose data source engines, then metadata engine
-    await engine_manager.dispose_all()
+    # Shutdown: dispose data source engines, then metadata engine (both sync now)
+    engine_manager.dispose_all()
     logger.info("All data source engines disposed")
-    await engine.dispose()
+    engine.dispose()
 
 
 app = FastAPI(title="RecViz API", version="0.1.0", lifespan=lifespan)

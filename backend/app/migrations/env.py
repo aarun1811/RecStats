@@ -1,8 +1,7 @@
-import asyncio
 from logging.config import fileConfig
 
 from alembic import context
-from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy import create_engine
 
 from app.config import settings
 from app.db.base import Base
@@ -40,26 +39,21 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
-def do_run_migrations(connection):
-    context.configure(connection=connection, target_metadata=target_metadata, version_table="recviz_alembic_version")
-
-    with context.begin_transaction():
-        context.run_migrations()
-
-
-async def run_async_migrations() -> None:
-    """Run migrations in 'online' mode with an async engine."""
-    connectable = create_async_engine(settings.recviz_db_url)
-
-    async with connectable.connect() as connection:
-        await connection.run_sync(do_run_migrations)
-
-    await connectable.dispose()
-
-
 def run_migrations_online() -> None:
-    """Run migrations in 'online' mode."""
-    asyncio.run(run_async_migrations())
+    """Run migrations in 'online' mode with a sync engine."""
+    connectable = create_engine(settings.recviz_db_url)
+
+    with connectable.connect() as connection:
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+            version_table="recviz_alembic_version",
+        )
+
+        with context.begin_transaction():
+            context.run_migrations()
+
+    connectable.dispose()
 
 
 if context.is_offline_mode():

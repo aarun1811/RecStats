@@ -44,16 +44,16 @@ def _to_response(chart: RecvizChart) -> ChartResponse:
 
 
 @router.get("", response_model=list[ChartResponse])
-async def list_managed_charts(session: DbSessionDep):
+def list_managed_charts(session: DbSessionDep):
     """List all RecViz-managed charts."""
     stmt = select(RecvizChart).order_by(RecvizChart.updated_at.desc())
-    result = await session.execute(stmt)
+    result = session.execute(stmt)
     charts = result.scalars().all()
     return [_to_response(c) for c in charts]
 
 
 @router.post("", response_model=ChartResponse, status_code=201)
-async def create_managed_chart(
+def create_managed_chart(
     body: ChartCreate,
     session: DbSessionDep,
 ):
@@ -73,16 +73,16 @@ async def create_managed_chart(
     )
 
     session.add(chart)
-    await session.flush()
+    session.flush()
 
     return _to_response(chart)
 
 
 @router.get("/{chart_id}", response_model=ChartResponse)
-async def get_managed_chart(chart_id: str, session: DbSessionDep):
+def get_managed_chart(chart_id: str, session: DbSessionDep):
     """Get a single managed chart by ID."""
     stmt = select(RecvizChart).where(RecvizChart.id == chart_id)
-    result = await session.execute(stmt)
+    result = session.execute(stmt)
     chart = result.scalar_one_or_none()
 
     if chart is None:
@@ -92,14 +92,14 @@ async def get_managed_chart(chart_id: str, session: DbSessionDep):
 
 
 @router.put("/{chart_id}", response_model=ChartResponse)
-async def update_managed_chart(
+def update_managed_chart(
     chart_id: str,
     body: ChartUpdate,
     session: DbSessionDep,
 ):
     """Update a managed chart."""
     stmt = select(RecvizChart).where(RecvizChart.id == chart_id)
-    result = await session.execute(stmt)
+    result = session.execute(stmt)
     chart = result.scalar_one_or_none()
 
     if chart is None:
@@ -119,25 +119,25 @@ async def update_managed_chart(
 
 
 @router.delete("/{chart_id}", status_code=204)
-async def delete_managed_chart(chart_id: str, session: DbSessionDep):
+def delete_managed_chart(chart_id: str, session: DbSessionDep):
     """Delete a managed chart."""
     stmt = select(RecvizChart).where(RecvizChart.id == chart_id)
-    result = await session.execute(stmt)
+    result = session.execute(stmt)
     chart = result.scalar_one_or_none()
 
     if chart is None:
         raise HTTPException(status_code=404, detail="Chart not found")
 
-    await session.delete(chart)
+    session.delete(chart)
 
     return Response(status_code=204)
 
 
 @router.get("/{chart_id}/references", response_model=ChartDeleteCheck)
-async def get_chart_references(chart_id: str, session: DbSessionDep):
+def get_chart_references(chart_id: str, session: DbSessionDep):
     """Check what references a chart (dashboards, etc.)."""
     stmt = select(RecvizChart).where(RecvizChart.id == chart_id)
-    result = await session.execute(stmt)
+    result = session.execute(stmt)
     chart = result.scalar_one_or_none()
 
     if chart is None:

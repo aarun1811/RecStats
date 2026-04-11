@@ -54,14 +54,14 @@ def build_sqlalchemy_uri(
     raise ValueError(f"Unsupported backend: {backend}")
 
 
-# Async dialect prefixes for create_async_engine
-ASYNC_DIALECTS: dict[str, str] = {
-    "oracle": "oracle+oracledb",
-    "postgresql": "postgresql+asyncpg",
+# Sync dialect prefixes for create_engine
+SYNC_DIALECTS: dict[str, str] = {
+    "oracle": "oracle+oracledb",  # same as async; SQLAlchemy auto-picks sync dialect
+    "postgresql": "postgresql+psycopg2",
 }
 
 
-def build_async_uri(
+def build_sync_uri(
     backend: str,
     host: str,
     port: int | None = None,
@@ -69,16 +69,20 @@ def build_async_uri(
     username: str | None = None,
     password: str | None = None,
 ) -> str:
-    """Build an async-compatible SQLAlchemy URI for create_async_engine.
+    """Build a sync-compatible SQLAlchemy URI for create_engine.
 
-    PostgreSQL: postgresql+asyncpg://user:pass@host:port/dbname
+    PostgreSQL: postgresql+psycopg2://user:pass@host:port/dbname
     Oracle: oracle+oracledb://user:pass@host:port/?service_name=SID
+
+    Note: Oracle uses the same dialect string for both sync and async;
+    SQLAlchemy selects sync or async based on which engine constructor
+    (create_engine vs create_async_engine) is called.
     """
-    dialect_prefix = ASYNC_DIALECTS.get(backend)
+    dialect_prefix = SYNC_DIALECTS.get(backend)
     if dialect_prefix is None:
         raise ValueError(
-            f"Unsupported async backend: {backend}. "
-            f"Supported: {list(ASYNC_DIALECTS.keys())}"
+            f"Unsupported sync backend: {backend}. "
+            f"Supported: {list(SYNC_DIALECTS.keys())}"
         )
 
     port = port or DEFAULT_PORTS.get(backend, 5432)
@@ -95,5 +99,5 @@ def build_async_uri(
         db_name = database or "postgres"
         return f"{dialect_prefix}://{user_part}{host}:{port}/{db_name}"
 
-    # Should not reach here due to ASYNC_DIALECTS check above
+    # Should not reach here due to SYNC_DIALECTS check above
     raise ValueError(f"Unsupported backend: {backend}")

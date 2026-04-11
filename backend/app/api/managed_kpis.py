@@ -45,16 +45,16 @@ def _to_response(kpi: RecvizKpi) -> KpiResponse:
 
 
 @router.get("", response_model=list[KpiResponse])
-async def list_managed_kpis(session: DbSessionDep):
+def list_managed_kpis(session: DbSessionDep):
     """List all RecViz-managed KPIs."""
     stmt = select(RecvizKpi).order_by(RecvizKpi.updated_at.desc())
-    result = await session.execute(stmt)
+    result = session.execute(stmt)
     kpis = result.scalars().all()
     return [_to_response(k) for k in kpis]
 
 
 @router.post("", response_model=KpiResponse, status_code=201)
-async def create_managed_kpi(
+def create_managed_kpi(
     body: KpiCreate,
     session: DbSessionDep,
 ):
@@ -75,16 +75,16 @@ async def create_managed_kpi(
     )
 
     session.add(kpi)
-    await session.flush()
+    session.flush()
 
     return _to_response(kpi)
 
 
 @router.get("/{kpi_id}", response_model=KpiResponse)
-async def get_managed_kpi(kpi_id: str, session: DbSessionDep):
+def get_managed_kpi(kpi_id: str, session: DbSessionDep):
     """Get a single managed KPI by ID."""
     stmt = select(RecvizKpi).where(RecvizKpi.id == kpi_id)
-    result = await session.execute(stmt)
+    result = session.execute(stmt)
     kpi = result.scalar_one_or_none()
 
     if kpi is None:
@@ -94,14 +94,14 @@ async def get_managed_kpi(kpi_id: str, session: DbSessionDep):
 
 
 @router.put("/{kpi_id}", response_model=KpiResponse)
-async def update_managed_kpi(
+def update_managed_kpi(
     kpi_id: str,
     body: KpiUpdate,
     session: DbSessionDep,
 ):
     """Update a managed KPI."""
     stmt = select(RecvizKpi).where(RecvizKpi.id == kpi_id)
-    result = await session.execute(stmt)
+    result = session.execute(stmt)
     kpi = result.scalar_one_or_none()
 
     if kpi is None:
@@ -123,25 +123,25 @@ async def update_managed_kpi(
 
 
 @router.delete("/{kpi_id}", status_code=204)
-async def delete_managed_kpi(kpi_id: str, session: DbSessionDep):
+def delete_managed_kpi(kpi_id: str, session: DbSessionDep):
     """Delete a managed KPI."""
     stmt = select(RecvizKpi).where(RecvizKpi.id == kpi_id)
-    result = await session.execute(stmt)
+    result = session.execute(stmt)
     kpi = result.scalar_one_or_none()
 
     if kpi is None:
         raise HTTPException(status_code=404, detail="KPI not found")
 
-    await session.delete(kpi)
+    session.delete(kpi)
 
     return Response(status_code=204)
 
 
 @router.get("/{kpi_id}/references", response_model=KpiDeleteCheck)
-async def get_kpi_references(kpi_id: str, session: DbSessionDep):
+def get_kpi_references(kpi_id: str, session: DbSessionDep):
     """Check what references a KPI (dashboards, etc.)."""
     stmt = select(RecvizKpi).where(RecvizKpi.id == kpi_id)
-    result = await session.execute(stmt)
+    result = session.execute(stmt)
     kpi = result.scalar_one_or_none()
 
     if kpi is None:

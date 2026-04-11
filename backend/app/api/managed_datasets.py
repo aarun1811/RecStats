@@ -44,16 +44,16 @@ def _to_response(ds: RecvizDataset) -> DatasetResponse:
 
 
 @router.get("", response_model=list[DatasetResponse])
-async def list_managed_datasets(session: DbSessionDep):
+def list_managed_datasets(session: DbSessionDep):
     """List all RecViz-managed datasets."""
     stmt = select(RecvizDataset).order_by(RecvizDataset.updated_at.desc())
-    result = await session.execute(stmt)
+    result = session.execute(stmt)
     datasets = result.scalars().all()
     return [_to_response(ds) for ds in datasets]
 
 
 @router.post("", response_model=DatasetResponse, status_code=201)
-async def create_managed_dataset(
+def create_managed_dataset(
     body: DatasetCreate,
     session: DbSessionDep,
 ):
@@ -74,16 +74,16 @@ async def create_managed_dataset(
     )
 
     session.add(dataset)
-    await session.flush()
+    session.flush()
 
     return _to_response(dataset)
 
 
 @router.get("/{dataset_id}", response_model=DatasetResponse)
-async def get_managed_dataset(dataset_id: str, session: DbSessionDep):
+def get_managed_dataset(dataset_id: str, session: DbSessionDep):
     """Get a single managed dataset by ID."""
     stmt = select(RecvizDataset).where(RecvizDataset.id == dataset_id)
-    result = await session.execute(stmt)
+    result = session.execute(stmt)
     dataset = result.scalar_one_or_none()
 
     if dataset is None:
@@ -93,14 +93,14 @@ async def get_managed_dataset(dataset_id: str, session: DbSessionDep):
 
 
 @router.put("/{dataset_id}", response_model=DatasetResponse)
-async def update_managed_dataset(
+def update_managed_dataset(
     dataset_id: str,
     body: DatasetUpdate,
     session: DbSessionDep,
 ):
     """Update a managed dataset."""
     stmt = select(RecvizDataset).where(RecvizDataset.id == dataset_id)
-    result = await session.execute(stmt)
+    result = session.execute(stmt)
     dataset = result.scalar_one_or_none()
 
     if dataset is None:
@@ -120,13 +120,13 @@ async def update_managed_dataset(
 
 
 @router.delete("/{dataset_id}", status_code=204)
-async def delete_managed_dataset(
+def delete_managed_dataset(
     dataset_id: str,
     session: DbSessionDep,
 ):
     """Delete a managed dataset after checking references."""
     stmt = select(RecvizDataset).where(RecvizDataset.id == dataset_id)
-    result = await session.execute(stmt)
+    result = session.execute(stmt)
     dataset = result.scalar_one_or_none()
 
     if dataset is None:
@@ -136,7 +136,7 @@ async def delete_managed_dataset(
     from app.db.models.chart import RecvizChart
 
     chart_stmt = select(RecvizChart).where(RecvizChart.dataset_id == dataset_id)
-    chart_result = await session.execute(chart_stmt)
+    chart_result = session.execute(chart_stmt)
     referencing_charts_list = chart_result.scalars().all()
     referencing_charts = [{"id": c.id, "name": c.name} for c in referencing_charts_list]
 
@@ -144,7 +144,7 @@ async def delete_managed_dataset(
     from app.db.models.kpi import RecvizKpi
 
     kpi_stmt = select(RecvizKpi).where(RecvizKpi.dataset_id == dataset_id)
-    kpi_result = await session.execute(kpi_stmt)
+    kpi_result = session.execute(kpi_stmt)
     referencing_kpis_list = kpi_result.scalars().all()
     referencing_kpis = [{"id": k.id, "name": k.name} for k in referencing_kpis_list]
 
@@ -160,16 +160,16 @@ async def delete_managed_dataset(
         )
 
     # Delete from DB
-    await session.delete(dataset)
+    session.delete(dataset)
 
     return Response(status_code=204)
 
 
 @router.get("/{dataset_id}/references", response_model=DatasetDeleteCheck)
-async def get_dataset_references(dataset_id: str, session: DbSessionDep):
+def get_dataset_references(dataset_id: str, session: DbSessionDep):
     """Check what references a dataset (charts, etc.)."""
     stmt = select(RecvizDataset).where(RecvizDataset.id == dataset_id)
-    result = await session.execute(stmt)
+    result = session.execute(stmt)
     dataset = result.scalar_one_or_none()
 
     if dataset is None:
@@ -180,7 +180,7 @@ async def get_dataset_references(dataset_id: str, session: DbSessionDep):
     from app.models.managed_dataset import ReferencingChart, ReferencingKpi
 
     chart_stmt = select(RecvizChart).where(RecvizChart.dataset_id == dataset_id)
-    chart_result = await session.execute(chart_stmt)
+    chart_result = session.execute(chart_stmt)
     referencing_charts_list = chart_result.scalars().all()
     chart_refs = [ReferencingChart(id=c.id, name=c.name) for c in referencing_charts_list]
 
@@ -188,7 +188,7 @@ async def get_dataset_references(dataset_id: str, session: DbSessionDep):
     from app.db.models.kpi import RecvizKpi
 
     kpi_stmt = select(RecvizKpi).where(RecvizKpi.dataset_id == dataset_id)
-    kpi_result = await session.execute(kpi_stmt)
+    kpi_result = session.execute(kpi_stmt)
     referencing_kpis_list = kpi_result.scalars().all()
     kpi_refs = [ReferencingKpi(id=k.id, name=k.name) for k in referencing_kpis_list]
 

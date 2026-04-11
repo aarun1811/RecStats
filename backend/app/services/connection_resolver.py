@@ -11,7 +11,7 @@ import logging
 from typing import NamedTuple
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.db.models.connection import RecvizConnection
 
@@ -33,15 +33,15 @@ class ConnectionResolver:
     def __init__(self) -> None:
         self._cache: dict[str, ConnectionInfo] = {}
 
-    async def sync(self, session: AsyncSession) -> None:
+    def sync(self, session: Session) -> None:
         """Load all connections from recviz_connections into the in-memory cache.
 
         Maps the ``backend`` field to a ``dialect`` string (oracle -> oracle,
-        postgresql -> postgresql).  Only metadata is cached -- passwords are
+        postgresql -> postgresql). Only metadata is cached -- passwords are
         never stored in this resolver.
         """
         stmt = select(RecvizConnection)
-        result = await session.execute(stmt)
+        result = session.execute(stmt)
         rows = result.scalars().all()
 
         self._cache.clear()
@@ -58,7 +58,7 @@ class ConnectionResolver:
 
         logger.info("ConnectionResolver synced %d connection(s)", len(self._cache))
 
-    async def resolve(self, name: str) -> str:
+    def resolve(self, name: str) -> str:
         """Return the connection UUID for a logical database name.
 
         Raises ``ValueError`` if the name is not in the cache.
@@ -88,7 +88,7 @@ class ConnectionResolver:
         """Return the set of all non-empty schema names across all cached connections."""
         return {info.schema_name for info in self._cache.values() if info.schema_name}
 
-    async def invalidate(self, session: AsyncSession) -> None:
+    def invalidate(self, session: Session) -> None:
         """Clear cache and re-read from the database."""
         self._cache.clear()
-        await self.sync(session)
+        self.sync(session)

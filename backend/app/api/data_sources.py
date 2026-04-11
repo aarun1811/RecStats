@@ -3,7 +3,12 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
-from app.core.dependencies import ConfigStoreDep, QueryEngineDep, ResolvedDataSourceDep
+from app.core.dependencies import (
+    ConfigStoreDep,
+    DbSessionDep,
+    QueryEngineDep,
+    ResolvedDataSourceDep,
+)
 from app.services.merge_engine import MergeEngine
 
 router = APIRouter(prefix="/api/data-sources", tags=["data-sources"])
@@ -21,33 +26,35 @@ class MergeRequest(BaseModel):
 
 
 @router.post("/{data_source_id}/query")
-async def query_data_source(
+def query_data_source(
     ds_config: ResolvedDataSourceDep,
     body: QueryRequest,
     query_engine: QueryEngineDep,
+    session: DbSessionDep,
 ):
     try:
-        result = await query_engine.execute(ds_config, body.filters)
+        result = query_engine.execute(ds_config, body.filters, session=session)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     return result
 
 
 @router.post("/merge")
-async def merge_data_sources(
+def merge_data_sources(
     body: MergeRequest,
     config_store: ConfigStoreDep,
     query_engine: QueryEngineDep,
+    session: DbSessionDep,
 ):
     results = []
     for source_id in body.sources:
-        ds_config = await config_store.get_data_source(source_id)
+        ds_config = config_store.get_data_source(source_id)
         if ds_config is None:
             raise HTTPException(
                 status_code=404, detail=f"Data source '{source_id}' not found"
             )
         try:
-            result = await query_engine.execute(ds_config, body.filters)
+            result = query_engine.execute(ds_config, body.filters, session=session)
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
         results.append(result)
@@ -60,11 +67,12 @@ async def merge_data_sources(
 
 
 @router.get("/{data_source_id}/distinct/{column}")
-async def get_distinct_values(
+def get_distinct_values(
     ds_config: ResolvedDataSourceDep,
     column: str,
     request: Request,
     query_engine: QueryEngineDep,
+    session: DbSessionDep,
 ):
     # Parse filter.* query params
     filters = {}
@@ -74,7 +82,9 @@ async def get_distinct_values(
             filters[filter_id] = val
 
     try:
-        values = await query_engine.execute_distinct(ds_config, column, filters)
+        values = query_engine.execute_distinct(
+            ds_config, column, filters, session=session
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     return {"values": values}

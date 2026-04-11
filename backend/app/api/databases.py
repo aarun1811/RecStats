@@ -22,7 +22,7 @@ from app.models.database import (
 from app.services.connection_status import ConnectionStatusTracker
 from app.services.encryption import EncryptionService
 from app.services.engine_manager import EngineManager
-from app.services.uri_builder import build_async_uri
+from app.services.uri_builder import build_sync_uri
 
 logger = logging.getLogger(__name__)
 
@@ -68,11 +68,11 @@ def _build_response(conn: RecvizConnection, status_info: dict) -> dict:
 
 
 @router.get("")
-async def list_databases(session: DbSessionDep, request: Request) -> list[dict]:
+def list_databases(session: DbSessionDep, request: Request) -> list[dict]:
     """List all registered database connections."""
     tracker = _get_status_tracker(request)
     stmt = select(RecvizConnection).order_by(RecvizConnection.name)
-    result = await session.execute(stmt)
+    result = session.execute(stmt)
     connections = result.scalars().all()
 
     results = []
@@ -86,11 +86,11 @@ async def list_databases(session: DbSessionDep, request: Request) -> list[dict]:
 
 
 @router.get("/{db_id}")
-async def get_database(db_id: str, session: DbSessionDep, request: Request) -> dict:
+def get_database(db_id: str, session: DbSessionDep, request: Request) -> dict:
     """Get a single database connection by ID."""
     tracker = _get_status_tracker(request)
     stmt = select(RecvizConnection).where(RecvizConnection.id == db_id)
-    result = await session.execute(stmt)
+    result = session.execute(stmt)
     conn = result.scalar_one_or_none()
     if conn is None:
         raise HTTPException(status_code=404, detail=f"Database '{db_id}' not found")
@@ -103,7 +103,7 @@ async def get_database(db_id: str, session: DbSessionDep, request: Request) -> d
 
 
 @router.get("/{db_id}/datasets")
-async def list_database_datasets(
+def list_database_datasets(
     db_id: str,
     session: DbSessionDep,
     page: int = 1,
@@ -111,7 +111,7 @@ async def list_database_datasets(
 ) -> dict:
     """Return paginated datasets for a given database."""
     stmt = select(RecvizDataset).where(RecvizDataset.database_id == db_id)
-    result = await session.execute(stmt)
+    result = session.execute(stmt)
     datasets = result.scalars().all()
 
     db_datasets = [
@@ -134,7 +134,7 @@ async def list_database_datasets(
 
 
 @router.post("", status_code=201)
-async def create_database(
+def create_database(
     body: DatabaseCreate,
     session: DbSessionDep,
     engine_manager: EngineManagerDep,
@@ -167,9 +167,10 @@ async def create_database(
 
     try:
         session.add(connection)
-        await session.flush()
+        session.flush()
     except IntegrityError:
-        await session.rollback()
+        # get_db_session dependency handles the actual rollback when the
+        # HTTPException propagates out of the handler.
         raise HTTPException(
             status_code=409,
             detail={"error": "duplicate_name", "message": f"A connection named '{name}' already exists"},
@@ -178,7 +179,7 @@ async def create_database(
     # Invalidate ConnectionResolver cache
     resolver = getattr(request.app.state, "connection_resolver", None)
     if resolver:
-        await resolver.invalidate(session)
+        resolver.invalidate(session)
 
     return {
         "id": conn_id,
@@ -193,7 +194,7 @@ async def create_database(
 
 
 @router.put("/{db_id}")
-async def update_database(
+def update_database(
     db_id: str,
     body: DatabaseUpdate,
     session: DbSessionDep,
@@ -203,7 +204,7 @@ async def update_database(
     """Update an existing database connection."""
     encryption = _get_encryption(request)
     stmt = select(RecvizConnection).where(RecvizConnection.id == db_id)
-    result = await session.execute(stmt)
+    result = session.execute(stmt)
     conn = result.scalar_one_or_none()
     if conn is None:
         raise HTTPException(status_code=404, detail=f"Database '{db_id}' not found")
@@ -228,12 +229,12 @@ async def update_database(
         conn.encrypted_password = encryption.encrypt(body.password)
 
     # Dispose the old engine (connection params may have changed)
-    await engine_manager.dispose_engine(db_id)
+    engine_manager.dispose_engine(db_id)
 
     # Invalidate ConnectionResolver cache
     resolver = getattr(request.app.state, "connection_resolver", None)
     if resolver:
-        await resolver.invalidate(session)
+        resolver.invalidate(session)
 
     tracker = _get_status_tracker(request)
     if tracker:
@@ -245,7 +246,7 @@ async def update_database(
 
 
 @router.delete("/{db_id}")
-async def delete_database(
+def delete_database(
     db_id: str,
     session: DbSessionDep,
     engine_manager: EngineManagerDep,
@@ -253,18 +254,22 @@ async def delete_database(
 ) -> dict:
     """Delete a database connection."""
     stmt = select(RecvizConnection).where(RecvizConnection.id == db_id)
-    result = await session.execute(stmt)
+    result = session.execute(stmt)
     conn = result.scalar_one_or_none()
     if conn is None:
         raise HTTPException(status_code=404, detail=f"Database '{db_id}' not found")
 
-    await session.delete(conn)
-    await engine_manager.dispose_engine(db_id)
+    session.delete(conn)
+    # Flush before invalidating the resolver cache, otherwise the resolver's
+    # re-sync SELECT would still see the row (the DELETE is only in the
+    # identity map until flushed).
+    session.flush()
+    engine_manager.dispose_engine(db_id)
 
     # Invalidate ConnectionResolver cache
     resolver = getattr(request.app.state, "connection_resolver", None)
     if resolver:
-        await resolver.invalidate(session)
+        resolver.invalidate(session)
 
     # Remove from status tracker
     tracker = _get_status_tracker(request)
@@ -275,11 +280,11 @@ async def delete_database(
 
 
 @router.post("/test")
-async def test_connection(body: TestConnectionRequest, request: Request) -> dict:
+def test_connection(body: TestConnectionRequest, request: Request) -> dict:
     """Test database connectivity using a disposable engine."""
     tracker = _get_status_tracker(request)
     try:
-        uri = build_async_uri(
+        uri = build_sync_uri(
             backend=body.backend,
             host=body.host or "",
             port=body.port,
@@ -287,7 +292,7 @@ async def test_connection(body: TestConnectionRequest, request: Request) -> dict
             username=body.username,
             password=body.password,
         )
-        success, message = await EngineManager.test_connection(uri, body.backend)
+        success, message = EngineManager.test_connection(uri, body.backend)
         if tracker and body.database_id is not None:
             if success:
                 tracker.mark_connected(body.database_id)
@@ -304,6 +309,6 @@ async def test_connection(body: TestConnectionRequest, request: Request) -> dict
 
 
 @router.post("/{db_id}/sync")
-async def sync_datasets(db_id: str) -> dict:
+def sync_datasets(db_id: str) -> dict:
     """No-op -- Superset dataset sync removed. Preserved for API compatibility."""
     return {"success": True, "dataset_count": 0}

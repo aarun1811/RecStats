@@ -36,8 +36,10 @@ _STRING_PATTERNS = ("CHAR", "VARCHAR", "TEXT", "CLOB", "STRING", "NCHAR", "NVARC
 _NUMBER_PATTERNS = ("NUMBER", "INT", "FLOAT", "DECIMAL", "NUMERIC", "DOUBLE", "REAL", "MONEY")
 _DATE_PATTERNS = ("DATE", "TIMESTAMP", "TIME")
 
-# asyncpg returns PostgreSQL OID integers instead of type name strings.
-# Map common OIDs to type names that detect_column_type recognizes.
+# PostgreSQL cursor.description sometimes returns OID integers instead of
+# type name strings (asyncpg did this; psycopg2 returns type objects, so
+# this mapping is primarily a legacy compatibility path). Map common OIDs
+# to type names that detect_column_type recognizes.
 _PG_OID_TO_TYPE_NAME: dict[int, str] = {
     16: "BOOLEAN",       # bool
     20: "BIGINT",        # int8

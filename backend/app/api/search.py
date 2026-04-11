@@ -12,12 +12,10 @@ Security notes:
       into the SQL text.
     * All error responses pass through ``sanitize_detail`` (ASVS V7) to
       prevent SQL or connection-string leakage.
-    * Queries run sequentially. A single SQLAlchemy ``AsyncSession`` is NOT
-      safe for parallel ``asyncio.gather()`` — it raises
-      ``IllegalStateChangeError`` because every branch fights for the same
-      connection. Four sequential ``ilike`` queries against indexed ``name``
-      columns return in well under 50ms at the 10K-rows-per-table scale this
-      product targets, so the cost of sequential is negligible.
+    * Queries run sequentially under a single sync ``Session``. Four
+      sequential ``ilike`` queries against indexed ``name`` columns return in
+      well under 50ms at the 10K-rows-per-table scale this product targets,
+      so the cost of sequential is negligible.
     * No service-layer wrapper: follows the Phase 5-8 precedent of raw
       SQLAlchemy in the route handler (managed_charts.py, managed_kpis.py,
       managed_datasets.py, managed_dashboards.py all do the same). See
@@ -98,12 +96,11 @@ def _rank_results(
 
 
 @router.post("", response_model=SearchResponse)
-async def search(body: SearchRequest, session: DbSessionDep) -> SearchResponse:
+def search(body: SearchRequest, session: DbSessionDep) -> SearchResponse:
     """Search across four managed entity tables.
 
-    Sequential queries — see module-level docstring for the AsyncSession
-    concurrency rationale. Default limit of 10 results per type group per
-    D-15 and planner discretion A8.
+    Sequential queries — see module-level docstring. Default limit of 10
+    results per type group per D-15 and planner discretion A8.
     """
     q = body.query.strip()
     if not q:
@@ -116,7 +113,7 @@ async def search(body: SearchRequest, session: DbSessionDep) -> SearchResponse:
     pattern = f"%{q}%"
     limit = max(1, body.limit_per_type)
 
-    async def _fetch(
+    def _fetch(
         type_name: EntityType,
         model: type,
     ) -> list[SearchResult]:
@@ -138,7 +135,7 @@ async def search(body: SearchRequest, session: DbSessionDep) -> SearchResponse:
                     func.coalesce(model.description, "").ilike(pattern),
                 )
             )
-            result = await session.execute(stmt)
+            result = session.execute(stmt)
             rows: list[tuple[str, str, str | None]] = [
                 (r[0], r[1], r[2]) for r in result.all()
             ]
@@ -159,11 +156,11 @@ async def search(body: SearchRequest, session: DbSessionDep) -> SearchResponse:
                 detail=sanitize_detail(exc),
             ) from exc
 
-    # Sequential — see module docstring (Pitfall 1).
-    dashboards = await _fetch("dashboard", RecvizDashboard)
-    charts = await _fetch("chart", RecvizChart)
-    datasets = await _fetch("dataset", RecvizDataset)
-    kpis = await _fetch("kpi", RecvizKpi)
+    # Sequential — see module docstring.
+    dashboards = _fetch("dashboard", RecvizDashboard)
+    charts = _fetch("chart", RecvizChart)
+    datasets = _fetch("dataset", RecvizDataset)
+    kpis = _fetch("kpi", RecvizKpi)
 
     results = dashboards + charts + datasets + kpis
     return SearchResponse(query=body.query, results=results, total=len(results))
