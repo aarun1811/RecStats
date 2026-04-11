@@ -377,11 +377,18 @@ def list_schema_tables(
         )
 
     if conn.backend == "oracle":
+        # Oracle stores materialized views in BOTH all_tables and all_views,
+        # so a naive UNION ALL would emit each MV twice (once as TABLE, once
+        # as VIEW). Filter MVs out of the TABLE branch so they only appear
+        # via the VIEW branch (which is how Oracle treats them at query time).
         sql = text(
             """
             SELECT table_name AS name, 'TABLE' AS type
             FROM all_tables
             WHERE owner = UPPER(:schema)
+              AND table_name NOT IN (
+                SELECT mview_name FROM all_mviews WHERE owner = UPPER(:schema)
+              )
             UNION ALL
             SELECT view_name AS name, 'VIEW' AS type
             FROM all_views
@@ -460,11 +467,16 @@ def list_table_columns(
         )
 
     if conn.backend == "oracle":
+        # Oracle keeps dropped columns as hidden placeholders (named like
+        # SYS_NC00001$) in all_tab_columns. Filter them out via the
+        # hidden_column flag so the schema browser doesn't render garbage.
         sql = text(
             """
             SELECT column_name AS name, data_type AS type, nullable
             FROM all_tab_columns
-            WHERE owner = UPPER(:schema) AND table_name = UPPER(:table_name)
+            WHERE owner = UPPER(:schema)
+              AND table_name = UPPER(:table_name)
+              AND hidden_column = 'NO'
             ORDER BY column_id
             """
         )

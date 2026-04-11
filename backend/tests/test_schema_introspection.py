@@ -24,29 +24,57 @@ def sqlite_session():
     engine.dispose()
 
 
+def _make_connection(
+    session: Session,
+    *,
+    backend: str = "oracle",
+    schema_name: str | None = None,
+    conn_id: str = "test-uuid-1",
+) -> RecvizConnection:
+    """Create and persist a RecvizConnection row for tests.
+
+    Defaults match the Oracle profile (backwards compatible with the prior
+    `_make_oracle_connection` helper). Pass `backend='postgresql'` to build
+    a Postgres-shaped connection instead.
+    """
+    if backend == "oracle":
+        defaults = dict(host="oracle.local", port=1521, database_name="ORCL")
+        default_schema = "TEST"
+    elif backend == "postgresql":
+        defaults = dict(host="postgres.local", port=5432, database_name="recviz")
+        default_schema = "public"
+    else:
+        raise ValueError(f"Unsupported test backend: {backend}")
+
+    conn = RecvizConnection(
+        id=conn_id,
+        name="test_conn",
+        display_name="Test Connection",
+        backend=backend,
+        username="test",
+        encrypted_password="encrypted-placeholder",
+        schema_name=schema_name if schema_name is not None else default_schema,
+        status="untested",
+        **defaults,
+    )
+    session.add(conn)
+    session.commit()
+    return conn
+
+
 def _make_oracle_connection(
     session: Session,
     *,
     schema_name: str = "TEST",
     conn_id: str = "test-uuid-1",
 ) -> RecvizConnection:
-    """Create and persist an Oracle RecvizConnection row for tests."""
-    conn = RecvizConnection(
-        id=conn_id,
-        name="test_conn",
-        display_name="Test Connection",
+    """Backwards-compatible alias used by existing Oracle tests."""
+    return _make_connection(
+        session,
         backend="oracle",
-        host="oracle.local",
-        port=1521,
-        database_name="ORCL",
-        username="test",
-        encrypted_password="encrypted-placeholder",
         schema_name=schema_name,
-        status="untested",
+        conn_id=conn_id,
     )
-    session.add(conn)
-    session.commit()
-    return conn
 
 
 def _mock_engine_manager(rows=None, raise_exc: Exception | None = None) -> MagicMock:
@@ -224,3 +252,55 @@ def test_list_tables_introspection_error_returns_503(sqlite_session: Session):
         )
     assert excinfo.value.status_code == 503
     assert "Failed to query schema catalog" in str(excinfo.value.detail)
+
+
+def test_list_tables_postgres_normalizes_base_table_to_table(
+    sqlite_session: Session,
+):
+    """Postgres' information_schema.tables emits 'BASE TABLE' for tables and
+    'VIEW' for views. The endpoint should normalize 'BASE TABLE' -> 'TABLE'
+    while leaving 'VIEW' alone."""
+    from app.api.databases import list_schema_tables
+
+    conn = _make_connection(sqlite_session, backend="postgresql")
+    em = _mock_engine_manager(
+        rows=[("items", "BASE TABLE"), ("v_summary", "VIEW")]
+    )
+
+    result = list_schema_tables(
+        db_id=conn.id,
+        session=sqlite_session,
+        engine_manager=em,
+    )
+
+    assert result == [
+        {"name": "items", "type": "TABLE"},
+        {"name": "v_summary", "type": "VIEW"},
+    ]
+    em.get_engine_for_connection.assert_called_once_with(conn)
+
+
+def test_list_columns_postgres_normalizes_yes_no_nullable(
+    sqlite_session: Session,
+):
+    """Postgres' information_schema.columns.is_nullable returns 'YES'/'NO'
+    strings. The endpoint should normalize them to Python bools."""
+    from app.api.databases import list_table_columns
+
+    conn = _make_connection(sqlite_session, backend="postgresql")
+    em = _mock_engine_manager(
+        rows=[("id", "integer", "NO"), ("name", "text", "YES")]
+    )
+
+    result = list_table_columns(
+        db_id=conn.id,
+        table_name="items",
+        session=sqlite_session,
+        engine_manager=em,
+    )
+
+    assert result == [
+        {"name": "id", "type": "integer", "nullable": False},
+        {"name": "name", "type": "text", "nullable": True},
+    ]
+    em.get_engine_for_connection.assert_called_once_with(conn)
