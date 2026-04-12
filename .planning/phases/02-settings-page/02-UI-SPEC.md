@@ -35,7 +35,8 @@ Declared values (must be multiples of 4):
 | Token | Value | Usage |
 |-------|-------|-------|
 | xs | 4px | Icon gaps, inline padding, status badge internal padding |
-| sm | 8px | Compact element spacing, icon-to-label gaps, toggle button gaps |
+| sm | 8px | Compact element spacing, icon-to-label gaps, toggle button gaps, badge horizontal padding |
+| sm-lg | 12px | Tight component internals: theme preview card padding (`p-3`), test area container padding, info grid gap-x, cell-padding (comfortable density) |
 | md | 16px | Default element spacing, card padding, form field gaps |
 | lg | 24px | Section padding, page content `p-6`, card internal sections |
 | xl | 32px | Layout gaps between major sections |
@@ -43,7 +44,6 @@ Declared values (must be multiples of 4):
 | 3xl | 64px | Page-level spacing (unused in Phase 2) |
 
 Exceptions:
-- Theme preview cards: 12px internal padding (`p-3`) for the mini-mockup area to maintain tight visual density within each card.
 - Touch targets: All interactive buttons maintain minimum 32px height (`h-8`). The `size="sm"` variant already satisfies this.
 
 **Source:** Phase 1 UI-SPEC spacing scale + CLAUDE.md Design & UX Principles (`p-6` for pages, `gap-6` for section gaps, `gap-4` for grid gaps).
@@ -52,18 +52,25 @@ Exceptions:
 
 ## Typography
 
+4 sizes, 2 weights:
+
 | Role | Size | Weight | Line Height | Tailwind Class |
 |------|------|--------|-------------|----------------|
 | Page title | 24px | 600 (semibold) | 1.2 (~29px) | `text-2xl font-semibold tracking-tight` |
 | Section heading | 18px | 500 (medium) | 1.33 (~24px) | `text-lg font-medium` |
-| Card title | 16px | 500 (medium) | 1.5 (~24px) | `text-base font-medium` |
 | Body | 14px | 400 (regular) | 1.43 (~20px) | `text-sm` |
 | Label / Caption | 12px | 400 (regular) | 1.33 (~16px) | `text-xs text-muted-foreground` |
+
+Supplemental role (not a 5th size — uses Body size with different weight):
+
+| Role | Size | Weight | Line Height | Tailwind Class |
+|------|------|--------|-------------|----------------|
+| Card title | 14px | 500 (medium) | 1.43 (~20px) | `text-sm font-medium` |
 | Mono (columns, URIs) | 12px | 400 (regular) | 1.33 (~16px) | `text-xs font-mono` |
 
 Font: `"Inter", system-ui, sans-serif` — declared in `@layer base` body rule in `index.css`.
 
-**Source:** Phase 1 UI-SPEC typography table + CLAUDE.md conventions.
+**Source:** Phase 1 UI-SPEC typography table + CLAUDE.md conventions. The "Card title" role uses 14px (Body size) with `font-medium` to create hierarchy through weight, not through a 5th size.
 
 ---
 
@@ -80,7 +87,7 @@ Phase 2 inherits the complete Mist+Blue palette from Phase 1. All colors are con
 | Accent (10%) | `--primary` (Blue) | Primary CTA buttons, active tab indicator, selected theme card border, focus rings, toggle-on state |
 | Destructive | `--destructive` | Delete button text/bg, error states |
 
-Accent reserved for: "Add Source" button, "Save"/"Update" primary CTA, active tab underline, selected theme preview card border, selected density/font-size toggle active state, focus rings on form inputs. Never used for backgrounds larger than a button or badge.
+Accent reserved for: "Add Source" button, "Save Connection"/"Update" primary CTA, active tab underline, selected theme preview card border, selected density/font-size toggle active state, focus rings on form inputs. Never used for backgrounds larger than a button or badge.
 
 ### Phase 2 Status Colors
 
@@ -119,6 +126,14 @@ Tabs component uses shadcn `Tabs` with `motion/react` content transitions. Each 
 | Tab icons | 14px (`size-3.5`) Lucide icons: `Palette`, `BookmarkCheck`, `Server` |
 | Active indicator | shadcn default underline (primary color) |
 | Content transition | `motion/react` `AnimatePresence` + `motion.div` — `x: 8 -> 0`, `opacity: 0 -> 1`, duration 200ms, ease `[0.25, 0.46, 0.45, 0.94]` |
+
+### Focal Points Per Tab
+
+| Tab | Focal Point | Why |
+|-----|------------|-----|
+| Appearance | Theme preview cards (Light/Dark/System) | Only interactive decision on this tab; user eyes go here first |
+| Saved Views | The view list (or empty state) | This tab is a content list; the list IS the focal point |
+| Data Sources | Data source card grid (or empty state CTA) | The cards are the entry point to all CRUD operations |
 
 **Source:** CONTEXT.md D-05.
 
@@ -178,7 +193,7 @@ Persisted to `localStorage` key `recviz-display`. On init, reads localStorage an
 
 | Property | Specification |
 |----------|--------------|
-| Container | `Card` with `CardTitle` "Display" and `CardDescription` "Density and font size preferences" |
+| Container | `Card` with card title "Display" (`text-sm font-medium`) and `CardDescription` "Density and font size preferences" |
 | Density row | `flex items-center justify-between` — Label left, toggle group right |
 | Font size row | Same layout, separated by `Separator` |
 | Toggle style | `ToggleGroup` with `variant="outline"` `size="sm"` — matches the grid/list toggle in DataSourcesToolbar |
@@ -211,7 +226,7 @@ Persisted to `localStorage` key `recviz-display`. On init, reads localStorage an
 | Unreachable | `<Badge>` with red colors, static red dot, "Unreachable" text |
 | Untested | `<Badge>` with amber colors, static amber dot, "Untested" text |
 
-Badge dimensions: height 20px (`h-5`), `text-[10px] font-medium`, `px-1.5`, `rounded-full`.
+Badge dimensions: height 20px (`h-5`), `text-[10px] font-medium`, `px-2`, `rounded-full`.
 
 ### 4. Data Source Row (ENHANCED — list view equivalent)
 
@@ -268,7 +283,7 @@ The container border color briefly animates on result:
 
 Info grid styling:
 ```
-<div className="grid grid-cols-2 gap-x-4 gap-y-2">
+<div className="grid grid-cols-2 gap-x-3 gap-y-2">
   <div>
     <dt className="text-xs text-muted-foreground">Host</dt>
     <dd className="text-sm font-mono truncate">{value}</dd>
@@ -307,26 +322,26 @@ The shadcn Sheet already animates via CSS. Enhance with `motion/react` for the c
 |---------|------|-------|
 | Page title | "Settings" | Already exists, unchanged |
 | Page subtitle | "Manage preferences, saved views, and data sources" | Already exists, unchanged |
-| **Appearance Tab** | | |
-| Theme card title | "Theme" | Card title |
+| **Appearance Tab** | | **Focal point: Theme preview cards** |
+| Theme card title | "Theme" | `text-sm font-medium` (card title role) |
 | Theme card description | "Choose between light, dark, or system theme" | Card description |
 | Theme option labels | "Light", "Dark", "System" | Below each preview card |
-| Display card title | "Display" | Card title |
+| Display card title | "Display" | `text-sm font-medium` (card title role) |
 | Display card description | "Density and font size preferences" | Card description |
 | Density label | "Density" | Left side |
 | Density options | "Comfortable", "Compact" | Toggle buttons |
 | Font size label | "Font Size" | Left side |
 | Font size options | "Small", "Medium", "Large" | Toggle buttons |
-| **Saved Views Tab** | | |
-| Card title | "Saved Views" | Already exists |
+| **Saved Views Tab** | | **Focal point: View list or empty state** |
+| Card title | "Saved Views" | `text-sm font-medium` (card title role) |
 | Card description | "Filter + layout combinations you've saved from dashboards" | Already exists |
 | Empty state icon | `BookmarkCheck` at `size-10`, `opacity-40` | Already exists |
 | Empty state heading | "No saved views yet" | Already exists, unchanged |
 | Empty state body | "Use the \"Save View\" button on any dashboard to save your current filters." | Already exists, unchanged |
-| Load button | "Load" | Small outline button with `ExternalLink` icon |
-| Delete button | (icon only) `Trash2` | Ghost button, muted -> destructive on hover |
-| **Data Sources Tab** | | |
-| Card title | "Configured Data Sources" | Already exists |
+| Load button | "Load View" | Small outline button with `ExternalLink` icon |
+| Delete button | (icon only) `Trash2` | Ghost button, muted -> destructive on hover. `aria-label="Delete {view name}"` required for accessibility |
+| **Data Sources Tab** | | **Focal point: Card grid or empty state CTA** |
+| Card title | "Configured Data Sources" | `text-sm font-medium` (card title role) |
 | Card description | "Manage database connections" | Already exists |
 | Primary CTA | "Add Source" | Toolbar button with `Plus` icon. Blue primary. |
 | Search placeholder | "Search databases..." | Already exists |
@@ -341,8 +356,8 @@ The shadcn Sheet already animates via CSS. Enhance with `motion/react` for the c
 | Test button — Testing | "Connecting..." | Button disabled, animated bars icon |
 | Test — Success | "Connected in {N}s" | Green check icon + text |
 | Test — Failure | "{error message}" | Red X icon + error text from backend |
-| Save button | "Save" | Primary, disabled until test passes |
-| Cancel button | "Cancel" | Outline |
+| Save button | "Save Connection" | Primary, disabled until test passes |
+| Cancel button | "Discard" | Outline. Alternative: omit entirely and rely on Sheet's X close button |
 | **Data Source Sheet — Edit** | | |
 | Sheet title | "Edit Data Source" | Already exists |
 | Sheet description | "Update connection details" | Already exists |
@@ -350,19 +365,19 @@ The shadcn Sheet already animates via CSS. Enhance with `motion/react` for the c
 | Update button | "Update" | Primary |
 | **Data Source Sheet — Detail** | | |
 | Datasets section title | "Datasets ({loaded} of {total})" | Already exists |
-| Sync button | "Sync" | Outline with `RefreshCw` icon |
+| Sync button | "Sync Datasets" | Outline with `RefreshCw` icon |
 | Datasets empty | "No datasets found. Click Sync to refresh." | Already exists |
 | Load more | "Load more..." | Ghost button |
 | Column load error | "Failed to load columns" | Destructive text |
 | No columns | "No columns" | Italic muted text |
-| Edit button | "Edit" | Outline with `Pencil` icon |
+| Edit button | "Edit Source" | Outline with `Pencil` icon |
 | **Destructive: Delete Data Source** | | |
 | Trigger | "Delete" button in detail panel footer | Ghost with destructive text styling |
 | Confirmation | `window.confirm('Delete "{name}"? This cannot be undone.')` | Browser native confirm dialog (existing pattern — no custom modal needed this phase) |
 | Success toast | `Deleted "{name}"` | Sonner success toast |
 | Failure toast | "Failed to delete data source" | Sonner error toast |
 | **Destructive: Delete Saved View** | | |
-| Trigger | Trash icon button on saved view row | Ghost, muted -> destructive hover |
+| Trigger | Trash icon button on saved view row | Ghost, muted -> destructive hover. `aria-label="Delete {view name}"` |
 | Confirmation | None (instant delete, existing pattern) | Success toast: `Deleted "{name}"` |
 | **Toast Messages** | | |
 | Create success | `Created "{name}"` | Sonner success |
@@ -456,7 +471,7 @@ No third-party registries declared.
 | `frontend/src/routes/_app/settings/index.tsx` | `max-w-3xl` -> `max-w-5xl mx-auto`, replace theme buttons with `ThemePreviewCard`, wire `display-store` to density/fontSize toggles, add `motion/react` tab transitions |
 | `frontend/src/components/settings/data-source-card.tsx` | Replace `StatusDot` with `AnimatedStatusBadge`, add `border-l-2` status color, add `motion/react` hover |
 | `frontend/src/components/settings/data-source-row.tsx` | Replace `StatusDot` with `AnimatedStatusBadge`, add `border-l-2` status color |
-| `frontend/src/components/settings/data-source-sheet.tsx` | Integrate `ConnectionTestArea`, `ConnectionHealthHeader`, add sheet content stagger animation, add mode cross-fade |
+| `frontend/src/components/settings/data-source-sheet.tsx` | Integrate `ConnectionTestArea`, `ConnectionHealthHeader`, add sheet content stagger animation, add mode cross-fade, update button labels ("Save Connection", "Discard", "Sync Datasets", "Edit Source") |
 | `frontend/src/components/settings/data-sources-tab.tsx` | Grid changes from `grid-cols-3` to responsive within wider container; no breaking changes |
 | `frontend/src/index.css` | Add body `transition` rule for font-size/line-height |
 
