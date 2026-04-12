@@ -16,7 +16,7 @@
 ## Phases
 
 - [ ] **Phase 1: Infrastructure Cutover** - Oracle 19c wiring, async/PG/Docker/Superset/Redis residue removed, global shadcn palette + chart theme rewired
-- [ ] **Phase 2: Settings Page** - Colorize Appearance/Saved Views/Data Sources tabs; verify Data Sources CRUD end-to-end against Oracle
+- [x] **Phase 2: Settings Page** - Colorize Appearance/Saved Views/Data Sources tabs; verify Data Sources CRUD end-to-end against Oracle
 - [ ] **Phase 3: Datasets Page** - Colorize list/create/edit; verify dataset CRUD and parameterized SQL execution against Oracle
 - [ ] **Phase 4: Charts Page** - Colorize list/builder; audit hard-coded hex; verify AG Charts + ECharts rendering with new palette
 - [ ] **Phase 5: KPIs Page** - Colorize list/create/edit; verify KPI CRUD and animated counter rendering against Oracle
@@ -100,7 +100,7 @@ Plans:
 Plans:
 - [x] 02-01-PLAN.md — Appearance tab: display-store, theme preview cards, layout + tab animations, display controls
 - [x] 02-02-PLAN.md — Data source enhancements: AnimatedStatusBadge, ConnectionTestArea, ConnectionHealthHeader, sheet animations
-- [ ] 02-03-PLAN.md — E2E verification against Oracle + USAGE-TRACKER update
+- [x] 02-03-PLAN.md — E2E verification against Oracle + USAGE-TRACKER update
 **UI hint**: yes
 **Known risks / gotchas**:
   - Data Sources tab depends on the Oracle connection flow working — if Phase 1's `build_oracle_engine()` helper isn't also used by connection testing, new user-created sources may silently fall back to thin mode.
@@ -225,7 +225,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Infrastructure Cutover | 6/6 | Complete | - |
-| 2. Settings Page | 0/3 | Planned | - |
+| 2. Settings Page | 3/3 | Complete | 2026-04-12 |
 | 3. Datasets Page | 0/TBD | Not started | - |
 | 4. Charts Page | 0/TBD | Not started | - |
 | 5. KPIs Page | 0/TBD | Not started | - |

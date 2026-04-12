@@ -38,12 +38,12 @@ Each requirement maps to exactly one phase. All verification is **manual** (no a
 ### Settings Page (Phase 2)
 
 - [x] **SETT-01**: Settings page colorized per global palette — Appearance, Saved Views, and Data Sources tabs all reflect new color tokens in both light and dark mode
-- [ ] **SETT-02**: Data Sources tab verified end-to-end against Oracle — list existing sources, create new source, test connection, edit, delete, all operations work against live Oracle 19c
-- [ ] **SETT-03**: Saved Views tab verified end-to-end — list, load, delete against Oracle
+- [x] **SETT-02**: Data Sources tab verified end-to-end against Oracle — list existing sources, create new source, test connection, edit, delete, all operations work against live Oracle 19c
+- [x] **SETT-03**: Saved Views tab verified end-to-end — list, load, delete against Oracle
 - [x] **SETT-04**: Appearance tab theme toggle works in both directions (light/dark) with the new palette applied
 - [x] **SETT-05**: Dead UI stubs in Appearance tab (Density, Font Size buttons) resolved — either implemented or deleted (decided in phase discuss)
 - [x] **SETT-06**: Any fixes/enhancements discovered in phase discuss are implemented and verified
-- [ ] **SETT-07**: `.planning/USAGE-TRACKER.md` updated with files touched/added/removed this phase
+- [x] **SETT-07**: `.planning/USAGE-TRACKER.md` updated with files touched/added/removed this phase
 
 ### Datasets Page (Phase 3)
 
@@ -184,12 +184,12 @@ Each requirement maps to exactly one phase. All verification is **manual** (no a
 | INFRA-24 | Phase 1 | Complete |
 | INFRA-25 | Phase 1 | Complete |
 | SETT-01 | Phase 2 | Complete |
-| SETT-02 | Phase 2 | Pending |
-| SETT-03 | Phase 2 | Pending |
+| SETT-02 | Phase 2 | Complete |
+| SETT-03 | Phase 2 | Complete |
 | SETT-04 | Phase 2 | Complete |
 | SETT-05 | Phase 2 | Complete |
 | SETT-06 | Phase 2 | Complete |
-| SETT-07 | Phase 2 | Pending |
+| SETT-07 | Phase 2 | Complete |
 | DATA-01 | Phase 3 | Pending |
 | DATA-02 | Phase 3 | Pending |
 | DATA-03 | Phase 3 | Pending |
