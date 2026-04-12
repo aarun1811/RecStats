@@ -1,4 +1,4 @@
-import { HelpCircle, Target, Type, Calculator, Paintbrush, BarChart3, ArrowRight } from 'lucide-react'
+import { HelpCircle, Target, Type, Calculator, Paintbrush, BarChart3, ArrowRight, Columns3 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -11,9 +11,6 @@ import {
 import {
   Sheet,
   SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet'
 import {
@@ -150,24 +147,6 @@ function ChartEffect({ text }: { text: string }) {
   )
 }
 
-interface SectionHeaderProps {
-  icon: React.ElementType
-  title: string
-  tag?: string
-}
-
-function SectionHeader({ icon: Icon, title, tag }: SectionHeaderProps) {
-  return (
-    <div className="flex items-center gap-2">
-      <Icon className="size-4 text-primary" />
-      <span className="text-sm font-semibold">{title}</span>
-      {tag && (
-        <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{tag}</span>
-      )}
-    </div>
-  )
-}
-
 // --- Main component ---
 
 export function ColumnMetadataHelpSheet() {
@@ -178,120 +157,150 @@ export function ColumnMetadataHelpSheet() {
           <HelpCircle className="size-3.5" />
         </Button>
       </SheetTrigger>
-      <SheetContent side="right" className="sm:max-w-xl overflow-y-auto px-6">
-        <SheetHeader>
-          <SheetTitle>Column Metadata Reference</SheetTitle>
-          <SheetDescription>
-            Configure how each column behaves in charts, KPIs, and data grids
-          </SheetDescription>
-        </SheetHeader>
+      <SheetContent side="right" className="sm:max-w-xl overflow-y-auto p-0">
+        {/* --- Custom header --- */}
+        <div className="sticky top-0 z-10 bg-card border-b px-6 py-5">
+          <div className="flex items-center gap-3 mb-1.5">
+            <div className="flex items-center justify-center size-8 rounded-lg bg-primary/10">
+              <Columns3 className="size-4 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold tracking-tight">Column Metadata</h2>
+              <p className="text-xs text-muted-foreground">How each field affects charts, KPIs, and data grids</p>
+            </div>
+          </div>
+        </div>
 
-        <Accordion type="multiple" defaultValue={['role', 'type']} className="mt-6">
-          {/* --- Column Role --- */}
-          <AccordionItem value="role">
-            <AccordionTrigger className="hover:no-underline">
-              <SectionHeader icon={Target} title="Column Role" tag="most important" />
-            </AccordionTrigger>
-            <AccordionContent>
-              <div className="space-y-3">
-                {ROLE_ITEMS.map((item) => (
-                  <div key={item.role} className="rounded-lg border bg-card p-3 space-y-1.5">
-                    <InlineBadge className={COLUMN_ROLE_STYLES[item.role]}>
-                      {COLUMN_ROLE_LABELS[item.role]}
-                    </InlineBadge>
-                    <ExampleColumns names={item.examples} />
-                    <ChartEffect text={item.chartEffect} />
+        <div className="px-6 py-4">
+          <Accordion type="multiple" defaultValue={['role', 'type']}>
+            {/* --- Column Role --- */}
+            <AccordionItem value="role" className="border rounded-lg mb-3 overflow-hidden">
+              <AccordionTrigger className="hover:no-underline bg-muted/40 px-4 py-3 rounded-t-lg data-[state=closed]:rounded-b-lg">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-center size-6 rounded-md bg-primary/10">
+                    <Target className="size-3.5 text-primary" />
                   </div>
-                ))}
-              </div>
-            </AccordionContent>
-          </AccordionItem>
+                  <span className="text-sm font-semibold">Column Role</span>
+                  <span className="text-[10px] text-primary bg-primary/10 px-1.5 py-0.5 rounded-full font-semibold">most important</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="px-4 pt-3">
+                <div className="space-y-3">
+                  {ROLE_ITEMS.map((item) => (
+                    <div key={item.role} className="rounded-lg border bg-card p-3 space-y-1.5">
+                      <InlineBadge className={COLUMN_ROLE_STYLES[item.role]}>
+                        {COLUMN_ROLE_LABELS[item.role]}
+                      </InlineBadge>
+                      <ExampleColumns names={item.examples} />
+                      <ChartEffect text={item.chartEffect} />
+                    </div>
+                  ))}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
 
-          {/* --- Data Type --- */}
-          <AccordionItem value="type">
-            <AccordionTrigger className="hover:no-underline">
-              <SectionHeader icon={Type} title="Data Type" />
-            </AccordionTrigger>
-            <AccordionContent>
-              <div className="space-y-3">
-                {TYPE_ITEMS.map((item) => (
-                  <div key={item.type} className="rounded-lg border bg-card p-3 space-y-1.5">
-                    <InlineBadge className={COLUMN_TYPE_STYLES[item.type]}>
-                      {COLUMN_TYPE_LABELS[item.type]}
-                    </InlineBadge>
-                    <ExampleColumns names={item.examples} />
-                    <ChartEffect text={item.formatEffect} />
+            {/* --- Data Type --- */}
+            <AccordionItem value="type" className="border rounded-lg mb-3 overflow-hidden">
+              <AccordionTrigger className="hover:no-underline bg-muted/40 px-4 py-3 rounded-t-lg data-[state=closed]:rounded-b-lg">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-center size-6 rounded-md bg-primary/10">
+                    <Type className="size-3.5 text-primary" />
                   </div>
-                ))}
-              </div>
-            </AccordionContent>
-          </AccordionItem>
+                  <span className="text-sm font-semibold">Data Type</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="px-4 pt-3">
+                <div className="space-y-3">
+                  {TYPE_ITEMS.map((item) => (
+                    <div key={item.type} className="rounded-lg border bg-card p-3 space-y-1.5">
+                      <InlineBadge className={COLUMN_TYPE_STYLES[item.type]}>
+                        {COLUMN_TYPE_LABELS[item.type]}
+                      </InlineBadge>
+                      <ExampleColumns names={item.examples} />
+                      <ChartEffect text={item.formatEffect} />
+                    </div>
+                  ))}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
 
-          {/* --- Aggregation --- */}
-          <AccordionItem value="aggregation">
-            <AccordionTrigger className="hover:no-underline">
-              <SectionHeader icon={Calculator} title="Aggregation" tag="for measures" />
-            </AccordionTrigger>
-            <AccordionContent>
-              <div className="rounded-lg border bg-card overflow-hidden">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="border-b bg-muted/30">
-                      <th className="text-left font-semibold px-3 py-2 w-[120px]">Function</th>
-                      <th className="text-left font-semibold px-3 py-2">Description</th>
-                      <th className="text-left font-semibold px-3 py-2 w-[160px]">Example</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {AGG_ITEMS.map((item, i) => (
-                      <tr key={item.func} className={cn('border-b last:border-b-0', i % 2 === 0 ? '' : 'bg-muted/10')}>
-                        <td className="px-3 py-2 font-mono font-semibold text-foreground">{item.func}</td>
-                        <td className="px-3 py-2 text-muted-foreground">{item.desc}</td>
-                        <td className="px-3 py-2 font-mono text-muted-foreground">{item.example}</td>
+            {/* --- Aggregation --- */}
+            <AccordionItem value="aggregation" className="border rounded-lg mb-3 overflow-hidden">
+              <AccordionTrigger className="hover:no-underline bg-muted/40 px-4 py-3 rounded-t-lg data-[state=closed]:rounded-b-lg">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-center size-6 rounded-md bg-primary/10">
+                    <Calculator className="size-3.5 text-primary" />
+                  </div>
+                  <span className="text-sm font-semibold">Aggregation</span>
+                  <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">for measures</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="px-4 pt-3">
+                <div className="rounded-lg border bg-card overflow-hidden">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b bg-muted/30">
+                        <th className="text-left font-semibold px-3 py-2 w-[120px]">Function</th>
+                        <th className="text-left font-semibold px-3 py-2">Description</th>
+                        <th className="text-left font-semibold px-3 py-2 w-[160px]">Example</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </AccordionContent>
-          </AccordionItem>
+                    </thead>
+                    <tbody>
+                      {AGG_ITEMS.map((item, i) => (
+                        <tr key={item.func} className={cn('border-b last:border-b-0', i % 2 === 0 ? '' : 'bg-muted/10')}>
+                          <td className="px-3 py-2 font-mono font-semibold text-foreground">{item.func}</td>
+                          <td className="px-3 py-2 text-muted-foreground">{item.desc}</td>
+                          <td className="px-3 py-2 font-mono text-muted-foreground">{item.example}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
 
-          {/* --- Format Presets --- */}
-          <AccordionItem value="format">
-            <AccordionTrigger className="hover:no-underline">
-              <SectionHeader icon={Paintbrush} title="Format Presets" />
-            </AccordionTrigger>
-            <AccordionContent>
-              <div className="rounded-lg border bg-card overflow-hidden">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="border-b bg-muted/30">
-                      <th className="text-left font-semibold px-3 py-2 w-[100px]">Preset</th>
-                      <th className="text-left font-semibold px-3 py-2">Raw Value</th>
-                      <th className="text-center px-3 py-2 w-[30px]" />
-                      <th className="text-left font-semibold px-3 py-2">Formatted</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {FORMAT_ITEMS.map((item, i) => (
-                      <tr key={item.preset} className={cn('border-b last:border-b-0', i % 2 === 0 ? '' : 'bg-muted/10')}>
-                        <td className="px-3 py-2 font-semibold text-foreground">{item.preset}</td>
-                        <td className="px-3 py-2 font-mono text-muted-foreground">{item.before}</td>
-                        <td className="px-3 py-2 text-center text-muted-foreground">
-                          <ArrowRight className="size-3 inline" />
-                        </td>
-                        <td className="px-3 py-2 font-mono font-semibold text-foreground">{item.after}</td>
+            {/* --- Format Presets --- */}
+            <AccordionItem value="format" className="border rounded-lg mb-3 overflow-hidden">
+              <AccordionTrigger className="hover:no-underline bg-muted/40 px-4 py-3 rounded-t-lg data-[state=closed]:rounded-b-lg">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-center size-6 rounded-md bg-primary/10">
+                    <Paintbrush className="size-3.5 text-primary" />
+                  </div>
+                  <span className="text-sm font-semibold">Format Presets</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="px-4 pt-3">
+                <div className="rounded-lg border bg-card overflow-hidden">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b bg-muted/30">
+                        <th className="text-left font-semibold px-3 py-2 w-[100px]">Preset</th>
+                        <th className="text-left font-semibold px-3 py-2">Raw Value</th>
+                        <th className="text-center px-3 py-2 w-[30px]" />
+                        <th className="text-left font-semibold px-3 py-2">Formatted</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <p className="text-[11px] text-muted-foreground mt-2 pl-1">
-                Choose &ldquo;Custom&rdquo; in the grid to enter an Intl.NumberFormat or date-fns pattern.
-              </p>
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
+                    </thead>
+                    <tbody>
+                      {FORMAT_ITEMS.map((item, i) => (
+                        <tr key={item.preset} className={cn('border-b last:border-b-0', i % 2 === 0 ? '' : 'bg-muted/10')}>
+                          <td className="px-3 py-2 font-semibold text-foreground">{item.preset}</td>
+                          <td className="px-3 py-2 font-mono text-muted-foreground">{item.before}</td>
+                          <td className="px-3 py-2 text-center text-muted-foreground">
+                            <ArrowRight className="size-3 inline" />
+                          </td>
+                          <td className="px-3 py-2 font-mono font-semibold text-foreground">{item.after}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-2 pl-1">
+                  Choose &ldquo;Custom&rdquo; in the grid to enter an Intl.NumberFormat or date-fns pattern.
+                </p>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        </div>
       </SheetContent>
     </Sheet>
   )
