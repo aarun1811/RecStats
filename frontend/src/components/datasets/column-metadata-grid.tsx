@@ -154,8 +154,7 @@ export function ColumnMetadataGrid({ columns, onChange }: ColumnMetadataGridProp
       {
         field: 'formatPreset',
         headerName: 'Format',
-        minWidth: 100,
-        flex: 1,
+        width: 100,
         editable: true,
         cellEditor: 'agSelectCellEditor',
         cellEditorParams: {
