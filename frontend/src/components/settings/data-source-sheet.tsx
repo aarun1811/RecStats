@@ -914,25 +914,25 @@ function ExpandedDatasetColumns({ datasetId }: ExpandedDatasetColumnsProps) {
   }
 
   return (
-    <div className="ml-6 pl-3 border-l border-muted py-1.5 space-y-px">
+    <div className="ml-6 pl-3 border-l border-border py-1.5 space-y-0.5">
       {dataset.columns.map((col) => (
         <div
           key={col.name}
-          className="flex items-center gap-2 text-xs text-muted-foreground py-0.5 px-1 rounded hover:bg-muted/50 transition-colors group"
+          className="flex items-center gap-1.5 py-1 px-1.5 rounded-md hover:bg-muted/60 transition-colors group"
         >
-          <span className="font-mono truncate flex-1 text-foreground/70 group-hover:text-foreground transition-colors">
+          <span className="font-mono text-xs truncate flex-1 text-muted-foreground group-hover:text-foreground transition-colors">
             {col.name}
           </span>
-          <span className="text-[10px] tabular-nums text-muted-foreground/70 shrink-0 w-16 text-right font-mono">
+          <span className="inline-flex items-center justify-center rounded bg-muted w-[68px] py-0.5 text-[10px] font-mono text-muted-foreground shrink-0 text-center">
             {col.dataType}
           </span>
           <span className={cn(
-            'text-[9px] uppercase tracking-wider shrink-0 w-20 text-right font-medium',
+            'inline-flex items-center justify-center rounded-full w-[76px] py-0.5 text-[9px] font-semibold uppercase tracking-wider shrink-0 text-center',
             col.role === 'measure'
-              ? 'text-primary/60'
+              ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
               : col.role === 'time'
-                ? 'text-amber-500/60 dark:text-amber-400/60'
-                : 'text-muted-foreground/50',
+                ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
+                : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400',
           )}>
             {col.role}
           </span>
