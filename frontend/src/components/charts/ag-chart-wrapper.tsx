@@ -47,7 +47,7 @@ export function buildSeries(
   metricColumns: string[],
   categoryColumn: string | undefined,
   selection?: ChartSelection,
-  appearance?: { colorRange?: string[] },
+  appearance?: { colorRange?: string[]; typeSpecific?: Record<string, unknown> },
 ) {
   // Resolve category: explicit config > first non-metric string column > columns[0]
   const categoryKey = categoryColumn
@@ -95,12 +95,14 @@ export function buildSeries(
 
     case 'pie': {
       const angleKey = metricKeys[0] ?? columns.find((c) => c !== categoryKey) ?? 'count'
+      const pieLabelPos = (appearance?.typeSpecific?.pieLabelPosition as string) ?? 'outside'
       return [
         {
           type: 'pie' as const,
           angleKey,
-          calloutLabelKey: categoryKey,
-          sectorLabelKey: angleKey,
+          ...(pieLabelPos !== 'none' ? { calloutLabelKey: categoryKey } : {}),
+          ...(pieLabelPos === 'inside' ? { sectorLabelKey: angleKey } : { sectorLabelKey: angleKey }),
+          ...(pieLabelPos === 'none' ? { calloutLabel: { enabled: false }, sectorLabel: { enabled: false } } : {}),
           ...(styler ? { itemStyler: styler } : {}),
         },
       ]
@@ -108,12 +110,15 @@ export function buildSeries(
 
     case 'donut': {
       const angleKey = metricKeys[0] ?? columns.find((c) => c !== categoryKey) ?? 'count'
+      const innerRadius = (appearance?.typeSpecific?.donutInnerRadius as number) ?? 0.6
+      const donutLabelPos = (appearance?.typeSpecific?.donutLabelPosition as string) ?? 'outside'
       return [
         {
           type: 'donut' as const,
           angleKey,
-          calloutLabelKey: categoryKey,
-          innerRadiusRatio: 0.6,
+          ...(donutLabelPos !== 'none' ? { calloutLabelKey: categoryKey } : {}),
+          innerRadiusRatio: innerRadius,
+          ...(donutLabelPos === 'none' ? { calloutLabel: { enabled: false }, sectorLabel: { enabled: false } } : {}),
           ...(styler ? { itemStyler: styler } : {}),
         },
       ]
@@ -123,12 +128,14 @@ export function buildSeries(
       const xKey = metricColumns[0] ?? columns[0] ?? 'x'
       const yKey = metricColumns[1] ?? columns[1] ?? 'y'
       const sizeKey = metricColumns[2] ?? columns[2]
+      const pointShape = (appearance?.typeSpecific?.scatterPointShape as string) ?? 'circle'
       return [
         {
           type: 'scatter' as const,
           xKey,
           yKey,
           ...(sizeKey ? { sizeKey } : {}),
+          marker: { shape: pointShape },
         },
       ]
     }
@@ -160,14 +167,24 @@ export function buildSeries(
       }]
     }
 
-    case 'waterfall':
+    case 'waterfall': {
+      const posColor = appearance?.typeSpecific?.waterfallPositive
+        ? resolveColor(appearance.typeSpecific.waterfallPositive as string)
+        : undefined
+      const negColor = appearance?.typeSpecific?.waterfallNegative
+        ? resolveColor(appearance.typeSpecific.waterfallNegative as string)
+        : undefined
       return [{
         type: 'waterfall' as const,
         xKey: categoryKey,
         yKey: metricKeys[0] ?? 'value',
-        item: { positive: { name: 'Increase' }, negative: { name: 'Decrease' } },
+        item: {
+          positive: { name: 'Increase', ...(posColor ? { fill: posColor } : {}) },
+          negative: { name: 'Decrease', ...(negColor ? { fill: negColor } : {}) },
+        },
         line: { strokeWidth: 2 },
       }]
+    }
 
     case 'histogram':
       return [
