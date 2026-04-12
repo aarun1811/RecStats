@@ -533,44 +533,33 @@ function DetailView({
             <Separator />
           </motion.div>
 
-          {/* Test Connection */}
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.25, delay: 3 * 0.05 }}
-          >
-            <ConnectionTestArea
-              onTest={onTestConnection}
-              isPending={testMutation.isPending}
-              result={testResult}
-            />
-          </motion.div>
         </div>
       </ScrollArea>
 
-      {/* Footer Actions */}
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.25, delay: 4 * 0.05 }}
-      >
-      <div className="border-t p-4 flex items-center justify-between">
-        <Button variant="outline" size="sm" onClick={onEdit}>
-          <Pencil className="mr-1.5 size-3.5" />
-          Edit Source
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-destructive hover:text-destructive hover:bg-destructive/10"
-          onClick={onDelete}
-          disabled={isDeleting}
-        >
-          <Trash2 className="mr-1.5 size-3.5" />
-          Delete
-        </Button>
+      {/* Sticky Footer — always visible regardless of scroll */}
+      <div className="border-t p-4 space-y-3 shrink-0">
+        <ConnectionTestArea
+          onTest={onTestConnection}
+          isPending={testMutation.isPending}
+          result={testResult}
+        />
+        <div className="flex items-center justify-between">
+          <Button variant="outline" size="sm" onClick={onEdit}>
+            <Pencil className="mr-1.5 size-3.5" />
+            Edit Source
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+            onClick={onDelete}
+            disabled={isDeleting}
+          >
+            <Trash2 className="mr-1.5 size-3.5" />
+            Delete
+          </Button>
+        </div>
       </div>
-      </motion.div>
     </>
   )
 }
