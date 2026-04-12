@@ -156,7 +156,7 @@ export function ColumnMetadataHelpSheet() {
           <HelpCircle className="size-3.5" />
         </Button>
       </SheetTrigger>
-      <SheetContent side="right" className="sm:max-w-lg overflow-y-auto">
+      <SheetContent side="right" className="sm:max-w-xl overflow-y-auto px-6">
         <SheetHeader>
           <SheetTitle>Column Metadata Reference</SheetTitle>
           <SheetDescription>
