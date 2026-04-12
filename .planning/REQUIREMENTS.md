@@ -21,9 +21,9 @@ Each requirement maps to exactly one phase. All verification is **manual** (no a
 - [x] **INFRA-10**: `backend/app/services/engine_manager.py` uses `build_oracle_engine()` helper so secondary engines share thick mode (once-per-process constraint)
 - [x] **INFRA-11**: 3 remaining `async def` handlers in `backend/app/api/views.py` converted to plain `def`
 - [x] **INFRA-12**: `backend/app/main.py` lifespan adds thick-mode startup assertion via `v$session_connect_info.client_driver`; boot refuses if `python-oracledb thn` detected
-- [ ] **INFRA-13**: `backend/app/migrations/alembic.ini` `sqlalchemy.url` cleared; `env.py` wires thick mode + `connect_args` in online mode with `compare_type`, `compare_server_default`, `transaction_per_migration=True`, `include_schemas=False`, `version_table="recviz_alembic_version"`
-- [ ] **INFRA-14**: All 7 existing Postgres-targeted Alembic migrations (`001_initial_schema.py` through `007_dataset_database_id_to_string.py`) deleted
-- [ ] **INFRA-15**: New `001_initial_oracle_schema.py` migration generated via `alembic revision --autogenerate`, hand-reviewed against 9-point checklist (six tables, `BLOB IS JSON` on `config`/`columns`/`extra_params`, `VARCHAR2(128 CHAR)` PKs, `CLOB` for `sql`/`encrypted_password`, `TIMESTAMP(6) WITH TIME ZONE` defaults, expected indexes, `UniqueConstraint` on `recviz_connections.name`), applied successfully via `alembic upgrade head`
+- [x] **INFRA-13**: `backend/app/migrations/alembic.ini` `sqlalchemy.url` cleared; `env.py` wires thick mode + `connect_args` in online mode with `compare_type`, `compare_server_default`, `transaction_per_migration=True`, `include_schemas=False`, `version_table="recviz_alembic_version"`
+- [x] **INFRA-14**: All 7 existing Postgres-targeted Alembic migrations (`001_initial_schema.py` through `007_dataset_database_id_to_string.py`) deleted
+- [x] **INFRA-15**: New `001_initial_oracle_schema.py` migration generated via `alembic revision --autogenerate`, hand-reviewed against 9-point checklist (six tables, `BLOB IS JSON` on `config`/`columns`/`extra_params`, `VARCHAR2(128 CHAR)` PKs, `CLOB` for `sql`/`encrypted_password`, `TIMESTAMP(6) WITH TIME ZONE` defaults, expected indexes, `UniqueConstraint` on `recviz_connections.name`), applied successfully via `alembic upgrade head`
 - [x] **INFRA-16**: `backend/.env.example` created/updated with all new Oracle env vars
 - [x] **INFRA-17**: Postgres/Docker/Superset/Redis residue deleted — `docker-compose.yml`, `docker/init-db.sql`, `deployment/` (empty dir), `superset/` directory (if present), any Postgres seed SQL; grep audit of `postgresql`, `JSONB`, `asyncpg`, `psycopg2`, `superset`, `redis`, `celery` shows zero hits outside `.git/`
 - [x] **INFRA-18**: Global shadcn palette applied — Phase 1 UI-SPEC gate confirms Mist+Blue (or alternative), CSS variables updated in `frontend/src/index.css` for both light and dark mode
@@ -170,9 +170,9 @@ Each requirement maps to exactly one phase. All verification is **manual** (no a
 | INFRA-10 | Phase 1 | Complete |
 | INFRA-11 | Phase 1 | Complete |
 | INFRA-12 | Phase 1 | Complete |
-| INFRA-13 | Phase 1 | Pending |
-| INFRA-14 | Phase 1 | Pending |
-| INFRA-15 | Phase 1 | Pending |
+| INFRA-13 | Phase 1 | Complete |
+| INFRA-14 | Phase 1 | Complete |
+| INFRA-15 | Phase 1 | Complete |
 | INFRA-16 | Phase 1 | Complete |
 | INFRA-17 | Phase 1 | Complete |
 | INFRA-18 | Phase 1 | Complete |
