@@ -258,7 +258,10 @@ export function ChartBuilder({
       ...prev,
       chartType: type,
       ...(isChange
-        ? { columnMapping: DEFAULT_COLUMN_MAPPING }
+        ? {
+            columnMapping: DEFAULT_COLUMN_MAPPING,
+            appearance: { ...prev.appearance, typeSpecific: {} },
+          }
         : {}),
     }))
     if (isChange) {
