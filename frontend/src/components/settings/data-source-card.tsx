@@ -1,7 +1,9 @@
 import { Database } from 'lucide-react'
+import { motion } from 'motion/react'
 import { Card } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import type { DatabaseInfo, ConnectionStatus, DatabaseBackend } from '@/types/database'
+import { AnimatedStatusBadge } from './animated-status-badge'
 
 interface DataSourceCardProps {
   database: DatabaseInfo
@@ -28,51 +30,44 @@ const STATUS_LABELS: Record<ConnectionStatus, string> = {
   untested: 'Untested',
 }
 
-const STATUS_DOT_COLORS: Record<ConnectionStatus, string> = {
-  connected: 'bg-green-500',
-  unreachable: 'bg-red-500',
-  untested: 'bg-gray-400',
+const STATUS_BORDER_COLORS: Record<ConnectionStatus, string> = {
+  connected: 'border-l-emerald-500',
+  unreachable: 'border-l-red-500',
+  untested: 'border-l-amber-500',
 }
 
-interface StatusDotProps {
-  status: ConnectionStatus
-}
-
-export function StatusDot({ status }: StatusDotProps) {
-  return (
-    <span
-      className={cn('inline-block size-2 rounded-full', STATUS_DOT_COLORS[status])}
-      title={STATUS_LABELS[status]}
-      aria-label={`Status: ${STATUS_LABELS[status]}`}
-    />
-  )
-}
-
-export { BACKEND_LABELS, BACKEND_COLORS, STATUS_STYLES, STATUS_LABELS, STATUS_DOT_COLORS }
+export { BACKEND_LABELS, BACKEND_COLORS, STATUS_STYLES, STATUS_LABELS, STATUS_BORDER_COLORS }
 
 export function DataSourceCard({ database, onClick }: DataSourceCardProps) {
   const backendKey = database.backend
 
   return (
-    <Card
-      className="cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5 p-4"
-      onClick={onClick}
+    <motion.div
+      whileHover={{ y: -2 }}
+      transition={{ duration: 0.15, ease: 'easeOut' }}
     >
-      <div className="flex flex-col gap-3">
-        <div className="flex items-start justify-between">
-          <Database className={cn('size-8', BACKEND_COLORS[backendKey] || 'text-muted-foreground')} />
-          <div className="flex items-center gap-1.5">
-            <StatusDot status={database.status} />
-            <span className="text-[10px] text-muted-foreground">{STATUS_LABELS[database.status]}</span>
+      <Card
+        className={cn(
+          'cursor-pointer transition-shadow hover:shadow-md p-4 border-l-2',
+          STATUS_BORDER_COLORS[database.status],
+        )}
+        onClick={onClick}
+      >
+        <div className="flex flex-col gap-3">
+          <div className="flex items-start justify-between">
+            <div className="bg-muted rounded-lg p-1.5">
+              <Database className={cn('size-8', BACKEND_COLORS[backendKey] || 'text-muted-foreground')} />
+            </div>
+            <AnimatedStatusBadge status={database.status} />
+          </div>
+          <div>
+            <p className="text-sm font-medium truncate">{database.databaseName}</p>
+            <p className="text-xs text-muted-foreground">
+              {BACKEND_LABELS[backendKey] || database.backend}
+            </p>
           </div>
         </div>
-        <div>
-          <p className="text-sm font-medium truncate">{database.databaseName}</p>
-          <p className="text-xs text-muted-foreground">
-            {BACKEND_LABELS[backendKey] || database.backend}
-          </p>
-        </div>
-      </div>
-    </Card>
+      </Card>
+    </motion.div>
   )
 }

@@ -65,7 +65,7 @@ export function DataSourcesTab() {
 
           {isLoading ? (
             viewMode === 'grid' ? (
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                 {Array.from({ length: 3 }).map((_, i) => (
                   <Skeleton key={i} className="h-[120px] rounded-lg" />
                 ))}
@@ -99,7 +99,7 @@ export function DataSourcesTab() {
               No databases matching &ldquo;{searchQuery}&rdquo;
             </p>
           ) : viewMode === 'grid' ? (
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
               {filtered.map((db) => (
                 <DataSourceCard
                   key={db.id}

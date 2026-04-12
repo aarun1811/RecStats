@@ -3,8 +3,6 @@ import { useState, useEffect, useMemo } from 'react'
 import { toast } from 'sonner'
 import {
   Database,
-  CheckCircle2,
-  XCircle,
   Loader2,
   RefreshCw,
   Pencil,
@@ -12,6 +10,7 @@ import {
   ChevronRight,
   ChevronDown,
 } from 'lucide-react'
+import { motion, AnimatePresence } from 'motion/react'
 
 import {
   Sheet,
@@ -43,9 +42,10 @@ import { Badge } from '@/components/ui/badge'
 import {
   BACKEND_LABELS,
   BACKEND_COLORS,
-  STATUS_LABELS,
-  StatusDot,
 } from './data-source-card'
+import { AnimatedStatusBadge } from './animated-status-badge'
+import { ConnectionTestArea } from './connection-test-area'
+import { ConnectionHealthHeader } from './connection-health-header'
 
 import type {
   DatabaseBackend,
@@ -285,54 +285,74 @@ export function DataSourceSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-[540px] sm:max-w-[540px] p-0 flex flex-col">
-        {mode === 'detail' ? (
-          <DetailView
-            database={databaseDetail}
-            datasets={allDatasets}
-            totalDatasets={totalDatasets}
-            datasetsLoading={datasetsLoading}
-            expandedDataset={expandedDataset}
-            onToggleDataset={(id) => setExpandedDataset(expandedDataset === id ? null : id)}
-            hasNextPage={hasNextPage ?? false}
-            isFetchingNextPage={isFetchingNextPage}
-            onLoadMore={() => fetchNextPage()}
-            onEdit={() => onModeChange('edit')}
-            onDelete={handleDelete}
-            onTestConnection={handleTestDetailConnection}
-            testMutation={testMutation}
-            testResult={testResult}
-            onSync={handleSync}
-            syncMutation={syncMutation}
-            isDeleting={deleteMutation.isPending}
-          />
-        ) : (
-          <FormView
-            mode={mode}
-            backend={backend}
-            onBackendChange={setBackend}
-            displayName={displayName}
-            onDisplayNameChange={setDisplayName}
-            connectionTab={connectionTab}
-            onConnectionTabChange={setConnectionTab}
-            formValues={formValues}
-            onFormValueChange={updateFormValue}
-            sqlalchemyUri={sqlalchemyUri}
-            onSqlalchemyUriChange={setSqlalchemyUri}
-            onTestConnection={handleTestConnection}
-            testMutation={testMutation}
-            testResult={testResult}
-            canSave={canSave}
-            isSaving={isSaving}
-            onSave={handleSave}
-            onCancel={() => {
-              if (mode === 'edit') {
-                onModeChange('detail')
-              } else {
-                onOpenChange(false)
-              }
-            }}
-          />
-        )}
+        <AnimatePresence mode="wait">
+          {mode === 'detail' ? (
+            <motion.div
+              key="detail"
+              className="flex flex-col flex-1 min-h-0"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <DetailView
+                database={databaseDetail}
+                datasets={allDatasets}
+                totalDatasets={totalDatasets}
+                datasetsLoading={datasetsLoading}
+                expandedDataset={expandedDataset}
+                onToggleDataset={(id) => setExpandedDataset(expandedDataset === id ? null : id)}
+                hasNextPage={hasNextPage ?? false}
+                isFetchingNextPage={isFetchingNextPage}
+                onLoadMore={() => fetchNextPage()}
+                onEdit={() => onModeChange('edit')}
+                onDelete={handleDelete}
+                onTestConnection={handleTestDetailConnection}
+                testMutation={testMutation}
+                testResult={testResult}
+                onSync={handleSync}
+                syncMutation={syncMutation}
+                isDeleting={deleteMutation.isPending}
+              />
+            </motion.div>
+          ) : (
+            <motion.div
+              key={mode}
+              className="flex flex-col flex-1 min-h-0"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+            >
+              <FormView
+                mode={mode}
+                backend={backend}
+                onBackendChange={setBackend}
+                displayName={displayName}
+                onDisplayNameChange={setDisplayName}
+                connectionTab={connectionTab}
+                onConnectionTabChange={setConnectionTab}
+                formValues={formValues}
+                onFormValueChange={updateFormValue}
+                sqlalchemyUri={sqlalchemyUri}
+                onSqlalchemyUriChange={setSqlalchemyUri}
+                onTestConnection={handleTestConnection}
+                testMutation={testMutation}
+                testResult={testResult}
+                canSave={canSave}
+                isSaving={isSaving}
+                onSave={handleSave}
+                onCancel={() => {
+                  if (mode === 'edit') {
+                    onModeChange('detail')
+                  } else {
+                    onOpenChange(false)
+                  }
+                }}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </SheetContent>
     </Sheet>
   )
@@ -410,16 +430,27 @@ function DetailView({
               )}
             </SheetDescription>
           </div>
-          <div className="flex items-center gap-1.5 shrink-0">
-            <StatusDot status={database.status} />
-            <span className="text-xs text-muted-foreground">{STATUS_LABELS[database.status]}</span>
-          </div>
+          <AnimatedStatusBadge status={database.status} />
         </div>
       </SheetHeader>
 
       <ScrollArea className="flex-1">
         <div className="p-6 space-y-6">
+          {/* Connection Health Header */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, delay: 0 * 0.05 }}
+          >
+            <ConnectionHealthHeader database={database} />
+          </motion.div>
+
           {/* Datasets Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, delay: 1 * 0.05 }}
+          >
           <div>
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-medium">
@@ -436,7 +467,7 @@ function DetailView({
                 disabled={syncMutation.isPending}
               >
                 <RefreshCw className={cn('mr-1 size-3', syncMutation.isPending && 'animate-spin')} />
-                Sync
+                Sync Datasets
               </Button>
             </div>
 
@@ -492,46 +523,41 @@ function DetailView({
               </div>
             )}
           </div>
+          </motion.div>
 
-          <Separator />
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, delay: 2 * 0.05 }}
+          >
+            <Separator />
+          </motion.div>
 
           {/* Test Connection */}
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onTestConnection}
-              disabled={testMutation.isPending}
-            >
-              {testMutation.isPending ? (
-                <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-              ) : null}
-              Test Connection
-            </Button>
-            {testResult && (
-              <div className="flex items-center gap-1.5 text-xs">
-                {testResult.success ? (
-                  <>
-                    <CheckCircle2 className="size-3.5 text-emerald-500" />
-                    <span className="text-emerald-600 dark:text-emerald-400">{testResult.message}</span>
-                  </>
-                ) : (
-                  <>
-                    <XCircle className="size-3.5 text-red-500" />
-                    <span className="text-red-600 dark:text-red-400">{testResult.message}</span>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, delay: 3 * 0.05 }}
+          >
+            <ConnectionTestArea
+              onTest={onTestConnection}
+              isPending={testMutation.isPending}
+              result={testResult}
+            />
+          </motion.div>
         </div>
       </ScrollArea>
 
       {/* Footer Actions */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25, delay: 4 * 0.05 }}
+      >
       <div className="border-t p-4 flex items-center justify-between">
         <Button variant="outline" size="sm" onClick={onEdit}>
           <Pencil className="mr-1.5 size-3.5" />
-          Edit
+          Edit Source
         </Button>
         <Button
           variant="ghost"
@@ -544,6 +570,7 @@ function DetailView({
           Delete
         </Button>
       </div>
+      </motion.div>
     </>
   )
 }
@@ -592,6 +619,23 @@ function FormView({
   onCancel,
 }: FormViewProps) {
   const fields = BACKEND_FIELDS[backend].fields
+  const [flashingFields, setFlashingFields] = useState<Set<string>>(new Set())
+
+  const handleRequiredBlur = (fieldName: string, value: string, isRequired: boolean) => {
+    if (!isRequired || value.trim()) return
+    setFlashingFields((prev) => {
+      const next = new Set(prev)
+      next.add(fieldName)
+      return next
+    })
+    setTimeout(() => {
+      setFlashingFields((prev) => {
+        const next = new Set(prev)
+        next.delete(fieldName)
+        return next
+      })
+    }, 300)
+  }
 
   return (
     <>
@@ -609,6 +653,11 @@ function FormView({
       <ScrollArea className="flex-1">
         <div className="p-6 space-y-6">
           {/* Database Type */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, delay: 0 * 0.05 }}
+          >
           <div className="space-y-2">
             <Label>Database Type</Label>
             <div className="grid grid-cols-4 gap-2">
@@ -656,8 +705,14 @@ function FormView({
               ))}
             </div>
           </div>
+          </motion.div>
 
           {/* Display Name */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, delay: 1 * 0.05 }}
+          >
           <div className="space-y-2">
             <Label htmlFor="display-name">Display Name</Label>
             <Input
@@ -665,12 +720,20 @@ function FormView({
               placeholder="e.g. recon_data_prod"
               value={displayName}
               onChange={(e) => onDisplayNameChange(e.target.value)}
+              onBlur={() => handleRequiredBlur('displayName', displayName, true)}
+              className={cn(flashingFields.has('displayName') && 'border-destructive/50')}
             />
           </div>
+          </motion.div>
 
           <Separator />
 
           {/* Connection Tab Toggle */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, delay: 2 * 0.05 }}
+          >
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <Label>Connection</Label>
@@ -715,6 +778,8 @@ function FormView({
                       }
                       value={formValues[field.name] ?? ''}
                       onChange={(e) => onFormValueChange(field.name, e.target.value)}
+                      onBlur={() => handleRequiredBlur(field.name, formValues[field.name] ?? '', field.required)}
+                      className={cn(flashingFields.has(field.name) && 'border-destructive/50')}
                     />
                   </div>
                 ))}
@@ -732,49 +797,39 @@ function FormView({
               </div>
             )}
           </div>
+          </motion.div>
 
-          <Separator />
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, delay: 3 * 0.05 }}
+          >
+            <Separator />
+          </motion.div>
 
           {/* Test Connection */}
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onTestConnection}
-              disabled={testMutation.isPending}
-            >
-              {testMutation.isPending ? (
-                <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-              ) : null}
-              Test Connection
-            </Button>
-            {testResult && (
-              <div className="flex items-center gap-1.5 text-xs">
-                {testResult.success ? (
-                  <>
-                    <CheckCircle2 className="size-3.5 text-emerald-500" />
-                    <span className="text-emerald-600 dark:text-emerald-400">{testResult.message}</span>
-                  </>
-                ) : (
-                  <>
-                    <XCircle className="size-3.5 text-red-500" />
-                    <span className="text-red-600 dark:text-red-400">{testResult.message}</span>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, delay: 4 * 0.05 }}
+          >
+            <ConnectionTestArea
+              onTest={onTestConnection}
+              isPending={testMutation.isPending}
+              result={testResult}
+            />
+          </motion.div>
         </div>
       </ScrollArea>
 
       {/* Footer */}
       <div className="border-t p-4 flex items-center justify-end gap-2">
         <Button variant="outline" size="sm" onClick={onCancel}>
-          Cancel
+          Discard
         </Button>
         <Button size="sm" onClick={onSave} disabled={!canSave || isSaving}>
           {isSaving && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
-          {mode === 'create' ? 'Save' : 'Update'}
+          {mode === 'create' ? 'Save Connection' : 'Update'}
         </Button>
       </div>
     </>

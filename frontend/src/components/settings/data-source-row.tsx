@@ -1,7 +1,8 @@
 import { ChevronRight, Database } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { DatabaseInfo } from '@/types/database'
-import { BACKEND_LABELS, BACKEND_COLORS, STATUS_LABELS, StatusDot } from './data-source-card'
+import { BACKEND_LABELS, BACKEND_COLORS, STATUS_BORDER_COLORS } from './data-source-card'
+import { AnimatedStatusBadge } from './animated-status-badge'
 
 interface DataSourceRowProps {
   database: DatabaseInfo
@@ -13,7 +14,10 @@ export function DataSourceRow({ database, onClick }: DataSourceRowProps) {
 
   return (
     <div
-      className="flex items-center gap-3 rounded-lg border p-3 cursor-pointer transition-colors hover:bg-muted/50"
+      className={cn(
+        'flex items-center gap-3 rounded-lg border border-l-2 p-3 cursor-pointer transition-colors hover:bg-muted/50',
+        STATUS_BORDER_COLORS[database.status],
+      )}
       onClick={onClick}
     >
       <Database className={cn('size-5 shrink-0', BACKEND_COLORS[backendKey] || 'text-muted-foreground')} />
@@ -23,10 +27,7 @@ export function DataSourceRow({ database, onClick }: DataSourceRowProps) {
           {BACKEND_LABELS[backendKey] || database.backend}
         </p>
       </div>
-      <div className="flex items-center gap-1.5 shrink-0">
-        <StatusDot status={database.status} />
-        <span className="text-[10px] text-muted-foreground">{STATUS_LABELS[database.status]}</span>
-      </div>
+      <AnimatedStatusBadge status={database.status} />
       <ChevronRight className="size-4 text-muted-foreground shrink-0" />
     </div>
   )
