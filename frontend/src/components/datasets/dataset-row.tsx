@@ -6,7 +6,6 @@ import { motion } from 'motion/react'
 import { cn } from '@/lib/utils'
 import {
   BACKEND_COLORS,
-  BACKEND_BORDER_COLORS,
   COLUMN_ROLE_SHORT_LABELS,
 } from '@/lib/style-constants'
 import type { RecvizDataset } from '@/types/managed-dataset'
@@ -49,7 +48,7 @@ export function DatasetRow({ dataset, databaseName, backendType, onClick, index 
       <div
         className={cn(
           'flex items-center gap-3 rounded-lg border border-l-2 p-3 cursor-pointer transition-colors hover:bg-muted/50',
-          BACKEND_BORDER_COLORS[backendKey] ?? 'border-l-muted',
+          'border-l-primary/60',
         )}
         onClick={onClick}
         tabIndex={0}

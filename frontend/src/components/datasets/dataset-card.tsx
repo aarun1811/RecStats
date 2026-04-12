@@ -7,7 +7,6 @@ import { Card } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import {
   BACKEND_COLORS,
-  BACKEND_BORDER_COLORS,
   COLUMN_ROLE_STYLES,
   COLUMN_ROLE_SHORT_LABELS,
 } from '@/lib/style-constants'
@@ -47,7 +46,7 @@ export function DatasetCard({ dataset, databaseName, backendType, onClick, index
       <Card
         className={cn(
           'cursor-pointer transition-shadow hover:shadow-md p-4 border-l-2',
-          BACKEND_BORDER_COLORS[backendKey] ?? 'border-l-muted',
+          'border-l-primary/60',
         )}
         onClick={onClick}
         tabIndex={0}
