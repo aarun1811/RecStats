@@ -36,7 +36,6 @@ Declared values (must be multiples of 4):
 |-------|-------|-------|
 | xs | 4px | Icon gaps, inline padding, badge internal spacing |
 | sm | 8px | Compact element spacing, icon-to-label gaps, card internal gaps |
-| sm-lg | 12px | Section header padding (`px-3`), card padding (`p-3`), cell-padding |
 | md | 16px | Default element spacing, card padding (`p-4`), form field gaps |
 | lg | 24px | Page content `p-6`, section gaps, editor panel margins (`mx-6`) |
 | xl | 32px | Layout gaps between major sections |
@@ -44,6 +43,7 @@ Declared values (must be multiples of 4):
 | 3xl | 64px | Page-level spacing (unused in Phase 3) |
 
 Exceptions:
+- 12px (`p-3` / `px-3`): Required for section header bars where 8px is too tight and 16px too loose for the h-9 header pattern, and for card internal padding to maintain density. Used in SQL Editor / Preview / Column Metadata header bar padding and AG Grid cell padding.
 - Touch targets: All interactive buttons maintain minimum 32px height (`h-8`). The editor toolbar Run button uses `h-7` for compact fit within the toolbar chrome.
 - Column metadata grid: Row height 36px (`--ag-row-height: 36px`), header height 40px (`--ag-header-height: 40px`) -- inherited from AG Grid token bridge in `index.css`.
 - Split panel gap: `gap-4` (16px) between Preview and Column Metadata panels, matching `gap-4` grid convention.
@@ -70,12 +70,12 @@ Supplemental roles (use existing sizes with different weight/style):
 | Card title | 14px | 600 (semibold) | 1.43 (~20px) | `text-sm font-semibold truncate` |
 | Inline editor heading | 24px | 600 (semibold) | 1.2 | `text-2xl font-semibold tracking-tight` (native `<input>`) |
 | Mono (column names) | 12px | 400 (regular) | 1.33 (~16px) | `text-xs font-mono` |
-| Stat chip | 12px | 500 (medium) | 1.33 (~16px) | `text-xs font-medium` |
-| Mode badge | 12px | 500 (medium) | 1.33 (~16px) | `text-xs font-medium` |
+| Stat chip | 12px | 600 (semibold) | 1.33 (~16px) | `text-xs font-semibold` |
+| Mode badge | 12px | 600 (semibold) | 1.33 (~16px) | `text-xs font-semibold` |
 
 Font: `"Inter", system-ui, sans-serif` -- declared in `@layer base` body rule in `index.css`.
 
-**Source:** Phase 2 UI-SPEC typography table + CLAUDE.md conventions. Section heading in Phase 3 uses `text-sm font-semibold tracking-tight` (existing pattern from dataset-editor section headers), not `text-lg font-medium`, because section headers sit inside dense panels (SQL Editor, Preview, Column Metadata), not standalone page sections.
+**Source:** Phase 2 UI-SPEC typography table + CLAUDE.md conventions. Section heading in Phase 3 uses `text-sm font-semibold tracking-tight` (existing pattern from dataset-editor section headers), not `text-lg font-medium`, because section headers sit inside dense panels (SQL Editor, Preview, Column Metadata), not standalone page sections. Stat chips and mode badges use semibold (600) rather than medium (500) for stronger legibility at 12px, keeping the contract within the 2-weight maximum (400 + 600).
 
 ---
 
@@ -319,16 +319,16 @@ Header bar pattern:
 | create | `bg-primary/10 text-primary border border-primary/20` | "New" |
 | edit | `bg-muted text-muted-foreground border border-border` | "Editing" |
 
-Placed inline next to the back button, using `Badge` with custom className overrides. Size: `h-5 px-2 text-xs font-medium`.
+Placed inline next to the back button, using `Badge` with custom className overrides. Size: `h-5 px-2 text-xs font-semibold`.
 
 ### 10. SQL Format Button (NEW)
 
-**Decision:** D-10 -- Add Format button to SQL editor toolbar.
+**Decision:** D-10 -- Add Format SQL button to SQL editor toolbar.
 
 | Property | Specification |
 |----------|--------------|
 | Position | Left of Run button in SQL editor toolbar |
-| Label | "Format" |
+| Label | "Format SQL" |
 | Icon | `WandSparkles` at `size-3.5` |
 | Variant | `outline` |
 | Size | `h-7` (matches Run button) |
@@ -353,7 +353,7 @@ The success/error indicator appears as an inline element next to the Run button 
 
 | Chip | Format | Style |
 |------|--------|-------|
-| Row count | "{N} rows" | `text-xs font-medium bg-muted px-2 py-0.5 rounded-md` |
+| Row count | "{N} rows" | `text-xs font-semibold bg-muted px-2 py-0.5 rounded-md` |
 | Column count | "{N} columns" | Same |
 | Execution time | "{X}s" | Same |
 
@@ -368,7 +368,7 @@ Chips placed right-aligned in the Preview header bar, separated by a middle dot 
 Replace plain text with colored pill badges using `COLUMN_ROLE_STYLES`:
 
 ```
-<span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium min-w-[60px] justify-center', COLUMN_ROLE_STYLES[role])}>
+<span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold min-w-[60px] justify-center', COLUMN_ROLE_STYLES[role])}>
   {COLUMN_ROLE_LABELS[role]}
 </span>
 ```
@@ -378,7 +378,7 @@ Replace plain text with colored pill badges using `COLUMN_ROLE_STYLES`:
 Same pattern using `COLUMN_TYPE_STYLES`:
 
 ```
-<span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium min-w-[60px] justify-center', COLUMN_TYPE_STYLES[type])}>
+<span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold min-w-[60px] justify-center', COLUMN_TYPE_STYLES[type])}>
   {COLUMN_TYPE_LABELS[type]}
 </span>
 ```
@@ -484,7 +484,7 @@ Text below icons: `text-sm text-muted-foreground`.
 | Description placeholder | "Add a description..." | Input field |
 | Database selector placeholder | "Select database" | Select component |
 | SQL Editor header | "SQL Editor" | Section header with `Code2` icon |
-| Format button | "Format" | Outline button with `WandSparkles` icon |
+| Format button | "Format SQL" | Outline button with `WandSparkles` icon |
 | Run button (idle) | "Run Query" | Primary button with `Play` icon |
 | Run button (running) | "Executing..." | Disabled, `Loader2` spinning |
 | Run success | "{N} rows in {X}s" | Green `CheckCircle2` icon + text, auto-dismiss 3s |
@@ -493,9 +493,9 @@ Text below icons: `text-sm text-muted-foreground`.
 | Preview header | "Preview" | Section header with `Eye` icon |
 | Preview empty | "Run a query to see results" | Animated Play icon |
 | Preview toggle | "Show Formatted" / "Show Raw" | Outline button toggling format display |
-| Stats chip: rows | "{N} rows" | `text-xs font-medium` chip |
-| Stats chip: columns | "{N} columns" | `text-xs font-medium` chip |
-| Stats chip: time | "{X}s" | `text-xs font-medium` chip |
+| Stats chip: rows | "{N} rows" | `text-xs font-semibold` chip |
+| Stats chip: columns | "{N} columns" | `text-xs font-semibold` chip |
+| Stats chip: time | "{X}s" | `text-xs font-semibold` chip |
 | Column Metadata header | "Column Metadata" | Section header with `Columns3` icon |
 | Column Metadata empty | "Run a query to detect columns" | Animated Columns3 icon |
 | Discard missing button | "Discard Missing" | Destructive sm button, conditional |
@@ -569,11 +569,11 @@ All animations use `motion/react`. Timings follow the "Refined Command Center" a
 | `frontend/src/components/datasets/dataset-row.tsx` | Wrap in `motion.div` hover lift, add `border-l-2` backend accent, wrap icon in `bg-muted` container, add role summary, accept `index` prop for stagger |
 | `frontend/src/components/datasets/dataset-list.tsx` | Add `AnimatePresence mode="wait"` crossfade for view toggle, pass `index` to cards/rows for stagger, replace filtered-empty `<p>` with `Empty` component, add `Search` icon import |
 | `frontend/src/components/datasets/dataset-list-toolbar.tsx` | Apply palette tokens matching Phase 2 toolbar style (already mostly correct, minor class tuning) |
-| `frontend/src/components/datasets/dataset-editor.tsx` | Add mode badge, enhance section headers with icons + `border-l-primary`, add execution stats bar to Preview header, add Format button to toolbar area, implement run button state machine, add Discard Missing button, add Help Sheet trigger, replace `getRowStyle` rgba values |
+| `frontend/src/components/datasets/dataset-editor.tsx` | Add mode badge, enhance section headers with icons + `border-l-primary`, add execution stats bar to Preview header, add Format SQL button to toolbar area, implement run button state machine, add Discard Missing button, add Help Sheet trigger, replace `getRowStyle` rgba values |
 | `frontend/src/components/datasets/column-metadata-grid.tsx` | Replace `getRowStyle` inline rgba with CSS class approach, add custom cell renderers for role/type badges, add custom header components with tooltips, add left-border + strikethrough for missing rows |
 | `frontend/src/components/datasets/dataset-sql-rerun-banner.tsx` | No changes (already correctly styled with amber dark: variants) |
 | `frontend/src/components/datasets/delete-dataset-dialog.tsx` | No changes (already uses shadcn Dialog correctly) |
-| `frontend/src/components/explorer/sql-editor.tsx` | Add Format button to toolbar (between keyboard hint and Run button), accept optional `onFormat` callback prop |
+| `frontend/src/components/explorer/sql-editor.tsx` | Add Format SQL button to toolbar (between keyboard hint and Run button), accept optional `onFormat` callback prop |
 | `frontend/src/routes/_app/datasets/index.tsx` | Replace simple opacity fade with staggered page entrance |
 | `frontend/src/routes/_app/datasets/new.tsx` | Same staggered entrance pattern |
 | `frontend/src/routes/_app/datasets/$datasetId.edit.tsx` | Same staggered entrance pattern |
