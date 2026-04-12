@@ -47,6 +47,8 @@ export function SqlEditor({
   const editorRef = useRef<MonacoEditor | null>(null)
   const onRunRef = useRef(onRun)
   onRunRef.current = onRun
+  const onFormatRef = useRef(onFormat)
+  onFormatRef.current = onFormat
   const { resolvedTheme } = useTheme()
 
   const handleMount: OnMount = useCallback(
@@ -59,6 +61,14 @@ export function SqlEditor({
         label: 'Run Query',
         keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter],
         run: () => onRunRef.current(),
+      })
+
+      // Shift+Alt+F → Format SQL
+      ed.addAction({
+        id: 'format-sql',
+        label: 'Format SQL',
+        keybindings: [monaco.KeyMod.Shift | monaco.KeyMod.Alt | monaco.KeyCode.KeyF],
+        run: () => onFormatRef.current?.(),
       })
 
       // Focus editor on mount
@@ -77,16 +87,23 @@ export function SqlEditor({
         </div>
         <div className="flex items-center gap-3">
           {onFormat && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onFormat}
-              disabled={!value.trim()}
-              className="h-7"
-            >
-              <WandSparkles className="mr-1.5 size-3.5" />
-              Format SQL
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onFormat}
+                  disabled={!value.trim()}
+                  className="h-7"
+                >
+                  <WandSparkles className="mr-1.5 size-3.5" />
+                  Format SQL
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                {IS_MAC ? '⇧⌥F' : 'Shift+Alt+F'}
+              </TooltipContent>
+            </Tooltip>
           )}
           {disabled && disabledReason && (
             <span className="text-xs text-muted-foreground italic">
