@@ -40,7 +40,7 @@ export function ChartDetailPanel({ chartId, datasetName, onClose }: ChartDetailP
   const { data: references } = useChartReferences(chartId)
 
   const { data: rawResult, isLoading: isDataLoading } = useQuery({
-    queryKey: ['chart-preview-data', chart?.datasetId],
+    queryKey: ['chart-preview-data', chart?.datasetId, dataset?.updatedAt],
     queryFn: () =>
       api.post<{ columns: unknown[]; data: Record<string, unknown>[] }>(
         '/api/sql/execute',

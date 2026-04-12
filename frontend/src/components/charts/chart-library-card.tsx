@@ -27,7 +27,7 @@ interface ChartLibraryCardProps {
 
 export function ChartLibraryCard({ chart, dataset, datasetName, onClick, index }: ChartLibraryCardProps) {
   const { data: rawResult, isLoading } = useQuery({
-    queryKey: ['chart-thumbnail', chart.datasetId],
+    queryKey: ['chart-thumbnail', chart.datasetId, dataset?.updatedAt],
     queryFn: () =>
       api.post<{ columns: unknown[]; data: Record<string, unknown>[] }>(
         '/api/sql/execute',
