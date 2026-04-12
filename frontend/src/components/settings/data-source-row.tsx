@@ -1,7 +1,7 @@
 import { ChevronRight, Database } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { DatabaseInfo } from '@/types/database'
-import { BACKEND_LABELS, BACKEND_COLORS, STATUS_BORDER_COLORS } from './data-source-card'
+import { BACKEND_LABELS, BACKEND_COLORS, STATUS_BORDER_COLORS } from '@/lib/style-constants'
 import { AnimatedStatusBadge } from './animated-status-badge'
 
 interface DataSourceRowProps {
