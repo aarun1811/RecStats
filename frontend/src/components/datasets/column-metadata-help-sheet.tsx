@@ -235,26 +235,17 @@ export function ColumnMetadataHelpSheet() {
                   <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">for measures</span>
                 </div>
               </AccordionTrigger>
-              <AccordionContent className="px-4 pt-3">
-                <div className="rounded-lg border bg-card overflow-hidden">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="border-b bg-muted/30">
-                        <th className="text-left font-semibold px-3 py-2 w-[120px]">Function</th>
-                        <th className="text-left font-semibold px-3 py-2">Description</th>
-                        <th className="text-left font-semibold px-3 py-2 w-[160px]">Example</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {AGG_ITEMS.map((item, i) => (
-                        <tr key={item.func} className={cn('border-b last:border-b-0', i % 2 === 0 ? '' : 'bg-muted/10')}>
-                          <td className="px-3 py-2 font-mono font-semibold text-foreground">{item.func}</td>
-                          <td className="px-3 py-2 text-muted-foreground">{item.desc}</td>
-                          <td className="px-3 py-2 font-mono text-muted-foreground">{item.example}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+              <AccordionContent className="px-4 pt-1">
+                <div>
+                  {AGG_ITEMS.map((item) => (
+                    <div key={item.func} className="py-2.5 border-b border-border/50 last:border-b-0 flex items-baseline gap-3">
+                      <code className="font-mono text-xs font-semibold text-foreground shrink-0 w-[100px]">{item.func}</code>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-xs text-muted-foreground">{item.desc}</span>
+                        <span className="text-xs text-muted-foreground ml-2 font-mono">({item.example})</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -269,32 +260,18 @@ export function ColumnMetadataHelpSheet() {
                   <span className="text-sm font-semibold">Format Presets</span>
                 </div>
               </AccordionTrigger>
-              <AccordionContent className="px-4 pt-3">
-                <div className="rounded-lg border bg-card overflow-hidden">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="border-b bg-muted/30">
-                        <th className="text-left font-semibold px-3 py-2 w-[100px]">Preset</th>
-                        <th className="text-left font-semibold px-3 py-2">Raw Value</th>
-                        <th className="text-center px-3 py-2 w-[30px]" />
-                        <th className="text-left font-semibold px-3 py-2">Formatted</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {FORMAT_ITEMS.map((item, i) => (
-                        <tr key={item.preset} className={cn('border-b last:border-b-0', i % 2 === 0 ? '' : 'bg-muted/10')}>
-                          <td className="px-3 py-2 font-semibold text-foreground">{item.preset}</td>
-                          <td className="px-3 py-2 font-mono text-muted-foreground">{item.before}</td>
-                          <td className="px-3 py-2 text-center text-muted-foreground">
-                            <ArrowRight className="size-3 inline" />
-                          </td>
-                          <td className="px-3 py-2 font-mono font-semibold text-foreground">{item.after}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+              <AccordionContent className="px-4 pt-1">
+                <div>
+                  {FORMAT_ITEMS.map((item) => (
+                    <div key={item.preset} className="py-2.5 border-b border-border/50 last:border-b-0 flex items-center gap-3">
+                      <span className="text-xs font-semibold text-foreground shrink-0 w-[72px]">{item.preset}</span>
+                      <code className="text-[11px] font-mono text-muted-foreground">{item.before}</code>
+                      <ArrowRight className="size-3 text-muted-foreground shrink-0" />
+                      <code className="text-[11px] font-mono font-semibold text-foreground">{item.after}</code>
+                    </div>
+                  ))}
                 </div>
-                <p className="text-[11px] text-muted-foreground mt-2 pl-1">
+                <p className="text-[11px] text-muted-foreground mt-2">
                   Choose &ldquo;Custom&rdquo; in the grid to enter an Intl.NumberFormat or date-fns pattern.
                 </p>
               </AccordionContent>
