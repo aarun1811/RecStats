@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { AnimatePresence, motion } from 'motion/react'
 
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -238,47 +239,61 @@ export function KpiBuilderPreview({
 
   // Steps 2-5 + all complete: Live KPI value preview
   return (
-    <div className="flex flex-col h-full">
-      {/* Hero KPI value */}
-      <div className="flex flex-1 flex-col items-center justify-center min-h-0 relative">
-        {/* Subtle radial glow */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,hsl(var(--primary)/0.04)_0%,transparent_70%)]" />
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={`${metricColumn}-${aggregation}-${format.type}-${thresholds?.greenAbove}`}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2, ease: 'easeOut' }}
+        className="flex flex-col h-full"
+      >
+        {/* Hero KPI value */}
+        <div className="flex flex-1 flex-col items-center justify-center min-h-0 relative">
+          {/* Subtle radial glow */}
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,hsl(var(--primary)/0.04)_0%,transparent_70%)]" />
 
-        {valueLoading ? (
-          <Skeleton className="h-12 w-36 rounded" />
-        ) : (
-          <div className="relative flex flex-col items-center gap-3">
-            <Badge variant="outline" className="text-[10px] font-medium tracking-wide">
-              {aggregation}
-            </Badge>
-            <CountAnimation
-              number={computedValue}
-              duration={0.8}
-              formatOptions={formatOptions}
-              className={cn(
-                'text-5xl font-bold tabular-nums tracking-tighter',
-                thresholdColor,
+          {valueLoading ? (
+            <Skeleton className="h-12 w-36 rounded" />
+          ) : (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 24 }}
+              className="relative flex flex-col items-center gap-3"
+            >
+              <Badge variant="outline" className="text-[10px] font-medium tracking-wide">
+                {aggregation}
+              </Badge>
+              <CountAnimation
+                number={computedValue}
+                duration={0.8}
+                formatOptions={formatOptions}
+                className={cn(
+                  'text-5xl font-bold tabular-nums tracking-tighter',
+                  thresholdColor,
+                )}
+              />
+              <p className="text-sm text-muted-foreground">
+                {name || 'Untitled KPI'}
+              </p>
+              {subtitle && (
+                <p className="text-xs text-muted-foreground">{subtitle}</p>
               )}
-            />
-            <p className="text-sm text-muted-foreground">
-              {name || 'Untitled KPI'}
+            </motion.div>
+          )}
+        </div>
+
+        {/* Ready to save banner */}
+        {allComplete && (
+          <div className="mt-3 shrink-0 rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-center">
+            <p className="text-sm font-medium">Ready to save</p>
+            <p className="text-xs text-muted-foreground">
+              Name your KPI above and click Save KPI
             </p>
-            {subtitle && (
-              <p className="text-xs text-muted-foreground">{subtitle}</p>
-            )}
           </div>
         )}
-      </div>
-
-      {/* Ready to save banner */}
-      {allComplete && (
-        <div className="mt-3 shrink-0 rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-center">
-          <p className="text-sm font-medium">Ready to save</p>
-          <p className="text-xs text-muted-foreground">
-            Name your KPI above and click Save KPI
-          </p>
-        </div>
-      )}
-    </div>
+      </motion.div>
+    </AnimatePresence>
   )
 }
