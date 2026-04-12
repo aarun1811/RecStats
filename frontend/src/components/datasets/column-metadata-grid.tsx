@@ -100,7 +100,8 @@ export function ColumnMetadataGrid({ columns, onChange }: ColumnMetadataGridProp
       {
         field: 'name',
         headerName: 'Name',
-        width: 110,
+        flex: 2,
+        minWidth: 90,
         editable: false,
         cellRenderer: NameCellRenderer,
         cellRendererParams: {
@@ -110,13 +111,15 @@ export function ColumnMetadataGrid({ columns, onChange }: ColumnMetadataGridProp
       {
         field: 'displayName',
         headerName: 'Display',
-        width: 110,
+        flex: 2,
+        minWidth: 90,
         editable: true,
       },
       {
         field: 'dataType',
         headerName: 'Type',
-        width: 90,
+        flex: 1.5,
+        minWidth: 80,
         editable: true,
         cellEditor: 'agSelectCellEditor',
         cellEditorParams: {
@@ -129,7 +132,8 @@ export function ColumnMetadataGrid({ columns, onChange }: ColumnMetadataGridProp
       {
         field: 'role',
         headerName: 'Role',
-        width: 95,
+        flex: 1.5,
+        minWidth: 80,
         editable: true,
         cellEditor: 'agSelectCellEditor',
         cellEditorParams: {
@@ -142,7 +146,8 @@ export function ColumnMetadataGrid({ columns, onChange }: ColumnMetadataGridProp
       {
         field: 'aggregation',
         headerName: 'Agg',
-        width: 80,
+        flex: 1,
+        minWidth: 70,
         editable: true,
         cellEditor: 'agSelectCellEditor',
         cellEditorParams: {
@@ -155,7 +160,7 @@ export function ColumnMetadataGrid({ columns, onChange }: ColumnMetadataGridProp
       {
         field: 'formatPreset',
         headerName: 'Format',
-        flex: 1,
+        flex: 1.5,
         minWidth: 75,
         editable: true,
         cellEditor: 'agSelectCellEditor',
@@ -220,6 +225,7 @@ export function ColumnMetadataGrid({ columns, onChange }: ColumnMetadataGridProp
         getRowClass={getRowClass}
         onCellValueChanged={onCellValueChanged}
         domLayout={useAutoHeight ? 'autoHeight' : 'normal'}
+        autoSizeStrategy={{ type: 'fitGridWidth' }}
         singleClickEdit
         stopEditingWhenCellsLoseFocus
         getRowId={(params) => params.data.name}

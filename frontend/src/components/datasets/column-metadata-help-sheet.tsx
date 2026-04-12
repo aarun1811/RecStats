@@ -1,4 +1,4 @@
-import { HelpCircle, Target, Type, Calculator, Paintbrush, BarChart3, ArrowRight, Columns3 } from 'lucide-react'
+import { BookOpen, Target, Type, Calculator, Paintbrush, BarChart3, ArrowRight, Columns3 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -154,7 +154,7 @@ export function ColumnMetadataHelpSheet() {
     <Sheet>
       <SheetTrigger asChild>
         <Button variant="outline" size="sm" className="h-6 w-6 p-0 rounded-full" aria-label="Column metadata reference">
-          <HelpCircle className="size-3.5" />
+          <BookOpen className="size-3.5" />
         </Button>
       </SheetTrigger>
       <SheetContent side="right" className="sm:max-w-xl overflow-y-auto p-0">

@@ -12,7 +12,7 @@ export function RoleBadgeRenderer(params: ICellRendererParams<MergedColumn>) {
 
   return (
     <span className={cn(
-      'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold min-w-[60px] justify-center',
+      'inline-flex items-center px-2.5 py-px rounded-full text-[10px] font-semibold',
       COLUMN_ROLE_STYLES[role],
     )}>
       {COLUMN_ROLE_LABELS[role]}

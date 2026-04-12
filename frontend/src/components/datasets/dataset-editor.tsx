@@ -3,7 +3,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { motion, AnimatePresence } from 'motion/react'
 import { toast } from 'sonner'
 import { format as formatSql } from 'sql-formatter'
-import { ArrowLeft, Play, Loader2, Trash2, Save, Columns3, Eye, Code2 } from 'lucide-react'
+import { ArrowLeft, Play, Loader2, Trash2, Save, Columns3, Eye, Code2, Maximize2 } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -15,6 +15,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { SqlEditor } from '@/components/explorer/sql-editor'
 import { ColumnMetadataGrid } from '@/components/datasets/column-metadata-grid'
@@ -68,6 +74,7 @@ export function DatasetEditor({ mode, dataset, isLoading }: DatasetEditorProps) 
   const [queryResult, setQueryResult] = useState<SqlResult | null>(null)
   const [showFormatted, setShowFormatted] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [metadataExpanded, setMetadataExpanded] = useState(false)
 
   // Run state machine
   const [runState, setRunState] = useState<RunState>('idle')
@@ -515,6 +522,15 @@ export function DatasetEditor({ mode, dataset, isLoading }: DatasetEditorProps) 
                 )}
               </AnimatePresence>
               <ColumnMetadataHelpSheet />
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-6 w-6 p-0 rounded-full"
+                aria-label="Expand column metadata"
+                onClick={() => setMetadataExpanded(true)}
+              >
+                <Maximize2 className="size-3" />
+              </Button>
             </div>
           </div>
           {columns.length > 0 ? (
@@ -534,6 +550,21 @@ export function DatasetEditor({ mode, dataset, isLoading }: DatasetEditorProps) 
           )}
         </div>
       </div>
+
+      {/* Expanded column metadata dialog */}
+      <Dialog open={metadataExpanded} onOpenChange={setMetadataExpanded}>
+        <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Columns3 className="size-4 text-muted-foreground" />
+              Column Metadata
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 min-h-0 overflow-auto">
+            <ColumnMetadataGrid columns={columns} onChange={setColumns} />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete dialog */}
       {mode === 'edit' && dataset && (
