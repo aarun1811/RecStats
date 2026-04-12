@@ -192,10 +192,11 @@ export function ColumnMetadataGrid({ columns, onChange }: ColumnMetadataGridProp
 
   const onCellValueChanged = useCallback(
     (event: CellValueChangedEvent<MergedColumn>) => {
-      if (!event.data) return
+      if (!event.data || !event.colDef.field) return
+      const field = event.colDef.field
       const updated = columns.map((col) => {
         if (col.name === event.data!.name) {
-          return { ...col, [event.colDef.field as string]: event.newValue }
+          return { ...col, [field]: event.newValue }
         }
         return col
       })
