@@ -177,6 +177,7 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
     font-family: "Inter", system-ui, sans-serif;
+    transition: font-size 200ms ease, line-height 200ms ease;
   }
 }
 
@@ -197,5 +198,12 @@
   /* Smooth focus transitions */
   input, select, textarea, button {
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  /* Form focus glow — premium subtle ring */
+  input:focus,
+  textarea:focus,
+  select:focus {
+    @apply ring-2 ring-ring/20;
   }
 }
