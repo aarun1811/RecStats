@@ -151,7 +151,38 @@ None identified in Phase 2.
 
 ## Phase 3: Datasets Page
 
-*(To be filled by Phase 3 executor)*
+### Files Added
+
+| File | Plan | Purpose |
+|------|------|---------|
+| `frontend/src/lib/style-constants.ts` | 03-01 | Shared style maps extracted from data-source-card (backend labels/colors, status styles, column role/type badges) |
+| `frontend/src/components/datasets/role-badge-renderer.tsx` | 03-02 | AG Grid cell renderer for color-coded role badges using COLUMN_ROLE_STYLES |
+| `frontend/src/components/datasets/type-badge-renderer.tsx` | 03-02 | AG Grid cell renderer for color-coded type badges using COLUMN_TYPE_STYLES |
+| `frontend/src/components/datasets/column-header-with-tooltip.tsx` | 03-02 | AG Grid custom header component with info icon tooltip |
+| `frontend/src/components/datasets/column-metadata-help-sheet.tsx` | 03-02 | Column metadata reference Sheet with staggered entrance animations |
+
+### Files Modified
+
+| File | Plan | Change |
+|------|------|--------|
+| `frontend/src/components/datasets/dataset-card.tsx` | 03-01 | Motion hover lift, border-l accent, bg-muted icon container, column role summary pills, stagger entrance |
+| `frontend/src/components/datasets/dataset-row.tsx` | 03-01 | Motion hover lift, border-l accent, bg-muted icon container, inline role summary, stagger entrance |
+| `frontend/src/components/datasets/dataset-list.tsx` | 03-01 | AnimatePresence crossfade, stagger index passing, animated empty states |
+| `frontend/src/routes/_app/datasets/index.tsx` | 03-01 | Staggered page entrance (title + content) |
+| `frontend/src/routes/_app/datasets/new.tsx` | 03-01 | Y-slide entrance animation |
+| `frontend/src/routes/_app/datasets/$datasetId.edit.tsx` | 03-01 | Y-slide entrance animation |
+| `frontend/src/components/settings/data-source-card.tsx` | 03-01 | Local constants removed, imports from style-constants |
+| `frontend/src/components/explorer/sql-editor.tsx` | 03-02 | Format SQL button, Code2 icon, border-l-primary accent, run state indicator |
+| `frontend/src/components/datasets/dataset-editor.tsx` | 03-02 | Mode badge, section icons, run state machine, execution stats, discard-missing, help sheet, empty state pulse |
+| `frontend/src/components/datasets/column-metadata-grid.tsx` | 03-02 | Role/type badge renderers, Tailwind row class tints, header tooltips, strikethrough missing rows |
+
+### Files Removed
+
+None.
+
+### Dead Code Candidates [audit]
+
+None identified in Phase 3.
 
 ## Phase 4: Charts Page
 
