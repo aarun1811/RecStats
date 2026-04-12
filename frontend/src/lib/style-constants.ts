@@ -176,6 +176,8 @@ export const KPI_AGG_PILL_TEXT: Record<AggregationType, string> = {
   COUNT_DISTINCT: 'text-teal-600 dark:text-teal-400',
 }
 
+// --- KPI threshold border display constants ---
+
 export const THRESHOLD_BORDER_COLORS: Record<string, string> = {
   green: 'border-l-green-500',
   amber: 'border-l-amber-500',

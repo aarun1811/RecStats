@@ -11,6 +11,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
+import { motion } from 'motion/react'
 
 import { cn } from '@/lib/utils'
 import {
@@ -32,6 +33,7 @@ import {
   getTrendSubtitle,
   THRESHOLD_STYLES,
 } from '@/lib/kpi-utils'
+import { THRESHOLD_BORDER_COLORS } from '@/lib/style-constants'
 import { DeleteKpiDialog } from './delete-kpi-dialog'
 import type { RecvizDataset } from '@/types/managed-dataset'
 import type { FormatNumberOptions } from '@/types/formatting'
@@ -110,7 +112,12 @@ export function KpiDetailPanel({
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
           side="right"
-          className="w-[500px] sm:max-w-[500px] p-0 gap-0 flex flex-col border-l-0"
+          className={cn(
+            'w-[500px] sm:max-w-[500px] p-0 gap-0 flex flex-col border-l-2',
+            kpiLoading || !kpi
+              ? 'border-l-muted'
+              : THRESHOLD_BORDER_COLORS[thresholdLevel],
+          )}
         >
           {kpiLoading ? (
             <div className="space-y-4 p-6">
@@ -125,7 +132,12 @@ export function KpiDetailPanel({
               <Skeleton className="h-4 w-3/4" />
             </div>
           ) : kpi ? (
-            <>
+            <motion.div
+              initial={{ opacity: 0, x: 16 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+              className="flex-1 overflow-hidden flex flex-col"
+            >
               <div className="flex-1 overflow-y-auto flex flex-col">
                 {/* Header */}
                 <SheetHeader className="px-6 pt-6 pb-2">
@@ -179,7 +191,7 @@ export function KpiDetailPanel({
                 <div className="grid grid-cols-2 gap-x-4 gap-y-3 px-6 py-5">
                   <div>
                     <div className="flex items-center gap-1.5 mb-1">
-                      <Database className="size-3 text-muted-foreground" />
+                      <Database className="size-3 text-primary/60" />
                       <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
                         Dataset
                       </span>
@@ -188,7 +200,7 @@ export function KpiDetailPanel({
                   </div>
                   <div>
                     <div className="flex items-center gap-1.5 mb-1">
-                      <Hash className="size-3 text-muted-foreground" />
+                      <Hash className="size-3 text-primary/60" />
                       <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
                         Metric Column
                       </span>
@@ -199,7 +211,7 @@ export function KpiDetailPanel({
                   </div>
                   <div>
                     <div className="flex items-center gap-1.5 mb-1">
-                      <Settings2 className="size-3 text-muted-foreground" />
+                      <Settings2 className="size-3 text-primary/60" />
                       <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
                         Format
                       </span>
@@ -208,7 +220,7 @@ export function KpiDetailPanel({
                   </div>
                   <div>
                     <div className="flex items-center gap-1.5 mb-1">
-                      <Calendar className="size-3 text-muted-foreground" />
+                      <Calendar className="size-3 text-primary/60" />
                       <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
                         Created
                       </span>
@@ -300,11 +312,13 @@ export function KpiDetailPanel({
                   size="icon"
                   className="h-9 w-9 shrink-0 text-muted-foreground hover:text-destructive"
                   onClick={() => setDeleteDialogOpen(true)}
+                  aria-label="Delete KPI"
+                  title="Delete KPI"
                 >
                   <Trash2 className="size-4" />
                 </Button>
               </div>
-            </>
+            </motion.div>
           ) : null}
         </SheetContent>
       </Sheet>
