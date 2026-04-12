@@ -138,7 +138,12 @@ Plans:
   2. User can open the chart builder, preview each supported AG Charts type (line, bar, area, pie, donut, scatter, heatmap, treemap, waterfall, bullet, box plot, combo) and each supported ECharts type (Sankey, sunburst, radar, gauge, parallel coords, funnel), and every chart renders with palette-derived colors (no leftover hex)
   3. User can save a chart and re-open it for edit without any gray-only or mis-themed rendering
   4. Stored chart config JSON in `recviz_charts.config` is audited and any stale hex color overrides from earlier builds are migrated or purged
-**Plans**: TBD
+**Plans**: 4 plans
+Plans:
+- [ ] 04-01-PLAN.md — Style constants + CSS tokens + hex migration + chart config audit
+- [ ] 04-02-PLAN.md — List page colorization + animations + ECharts thumbnails + detail panel
+- [ ] 04-03-PLAN.md — Builder wizard polish + appearance expansion + tooltips + help sheet
+- [ ] 04-04-PLAN.md — Stored config hex audit + console error triage + USAGE-TRACKER
 **UI hint**: yes
 **Known risks / gotchas**:
   - `frontend/src/types/chart.ts` and `frontend/src/components/charts/builder/step-appearance.tsx` may carry hard-coded hex in chart config defaults — must grep and replace with CSS variable references.
@@ -231,7 +236,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 1. Infrastructure Cutover | 6/6 | Complete | - |
 | 2. Settings Page | 3/3 | Complete | 2026-04-12 |
 | 3. Datasets Page | 0/3 | Not started | - |
-| 4. Charts Page | 0/TBD | Not started | - |
+| 4. Charts Page | 0/4 | Not started | - |
 | 5. KPIs Page | 0/TBD | Not started | - |
 | 6. Dashboards Page | 0/TBD | Not started | - |
 | 7. Explorer Page | 0/TBD | Not started | - |
