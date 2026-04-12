@@ -415,18 +415,18 @@ function DetailView({
 
   return (
     <>
-      <SheetHeader className="border-b px-6 py-4">
+      {/* ── Fixed Header ── */}
+      <SheetHeader className="border-b px-6 py-4 shrink-0">
         <div className="flex items-center gap-3">
-          <Database className={cn('size-5', BACKEND_COLORS[backendKey] ?? 'text-muted-foreground')} />
+          <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10">
+            <Database className={cn('size-5', BACKEND_COLORS[backendKey] ?? 'text-muted-foreground')} />
+          </div>
           <div className="flex-1 min-w-0">
-            <SheetTitle className="text-base truncate">{database.databaseName}</SheetTitle>
-            <SheetDescription>
+            <SheetTitle className="text-base font-semibold truncate">{database.databaseName}</SheetTitle>
+            <SheetDescription className="text-xs">
               {BACKEND_LABELS[backendKey] || database.backend}
               {database.createdOn && (
-                <> &middot; Created {new Date(database.createdOn).toLocaleDateString()}</>
-              )}
-              {database.lastTested && (
-                <> &middot; Last tested {new Date(database.lastTested).toLocaleString()}</>
+                <> &middot; {new Date(database.createdOn).toLocaleDateString()}</>
               )}
             </SheetDescription>
           </div>
@@ -434,116 +434,104 @@ function DetailView({
         </div>
       </SheetHeader>
 
-      <ScrollArea className="flex-1">
-        <div className="p-6 space-y-6">
-          {/* Connection Health Header */}
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.25, delay: 0 * 0.05 }}
-          >
-            <ConnectionHealthHeader database={database} />
-          </motion.div>
+      {/* ── Fixed Health Summary ── */}
+      <motion.div
+        className="px-6 py-4 border-b bg-muted/30 shrink-0"
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.2 }}
+      >
+        <ConnectionHealthHeader database={database} />
+      </motion.div>
 
-          {/* Datasets Section */}
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.25, delay: 1 * 0.05 }}
-          >
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-medium">
-                Datasets{' '}
-                <span className="text-muted-foreground font-normal">
-                  ({datasets.length} of {totalDatasets})
-                </span>
-              </h3>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 text-xs"
-                onClick={onSync}
-                disabled={syncMutation.isPending}
-              >
-                <RefreshCw className={cn('mr-1 size-3', syncMutation.isPending && 'animate-spin')} />
-                Sync Datasets
-              </Button>
+      {/* ── Datasets Header (fixed) ── */}
+      <div className="px-6 pt-4 pb-2 flex items-center justify-between shrink-0">
+        <h3 className="text-sm font-medium">
+          Datasets{' '}
+          <span className="text-muted-foreground font-normal">
+            ({datasets.length} of {totalDatasets})
+          </span>
+        </h3>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 text-xs"
+          onClick={onSync}
+          disabled={syncMutation.isPending}
+        >
+          <RefreshCw className={cn('mr-1 size-3', syncMutation.isPending && 'animate-spin')} />
+          Sync Datasets
+        </Button>
+      </div>
+
+      {/* ── Scrollable Datasets List (only this scrolls) ── */}
+      <ScrollArea className="flex-1 min-h-0">
+        <div className="px-6 pb-4">
+          {datasetsLoading ? (
+            <div className="space-y-2">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-9 w-full" />
+              ))}
             </div>
-
-            {datasetsLoading ? (
-              <div className="space-y-2">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Skeleton key={i} className="h-9 w-full" />
-                ))}
-              </div>
-            ) : datasets.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">
-                No datasets found. Click Sync to refresh.
-              </p>
-            ) : (
-              <div className="space-y-1">
-                {datasets.map((ds) => (
-                  <div key={ds.id}>
-                    <button
-                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted/50 transition-colors"
-                      onClick={() => onToggleDataset(ds.id)}
-                    >
-                      {expandedDataset === ds.id ? (
-                        <ChevronDown className="size-3.5 text-muted-foreground shrink-0" />
-                      ) : (
-                        <ChevronRight className="size-3.5 text-muted-foreground shrink-0" />
-                      )}
-                      <span className="font-mono text-xs truncate flex-1 text-left">
-                        {ds.tableName}
-                      </span>
-                      <span className="text-[10px] text-muted-foreground shrink-0">
-                        {ds.columnCount} cols
-                      </span>
-                    </button>
-                    {expandedDataset === ds.id && (
-                      <ExpandedDatasetColumns datasetId={ds.id} />
-                    )}
-                  </div>
-                ))}
-                {hasNextPage && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full h-8 text-xs text-muted-foreground"
-                    onClick={onLoadMore}
-                    disabled={isFetchingNextPage}
+          ) : datasets.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">
+              No datasets found. Click Sync Datasets to refresh.
+            </p>
+          ) : (
+            <div className="space-y-1">
+              {datasets.map((ds) => (
+                <div key={ds.id}>
+                  <button
+                    className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted/50 transition-colors"
+                    onClick={() => onToggleDataset(ds.id)}
                   >
-                    {isFetchingNextPage ? (
-                      <Loader2 className="mr-1 size-3 animate-spin" />
-                    ) : null}
-                    Load more...
-                  </Button>
-                )}
-              </div>
-            )}
-          </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.25, delay: 2 * 0.05 }}
-          >
-            <Separator />
-          </motion.div>
-
+                    {expandedDataset === ds.id ? (
+                      <ChevronDown className="size-3.5 text-muted-foreground shrink-0" />
+                    ) : (
+                      <ChevronRight className="size-3.5 text-muted-foreground shrink-0" />
+                    )}
+                    <span className="font-mono text-xs truncate flex-1 text-left">
+                      {ds.tableName}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground shrink-0">
+                      {ds.columnCount} cols
+                    </span>
+                  </button>
+                  {expandedDataset === ds.id && (
+                    <ExpandedDatasetColumns datasetId={ds.id} />
+                  )}
+                </div>
+              ))}
+              {hasNextPage && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full h-8 text-xs text-muted-foreground"
+                  onClick={onLoadMore}
+                  disabled={isFetchingNextPage}
+                >
+                  {isFetchingNextPage ? (
+                    <Loader2 className="mr-1 size-3 animate-spin" />
+                  ) : null}
+                  Load more...
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       </ScrollArea>
 
-      {/* Sticky Footer — always visible regardless of scroll */}
-      <div className="border-t p-4 space-y-3 shrink-0">
-        <ConnectionTestArea
-          onTest={onTestConnection}
-          isPending={testMutation.isPending}
-          result={testResult}
-        />
-        <div className="flex items-center justify-between">
+      {/* ── Sticky Footer (always visible) ── */}
+      <div className="border-t bg-background shrink-0">
+        <div className="px-6 py-3">
+          <ConnectionTestArea
+            onTest={onTestConnection}
+            isPending={testMutation.isPending}
+            result={testResult}
+          />
+        </div>
+        <Separator />
+        <div className="px-6 py-3 flex items-center justify-between">
           <Button variant="outline" size="sm" onClick={onEdit}>
             <Pencil className="mr-1.5 size-3.5" />
             Edit Source
