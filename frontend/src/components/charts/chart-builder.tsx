@@ -574,6 +574,7 @@ export function ChartBuilder({
                               appearance={state.appearance}
                               onChange={handleAppearanceChange}
                               chartType={state.chartType}
+                              metricColumns={state.columnMapping.metricColumns}
                             />
                             <div className="flex justify-end">
                               <Button

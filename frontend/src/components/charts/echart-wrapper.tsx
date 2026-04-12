@@ -53,6 +53,7 @@ function buildEChartsOption(
   data: Record<string, unknown>[],
   metricColumns: string[],
   categoryColumn: string | undefined,
+  appearance?: { typeSpecific?: Record<string, unknown> },
 ): echarts.EChartsCoreOption {
   const palette = getChartPalette()
   // Config-driven resolution (same pattern as AG Charts)
@@ -130,19 +131,25 @@ function buildEChartsOption(
     case 'gauge': {
       // Config-driven: use resolved metricKey instead of columns[1]
       const value = Number(data[0]?.[metricKey] ?? 0)
+      const gaugeMin = (appearance?.typeSpecific?.gaugeMin as number) ?? 0
+      const gaugeMax = (appearance?.typeSpecific?.gaugeMax as number) ?? 100
+      const dangerCutoff = ((appearance?.typeSpecific?.gaugeDangerCutoff as number) ?? 30) / 100
+      const warningCutoff = ((appearance?.typeSpecific?.gaugeWarningCutoff as number) ?? 70) / 100
       return {
         tooltip: { formatter: '{b}: {c}%' },
         series: [
           {
             type: 'gauge',
+            min: gaugeMin,
+            max: gaugeMax,
             detail: { formatter: '{value}%', fontSize: 20 },
             data: [{ value, name: String(data[0]?.[categoryKey] ?? '') }],
             axisLine: {
               lineStyle: {
                 width: 15,
                 color: [
-                  [0.3, resolveColor('--chart-negative')],
-                  [0.7, resolveColor('--chart-warning')],
+                  [dangerCutoff, resolveColor('--chart-negative')],
+                  [warningCutoff, resolveColor('--chart-warning')],
                   [1, resolveColor('--chart-positive')],
                 ],
               },
@@ -306,6 +313,7 @@ export const EChartWrapper = forwardRef<EChartRef, ChartWrapperProps>(function E
       data.data,
       config.metricColumns ?? [],
       config.categoryColumn,
+      config.appearance,
     )
   }, [data, config.vizType, config.metricColumns, config.categoryColumn, themeReady])
 

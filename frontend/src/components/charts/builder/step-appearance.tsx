@@ -92,9 +92,10 @@ interface StepAppearanceProps {
   appearance: ChartAppearance
   onChange: (appearance: ChartAppearance) => void
   chartType?: LibraryChartType | null
+  metricColumns?: string[]
 }
 
-export function StepAppearance({ appearance, onChange, chartType }: StepAppearanceProps) {
+export function StepAppearance({ appearance, onChange, chartType, metricColumns = [] }: StepAppearanceProps) {
   // Helpers to read/write typeSpecific fields
   function getTypeField<T>(key: string, defaultValue: T): T {
     return (appearance.typeSpecific?.[key] as T) ?? defaultValue
@@ -375,6 +376,26 @@ export function StepAppearance({ appearance, onChange, chartType }: StepAppearan
           }
         />
       </div>
+
+      {/* Series Colors — available for all chart types with metrics */}
+      {metricColumns.length > 0 && (
+        <>
+          <Separator />
+          <div className="space-y-3">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              Series Colors
+            </p>
+            {metricColumns.map((col, i) => (
+              <ColorSwatchPicker
+                key={col}
+                label={col}
+                value={getTypeField(`seriesColor_${i}`, PRESET_COLORS[i % PRESET_COLORS.length].var)}
+                onChange={(v) => setTypeField(`seriesColor_${i}`, v)}
+              />
+            ))}
+          </div>
+        </>
+      )}
 
       {/* Chart-type-specific options */}
       {typeFields && (
