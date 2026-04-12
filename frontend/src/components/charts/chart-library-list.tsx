@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from '@tanstack/react-router'
-import { PieChart, Plus } from 'lucide-react'
+import { AnimatePresence, motion } from 'motion/react'
+import { PieChart, Plus, Search } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -115,35 +116,53 @@ export function ChartLibraryList() {
           </EmptyContent>
         </Empty>
       ) : filtered.length === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">
-          No charts matching &ldquo;{searchQuery}&rdquo;
-        </p>
-      ) : viewMode === 'grid' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filtered.map((chart) => {
-            const ds = datasetMap.get(chart.datasetId)
-            return (
-              <ChartLibraryCard
-                key={chart.id}
-                chart={chart}
-                dataset={ds?.dataset}
-                datasetName={ds?.name ?? 'Unknown'}
-                onClick={() => setSelectedChartId(chart.id)}
-              />
-            )
-          })}
-        </div>
+        <Empty className="border rounded-lg">
+          <EmptyHeader>
+            <EmptyMedia variant="icon"><Search /></EmptyMedia>
+            <EmptyTitle>No charts matching &ldquo;{searchQuery}&rdquo;</EmptyTitle>
+            <EmptyDescription>Try a different search term or clear your filters.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       ) : (
-        <div className="space-y-2">
-          {filtered.map((chart) => (
-            <ChartLibraryRow
-              key={chart.id}
-              chart={chart}
-              datasetName={datasetMap.get(chart.datasetId)?.name ?? 'Unknown'}
-              onClick={() => setSelectedChartId(chart.id)}
-            />
-          ))}
-        </div>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={viewMode}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            {viewMode === 'grid' ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {filtered.map((chart, i) => {
+                  const ds = datasetMap.get(chart.datasetId)
+                  return (
+                    <ChartLibraryCard
+                      key={chart.id}
+                      chart={chart}
+                      dataset={ds?.dataset}
+                      datasetName={ds?.name ?? 'Unknown'}
+                      onClick={() => setSelectedChartId(chart.id)}
+                      index={i}
+                    />
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {filtered.map((chart, i) => (
+                  <ChartLibraryRow
+                    key={chart.id}
+                    chart={chart}
+                    datasetName={datasetMap.get(chart.datasetId)?.name ?? 'Unknown'}
+                    onClick={() => setSelectedChartId(chart.id)}
+                    index={i}
+                  />
+                ))}
+              </div>
+            )}
+          </motion.div>
+        </AnimatePresence>
       )}
 
       <ChartDetailPanel
