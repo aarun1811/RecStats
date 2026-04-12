@@ -1,5 +1,6 @@
 import type { DatabaseBackend, ConnectionStatus } from '@/types/database'
 import type { ColumnRole, ColumnDataType } from '@/types/managed-dataset'
+import type { LibraryChartType } from '@/types/managed-chart'
 
 // --- Backend (database engine) display constants ---
 
@@ -72,4 +73,75 @@ export const COLUMN_TYPE_LABELS: Record<ColumnDataType, string> = {
   number: 'Number',
   date: 'Date',
   currency: 'Currency',
+}
+
+// --- Chart type accent display constants ---
+
+export const CHART_TYPE_BORDER_COLORS: Record<LibraryChartType, string> = {
+  'bar': 'border-l-blue-500',
+  'stacked-bar': 'border-l-blue-500',
+  'line': 'border-l-sky-500',
+  'area': 'border-l-cyan-500',
+  'pie': 'border-l-violet-500',
+  'donut': 'border-l-violet-500',
+  'scatter': 'border-l-indigo-500',
+  'heatmap': 'border-l-orange-500',
+  'treemap': 'border-l-emerald-500',
+  'waterfall': 'border-l-teal-500',
+  'bullet': 'border-l-slate-500',
+  'box-plot': 'border-l-zinc-500',
+  'combo': 'border-l-rose-500',
+  'sankey': 'border-l-amber-500',
+  'sunburst': 'border-l-yellow-500',
+  'radar': 'border-l-lime-500',
+  'gauge': 'border-l-red-500',
+  'funnel': 'border-l-fuchsia-500',
+  'graph': 'border-l-pink-500',
+  'parallel': 'border-l-purple-500',
+}
+
+export const CHART_TYPE_PILL_BG: Record<LibraryChartType, string> = {
+  'bar': 'bg-blue-500/15',
+  'stacked-bar': 'bg-blue-500/15',
+  'line': 'bg-sky-500/15',
+  'area': 'bg-cyan-500/15',
+  'pie': 'bg-violet-500/15',
+  'donut': 'bg-violet-500/15',
+  'scatter': 'bg-indigo-500/15',
+  'heatmap': 'bg-orange-500/15',
+  'treemap': 'bg-emerald-500/15',
+  'waterfall': 'bg-teal-500/15',
+  'bullet': 'bg-slate-500/15',
+  'box-plot': 'bg-zinc-500/15',
+  'combo': 'bg-rose-500/15',
+  'sankey': 'bg-amber-500/15',
+  'sunburst': 'bg-yellow-500/15',
+  'radar': 'bg-lime-500/15',
+  'gauge': 'bg-red-500/15',
+  'funnel': 'bg-fuchsia-500/15',
+  'graph': 'bg-pink-500/15',
+  'parallel': 'bg-purple-500/15',
+}
+
+export const CHART_TYPE_PILL_TEXT: Record<LibraryChartType, string> = {
+  'bar': 'text-blue-600 dark:text-blue-400',
+  'stacked-bar': 'text-blue-600 dark:text-blue-400',
+  'line': 'text-sky-600 dark:text-sky-400',
+  'area': 'text-cyan-600 dark:text-cyan-400',
+  'pie': 'text-violet-600 dark:text-violet-400',
+  'donut': 'text-violet-600 dark:text-violet-400',
+  'scatter': 'text-indigo-600 dark:text-indigo-400',
+  'heatmap': 'text-orange-600 dark:text-orange-400',
+  'treemap': 'text-emerald-600 dark:text-emerald-400',
+  'waterfall': 'text-teal-600 dark:text-teal-400',
+  'bullet': 'text-slate-600 dark:text-slate-400',
+  'box-plot': 'text-zinc-600 dark:text-zinc-400',
+  'combo': 'text-rose-600 dark:text-rose-400',
+  'sankey': 'text-amber-600 dark:text-amber-400',
+  'sunburst': 'text-yellow-600 dark:text-yellow-400',
+  'radar': 'text-lime-600 dark:text-lime-400',
+  'gauge': 'text-red-600 dark:text-red-400',
+  'funnel': 'text-fuchsia-600 dark:text-fuchsia-400',
+  'graph': 'text-pink-600 dark:text-pink-400',
+  'parallel': 'text-purple-600 dark:text-purple-400',
 }

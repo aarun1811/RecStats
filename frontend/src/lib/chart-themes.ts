@@ -63,10 +63,11 @@ const HEX_FALLBACKS: Record<string, string> = {
   '--color-ramp-high': '#2641a0',
   '--chart-positive': '#22c55e',
   '--chart-negative': '#ef4444',
+  '--chart-warning': '#d4a030',
   '--primary-foreground': '#f0f0ff',
 }
 
-function resolveColor(cssVar: string): string {
+export function resolveColor(cssVar: string): string {
   const raw = getCssVar(cssVar)
   if (!raw || raw.trim() === '') {
     // Fallback: DOM not yet painted or variable undefined

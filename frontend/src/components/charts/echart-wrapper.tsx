@@ -5,7 +5,7 @@ import { SankeyChart, RadarChart, SunburstChart, GaugeChart, FunnelChart, GraphC
 import { TitleComponent, TooltipComponent, LegendComponent, GridComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import { SVGRenderer } from 'echarts/renderers'
-import { getEChartsTheme, getChartPalette } from '@/lib/chart-themes'
+import { getEChartsTheme, getChartPalette, resolveColor } from '@/lib/chart-themes'
 import { useTheme } from '@/components/layout/theme-provider'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
@@ -141,9 +141,9 @@ function buildEChartsOption(
               lineStyle: {
                 width: 15,
                 color: [
-                  [0.3, '#ef4444'],
-                  [0.7, '#f59e0b'],
-                  [1, '#10b981'],
+                  [0.3, resolveColor('--chart-negative')],
+                  [0.7, resolveColor('--chart-warning')],
+                  [1, resolveColor('--chart-positive')],
                 ],
               },
             },

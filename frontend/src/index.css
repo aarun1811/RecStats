@@ -55,6 +55,7 @@
   --color-ramp-high: var(--color-ramp-high);
   --color-chart-positive: var(--chart-positive);
   --color-chart-negative: var(--chart-negative);
+  --color-chart-warning: var(--chart-warning);
 }
 
 :root {
@@ -102,6 +103,7 @@
   --color-ramp-high: oklch(0.424 0.199 265.638);
   --chart-positive: oklch(0.648 0.15 160);
   --chart-negative: oklch(0.577 0.245 27.325);
+  --chart-warning: oklch(0.769 0.188 70.08);
 }
 
 .dark {
@@ -148,6 +150,7 @@
   --color-ramp-high: oklch(0.424 0.199 265.638);
   --chart-positive: oklch(0.696 0.17 162.48);
   --chart-negative: oklch(0.704 0.191 22.216);
+  --chart-warning: oklch(0.769 0.188 70.08);
 }
 
 /* AG Grid token bridge — reads shadcn CSS variables */

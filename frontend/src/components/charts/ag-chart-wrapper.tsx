@@ -1,7 +1,7 @@
 import { useMemo, useRef, useEffect, useState, forwardRef, useImperativeHandle } from 'react'
 import { AgCharts } from 'ag-charts-react'
 import type { AgChartOptions, AgChartInstance } from 'ag-charts-enterprise'
-import { getAgChartsTheme } from '@/lib/chart-themes'
+import { getAgChartsTheme, resolveColor } from '@/lib/chart-themes'
 import { useTheme } from '@/components/layout/theme-provider'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
@@ -156,7 +156,7 @@ export function buildSeries(
         type: 'treemap' as const,
         labelKey,
         sizeKey,
-        ...(colorKey ? { colorKey, colorRange: appearance?.colorRange ?? ['#43A047', '#FF5722'] } : {}),
+        ...(colorKey ? { colorKey, colorRange: appearance?.colorRange ?? [resolveColor('--chart-positive'), resolveColor('--chart-negative')] } : {}),
       }]
     }
 
