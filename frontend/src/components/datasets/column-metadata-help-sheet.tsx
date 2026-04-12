@@ -185,9 +185,9 @@ export function ColumnMetadataHelpSheet() {
                 </div>
               </AccordionTrigger>
               <AccordionContent className="px-4 pt-3">
-                <div className="space-y-3">
+                <div>
                   {ROLE_ITEMS.map((item) => (
-                    <div key={item.role} className="rounded-lg border bg-card p-3 space-y-1.5">
+                    <div key={item.role} className="py-3 space-y-1.5 border-b border-border/50 last:border-b-0">
                       <InlineBadge className={COLUMN_ROLE_STYLES[item.role]}>
                         {COLUMN_ROLE_LABELS[item.role]}
                       </InlineBadge>
@@ -210,9 +210,9 @@ export function ColumnMetadataHelpSheet() {
                 </div>
               </AccordionTrigger>
               <AccordionContent className="px-4 pt-3">
-                <div className="space-y-3">
+                <div>
                   {TYPE_ITEMS.map((item) => (
-                    <div key={item.type} className="rounded-lg border bg-card p-3 space-y-1.5">
+                    <div key={item.type} className="py-3 space-y-1.5 border-b border-border/50 last:border-b-0">
                       <InlineBadge className={COLUMN_TYPE_STYLES[item.type]}>
                         {COLUMN_TYPE_LABELS[item.type]}
                       </InlineBadge>
