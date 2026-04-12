@@ -914,21 +914,26 @@ function ExpandedDatasetColumns({ datasetId }: ExpandedDatasetColumnsProps) {
   }
 
   return (
-    <div className="ml-6 pl-2 border-l py-1 space-y-0.5">
+    <div className="ml-6 pl-3 border-l border-muted py-1.5 space-y-px">
       {dataset.columns.map((col) => (
         <div
           key={col.name}
-          className="flex items-center gap-2 text-xs text-muted-foreground"
-          title={`${col.displayName || col.name} — ${col.dataType} (${col.role})`}
+          className="flex items-center gap-2 text-xs text-muted-foreground py-0.5 px-1 rounded hover:bg-muted/50 transition-colors group"
         >
-          <span className="font-mono truncate flex-1">{col.name}</span>
-          <Badge
-            variant="outline"
-            className="text-[9px] px-1 py-0 h-3.5 shrink-0 font-mono"
-          >
+          <span className="font-mono truncate flex-1 text-foreground/70 group-hover:text-foreground transition-colors">
+            {col.name}
+          </span>
+          <span className="text-[10px] tabular-nums text-muted-foreground/70 shrink-0 w-16 text-right font-mono">
             {col.dataType}
-          </Badge>
-          <span className="text-[9px] uppercase tracking-wide text-muted-foreground shrink-0">
+          </span>
+          <span className={cn(
+            'text-[9px] uppercase tracking-wider shrink-0 w-20 text-right font-medium',
+            col.role === 'measure'
+              ? 'text-primary/60'
+              : col.role === 'time'
+                ? 'text-amber-500/60 dark:text-amber-400/60'
+                : 'text-muted-foreground/50',
+          )}>
             {col.role}
           </span>
         </div>
