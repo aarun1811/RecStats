@@ -71,7 +71,7 @@ Plans:
 - [ ] 01-02-PLAN.md — Backend engine + main.py + services (engine.py, main.py, engine_manager.py, uri_builder.py, views.py)
 - [ ] 01-03-PLAN.md — Alembic migration (delete old, rewrite env.py/alembic.ini, generate new migration)
 - [x] 01-04-PLAN.md — Frontend palette + chart themes (index.css Mist+Blue, series vars, AG Grid bridge, chart-themes.ts)
-- [ ] 01-05-PLAN.md — Residue removal + CLAUDE.md verification (delete files/dirs, seed-oracle.py, grep audit)
+- [x] 01-05-PLAN.md — Residue removal + CLAUDE.md verification (delete files/dirs, seed-oracle.py, grep audit)
 - [ ] 01-06-PLAN.md — Boot validation + USAGE-TRACKER init (end-to-end smoke test, human verify, tracker init)
 **UI hint**: yes
 **Known risks / gotchas**:
