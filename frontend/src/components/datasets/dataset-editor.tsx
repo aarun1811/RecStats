@@ -494,7 +494,7 @@ export function DatasetEditor({ mode, dataset, isLoading }: DatasetEditorProps) 
         </div>
 
         {/* Right: Column metadata */}
-        <div className="w-[560px] shrink-0 rounded-lg border bg-card overflow-hidden flex flex-col">
+        <div className="w-[560px] shrink-0 rounded-lg border bg-card flex flex-col overflow-hidden">
           <div className="flex items-center justify-between px-3 h-9 border-b border-l-2 border-l-primary bg-muted/30 shrink-0">
             <div className="flex items-center">
               <Columns3 className="mr-1.5 size-3.5 text-muted-foreground" />

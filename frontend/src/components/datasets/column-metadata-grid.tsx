@@ -176,6 +176,8 @@ export function ColumnMetadataGrid({ columns, onChange }: ColumnMetadataGridProp
     () => ({
       resizable: true,
       suppressMovable: true,
+      wrapText: false,
+      autoHeight: false,
     }),
     [],
   )
@@ -221,6 +223,8 @@ export function ColumnMetadataGrid({ columns, onChange }: ColumnMetadataGridProp
         domLayout={useAutoHeight ? 'autoHeight' : 'normal'}
         rowHeight={36}
         headerHeight={36}
+        alwaysShowHorizontalScroll
+        suppressColumnVirtualisation
         singleClickEdit
         stopEditingWhenCellsLoseFocus
         getRowId={(params) => params.data.name}
