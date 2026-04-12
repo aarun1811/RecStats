@@ -112,7 +112,7 @@ export function ChartDetailPanel({ chartId, datasetName, onClose }: ChartDetailP
         <SheetContent
           side="right"
           className={cn(
-            'w-[500px] sm:max-w-[500px] p-0 gap-0 flex flex-col',
+            'w-[640px] sm:max-w-[640px] p-0 gap-0 flex flex-col',
             chart ? `border-l-2 ${CHART_TYPE_BORDER_COLORS[chart.chartType]}` : 'border-l-0'
           )}
         >
@@ -120,7 +120,7 @@ export function ChartDetailPanel({ chartId, datasetName, onClose }: ChartDetailP
             <div className="space-y-4 p-6">
               <Skeleton className="h-6 w-2/3" />
               <Skeleton className="h-4 w-1/2" />
-              <Skeleton className="h-[280px] w-full rounded-lg" />
+              <Skeleton className="h-[360px] w-full rounded-lg" />
               <Skeleton className="h-4 w-full" />
               <Skeleton className="h-4 w-3/4" />
             </div>
@@ -148,7 +148,7 @@ export function ChartDetailPanel({ chartId, datasetName, onClose }: ChartDetailP
 
               {/* Live chart — contained in a card */}
               <div className="mx-6 rounded-lg overflow-hidden bg-muted/5">
-                <div className="h-[280px]">
+                <div className="h-[360px]">
                   {isDataLoading ? (
                     <Skeleton className="h-full w-full" />
                   ) : previewConfig && previewData ? (

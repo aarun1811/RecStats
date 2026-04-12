@@ -92,7 +92,7 @@ export function ChartLibraryCard({ chart, dataset, datasetName, onClick, index }
       }}
     >
       {/* Thumbnail — the hero */}
-      <div className="relative h-[180px] overflow-hidden">
+      <div className="relative h-[240px] overflow-hidden">
         {/* Chart render */}
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-muted/5">
