@@ -1,34 +1,42 @@
-"""RecViz analytics backend."""
+"""RecViz API — Oracle-only, thick mode enforced."""
 
 from __future__ import annotations
 
 # --------------------------------------------------------------------------- #
-# CRITICAL: Oracle thick mode init MUST happen before any `from app.*` import
-# that might transitively load oracledb or create engines. Thick mode is
-# required for Oracle databases using national character sets not supported by
-# thin mode (e.g. NCS 871). Instant Client at /opt/oraclient/19.3_64/lib/ is
-# pre-installed by infra.
+# CRITICAL: Oracle thick mode init — MUST happen before ANY `from app.*`
+# imports. Transitive imports (e.g., app.db.engine -> SQLAlchemy -> oracledb)
+# could trigger thin-mode lock if oracledb is imported before
+# init_oracle_client runs. Only stdlib (os, logging) and oracledb itself
+# are safe to import before this block.
+#
+# Addresses review concern: HIGH — initialization order prevents transitive
+# thin-mode lock via early oracledb import.
 # --------------------------------------------------------------------------- #
 import logging
+import os
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 import oracledb
 
-try:
-    oracledb.init_oracle_client(lib_dir="/opt/oraclient/19.3_64/lib")
-    logger.info(
-        "oracledb %s thick mode initialized (Instant Client at /opt/oraclient/19.3_64/lib)",
-        oracledb.__version__,
-    )
-except Exception as e:
-    logger.warning(
-        "oracledb thick mode init failed (%s) -- falling back to thin mode", e
+_lib_dir = os.environ.get("ORACLE_CLIENT_LIB_DIR", "").strip()
+if not _lib_dir:
+    raise RuntimeError(
+        "FATAL: ORACLE_CLIENT_LIB_DIR is not set. "
+        "Set it to the Oracle Instant Client directory "
+        "(e.g. ~/oracle/instantclient on macOS, /opt/oraclient/19.3_64/lib/ on RHEL)."
     )
 
+oracledb.init_oracle_client(lib_dir=_lib_dir)
+logger.info(
+    "oracledb %s thick mode initialized (Instant Client at %s)",
+    oracledb.__version__,
+    _lib_dir,
+)
+
 # --------------------------------------------------------------------------- #
-# Remaining imports -- now safe to load app modules
+# Safe to import app modules now — thick mode is locked in.
 # --------------------------------------------------------------------------- #
 import concurrent.futures
 from contextlib import asynccontextmanager
@@ -39,7 +47,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import select, update
+from sqlalchemy import select, text as sa_text, update
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
@@ -65,6 +73,28 @@ async def lifespan(app: FastAPI):
     it is fine. Once startup completes, FastAPI serves requests in its
     threadpool via ``def`` handlers (see ``app/db/engine.py`` rationale).
     """
+    # Thick mode startup assertion (INFRA-12, D-08)
+    # Addresses review suggestion: explicit v$session_connect_info access check
+    with engine.connect() as conn:
+        result = conn.execute(
+            sa_text(
+                "SELECT client_driver FROM v$session_connect_info "
+                "WHERE sid = SYS_CONTEXT('USERENV', 'SID') "
+                "AND ROWNUM = 1"
+            )
+        )
+        row = result.fetchone()
+        if row is None or "thn" in str(row[0]):
+            driver_info = row[0] if row else "unknown"
+            raise RuntimeError(
+                f"FATAL: Oracle thick mode not detected. "
+                f"client_driver={driver_info}. "
+                "Ensure ORACLE_CLIENT_LIB_DIR is set and Oracle Instant Client is installed. "
+                "If querying v$session_connect_info fails, ensure the app user has: "
+                "GRANT SELECT ON v_$session_connect_info TO recviz;"
+            )
+        logger.info("Oracle client driver: %s", row[0])
+
     # 1. Create connection status tracker (in-memory, resets on restart)
     status_tracker = ConnectionStatusTracker()
     app.state.connection_status = status_tracker
@@ -209,8 +239,8 @@ app.include_router(api_router)
 # otherwise the mount catches every path under / and the direct routes
 # become unreachable.
 @app.get("/health")
-async def health():
-    return {"status": "ok"}
+def health():
+    return {"status": "healthy", "driver": "python-oracledb", "mode": "thick"}
 
 
 # --------------------------------------------------------------------------- #
