@@ -75,7 +75,13 @@ export function resolveColor(cssVar: string): string {
   }
   if (raw.startsWith('#')) return raw
   if (raw.startsWith('rgb')) return raw
-  if (raw.startsWith('oklch') || raw.startsWith('hsl') || raw.startsWith('lch') || raw.startsWith('lab')) {
+  if (raw.startsWith('oklch') || raw.startsWith('lch') || raw.startsWith('lab')) {
+    // oklch/lch/lab: browsers may not resolve these to rgb in getComputedStyle.
+    // Prefer HEX_FALLBACKS (authoritative for our palette), fall back to cssColorToHex.
+    if (HEX_FALLBACKS[cssVar]) return HEX_FALLBACKS[cssVar]
+    return cssColorToHex(raw)
+  }
+  if (raw.startsWith('hsl')) {
     return cssColorToHex(raw)
   }
   // Legacy: bare "H S% L%" values from older Shadcn setups
