@@ -14,7 +14,7 @@ interface DatasetRowProps {
 }
 
 export function DatasetRow({ dataset, databaseName, backendType, onClick }: DatasetRowProps) {
-  const backendKey = (backendType ?? 'postgresql') as DatabaseBackend
+  const backendKey = (backendType ?? 'oracle') as DatabaseBackend
   const iconColor = BACKEND_COLORS[backendKey] ?? 'text-muted-foreground'
 
   return (

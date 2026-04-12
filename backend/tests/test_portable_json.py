@@ -1,12 +1,12 @@
-"""Tests for PortableJSON TypeDecorator -- cross-dialect JSONB/CLOB portability."""
+"""Tests for OracleJSON (PortableJSON) TypeDecorator -- BLOB IS JSON on Oracle 19c."""
 
 import json
 
 import sqlalchemy as sa
-from sqlalchemy.dialects import oracle, postgresql
+from sqlalchemy.dialects import oracle
 from sqlalchemy.schema import CreateTable
 
-from app.db.types import PortableJSON
+from app.db.types import OracleJSON, PortableJSON
 
 
 # ---------------------------------------------------------------------------
@@ -14,13 +14,13 @@ from app.db.types import PortableJSON
 # ---------------------------------------------------------------------------
 
 def _make_test_table() -> sa.Table:
-    """Create a minimal SA Table with a PortableJSON column for DDL tests."""
+    """Create a minimal SA Table with an OracleJSON column for DDL tests."""
     metadata = sa.MetaData()
     return sa.Table(
         "test_tbl",
         metadata,
         sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column("data", PortableJSON()),
+        sa.Column("data", OracleJSON()),
     )
 
 
@@ -35,89 +35,75 @@ class _MockDialect:
 # DDL compilation tests
 # ---------------------------------------------------------------------------
 
-def test_postgresql_ddl_compiles_to_jsonb():
-    """PortableJSON should compile to JSONB in PostgreSQL DDL."""
-    table = _make_test_table()
-    ddl = CreateTable(table).compile(dialect=postgresql.dialect())
-    ddl_str = str(ddl)
-    assert "JSONB" in ddl_str, f"Expected JSONB in DDL, got: {ddl_str}"
-
-
-def test_oracle_ddl_compiles_to_clob():
-    """PortableJSON should compile to CLOB in Oracle DDL."""
+def test_oracle_ddl_compiles_to_blob():
+    """OracleJSON should compile to BLOB in Oracle DDL."""
     table = _make_test_table()
     ddl = CreateTable(table).compile(dialect=oracle.dialect())
     ddl_str = str(ddl)
-    assert "CLOB" in ddl_str, f"Expected CLOB in DDL, got: {ddl_str}"
+    assert "BLOB" in ddl_str, f"Expected BLOB in DDL, got: {ddl_str}"
 
 
 # ---------------------------------------------------------------------------
 # process_bind_param tests
 # ---------------------------------------------------------------------------
 
-def test_process_bind_param_serializes_for_oracle():
-    """On non-PG dialects, process_bind_param should JSON-serialize the value."""
-    pj = PortableJSON()
+def test_process_bind_param_serializes_to_bytes():
+    """process_bind_param should JSON-serialize the value to UTF-8 bytes."""
+    pj = OracleJSON()
     dialect = _MockDialect("oracle")
     value = {"key": "value", "count": 42}
     result = pj.process_bind_param(value, dialect)
-    assert isinstance(result, str)
-    assert json.loads(result) == value
-
-
-def test_process_bind_param_passthrough_for_postgresql():
-    """On PostgreSQL, process_bind_param should return value unchanged."""
-    pj = PortableJSON()
-    dialect = _MockDialect("postgresql")
-    value = {"key": "value", "count": 42}
-    result = pj.process_bind_param(value, dialect)
-    assert result is value  # identity check -- same object, not serialized
+    assert isinstance(result, bytes)
+    assert json.loads(result.decode("utf-8")) == value
 
 
 def test_process_bind_param_none_returns_none():
-    """process_bind_param should return None when value is None, regardless of dialect."""
-    pj = PortableJSON()
-    for dialect_name in ("oracle", "postgresql"):
-        dialect = _MockDialect(dialect_name)
-        result = pj.process_bind_param(None, dialect)
-        assert result is None, f"Expected None for dialect={dialect_name}"
+    """process_bind_param should return None when value is None."""
+    pj = OracleJSON()
+    dialect = _MockDialect("oracle")
+    result = pj.process_bind_param(None, dialect)
+    assert result is None
 
 
 # ---------------------------------------------------------------------------
 # process_result_value tests
 # ---------------------------------------------------------------------------
 
-def test_process_result_value_deserializes_for_oracle():
-    """On non-PG dialects, process_result_value should JSON-deserialize string values."""
-    pj = PortableJSON()
+def test_process_result_value_deserializes_bytes():
+    """process_result_value should JSON-deserialize bytes values."""
+    pj = OracleJSON()
+    dialect = _MockDialect("oracle")
+    raw = b'{"key": "value", "count": 42}'
+    result = pj.process_result_value(raw, dialect)
+    assert result == {"key": "value", "count": 42}
+
+
+def test_process_result_value_deserializes_string():
+    """process_result_value should JSON-deserialize string values."""
+    pj = OracleJSON()
     dialect = _MockDialect("oracle")
     raw = '{"key": "value", "count": 42}'
     result = pj.process_result_value(raw, dialect)
     assert result == {"key": "value", "count": 42}
 
 
-def test_process_result_value_passthrough_for_postgresql():
-    """On PostgreSQL, process_result_value should return value unchanged."""
-    pj = PortableJSON()
-    dialect = _MockDialect("postgresql")
-    value = {"key": "value", "count": 42}
-    result = pj.process_result_value(value, dialect)
-    assert result is value
-
-
 def test_process_result_value_none_returns_none():
-    """process_result_value should return None when value is None, regardless of dialect."""
-    pj = PortableJSON()
-    for dialect_name in ("oracle", "postgresql"):
-        dialect = _MockDialect(dialect_name)
-        result = pj.process_result_value(None, dialect)
-        assert result is None, f"Expected None for dialect={dialect_name}"
+    """process_result_value should return None when value is None."""
+    pj = OracleJSON()
+    dialect = _MockDialect("oracle")
+    result = pj.process_result_value(None, dialect)
+    assert result is None
 
 
 # ---------------------------------------------------------------------------
-# cache_ok flag
+# Alias + cache_ok
 # ---------------------------------------------------------------------------
+
+def test_portable_json_is_alias():
+    """PortableJSON is a grace alias for OracleJSON."""
+    assert PortableJSON is OracleJSON
+
 
 def test_cache_ok_is_true():
-    """PortableJSON must have cache_ok = True for SQLAlchemy query caching."""
-    assert PortableJSON.cache_ok is True
+    """OracleJSON must have cache_ok = True for SQLAlchemy query caching."""
+    assert OracleJSON.cache_ok is True

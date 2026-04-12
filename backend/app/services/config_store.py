@@ -12,7 +12,7 @@ class ConfigStore:
     """DB-backed data source config store. One instance per request (session-scoped).
 
     Dashboard CRUD lives in `managed_dashboards` router (Phase 8+) and reads
-    `RecvizDashboard.config` as a raw JSONB dict — no Pydantic validation,
+    `RecvizDashboard.config` as a raw JSON dict — no Pydantic validation,
     because the shape is defined by the frontend builder and is evolving.
     """
 

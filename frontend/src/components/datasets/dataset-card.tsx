@@ -15,7 +15,7 @@ interface DatasetCardProps {
 }
 
 export function DatasetCard({ dataset, databaseName, backendType, onClick }: DatasetCardProps) {
-  const backendKey = (backendType ?? 'postgresql') as DatabaseBackend
+  const backendKey = (backendType ?? 'oracle') as DatabaseBackend
   const iconColor = BACKEND_COLORS[backendKey] ?? 'text-muted-foreground'
 
   return (

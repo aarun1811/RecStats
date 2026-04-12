@@ -94,37 +94,10 @@ const BACKEND_FIELDS: Record<DatabaseBackend, BackendFieldConfig> = {
       { name: 'password', label: 'Password', placeholder: '', type: 'password', required: true },
     ],
   },
-  hive: {
-    defaultPort: 10000,
-    fields: [
-      { name: 'host', label: 'Host', placeholder: 'hive-host.example.com', type: 'text', required: true, gridSpan: 2 },
-      { name: 'port', label: 'Port', placeholder: '10000', type: 'number', required: true },
-      { name: 'database', label: 'Database', placeholder: 'default', type: 'text', required: true },
-      { name: 'username', label: 'Username', placeholder: 'hive_user', type: 'text', required: false },
-      { name: 'password', label: 'Password', placeholder: '', type: 'password', required: false },
-    ],
-  },
-  postgresql: {
-    defaultPort: 5432,
-    fields: [
-      { name: 'host', label: 'Host', placeholder: 'pg-host.example.com', type: 'text', required: true, gridSpan: 2 },
-      { name: 'port', label: 'Port', placeholder: '5432', type: 'number', required: true },
-      { name: 'database', label: 'Database', placeholder: 'mydb', type: 'text', required: true },
-      { name: 'username', label: 'Username', placeholder: 'db_user', type: 'text', required: true },
-      { name: 'password', label: 'Password', placeholder: '', type: 'password', required: true },
-    ],
-  },
-  elasticsearch: {
-    defaultPort: 9200,
-    fields: [],
-  },
 }
 
 const BACKENDS: { value: DatabaseBackend; label: string; disabled?: boolean }[] = [
-  { value: 'postgresql', label: 'PostgreSQL' },
   { value: 'oracle', label: 'Oracle' },
-  { value: 'hive', label: 'Hive' },
-  { value: 'elasticsearch', label: 'Elasticsearch', disabled: true },
 ]
 
 export function DataSourceSheet({
@@ -135,7 +108,7 @@ export function DataSourceSheet({
   onModeChange,
 }: DataSourceSheetProps) {
   // Form state
-  const [backend, setBackend] = useState<DatabaseBackend>('postgresql')
+  const [backend, setBackend] = useState<DatabaseBackend>('oracle')
   const [displayName, setDisplayName] = useState('')
   const [connectionTab, setConnectionTab] = useState<ConnectionTab>('simple')
   const [formValues, setFormValues] = useState<Record<string, string>>({})
@@ -181,10 +154,10 @@ export function DataSourceSheet({
     setHasPassedTest(false)
     setExpandedDataset(null)
     if (mode === 'create') {
-      setBackend('postgresql')
+      setBackend('oracle')
       setDisplayName('')
       setConnectionTab('simple')
-      setFormValues({ port: String(BACKEND_FIELDS.postgresql.defaultPort) })
+      setFormValues({ port: String(BACKEND_FIELDS.oracle.defaultPort) })
       setSqlalchemyUri('')
     }
   }, [mode, databaseId, open])
@@ -751,7 +724,7 @@ function FormView({
                 <Label htmlFor="uri" className="text-xs">SQLAlchemy URI</Label>
                 <Textarea
                   id="uri"
-                  placeholder="postgresql://user:pass@host:5432/dbname"
+                  placeholder="oracle+oracledb://user:pass@host:1521/?service_name=SID"
                   className="font-mono text-xs min-h-[80px]"
                   value={sqlalchemyUri}
                   onChange={(e) => onSqlalchemyUriChange(e.target.value)}

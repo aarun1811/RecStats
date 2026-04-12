@@ -1,4 +1,4 @@
-"""Unit tests for URI builder — Oracle, Hive, PostgreSQL dialects + sync URIs."""
+"""Unit tests for URI builder -- Oracle dialect + sync URIs."""
 
 import pytest
 
@@ -22,31 +22,6 @@ def test_oracle_no_credentials():
     assert result == "oracle://orahost:1521/?service_name=SVC"
 
 
-def test_hive_basic_uri():
-    """Hive with host, port, and database."""
-    result = build_sqlalchemy_uri(
-        "hive", host="hivehost", port=10000, database="default",
-    )
-    assert result == "hive://hivehost:10000/default"
-
-
-def test_hive_with_username():
-    """Hive with username (empty password)."""
-    result = build_sqlalchemy_uri(
-        "hive", host="hivehost", username="huser",
-    )
-    assert result == "hive://huser:@hivehost:10000/default"
-
-
-def test_postgresql_full_uri():
-    """PostgreSQL with all fields."""
-    result = build_sqlalchemy_uri(
-        "postgresql", host="pghost", database="mydb",
-        username="u", password="p",
-    )
-    assert result == "postgresql://u:p@pghost:5432/mydb"
-
-
 def test_oracle_special_chars_in_password():
     """Oracle password with special chars is URL-encoded."""
     result = build_sqlalchemy_uri(
@@ -57,16 +32,13 @@ def test_oracle_special_chars_in_password():
     assert result.startswith("oracle://")
 
 
-# --- Sync URI builder tests (post async -> sync conversion) ---
+def test_unsupported_backend():
+    """Unsupported backend raises ValueError."""
+    with pytest.raises(ValueError, match="Unsupported backend"):
+        build_sqlalchemy_uri("hive", host="hivehost", database="default")
 
 
-def test_sync_postgresql_uri():
-    """Sync PostgreSQL uses postgresql+psycopg2:// dialect."""
-    result = build_sync_uri(
-        "postgresql", host="pghost", port=5432, database="mydb",
-        username="u", password="p",
-    )
-    assert result == "postgresql+psycopg2://u:p@pghost:5432/mydb"
+# --- Sync URI builder tests ---
 
 
 def test_sync_oracle_uri():
@@ -92,15 +64,6 @@ def test_sync_unsupported_backend():
     """Sync URI with unsupported backend raises ValueError."""
     with pytest.raises(ValueError, match="Unsupported sync backend"):
         build_sync_uri("hive", host="hivehost", database="default")
-
-
-def test_sync_default_port_postgresql():
-    """Sync PostgreSQL without port defaults to 5432."""
-    result = build_sync_uri(
-        "postgresql", host="pghost", database="mydb",
-        username="u", password="p",
-    )
-    assert ":5432/" in result
 
 
 def test_sync_default_port_oracle():

@@ -33,18 +33,10 @@ def _make_connection(
 ) -> RecvizConnection:
     """Create and persist a RecvizConnection row for tests.
 
-    Defaults match the Oracle profile (backwards compatible with the prior
-    `_make_oracle_connection` helper). Pass `backend='postgresql'` to build
-    a Postgres-shaped connection instead.
+    Defaults match the Oracle profile.
     """
-    if backend == "oracle":
-        defaults = dict(host="oracle.local", port=1521, database_name="ORCL")
-        default_schema = "TEST"
-    elif backend == "postgresql":
-        defaults = dict(host="postgres.local", port=5432, database_name="recviz")
-        default_schema = "public"
-    else:
-        raise ValueError(f"Unsupported test backend: {backend}")
+    defaults = dict(host="oracle.local", port=1521, database_name="ORCL")
+    default_schema = "TEST"
 
     conn = RecvizConnection(
         id=conn_id,
@@ -104,7 +96,7 @@ def _mock_engine_manager(rows=None, raise_exc: Exception | None = None) -> Magic
 
 def test_table_name_regex_rejects_injection():
     """The table_name validator should reject SQL injection attempts
-    while accepting any legal Oracle/Postgres identifier up to 128 chars."""
+    while accepting any legal Oracle identifier up to 128 chars."""
     from app.api.databases import TABLE_NAME_RE
 
     # Legal short identifiers
@@ -131,15 +123,14 @@ def test_table_name_regex_rejects_injection():
 
 
 def test_nullable_normalization():
-    """nullable values from Oracle and Postgres should normalize to bool."""
+    """nullable values from Oracle should normalize to bool."""
     from app.api.databases import _normalize_nullable
 
-    # Oracle returns 'Y' / 'N' — test both so a broken predicate like
-    # `raw in ("Y", "YES", "N")` would be caught
+    # Oracle returns 'Y' / 'N'
     assert _normalize_nullable("Y") is True
     assert _normalize_nullable("N") is False
 
-    # Postgres information_schema returns 'YES' / 'NO'
+    # Also accept 'YES' / 'NO' for flexibility
     assert _normalize_nullable("YES") is True
     assert _normalize_nullable("NO") is False
 
@@ -264,53 +255,3 @@ def test_list_tables_introspection_error_returns_503(sqlite_session: Session):
     assert "Failed to query schema catalog" in str(excinfo.value.detail)
 
 
-def test_list_tables_postgres_normalizes_base_table_to_table(
-    sqlite_session: Session,
-):
-    """Postgres' information_schema.tables emits 'BASE TABLE' for tables and
-    'VIEW' for views. The endpoint should normalize 'BASE TABLE' -> 'TABLE'
-    while leaving 'VIEW' alone."""
-    from app.api.databases import list_schema_tables
-
-    conn = _make_connection(sqlite_session, backend="postgresql")
-    em = _mock_engine_manager(
-        rows=[("items", "BASE TABLE"), ("v_summary", "VIEW")]
-    )
-
-    result = list_schema_tables(
-        db_id=conn.id,
-        session=sqlite_session,
-        engine_manager=em,
-    )
-
-    assert result == [
-        {"name": "items", "type": "TABLE"},
-        {"name": "v_summary", "type": "VIEW"},
-    ]
-    em.get_engine_for_connection.assert_called_once_with(conn)
-
-
-def test_list_columns_postgres_normalizes_yes_no_nullable(
-    sqlite_session: Session,
-):
-    """Postgres' information_schema.columns.is_nullable returns 'YES'/'NO'
-    strings. The endpoint should normalize them to Python bools."""
-    from app.api.databases import list_table_columns
-
-    conn = _make_connection(sqlite_session, backend="postgresql")
-    em = _mock_engine_manager(
-        rows=[("id", "integer", "NO"), ("name", "text", "YES")]
-    )
-
-    result = list_table_columns(
-        db_id=conn.id,
-        table_name="items",
-        session=sqlite_session,
-        engine_manager=em,
-    )
-
-    assert result == [
-        {"name": "id", "type": "integer", "nullable": False},
-        {"name": "name", "type": "text", "nullable": True},
-    ]
-    em.get_engine_for_connection.assert_called_once_with(conn)

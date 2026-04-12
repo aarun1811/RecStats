@@ -1,4 +1,4 @@
-"""Unit tests for RecvizConnection ORM model — DDL compilation and column validation."""
+"""Unit tests for RecvizConnection ORM model -- DDL compilation and column validation."""
 
 import pytest
 from sqlalchemy import create_engine, text
@@ -57,20 +57,7 @@ class TestRecvizConnectionModel:
 
 
 class TestRecvizConnectionDDL:
-    """Verify DDL compiles on both PostgreSQL and Oracle dialects."""
-
-    def test_ddl_compiles_postgresql(self):
-        """DDL compiles for PostgreSQL with correct types."""
-        from sqlalchemy.dialects import postgresql as pg_dialect
-
-        ddl = CreateTable(RecvizConnection.__table__).compile(
-            dialect=pg_dialect.dialect()
-        )
-        ddl_str = str(ddl)
-        assert "recviz_connections" in ddl_str
-        assert "VARCHAR" in ddl_str or "varchar" in ddl_str.lower()
-        assert "INTEGER" in ddl_str or "integer" in ddl_str.lower()
-        assert "TEXT" in ddl_str or "JSONB" in ddl_str  # Text or JSONB for PortableJSON on PG
+    """Verify DDL compiles on Oracle dialect."""
 
     def test_ddl_compiles_oracle(self):
         """DDL compiles for Oracle with correct types."""
@@ -83,22 +70,9 @@ class TestRecvizConnectionDDL:
         assert "recviz_connections" in ddl_str
         assert "VARCHAR2" in ddl_str or "VARCHAR" in ddl_str
         assert "NUMBER" in ddl_str or "INTEGER" in ddl_str
-        # PortableJSON compiles to CLOB on Oracle
-        assert "CLOB" in ddl_str
 
-    def test_postgresql_extra_params_is_jsonb(self):
-        """On PostgreSQL, extra_params renders as JSONB."""
-        from sqlalchemy.dialects import postgresql as pg_dialect
-
-        ddl_str = str(
-            CreateTable(RecvizConnection.__table__).compile(
-                dialect=pg_dialect.dialect()
-            )
-        )
-        assert "JSONB" in ddl_str
-
-    def test_oracle_extra_params_is_clob(self):
-        """On Oracle, extra_params renders as CLOB (PortableJSON fallback)."""
+    def test_oracle_extra_params_is_blob(self):
+        """On Oracle, extra_params renders as BLOB (OracleJSON)."""
         from sqlalchemy.dialects import oracle as ora_dialect
 
         ddl_str = str(
@@ -106,7 +80,7 @@ class TestRecvizConnectionDDL:
                 dialect=ora_dialect.dialect()
             )
         )
-        assert "CLOB" in ddl_str
+        assert "BLOB" in ddl_str
 
 
 class TestRecvizConnectionImport:

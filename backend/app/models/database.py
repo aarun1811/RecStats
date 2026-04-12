@@ -9,7 +9,7 @@ from app.models.base import CamelModel
 
 class DatabaseCreate(CamelModel):
     database_name: str
-    backend: Literal["oracle", "postgresql"]
+    backend: Literal["oracle"]
     host: str
     port: int | None = None
     database: str | None = None
@@ -20,7 +20,7 @@ class DatabaseCreate(CamelModel):
 
 class DatabaseUpdate(CamelModel):
     database_name: str | None = None
-    backend: Literal["oracle", "postgresql"] | None = None
+    backend: Literal["oracle"] | None = None
     host: str | None = None
     port: int | None = None
     database: str | None = None

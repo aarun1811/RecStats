@@ -43,15 +43,11 @@ QUERY_EXECUTION_TIMEOUT_SECONDS = 60
 # Health check SQL per dialect
 HEALTH_CHECK_SQL = {
     "oracle": "SELECT 1 FROM DUAL",
-    "postgresql": "SELECT 1",
 }
 
 
 def _connect_args_for_backend(backend: str | None) -> dict:
     """Return per-backend connect_args to enforce a server-side query timeout.
-
-    PostgreSQL (psycopg2): the ``-c statement_timeout=<ms>`` option sets a
-    per-session statement timeout at connection time.
 
     Oracle: NOT handled here -- ``call_timeout`` is a ``Connection``
     attribute on python-oracledb, not a ``connect()`` kwarg. It is set via
@@ -61,12 +57,6 @@ def _connect_args_for_backend(backend: str | None) -> dict:
 
     Unknown backends get no timeout and fall back to DB/pool defaults.
     """
-    if not backend:
-        return {}
-    if backend == "postgresql":
-        return {
-            "options": f"-c statement_timeout={QUERY_EXECUTION_TIMEOUT_SECONDS * 1000}"
-        }
     return {}
 
 
@@ -120,9 +110,9 @@ class EngineManager:
             if engine is not None:
                 return engine
             merged_kwargs = {**DEFAULT_POOL_KWARGS, **pool_kwargs}
-            # Per-backend connect_args (PostgreSQL only -- Oracle gets its
-            # call_timeout via the event listener below, because it is a
-            # Connection attribute not a connect() kwarg).
+            # Per-backend connect_args (Oracle gets its call_timeout via
+            # the event listener below, because it is a Connection
+            # attribute not a connect() kwarg).
             connect_args = _connect_args_for_backend(backend)
             if connect_args:
                 merged_kwargs.setdefault("connect_args", connect_args)
@@ -182,12 +172,7 @@ class EngineManager:
         ``SELECT 1`` health check does not need a query-execution timeout.
         """
         test_sql = HEALTH_CHECK_SQL.get(backend, "SELECT 1")
-        # Only PostgreSQL gets connect_args here; Oracle's call_timeout
-        # cannot be passed as a connect() kwarg (it is a Connection
-        # attribute set via the "connect" event listener below).
-        connect_args = (
-            _connect_args_for_backend(backend) if backend == "postgresql" else {}
-        )
+        connect_args = _connect_args_for_backend(backend)
         engine = create_engine(
             uri,
             pool_size=1,

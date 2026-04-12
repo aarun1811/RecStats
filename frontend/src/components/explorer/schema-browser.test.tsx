@@ -9,7 +9,7 @@ vi.mock('@/hooks/use-databases', () => ({
   useDatabases: () => ({
     data: [
       { id: 'db-1', databaseName: 'Prod Oracle', backend: 'oracle', status: 'connected', lastTested: null, createdOn: null, exposeInSqllab: true },
-      { id: 'db-2', databaseName: 'Dev Postgres', backend: 'postgresql', status: 'connected', lastTested: null, createdOn: null, exposeInSqllab: true },
+      { id: 'db-2', databaseName: 'Dev Oracle', backend: 'oracle', status: 'connected', lastTested: null, createdOn: null, exposeInSqllab: true },
     ],
     isLoading: false,
   }),

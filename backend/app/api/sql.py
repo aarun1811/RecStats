@@ -106,8 +106,8 @@ def execute_sql(
 
     # 4. Execute directly via engine. Per-query execution timeout is
     # enforced at the driver level by EngineManager (oracledb call_timeout
-    # for Oracle, psycopg2 statement_timeout for PostgreSQL); SQLAlchemy's
-    # pool_timeout only bounds connection acquisition.
+    # for Oracle); SQLAlchemy's pool_timeout only bounds connection
+    # acquisition.
     try:
         engine = engine_manager.get_engine_for_connection(conn_record)
         with engine.connect() as conn:

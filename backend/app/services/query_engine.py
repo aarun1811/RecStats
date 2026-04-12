@@ -7,7 +7,7 @@ against the target database engine via text() + EngineManager.
 Converted from async to sync on 2026-04-10 — see ``app/db/engine.py`` for
 the rationale. Per-query execution timeouts are enforced at the driver level
 via ``EngineManager._connect_args_for_backend`` (oracledb ``call_timeout``
-for Oracle, psycopg2 ``statement_timeout`` for PostgreSQL); SQLAlchemy's
+for Oracle); SQLAlchemy's
 ``pool_timeout`` only bounds connection acquisition.
 
 Response shape is identical to the Superset-era output:

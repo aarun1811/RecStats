@@ -5,7 +5,7 @@ Provides:
 - DB-API type code to RecViz type detection
 - Superset-compatible result response builder
 - Read-only SQL statement validator
-- Dialect-aware SQL pagination wrapper (PostgreSQL LIMIT/OFFSET, Oracle OFFSET FETCH)
+- Dialect-aware SQL pagination wrapper (Oracle OFFSET FETCH)
 """
 
 from __future__ import annotations
@@ -36,30 +36,25 @@ _STRING_PATTERNS = ("CHAR", "VARCHAR", "TEXT", "CLOB", "STRING", "NCHAR", "NVARC
 _NUMBER_PATTERNS = ("NUMBER", "INT", "FLOAT", "DECIMAL", "NUMERIC", "DOUBLE", "REAL", "MONEY")
 _DATE_PATTERNS = ("DATE", "TIMESTAMP", "TIME")
 
-# PostgreSQL cursor.description sometimes returns OID integers instead of
-# type name strings (asyncpg did this; psycopg2 returns type objects, so
-# this mapping is primarily a legacy compatibility path). Map common OIDs
-# to type names that detect_column_type recognizes.
-_PG_OID_TO_TYPE_NAME: dict[int, str] = {
-    16: "BOOLEAN",       # bool
-    20: "BIGINT",        # int8
-    21: "SMALLINT",      # int2
-    23: "INTEGER",       # int4
-    25: "TEXT",           # text
-    114: "JSON",          # json
-    142: "XML",           # xml
-    700: "FLOAT",         # float4
-    701: "DOUBLE",        # float8
-    790: "MONEY",         # money
-    1042: "CHAR",         # bpchar
-    1043: "VARCHAR",      # varchar
-    1082: "DATE",         # date
-    1083: "TIME",         # time
-    1114: "TIMESTAMP",    # timestamp
-    1184: "TIMESTAMP",    # timestamptz
-    1700: "NUMERIC",      # numeric
-    2950: "VARCHAR",      # uuid (treat as string)
-    3802: "JSON",         # jsonb
+# Legacy OID-to-type-name mapping. Retained as a safety net for any
+# driver that returns integer type codes in cursor.description.
+_OID_TO_TYPE_NAME: dict[int, str] = {
+    16: "BOOLEAN",
+    20: "BIGINT",
+    21: "SMALLINT",
+    23: "INTEGER",
+    25: "TEXT",
+    114: "JSON",
+    700: "FLOAT",
+    701: "DOUBLE",
+    1042: "CHAR",
+    1043: "VARCHAR",
+    1082: "DATE",
+    1083: "TIME",
+    1114: "TIMESTAMP",
+    1184: "TIMESTAMP",
+    1700: "NUMERIC",
+    2950: "VARCHAR",
 }
 
 
@@ -122,10 +117,10 @@ def build_result_response(
     columns_meta: list[dict] = []
     for i, desc in enumerate(column_descriptions):
         # Type can be a string name, a DB-API type object/class, or an
-        # integer OID (asyncpg returns PostgreSQL OID integers).
+        # integer OID (some drivers return OID integers).
         type_info = desc[1] if len(desc) > 1 else "string"
         if isinstance(type_info, int):
-            type_name = _PG_OID_TO_TYPE_NAME.get(type_info, "VARCHAR")
+            type_name = _OID_TO_TYPE_NAME.get(type_info, "VARCHAR")
         elif isinstance(type_info, str):
             type_name = type_info
         elif isinstance(type_info, type):
@@ -202,7 +197,7 @@ def wrap_with_pagination(
     sql: str,
     limit: int | None,
     offset: int = 0,
-    dialect: str = "postgresql",
+    dialect: str = "oracle",
 ) -> str:
     """Wrap SQL with dialect-appropriate pagination.
 
@@ -210,7 +205,7 @@ def wrap_with_pagination(
         sql: The base SQL query.
         limit: Maximum rows to return. If None, returns sql unchanged.
         offset: Number of rows to skip (default 0).
-        dialect: SQL dialect -- "postgresql" or "oracle".
+        dialect: SQL dialect -- "oracle".
 
     Returns:
         The paginated SQL string.
@@ -218,15 +213,8 @@ def wrap_with_pagination(
     if limit is None:
         return sql
 
-    if dialect == "oracle":
-        return (
-            f"SELECT * FROM (\n{sql}\n) recviz_paged\n"
-            f"OFFSET {offset} ROWS FETCH FIRST {limit} ROWS ONLY"
-        )
-
-    # PostgreSQL (and default) — wrap in subquery to avoid double-LIMIT
-    # when the source SQL already contains LIMIT/ORDER BY clauses
+    # Oracle OFFSET FETCH (12c+)
     return (
         f"SELECT * FROM (\n{sql}\n) recviz_paged\n"
-        f"LIMIT {limit} OFFSET {offset}"
+        f"OFFSET {offset} ROWS FETCH FIRST {limit} ROWS ONLY"
     )

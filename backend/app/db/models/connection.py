@@ -21,7 +21,7 @@ class RecvizConnection(Base):
     id: Mapped[str] = mapped_column(String(128), primary_key=True)
     name: Mapped[str] = mapped_column(String(256), nullable=False, unique=True)
     display_name: Mapped[str] = mapped_column(String(256), nullable=False)
-    backend: Mapped[str] = mapped_column(String(32), nullable=False)  # "oracle" or "postgresql"
+    backend: Mapped[str] = mapped_column(String(32), nullable=False)  # "oracle"
     host: Mapped[str] = mapped_column(String(256), nullable=False)
     port: Mapped[int] = mapped_column(Integer, nullable=False)
     database_name: Mapped[str] = mapped_column(String(256), nullable=False)

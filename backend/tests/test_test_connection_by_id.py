@@ -117,9 +117,9 @@ def test_test_connection_with_explicit_body_bypasses_lookup(
     )
 
     body = TestConnectionRequest(
-        backend="postgresql",
+        backend="oracle",
         host="new-host.example.com",
-        port=5432,
+        port=1521,
         database="newdb",
         username="newuser",
         password="newpass",

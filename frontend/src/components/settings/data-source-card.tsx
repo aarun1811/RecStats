@@ -10,16 +10,10 @@ interface DataSourceCardProps {
 
 const BACKEND_LABELS: Record<DatabaseBackend, string> = {
   oracle: 'Oracle',
-  postgresql: 'PostgreSQL',
-  hive: 'Hive',
-  elasticsearch: 'Elasticsearch',
 }
 
 const BACKEND_COLORS: Record<DatabaseBackend, string> = {
   oracle: 'text-red-600 dark:text-red-400',
-  postgresql: 'text-blue-600 dark:text-blue-400',
-  hive: 'text-yellow-600 dark:text-yellow-400',
-  elasticsearch: 'text-green-600 dark:text-green-400',
 }
 
 const STATUS_STYLES: Record<ConnectionStatus, string> = {

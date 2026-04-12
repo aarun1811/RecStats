@@ -239,19 +239,8 @@ class TestValidateReadOnly:
 # ---------------------------------------------------------------------------
 
 class TestWrapWithPagination:
-    def test_postgresql_pagination(self):
-        """Test 19: PostgreSQL uses LIMIT/OFFSET via subquery wrapper."""
-        result = wrap_with_pagination(
-            "SELECT * FROM t", limit=100, offset=0, dialect="postgresql"
-        )
-        expected = (
-            "SELECT * FROM (\nSELECT * FROM t\n) recviz_paged\n"
-            "LIMIT 100 OFFSET 0"
-        )
-        assert result == expected
-
     def test_oracle_pagination(self):
-        """Test 20: Oracle uses OFFSET FETCH."""
+        """Oracle uses OFFSET FETCH."""
         result = wrap_with_pagination(
             "SELECT * FROM t", limit=100, offset=50, dialect="oracle"
         )
@@ -262,19 +251,19 @@ class TestWrapWithPagination:
         assert result == expected
 
     def test_no_limit_returns_unchanged(self):
-        """Test 21: limit=None returns original SQL unchanged."""
+        """limit=None returns original SQL unchanged."""
         sql = "SELECT * FROM t"
-        result = wrap_with_pagination(sql, limit=None, offset=0, dialect="postgresql")
+        result = wrap_with_pagination(sql, limit=None, offset=0, dialect="oracle")
         assert result == sql
 
-    def test_postgresql_with_offset(self):
-        """PostgreSQL with non-zero offset uses subquery wrapper."""
+    def test_oracle_with_offset(self):
+        """Oracle with non-zero offset uses subquery wrapper."""
         result = wrap_with_pagination(
-            "SELECT id FROM users", limit=50, offset=100, dialect="postgresql"
+            "SELECT id FROM users", limit=50, offset=100, dialect="oracle"
         )
         expected = (
             "SELECT * FROM (\nSELECT id FROM users\n) recviz_paged\n"
-            "LIMIT 50 OFFSET 100"
+            "OFFSET 100 ROWS FETCH FIRST 50 ROWS ONLY"
         )
         assert result == expected
 
