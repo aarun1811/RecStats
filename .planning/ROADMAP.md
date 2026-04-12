@@ -98,7 +98,7 @@ Plans:
   5. The previously-dead "Density" and "Font Size" buttons are either functional or removed (no non-functional stubs remain in the Appearance tab)
 **Plans**: 3 plans
 Plans:
-- [ ] 02-01-PLAN.md — Appearance tab: display-store, theme preview cards, layout + tab animations, display controls
+- [x] 02-01-PLAN.md — Appearance tab: display-store, theme preview cards, layout + tab animations, display controls
 - [ ] 02-02-PLAN.md — Data source enhancements: AnimatedStatusBadge, ConnectionTestArea, ConnectionHealthHeader, sheet animations
 - [ ] 02-03-PLAN.md — E2E verification against Oracle + USAGE-TRACKER update
 **UI hint**: yes
