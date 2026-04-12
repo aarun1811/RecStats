@@ -119,7 +119,7 @@ Plans:
   4. Dataset create/edit pages reflect the global palette in both light and dark mode — form controls, buttons, code editor chrome all re-themed
 **Plans**: 3 plans
 Plans:
-- [ ] 03-01-PLAN.md — Style constants extraction + list page enhancements (cards, rows, animations, empty states)
+- [x] 03-01-PLAN.md — Style constants extraction + list page enhancements (cards, rows, animations, empty states)
 - [ ] 03-02-PLAN.md — Editor enhancements (section headers, mode badge, run state machine, stats, column metadata badges/tooltips/help sheet)
 - [ ] 03-03-PLAN.md — CRUD + SQL verification against Oracle + USAGE-TRACKER update
 **UI hint**: yes
