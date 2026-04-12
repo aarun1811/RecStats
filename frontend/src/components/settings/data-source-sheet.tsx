@@ -909,6 +909,7 @@ function FormView({
             {isSaving && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
             {mode === 'create' ? 'Save Connection' : 'Update'}
           </Button>
+        </div>
       </div>
     </>
   )
