@@ -86,12 +86,12 @@ const AGG_ITEMS: {
   desc: string
   example: string
 }[] = [
-  { func: 'NONE', desc: 'No aggregation — raw row values', example: '42, 17, 89 → 42, 17, 89' },
-  { func: 'SUM', desc: 'Total of all values in group', example: '42 + 17 + 89 → 148' },
-  { func: 'AVG', desc: 'Average of all values in group', example: '42, 17, 89 → 49.3' },
-  { func: 'COUNT', desc: 'Number of rows in group', example: '3 rows → 3' },
-  { func: 'MIN', desc: 'Smallest value in group', example: '42, 17, 89 → 17' },
-  { func: 'MAX', desc: 'Largest value in group', example: '42, 17, 89 → 89' },
+  { func: 'NONE', desc: 'Show raw row values, no grouping', example: '42, 17, 89 → 42, 17, 89' },
+  { func: 'SUM', desc: 'Total of all values', example: '42 + 17 + 89 → 148' },
+  { func: 'AVG', desc: 'Average of all values', example: '42, 17, 89 → 49.3' },
+  { func: 'COUNT', desc: 'Number of rows', example: '3 rows → 3' },
+  { func: 'MIN', desc: 'Smallest value', example: '42, 17, 89 → 17' },
+  { func: 'MAX', desc: 'Largest value', example: '42, 17, 89 → 89' },
   { func: 'COUNT_DISTINCT', desc: 'Number of unique values', example: 'A, B, A, C → 3' },
 ]
 
@@ -236,13 +236,20 @@ export function ColumnMetadataHelpSheet() {
                 </div>
               </AccordionTrigger>
               <AccordionContent className="px-4 pt-1">
+                <div className="rounded-md bg-primary/5 border border-primary/10 px-3 py-2 mb-3">
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    <span className="font-semibold text-foreground">When does this apply?</span> When a Measure column is used in a chart, the chart groups rows by Dimension columns and applies this function to compute the displayed value. For example, if you chart <code className="font-mono text-[11px] bg-muted px-1 rounded">amount_usd</code> by <code className="font-mono text-[11px] bg-muted px-1 rounded">region</code> with SUM, each region shows the total amount.
+                  </p>
+                </div>
                 <div>
                   {AGG_ITEMS.map((item) => (
-                    <div key={item.func} className="py-2.5 border-b border-border/50 last:border-b-0 flex items-baseline gap-3">
-                      <code className="font-mono text-xs font-semibold text-foreground shrink-0 w-[100px]">{item.func}</code>
-                      <div className="flex-1 min-w-0">
+                    <div key={item.func} className="py-2.5 border-b border-border/50 last:border-b-0">
+                      <div className="flex items-baseline gap-2">
+                        <code className="font-mono text-xs font-semibold text-foreground shrink-0 w-[100px]">{item.func}</code>
                         <span className="text-xs text-muted-foreground">{item.desc}</span>
-                        <span className="text-xs text-muted-foreground ml-2 font-mono">({item.example})</span>
+                      </div>
+                      <div className="mt-0.5 pl-[112px]">
+                        <code className="text-[11px] font-mono text-muted-foreground">{item.example}</code>
                       </div>
                     </div>
                   ))}
@@ -263,11 +270,11 @@ export function ColumnMetadataHelpSheet() {
               <AccordionContent className="px-4 pt-1">
                 <div>
                   {FORMAT_ITEMS.map((item) => (
-                    <div key={item.preset} className="py-2.5 border-b border-border/50 last:border-b-0 flex items-center gap-3">
-                      <span className="text-xs font-semibold text-foreground shrink-0 w-[72px]">{item.preset}</span>
-                      <code className="text-[11px] font-mono text-muted-foreground">{item.before}</code>
+                    <div key={item.preset} className="py-2 border-b border-border/50 last:border-b-0 flex items-center gap-2">
+                      <span className="text-xs font-semibold text-foreground shrink-0 w-[80px]">{item.preset}</span>
+                      <code className="text-[11px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{item.before}</code>
                       <ArrowRight className="size-3 text-muted-foreground shrink-0" />
-                      <code className="text-[11px] font-mono font-semibold text-foreground">{item.after}</code>
+                      <code className="text-[11px] font-mono font-semibold text-foreground bg-muted px-1.5 py-0.5 rounded">{item.after}</code>
                     </div>
                   ))}
                 </div>
