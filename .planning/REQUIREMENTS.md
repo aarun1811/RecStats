@@ -42,7 +42,7 @@ Each requirement maps to exactly one phase. All verification is **manual** (no a
 - [ ] **SETT-03**: Saved Views tab verified end-to-end — list, load, delete against Oracle
 - [x] **SETT-04**: Appearance tab theme toggle works in both directions (light/dark) with the new palette applied
 - [x] **SETT-05**: Dead UI stubs in Appearance tab (Density, Font Size buttons) resolved — either implemented or deleted (decided in phase discuss)
-- [ ] **SETT-06**: Any fixes/enhancements discovered in phase discuss are implemented and verified
+- [x] **SETT-06**: Any fixes/enhancements discovered in phase discuss are implemented and verified
 - [ ] **SETT-07**: `.planning/USAGE-TRACKER.md` updated with files touched/added/removed this phase
 
 ### Datasets Page (Phase 3)
@@ -188,7 +188,7 @@ Each requirement maps to exactly one phase. All verification is **manual** (no a
 | SETT-03 | Phase 2 | Pending |
 | SETT-04 | Phase 2 | Complete |
 | SETT-05 | Phase 2 | Complete |
-| SETT-06 | Phase 2 | Pending |
+| SETT-06 | Phase 2 | Complete |
 | SETT-07 | Phase 2 | Pending |
 | DATA-01 | Phase 3 | Pending |
 | DATA-02 | Phase 3 | Pending |

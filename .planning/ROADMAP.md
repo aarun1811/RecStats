@@ -99,7 +99,7 @@ Plans:
 **Plans**: 3 plans
 Plans:
 - [x] 02-01-PLAN.md — Appearance tab: display-store, theme preview cards, layout + tab animations, display controls
-- [ ] 02-02-PLAN.md — Data source enhancements: AnimatedStatusBadge, ConnectionTestArea, ConnectionHealthHeader, sheet animations
+- [x] 02-02-PLAN.md — Data source enhancements: AnimatedStatusBadge, ConnectionTestArea, ConnectionHealthHeader, sheet animations
 - [ ] 02-03-PLAN.md — E2E verification against Oracle + USAGE-TRACKER update
 **UI hint**: yes
 **Known risks / gotchas**:
