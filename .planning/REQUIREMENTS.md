@@ -30,8 +30,8 @@ Each requirement maps to exactly one phase. All verification is **manual** (no a
 - [x] **INFRA-19**: `--series-1..8` CSS variable extension added to `index.css` for categorical multi-series chart colors (Strategy B)
 - [x] **INFRA-20**: `.ag-theme-quartz { --ag-*: var(--...) }` override block added to `index.css` so AG Grid reads Shadcn tokens
 - [x] **INFRA-21**: `frontend/src/lib/chart-themes.ts` rewired — hard-coded 10-color series array replaced with CSS-var reads via `getComputedStyle()`; heatmap/treemap/waterfall hex overrides replaced with CSS vars
-- [ ] **INFRA-22**: `.planning/USAGE-TRACKER.md` initialized as the running dead-code audit document for the milestone
-- [ ] **INFRA-23**: Backend boots successfully against Oracle, `GET /health` returns 200, startup log shows `Oracle client driver: python-oracledb` (no `thn` suffix), frontend loads in browser without crashing (no functional expectations beyond "it starts")
+- [x] **INFRA-22**: `.planning/USAGE-TRACKER.md` initialized as the running dead-code audit document for the milestone
+- [x] **INFRA-23**: Backend boots successfully against Oracle, `GET /health` returns 200, startup log shows `Oracle client driver: python-oracledb` (no `thn` suffix), frontend loads in browser without crashing (no functional expectations beyond "it starts")
 - [x] **INFRA-24**: `docs/` directory deleted entirely — all stale files (API.md, ARCHITECTURE.md, CODEBASE_GUIDE.md, CONFIGURATION.md, DEPLOYMENT.md, DEVELOPMENT.md, GETTING_STARTED.md, SETUP.md, TESTING.md, `plans/`, `research/`, `testing/`, `superpowers/` subdirs) removed. User will recreate documentation as needed post-milestone.
 - [x] **INFRA-25**: `CLAUDE.md` verified fresh for the milestone — grep shows zero references to `postgresql`, `asyncpg`, `psycopg2`, `superset`, `docker`, `redis`, `celery`, or Tableau/Qlik framing; Oracle-only hard rules section present at top; Oracle 19c + thick mode + NCS 871 gap called out explicitly
 
@@ -179,8 +179,8 @@ Each requirement maps to exactly one phase. All verification is **manual** (no a
 | INFRA-19 | Phase 1 | Complete |
 | INFRA-20 | Phase 1 | Complete |
 | INFRA-21 | Phase 1 | Complete |
-| INFRA-22 | Phase 1 | Pending |
-| INFRA-23 | Phase 1 | Pending |
+| INFRA-22 | Phase 1 | Complete |
+| INFRA-23 | Phase 1 | Complete |
 | INFRA-24 | Phase 1 | Complete |
 | INFRA-25 | Phase 1 | Complete |
 | SETT-01 | Phase 2 | Pending |

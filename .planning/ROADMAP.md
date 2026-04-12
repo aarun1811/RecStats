@@ -72,7 +72,7 @@ Plans:
 - [x] 01-03-PLAN.md — Alembic migration (delete old, rewrite env.py/alembic.ini, generate new migration)
 - [x] 01-04-PLAN.md — Frontend palette + chart themes (index.css Mist+Blue, series vars, AG Grid bridge, chart-themes.ts)
 - [x] 01-05-PLAN.md — Residue removal + CLAUDE.md verification (delete files/dirs, seed-oracle.py, grep audit)
-- [ ] 01-06-PLAN.md — Boot validation + USAGE-TRACKER init (end-to-end smoke test, human verify, tracker init)
+- [x] 01-06-PLAN.md — Boot validation + USAGE-TRACKER init (end-to-end smoke test, human verify, tracker init)
 **UI hint**: yes
 **Known risks / gotchas**:
   - **Phase 1 has a HARD user gate.** Oracle Cloud signup + 19c provisioning + wallet download + Instant Client install + `sqlplus` smoke test are manual USER steps that must complete *before* any Claude code work begins. Tenancy home region is a one-shot choice (cannot change later). 19c radio must appear before committing the tenancy.
