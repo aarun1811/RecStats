@@ -239,7 +239,11 @@ export const AgChartWrapper = forwardRef<AgChartRef, ChartWrapperProps>(function
 
   useImperativeHandle(ref, () => ({
     download(fileName: string) {
-      internalChartRef.current?.download({ fileName, fileFormat: 'image/png' })
+      if (!internalChartRef.current) {
+        console.warn('Chart not ready for download')
+        return
+      }
+      internalChartRef.current.download({ fileName, fileFormat: 'image/png' })
     },
     async getImageDataURL() {
       return (await internalChartRef.current?.getImageDataURL({ fileFormat: 'image/png' })) ?? ''
