@@ -96,7 +96,11 @@ Plans:
   3. User can toggle light/dark theme via the Appearance tab and the entire Settings page re-themes correctly with no gray-only holdouts
   4. User can list, load, and delete Saved Views from the Saved Views tab against Oracle
   5. The previously-dead "Density" and "Font Size" buttons are either functional or removed (no non-functional stubs remain in the Appearance tab)
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 02-01-PLAN.md — Appearance tab: display-store, theme preview cards, layout + tab animations, display controls
+- [ ] 02-02-PLAN.md — Data source enhancements: AnimatedStatusBadge, ConnectionTestArea, ConnectionHealthHeader, sheet animations
+- [ ] 02-03-PLAN.md — E2E verification against Oracle + USAGE-TRACKER update
 **UI hint**: yes
 **Known risks / gotchas**:
   - Data Sources tab depends on the Oracle connection flow working — if Phase 1's `build_oracle_engine()` helper isn't also used by connection testing, new user-created sources may silently fall back to thin mode.
@@ -220,8 +224,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Infrastructure Cutover | 0/6 | Planned | - |
-| 2. Settings Page | 0/TBD | Not started | - |
+| 1. Infrastructure Cutover | 6/6 | Complete | - |
+| 2. Settings Page | 0/3 | Planned | - |
 | 3. Datasets Page | 0/TBD | Not started | - |
 | 4. Charts Page | 0/TBD | Not started | - |
 | 5. KPIs Page | 0/TBD | Not started | - |
