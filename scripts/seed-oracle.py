@@ -1046,22 +1046,31 @@ CURATED_DATASETS: list[dict] = [
     },
     {
         "id": "ds-recon-status-by-region",
-        "name": "Transactions -- Status × Region",
-        "description": "Cross-tab of transaction count by status and region for stacked bar.",
+        "name": "Transactions -- Status × Region (Pivot)",
+        "description": "Pivoted count by status per region for stacked bar.",
         "sql_template": (
-            "SELECT r.name AS region, s.name AS status, "
-            "COUNT(*) AS txn_count "
+            "SELECT r.name AS region, "
+            "SUM(CASE WHEN s.name = 'Matched' THEN 1 ELSE 0 END) AS matched, "
+            "SUM(CASE WHEN s.name = 'Auto-Matched' THEN 1 ELSE 0 END) AS auto_matched, "
+            "SUM(CASE WHEN s.name = 'Manual Matched' THEN 1 ELSE 0 END) AS manual_matched, "
+            "SUM(CASE WHEN s.name = 'Pending Match' THEN 1 ELSE 0 END) AS pending, "
+            "SUM(CASE WHEN s.name = 'Unmatched' THEN 1 ELSE 0 END) AS unmatched, "
+            "SUM(CASE WHEN s.name IN ('Disputed','Escalated','Written Off') THEN 1 ELSE 0 END) AS exceptions "
             "FROM recon_transactions t "
             "JOIN regions r ON t.region_id = r.id "
             "JOIN statuses s ON t.status_id = s.id WHERE 1=1 {{filters}} "
-            "GROUP BY r.name, s.name ORDER BY r.name, s.name"
+            "GROUP BY r.name ORDER BY r.name"
         ),
         "columns": [
             _col("region", "Region", "string", "dimension"),
-            _col("status", "Status", "string", "dimension"),
-            _col("txn_count", "Transaction Count", "number", "measure", "SUM", "number"),
+            _col("matched", "Matched", "number", "measure", "SUM", "number"),
+            _col("auto_matched", "Auto-Matched", "number", "measure", "SUM", "number"),
+            _col("manual_matched", "Manual Matched", "number", "measure", "SUM", "number"),
+            _col("pending", "Pending", "number", "measure", "SUM", "number"),
+            _col("unmatched", "Unmatched", "number", "measure", "SUM", "number"),
+            _col("exceptions", "Exceptions", "number", "measure", "SUM", "number"),
         ],
-        "filter_mappings": [_BASE_FILTER_MAPPINGS[0], _BASE_FILTER_MAPPINGS[1]],
+        "filter_mappings": [_BASE_FILTER_MAPPINGS[0]],
     },
     {
         "id": "ds-recon-breaks-summary",
@@ -1441,11 +1450,11 @@ CURATED_CHARTS: list[dict] = [
     _chart(
         "chart-txn-status-stacked",
         "Status by Region",
-        "Stacked bar of transaction count per region, colored by match status.",
+        "Stacked bar of transaction count per region, segmented by match status.",
         "ds-recon-status-by-region",
         "stacked-bar",
         "region",
-        ["txn_count"],
+        ["matched", "auto_matched", "manual_matched", "pending", "unmatched", "exceptions"],
     ),
     _chart(
         "chart-breaks-by-type",

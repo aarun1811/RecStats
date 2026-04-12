@@ -187,7 +187,7 @@ export function buildSeries(
           : columns[1] ?? 'y'
       return [{
         type: 'heatmap' as const, xKey, yKey, colorKey,
-        ...(getColorRange() ? { colorRange: getColorRange() } : {}),
+        colorRange: getColorRange() ?? [resolveColor('--color-ramp-low'), resolveColor('--color-ramp-high')],
       }]
     }
 

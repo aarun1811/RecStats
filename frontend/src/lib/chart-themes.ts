@@ -194,7 +194,7 @@ export function getAgChartsTheme() {
       },
       heatmap: {
         series: {
-          colorRange: [resolveColor('--color-ramp-low'), resolveColor('--color-ramp-high')],
+          // colorRange moved to series-level in buildSeries (AG Charts 13 ignores theme.overrides.heatmap.series.colorRange)
           label: { enabled: false },
           stroke: p.background,
           strokeWidth: 2,
