@@ -554,7 +554,7 @@ export function DatasetEditor({ mode, dataset, isLoading }: DatasetEditorProps) 
 
       {/* Expanded column metadata sheet */}
       <Sheet open={metadataExpanded} onOpenChange={setMetadataExpanded}>
-        <SheetContent side="right" className="sm:!max-w-2xl w-[700px] p-0 flex flex-col">
+        <SheetContent side="right" className="sm:!max-w-4xl w-[900px] p-0 flex flex-col">
           <SheetHeader className="px-6 py-4 border-b shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -570,7 +570,7 @@ export function DatasetEditor({ mode, dataset, isLoading }: DatasetEditorProps) 
               </div>
             </div>
           </SheetHeader>
-          <div style={{ height: 'calc(100vh - 80px)' }}>
+          <div className="px-6 py-4" style={{ height: 'calc(100vh - 80px)' }}>
             <ColumnMetadataGrid columns={columns} onChange={setColumns} />
           </div>
         </SheetContent>
