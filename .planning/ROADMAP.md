@@ -121,7 +121,7 @@ Plans:
 Plans:
 - [x] 03-01-PLAN.md — Style constants extraction + list page enhancements (cards, rows, animations, empty states)
 - [x] 03-02-PLAN.md — Editor enhancements (section headers, mode badge, run state machine, stats, column metadata badges/tooltips/help sheet)
-- [ ] 03-03-PLAN.md — CRUD + SQL verification against Oracle + USAGE-TRACKER update
+- [x] 03-03-PLAN.md — CRUD + SQL verification against Oracle + USAGE-TRACKER update
 **UI hint**: yes
 **Known risks / gotchas**:
   - Parameterized SQL template rendering (`_build_sql()` in `query_engine.py`) is sync-path critical — any residual async wrapping needs to be caught here.

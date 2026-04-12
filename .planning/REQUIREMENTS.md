@@ -49,10 +49,10 @@ Each requirement maps to exactly one phase. All verification is **manual** (no a
 
 - [x] **DATA-01**: Datasets list page colorized per global palette in both modes
 - [x] **DATA-02**: Dataset create/edit pages colorized per global palette in both modes
-- [ ] **DATA-03**: Dataset CRUD verified end-to-end against Oracle — list, create (with parameterized SQL templates), edit, delete, execute sample query
-- [ ] **DATA-04**: Dataset parameterized SQL execution (`{{filters}}`, `{{values}}`, `{{date_range_clause}}` placeholders) resolves correctly against Oracle via sync `oracledb`
+- [x] **DATA-03**: Dataset CRUD verified end-to-end against Oracle — list, create (with parameterized SQL templates), edit, delete, execute sample query
+- [x] **DATA-04**: Dataset parameterized SQL execution (`{{filters}}`, `{{values}}`, `{{date_range_clause}}` placeholders) resolves correctly against Oracle via sync `oracledb`
 - [x] **DATA-05**: Any fixes/enhancements discovered in phase discuss are implemented and verified
-- [ ] **DATA-06**: `.planning/USAGE-TRACKER.md` updated
+- [x] **DATA-06**: `.planning/USAGE-TRACKER.md` updated
 
 ### Charts Page (Phase 4)
 
@@ -192,10 +192,10 @@ Each requirement maps to exactly one phase. All verification is **manual** (no a
 | SETT-07 | Phase 2 | Complete |
 | DATA-01 | Phase 3 | Complete |
 | DATA-02 | Phase 3 | Complete |
-| DATA-03 | Phase 3 | Pending |
-| DATA-04 | Phase 3 | Pending |
+| DATA-03 | Phase 3 | Complete |
+| DATA-04 | Phase 3 | Complete |
 | DATA-05 | Phase 3 | Complete |
-| DATA-06 | Phase 3 | Pending |
+| DATA-06 | Phase 3 | Complete |
 | CHRT-01 | Phase 4 | Pending |
 | CHRT-02 | Phase 4 | Pending |
 | CHRT-03 | Phase 4 | Pending |
