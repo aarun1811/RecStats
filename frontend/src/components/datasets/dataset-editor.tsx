@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { motion, AnimatePresence } from 'motion/react'
 import { toast } from 'sonner'
+import { format as formatSql } from 'sql-formatter'
 import { ArrowLeft, Play, Loader2, Trash2, Save, Columns3, Eye, Code2 } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
@@ -143,14 +144,13 @@ export function DatasetEditor({ mode, dataset, isLoading }: DatasetEditorProps) 
   }, [sql, databaseId, sqlExecute, columns])
 
   const handleFormatSql = useCallback(() => {
-    const keywords = ['SELECT', 'FROM', 'WHERE', 'AND', 'OR', 'JOIN', 'LEFT JOIN', 'RIGHT JOIN', 'INNER JOIN', 'OUTER JOIN', 'ON', 'GROUP BY', 'ORDER BY', 'HAVING', 'LIMIT', 'UNION', 'INSERT', 'UPDATE', 'DELETE', 'CREATE', 'ALTER', 'DROP', 'SET', 'VALUES', 'INTO']
-    let formatted = sql
-    keywords.forEach((kw) => {
-      const regex = new RegExp(`\\b${kw}\\b`, 'gi')
-      formatted = formatted.replace(regex, `\n${kw}`)
-    })
-    formatted = formatted.replace(/^\n/, '').replace(/\n{2,}/g, '\n')
-    setSql(formatted)
+    try {
+      const formatted = formatSql(sql, { language: 'plsql' })
+      setSql(formatted)
+    } catch {
+      // If formatting fails, leave SQL unchanged
+      toast.error('Could not format SQL')
+    }
   }, [sql])
 
   const handleSave = useCallback(() => {
