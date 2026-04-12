@@ -5,7 +5,7 @@ import { useTheme } from '@/components/layout/theme-provider'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Download, Copy, CheckCircle2, XCircle, Clock, Save } from 'lucide-react'
+import { Download, Copy, CheckCircle2, XCircle, Clock, Save, BarChart3 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { SqlResult } from '@/types/api'
 

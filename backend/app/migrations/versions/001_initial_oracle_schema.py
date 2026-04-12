@@ -47,7 +47,7 @@ def upgrade() -> None:
         sa.Column("database_name", sa.String(256), nullable=False),
         sa.Column("username", sa.String(256), nullable=False),
         sa.Column("encrypted_password", sa.Text(), nullable=False),
-        sa.Column("schema_name", sa.String(256), server_default="", nullable=False),
+        sa.Column("schema_name", sa.String(256), nullable=True),
         sa.Column("extra_params", sa.BLOB(), nullable=True),
         sa.Column("status", sa.String(32), server_default="untested", nullable=False),
         sa.Column("last_tested_at", sa.DateTime(timezone=True), nullable=True),

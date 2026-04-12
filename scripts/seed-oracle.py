@@ -48,12 +48,12 @@ CONNECTIONS = [
          display_name="Local Oracle (dev)", backend="oracle",
          host="localhost", port=1521, database_name="FREEPDB1",
          username="recviz", encrypted_password="PLACEHOLDER_ENCRYPT_ME",
-         schema_name="", extra_params={"timeout": 30}, status="active"),
+         schema_name=None, extra_params={"timeout": 30}, status="active"),
     dict(id="conn-oracle-sample", name="oracle-sample",
          display_name="Sample Oracle (multi-source test)", backend="oracle",
          host="localhost", port=1521, database_name="FREEPDB1",
          username="recviz", encrypted_password="PLACEHOLDER_ENCRYPT_ME",
-         schema_name="", extra_params={"timeout": 30}, status="active"),
+         schema_name=None, extra_params={"timeout": 30}, status="active"),
 ]
 
 DATASETS = [

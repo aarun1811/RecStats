@@ -27,7 +27,7 @@ class RecvizConnection(Base):
     database_name: Mapped[str] = mapped_column(String(256), nullable=False)
     username: Mapped[str] = mapped_column(String(256), nullable=False)
     encrypted_password: Mapped[str] = mapped_column(Text, nullable=False)
-    schema_name: Mapped[str] = mapped_column(String(256), server_default="", default="")
+    schema_name: Mapped[str | None] = mapped_column(String(256), nullable=True, default=None)
     extra_params: Mapped[dict | None] = mapped_column(PortableJSON(), nullable=True)
     status: Mapped[str] = mapped_column(String(32), server_default="untested", default="untested")
     last_tested_at: Mapped[datetime | None] = mapped_column(
