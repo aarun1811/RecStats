@@ -25,8 +25,6 @@ interface ChartLibraryCardProps {
   index: number
 }
 
-const ECHART_TYPES = new Set(['sankey', 'radar', 'sunburst', 'gauge', 'funnel', 'graph', 'parallel'])
-
 export function ChartLibraryCard({ chart, dataset, datasetName, onClick, index }: ChartLibraryCardProps) {
   const { data: rawResult, isLoading } = useQuery({
     queryKey: ['chart-thumbnail', chart.datasetId],

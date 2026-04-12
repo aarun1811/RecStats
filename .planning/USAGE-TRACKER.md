@@ -186,7 +186,54 @@ None identified in Phase 3.
 
 ## Phase 4: Charts Page
 
-*(To be filled by Phase 4 executor)*
+### Files Added
+
+| File | Plan | Purpose |
+|------|------|---------|
+| `.planning/phases/04-charts-page/chart-config-audit.md` | 04-01 | 20-type chart config audit with gap analysis |
+| `frontend/src/components/charts/chart-builder-help-sheet.tsx` | 04-03 | Chart-type-specific configuration reference Sheet (20 chart types) |
+| `frontend/src/components/ui/slider.tsx` | 04-03 | Shadcn Slider component for donut inner radius control |
+
+### Files Modified
+
+| File | Plan | Change |
+|------|------|--------|
+| `frontend/src/lib/style-constants.ts` | 04-01 | Added CHART_TYPE_BORDER_COLORS, CHART_TYPE_PILL_BG, CHART_TYPE_PILL_TEXT maps (3x20 entries) |
+| `frontend/src/index.css` | 04-01 | Added --chart-warning CSS variable in :root, .dark, @theme inline |
+| `frontend/src/lib/chart-themes.ts` | 04-01 | Exported resolveColor() as public API, added --chart-warning hex fallback |
+| `frontend/src/components/charts/echart-wrapper.tsx` | 04-01 | Replaced gauge hardcoded hex with resolveColor() calls |
+| `frontend/src/components/charts/ag-chart-wrapper.tsx` | 04-01 | Replaced treemap hardcoded hex with resolveColor() calls |
+| `frontend/src/components/charts/chart-library-card.tsx` | 04-02, 04-04 | Motion.div wrapper, border-l-2 accent, colored pill, stagger entrance; removed unused ECHART_TYPES |
+| `frontend/src/components/charts/chart-library-row.tsx` | 04-02 | Motion.div wrapper, border-l-2 accent, colored icon container, stagger entrance |
+| `frontend/src/components/charts/chart-library-list.tsx` | 04-02 | AnimatePresence crossfade, index prop threading, Empty filtered state |
+| `frontend/src/components/charts/chart-detail-panel.tsx` | 04-02 | Motion entrance, chart-type border accent, text-primary/60 icon tints |
+| `frontend/src/routes/_app/charts/index.tsx` | 04-02 | Staggered page entrance (title + content) |
+| `frontend/src/components/charts/chart-builder.tsx` | 04-03 | Accordion animations, preview crossfade, spring checkmark, help sheet trigger |
+| `frontend/src/components/charts/builder/step-mapping.tsx` | 04-03 | Inline HelpCircle tooltips on all mapping fields for 20 chart types |
+| `frontend/src/components/charts/builder/step-appearance.tsx` | 04-03 | Chart-type-specific conditional fields (heatmap, gauge, treemap, waterfall, pie, donut, scatter), ColorSwatchPicker |
+| `frontend/src/types/managed-chart.ts` | 04-03 | Added typeSpecific?: Record<string, unknown> to ChartAppearance |
+| `frontend/src/components/charts/builder/step-save.tsx` | 04-04 | Removed unused _mode destructured variable |
+| `scripts/seed-oracle.py` | 04-04 | Audited: no hex colors found in chart config JSON (confirmed clean) |
+
+### Files Removed
+
+None.
+
+### Dead Code Candidates [audit]
+
+| File | Concern | Resolution Phase |
+|------|---------|-----------------|
+| `frontend/src/components/charts/chart-library-card.tsx` | Had unused local `ECHART_TYPES` Set (removed in 04-04) | Resolved |
+
+### Known Warnings (non-chart)
+
+| Warning | File | Type | Notes |
+|---------|------|------|-------|
+| react-refresh/only-export-components | ag-chart-wrapper.tsx, echart-wrapper.tsx, chart-builder-preview.tsx | React Refresh | Inherent to co-exporting buildSeries/ECHART_TYPES alongside forwardRef components; no runtime impact |
+| react-hooks/preserve-manual-memoization | ag-chart-wrapper.tsx, echart-wrapper.tsx | React Compiler | Intentional granular deps (data?.columns vs data) for performance; compiler advisory only |
+| react-hooks/set-state-in-effect | chart-builder.tsx:169 | React Hooks | Intentional sync for edit mode initialDataset hydration |
+| react-hooks/exhaustive-deps (themeReady) | echart-wrapper.tsx:310 | React Hooks | Intentional toggle dep to force re-render on theme change |
+| @typescript-eslint/no-explicit-any | ag-chart-wrapper.test.ts, chart-factory.test.tsx | Test files | Tests deferred to future milestone |
 
 ## Phase 5: KPIs Page
 
