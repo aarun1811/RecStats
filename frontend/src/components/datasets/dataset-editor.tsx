@@ -571,7 +571,7 @@ export function DatasetEditor({ mode, dataset, isLoading }: DatasetEditorProps) 
             </div>
           </SheetHeader>
           <div style={{ height: 'calc(100vh - 80px)' }}>
-            <ColumnMetadataGrid columns={columns} onChange={setColumns} expanded />
+            <ColumnMetadataGrid columns={columns} onChange={setColumns} />
           </div>
         </SheetContent>
       </Sheet>
