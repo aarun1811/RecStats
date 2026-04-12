@@ -2,10 +2,15 @@ import { useCallback, useMemo } from 'react'
 import { AgGridReact } from 'ag-grid-react'
 import { type ColDef, type CellValueChangedEvent, type ICellRendererParams, themeQuartz, colorSchemeDark } from 'ag-grid-community'
 import { X } from 'lucide-react'
+
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useTheme } from '@/components/layout/theme-provider'
 import { cn } from '@/lib/utils'
+import { RoleBadgeRenderer } from './role-badge-renderer'
+import { TypeBadgeRenderer } from './type-badge-renderer'
+import { ColumnHeaderWithTooltip } from './column-header-with-tooltip'
+
 import type { MergedColumn } from '@/lib/column-merge'
 import type {
   AggregationFunction,
@@ -33,6 +38,8 @@ const AGGREGATIONS: AggregationFunction[] = [
 ]
 const FORMAT_VALUES: FormatPreset[] = FORMAT_PRESETS.map((p) => p.id)
 
+// --- Cell renderer: Name column with status badges ---
+
 function NameCellRenderer(
   params: ICellRendererParams<MergedColumn> & { onDismissMissing?: (name: string) => void },
 ) {
@@ -42,7 +49,7 @@ function NameCellRenderer(
   if (data.status === 'missing') {
     return (
       <div className="flex items-center gap-1.5">
-        <span className="font-mono text-xs truncate">{data.name}</span>
+        <span className="font-mono text-xs truncate line-through text-muted-foreground">{data.name}</span>
         <Badge variant="destructive" className="h-4 px-1 text-[10px] shrink-0">
           Missing
         </Badge>
@@ -59,6 +66,17 @@ function NameCellRenderer(
             <X className="size-3" />
           </Button>
         )}
+      </div>
+    )
+  }
+
+  if (data.status === 'new') {
+    return (
+      <div className="flex items-center gap-1.5">
+        <span className="font-mono text-xs truncate">{data.name}</span>
+        <Badge variant="outline" className="h-4 px-1 text-[10px] shrink-0 bg-green-50 text-green-700 border-green-200 dark:bg-green-950/30 dark:text-green-400 dark:border-green-800">
+          New
+        </Badge>
       </div>
     )
   }
@@ -104,6 +122,9 @@ export function ColumnMetadataGrid({ columns, onChange }: ColumnMetadataGridProp
         cellEditorParams: {
           values: DATA_TYPES,
         },
+        cellRenderer: TypeBadgeRenderer,
+        headerComponent: ColumnHeaderWithTooltip,
+        headerComponentParams: { tooltipField: 'Type' },
       },
       {
         field: 'role',
@@ -114,6 +135,9 @@ export function ColumnMetadataGrid({ columns, onChange }: ColumnMetadataGridProp
         cellEditorParams: {
           values: ROLES,
         },
+        cellRenderer: RoleBadgeRenderer,
+        headerComponent: ColumnHeaderWithTooltip,
+        headerComponentParams: { tooltipField: 'Role' },
       },
       {
         field: 'aggregation',
@@ -124,6 +148,8 @@ export function ColumnMetadataGrid({ columns, onChange }: ColumnMetadataGridProp
         cellEditorParams: {
           values: AGGREGATIONS,
         },
+        headerComponent: ColumnHeaderWithTooltip,
+        headerComponentParams: { tooltipField: 'Aggregation' },
       },
       {
         field: 'formatPreset',
@@ -139,6 +165,8 @@ export function ColumnMetadataGrid({ columns, onChange }: ColumnMetadataGridProp
           const preset = FORMAT_PRESETS.find((p) => p.id === params.value)
           return preset ? preset.label : String(params.value ?? '')
         },
+        headerComponent: ColumnHeaderWithTooltip,
+        headerComponentParams: { tooltipField: 'Format' },
       },
     ],
     [handleDismissMissing],
@@ -152,25 +180,14 @@ export function ColumnMetadataGrid({ columns, onChange }: ColumnMetadataGridProp
     [],
   )
 
-  const getRowStyle = useCallback(
+  const getRowClass = useCallback(
     (params: { data?: MergedColumn }) => {
-      if (!params.data) return undefined
-
-      if (params.data.status === 'missing') {
-        return resolvedTheme === 'dark'
-          ? { backgroundColor: 'rgba(127, 29, 29, 0.2)' }
-          : { backgroundColor: 'rgb(254, 242, 242)' }
-      }
-
-      if (params.data.status === 'new') {
-        return resolvedTheme === 'dark'
-          ? { backgroundColor: 'rgba(20, 83, 45, 0.2)' }
-          : { backgroundColor: 'rgb(240, 253, 244)' }
-      }
-
-      return undefined
+      if (!params.data) return ''
+      if (params.data.status === 'missing') return 'bg-red-50 dark:bg-red-950/20 border-l-2 border-l-red-500'
+      if (params.data.status === 'new') return 'bg-green-50 dark:bg-green-950/20 border-l-2 border-l-green-500'
+      return ''
     },
-    [resolvedTheme],
+    [],
   )
 
   const onCellValueChanged = useCallback(
@@ -198,7 +215,7 @@ export function ColumnMetadataGrid({ columns, onChange }: ColumnMetadataGridProp
         rowData={columns}
         columnDefs={columnDefs}
         defaultColDef={defaultColDef}
-        getRowStyle={getRowStyle}
+        getRowClass={getRowClass}
         onCellValueChanged={onCellValueChanged}
         domLayout={useAutoHeight ? 'autoHeight' : 'normal'}
         singleClickEdit
