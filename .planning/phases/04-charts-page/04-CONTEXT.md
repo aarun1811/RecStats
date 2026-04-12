@@ -14,8 +14,8 @@ Colorize the Charts page (list + builder wizard), audit and fix hard-coded hex i
 ## Implementation Decisions
 
 ### Card Accent Color
-- **D-01:** Chart cards get `border-l-2` accent colored by chart type, using `--series-1..8` CSS variables from Phase 1. Map chart types to series vars in `style-constants.ts` as `CHART_TYPE_COLORS`.
-- **D-02:** Chart type pill on thumbnails gets a color-coded background matching the chart-type series color at low opacity (e.g. `bg-[var(--series-1)]/15`). Replaces current neutral `bg-background/80` pill.
+- **D-01:** Chart cards get `border-l-2` accent colored by chart type using Tailwind utility colors (line=blue-500, bar=teal-500, pie=violet-500, etc.). Map in `style-constants.ts` as `CHART_TYPE_COLORS`. These are UI categorization colors, separate from the `--series-1..8` CSS vars which are reserved for data series colors inside charts.
+- **D-02:** Chart type pill on thumbnails gets a color-coded background matching the chart-type Tailwind color at low opacity (e.g. `bg-blue-500/15 text-blue-600 dark:text-blue-400` for line charts). Replaces current neutral `bg-background/80` pill.
 - **D-03:** Cards get `motion/react` hover lift `whileHover={{ y: -2 }}` and stagger entrance animation (50ms per card) — matching Phase 2/3 card treatment.
 - **D-04:** `AnimatePresence` crossfade (200ms opacity) on grid/list view toggle — matching Phase 3 pattern.
 - **D-05:** Filtered empty state ("No charts matching...") upgraded from bare `<p>` to `Empty` component with search icon — matching Phase 3 pattern.
@@ -133,7 +133,7 @@ Colorize the Charts page (list + builder wizard), audit and fix hard-coded hex i
 <specifics>
 ## Specific Ideas
 
-- Chart-type color mapping uses `--series-1..8` CSS variables from Phase 1 (not Tailwind utility colors)
+- `--series-1..8` CSS vars are reserved for data series colors inside charts (bars, lines, pie slices). Chart-type UI accent colors (card borders, type pills) use Tailwind utility colors (blue-500, teal-500, violet-500, etc.) — separate concerns
 - Wave 1 of planning should produce a chart config audit file documenting required vs captured vs applied config per chart type — this drives subsequent implementation waves
 - Builder help sheet mirrors Phase 3 column metadata help sheet pattern
 - ECharts thumbnails should render live charts, not static icons
