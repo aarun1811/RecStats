@@ -22,6 +22,7 @@ import { FORMAT_PRESETS } from '@/components/datasets/format-preset-select'
 interface ColumnMetadataGridProps {
   columns: MergedColumn[]
   onChange: (columns: MergedColumn[]) => void
+  expanded?: boolean
 }
 
 const DATA_TYPES: ColumnDataType[] = ['string', 'number', 'date', 'currency']
@@ -83,7 +84,7 @@ function NameCellRenderer(
   return <span className="font-mono text-xs">{data.name}</span>
 }
 
-export function ColumnMetadataGrid({ columns, onChange }: ColumnMetadataGridProps) {
+export function ColumnMetadataGrid({ columns, onChange, expanded = false }: ColumnMetadataGridProps) {
   const { resolvedTheme } = useTheme()
   const gridTheme = resolvedTheme === 'dark' ? themeQuartz.withPart(colorSchemeDark) : themeQuartz
 
@@ -206,7 +207,7 @@ export function ColumnMetadataGrid({ columns, onChange }: ColumnMetadataGridProp
     [columns, onChange],
   )
 
-  const useAutoHeight = columns.length <= 10
+  const useAutoHeight = !expanded && columns.length <= 10
 
   return (
     <div className="w-full h-full">
