@@ -1045,6 +1045,25 @@ CURATED_DATASETS: list[dict] = [
         "filter_mappings": [_BASE_FILTER_MAPPINGS[1]],
     },
     {
+        "id": "ds-recon-status-by-region",
+        "name": "Transactions -- Status × Region",
+        "description": "Cross-tab of transaction count by status and region for stacked bar.",
+        "sql_template": (
+            "SELECT r.name AS region, s.name AS status, "
+            "COUNT(*) AS txn_count "
+            "FROM recon_transactions t "
+            "JOIN regions r ON t.region_id = r.id "
+            "JOIN statuses s ON t.status_id = s.id WHERE 1=1 {{filters}} "
+            "GROUP BY r.name, s.name ORDER BY r.name, s.name"
+        ),
+        "columns": [
+            _col("region", "Region", "string", "dimension"),
+            _col("status", "Status", "string", "dimension"),
+            _col("txn_count", "Transaction Count", "number", "measure", "SUM", "number"),
+        ],
+        "filter_mappings": [_BASE_FILTER_MAPPINGS[0], _BASE_FILTER_MAPPINGS[1]],
+    },
+    {
         "id": "ds-recon-breaks-summary",
         "name": "Breaks -- Summary",
         "description": "Breaks rollup by type and resolution.",
@@ -1422,11 +1441,11 @@ CURATED_CHARTS: list[dict] = [
     _chart(
         "chart-txn-status-stacked",
         "Status by Region",
-        "Stacked bar of count + USD per region.",
-        "ds-recon-transactions-by-region",
+        "Stacked bar of transaction count per region, colored by match status.",
+        "ds-recon-status-by-region",
         "stacked-bar",
         "region",
-        ["txn_count", "total_usd"],
+        ["txn_count"],
     ),
     _chart(
         "chart-breaks-by-type",
@@ -1478,11 +1497,11 @@ CURATED_CHARTS: list[dict] = [
     _chart(
         "chart-sla-heatmap",
         "SLA Breach Heatmap",
-        "SLA breach heatmap by type and region.",
+        "SLA breach rate heatmap — SLA type (x) × region (y), color = breach rate.",
         "ds-sla-breach-summary",
         "heatmap",
         "sla_type",
-        ["region", "breach_rate"],
+        ["breach_rate"],
     ),
     _chart(
         "chart-txn-combo",
@@ -1553,11 +1572,11 @@ CURATED_CHARTS: list[dict] = [
     _chart(
         "chart-txn-parallel",
         "Transaction Parallel Coords",
-        "Parallel coordinates over scatter columns.",
+        "Parallel coordinates — amount, fee, and currency across transactions.",
         "ds-recon-transactions-scatter",
         "parallel",
         None,
-        ["amount_usd", "fee"],
+        ["amount_usd", "fee", "currency_id"],
     ),
     _chart(
         "chart-currency-pie",
