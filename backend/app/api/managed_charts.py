@@ -71,7 +71,7 @@ def create_managed_chart(
     chart = RecvizChart(
         id=str(uuid.uuid4()),
         name=body.name,
-        description=body.description,
+        description=body.description or None,
         dataset_id=body.dataset_id,
         chart_type=body.chart_type,
         config=body.config.model_dump(by_alias=False),
@@ -116,7 +116,7 @@ def update_managed_chart(
     if body.name is not None:
         chart.name = body.name
     if body.description is not None:
-        chart.description = body.description
+        chart.description = body.description or None
     if body.chart_type is not None:
         chart.chart_type = body.chart_type
     if body.config is not None:

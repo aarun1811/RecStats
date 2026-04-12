@@ -123,7 +123,7 @@ def upgrade() -> None:
         "recviz_charts",
         sa.Column("id", sa.String(128), nullable=False),
         sa.Column("name", sa.String(256), nullable=False),
-        sa.Column("description", sa.String(1024), nullable=False),
+        sa.Column("description", sa.String(1024), nullable=True),
         sa.Column("dataset_id", sa.String(128), nullable=False),
         sa.Column("chart_type", sa.String(64), nullable=False),
         sa.Column("config", sa.BLOB(), nullable=False),

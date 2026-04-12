@@ -447,11 +447,9 @@ export function StepMapping({ chartType, columns, mapping, onChange }: StepMappi
                   hasSecondaryDim ? handleAddMetricForSecondary(v) : addMetric(v)
                 }
               >
-                <SelectTrigger asChild>
-                  <Button variant="ghost" size="sm" className="gap-1">
-                    <Plus className="size-4" />
-                    Add Metric
-                  </Button>
+                <SelectTrigger className="h-8 w-auto gap-1 border-dashed text-xs text-muted-foreground hover:text-foreground">
+                  <Plus className="size-3.5" />
+                  Add Metric
                 </SelectTrigger>
                 <SelectContent>
                   {availableMetrics.map((col) => (

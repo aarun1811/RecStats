@@ -16,7 +16,7 @@ class RecvizChart(Base):
 
     id: Mapped[str] = mapped_column(String(128), primary_key=True)
     name: Mapped[str] = mapped_column(String(256), nullable=False)
-    description: Mapped[str] = mapped_column(String(1024), server_default="", default="")
+    description: Mapped[str | None] = mapped_column(String(1024), nullable=True, default=None)
     dataset_id: Mapped[str] = mapped_column(String(128), nullable=False)
     chart_type: Mapped[str] = mapped_column(String(64), nullable=False)
     config: Mapped[dict] = mapped_column(PortableJSON(), nullable=False, default=dict)
