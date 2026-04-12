@@ -16,11 +16,12 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
 import { SqlEditor } from '@/components/explorer/sql-editor'
 import { ColumnMetadataGrid } from '@/components/datasets/column-metadata-grid'
@@ -551,25 +552,30 @@ export function DatasetEditor({ mode, dataset, isLoading }: DatasetEditorProps) 
         </div>
       </div>
 
-      {/* Expanded column metadata dialog */}
-      <Dialog open={metadataExpanded} onOpenChange={setMetadataExpanded}>
-        <DialogContent className="!max-w-[900px] w-[900px] h-[80vh] flex flex-col">
-          <DialogHeader>
+      {/* Expanded column metadata sheet */}
+      <Sheet open={metadataExpanded} onOpenChange={setMetadataExpanded}>
+        <SheetContent side="right" className="sm:!max-w-2xl w-[700px] p-0 flex flex-col">
+          <SheetHeader className="px-6 py-4 border-b shrink-0">
             <div className="flex items-center justify-between">
-              <DialogTitle className="flex items-center gap-2">
-                <Columns3 className="size-4 text-muted-foreground" />
-                Column Metadata
-              </DialogTitle>
-              <div className="flex items-center gap-1.5">
-                <ColumnMetadataHelpSheet />
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center size-8 rounded-lg bg-primary/10">
+                  <Columns3 className="size-4 text-primary" />
+                </div>
+                <div>
+                  <SheetTitle className="text-base">Column Metadata</SheetTitle>
+                  <SheetDescription className="text-xs">
+                    Configure types, roles, aggregation, and formatting
+                  </SheetDescription>
+                </div>
               </div>
+              <ColumnMetadataHelpSheet />
             </div>
-          </DialogHeader>
+          </SheetHeader>
           <div className="flex-1 min-h-0">
             <ColumnMetadataGrid columns={columns} onChange={setColumns} expanded />
           </div>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
 
       {/* Delete dialog */}
       {mode === 'edit' && dataset && (
