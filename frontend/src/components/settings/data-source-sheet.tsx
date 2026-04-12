@@ -923,19 +923,22 @@ function ExpandedDatasetColumns({ datasetId }: ExpandedDatasetColumnsProps) {
           <span className="font-mono text-xs truncate flex-1 text-muted-foreground group-hover:text-foreground transition-colors">
             {col.name}
           </span>
-          <span className="inline-flex items-center justify-center rounded bg-muted w-[68px] py-0.5 text-[10px] font-mono text-muted-foreground shrink-0 text-center">
-            {col.dataType}
-          </span>
-          <span className={cn(
-            'inline-flex items-center justify-center rounded-full w-[76px] py-0.5 text-[9px] font-semibold uppercase tracking-wider shrink-0 text-center',
-            col.role === 'measure'
-              ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-              : col.role === 'time'
-                ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
-                : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400',
-          )}>
-            {col.role}
-          </span>
+          {/* Fixed-width container for badges — right-aligned, pills hug text */}
+          <div className="flex items-center justify-end gap-1.5 shrink-0 w-[150px]">
+            <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-mono bg-muted text-muted-foreground">
+              {col.dataType}
+            </span>
+            <span className={cn(
+              'inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider',
+              col.role === 'measure'
+                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                : col.role === 'time'
+                  ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
+                  : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400',
+            )}>
+              {col.role}
+            </span>
+          </div>
         </div>
       ))}
     </div>
