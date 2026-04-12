@@ -120,7 +120,34 @@
 
 ## Phase 2: Settings Page
 
-*(To be filled by Phase 2 executor)*
+### Files Added
+
+| File | Plan | Purpose |
+|------|------|---------|
+| `frontend/src/stores/display-store.ts` | 02-01 | Zustand store for density + fontSize (CSS var writing, localStorage persistence) |
+| `frontend/src/components/settings/theme-preview-card.tsx` | 02-01 | Theme preview card with CSS-drawn mini-mockups (light/dark/system) |
+| `frontend/src/components/settings/animated-status-badge.tsx` | 02-02 | Animated status badge with emerald pulse for connected, static dots for others |
+| `frontend/src/components/settings/connection-test-area.tsx` | 02-02 | 4-state connection test animation machine (Idle/Testing/Success/Failure) |
+| `frontend/src/components/settings/connection-health-header.tsx` | 02-02 | Connection health summary with large status badge + info grid |
+
+### Files Modified
+
+| File | Plan | Change |
+|------|------|--------|
+| `frontend/src/index.css` | 02-01 | Body font-size/line-height CSS transition rule, form focus ring-2 ring-ring/20 enhancement |
+| `frontend/src/routes/_app/settings/index.tsx` | 02-01 | Rewritten: max-w-5xl layout, AnimatePresence tab transitions, ThemePreviewCard, ToggleGroup display controls |
+| `frontend/src/components/settings/data-source-card.tsx` | 02-02, 02-03 | AnimatedStatusBadge replacing StatusDot, border-l-2 status color, motion hover lift |
+| `frontend/src/components/settings/data-source-row.tsx` | 02-02 | AnimatedStatusBadge replacing StatusDot, border-l-2 status color |
+| `frontend/src/components/settings/data-source-sheet.tsx` | 02-02, 02-03 | ConnectionTestArea, ConnectionHealthHeader, stagger animations, cross-fade, unified footer, column badges, blur flash |
+| `frontend/src/components/settings/data-sources-tab.tsx` | 02-02 | Responsive grid (grid-cols-2 lg:grid-cols-3) |
+
+### Files Removed
+
+None.
+
+### Dead Code Candidates [audit]
+
+None identified in Phase 2.
 
 ## Phase 3: Datasets Page
 
