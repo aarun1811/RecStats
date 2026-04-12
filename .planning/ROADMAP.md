@@ -143,7 +143,7 @@ Plans:
 - [x] 04-01-PLAN.md — Style constants + CSS tokens + hex migration + chart config audit
 - [x] 04-02-PLAN.md — List page colorization + animations + ECharts thumbnails + detail panel
 - [x] 04-03-PLAN.md — Builder wizard polish + appearance expansion + tooltips + help sheet
-- [ ] 04-04-PLAN.md — Stored config hex audit + console error triage + USAGE-TRACKER
+- [x] 04-04-PLAN.md — Stored config hex audit + console error triage + USAGE-TRACKER
 **UI hint**: yes
 **Known risks / gotchas**:
   - `frontend/src/types/chart.ts` and `frontend/src/components/charts/builder/step-appearance.tsx` may carry hard-coded hex in chart config defaults — must grep and replace with CSS variable references.
