@@ -1,26 +1,38 @@
 import { ChevronRight } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
+import { motion } from 'motion/react'
 
 import { cn } from '@/lib/utils'
 import { ChartTypeIcon, CHART_DISPLAY_NAMES } from '@/components/charts/chart-type-icon'
+import {
+  CHART_TYPE_BORDER_COLORS,
+  CHART_TYPE_PILL_BG,
+  CHART_TYPE_PILL_TEXT,
+} from '@/lib/style-constants'
 import type { RecvizChart } from '@/types/managed-chart'
 
 interface ChartLibraryRowProps {
   chart: RecvizChart
   datasetName: string
   onClick: () => void
+  index: number
 }
 
-export function ChartLibraryRow({ chart, datasetName, onClick }: ChartLibraryRowProps) {
+export function ChartLibraryRow({ chart, datasetName, onClick, index }: ChartLibraryRowProps) {
   const displayType = CHART_DISPLAY_NAMES[chart.chartType] ?? chart.chartType
   const timeAgo = formatDistanceToNow(new Date(chart.updatedAt), { addSuffix: true })
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05, duration: 0.2, ease: 'easeOut' }}
+      whileHover={{ y: -1 }}
       className={cn(
-        'group flex items-center gap-4 rounded-lg border px-4 py-3',
-        'cursor-pointer transition-all duration-150',
+        'group flex items-center gap-4 rounded-lg border border-l-2 px-4 py-3',
+        'cursor-pointer transition-shadow duration-150',
         'hover:border-primary/20 hover:bg-muted/30',
+        CHART_TYPE_BORDER_COLORS[chart.chartType],
       )}
       onClick={onClick}
       tabIndex={0}
@@ -33,8 +45,8 @@ export function ChartLibraryRow({ chart, datasetName, onClick }: ChartLibraryRow
       }}
     >
       {/* Icon + chart type — compact badge-like container */}
-      <div className="flex items-center justify-center size-9 rounded-md bg-muted/50 shrink-0">
-        <ChartTypeIcon chartType={chart.chartType} size={18} className="text-muted-foreground" />
+      <div className={cn('flex items-center justify-center size-9 rounded-md shrink-0', CHART_TYPE_PILL_BG[chart.chartType])}>
+        <ChartTypeIcon chartType={chart.chartType} size={18} className={CHART_TYPE_PILL_TEXT[chart.chartType]} />
       </div>
 
       {/* Name + description */}
@@ -66,6 +78,6 @@ export function ChartLibraryRow({ chart, datasetName, onClick }: ChartLibraryRow
         size={14}
         className="shrink-0 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5 group-hover:text-muted-foreground"
       />
-    </div>
+    </motion.div>
   )
 }
