@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-05-PLAN.md
-last_updated: "2026-04-12T09:48:45.435Z"
+stopped_at: Completed 01-02-PLAN.md
+last_updated: "2026-04-12T09:56:00.113Z"
 last_activity: 2026-04-12
 progress:
   total_phases: 8
   completed_phases: 0
   total_plans: 6
-  completed_plans: 3
-  percent: 50
+  completed_plans: 4
+  percent: 67
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-11)
 ## Current Position
 
 Phase: 01 (infrastructure-cutover) — EXECUTING
-Plan: 4 of 6
+Plan: 5 of 6
 Status: Ready to execute
 Last activity: 2026-04-12
 
@@ -55,6 +55,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P01 | 3min | 2 tasks | 5 files |
 | Phase 01 P04 | 3min | 2 tasks | 3 files |
 | Phase 01 P05 | 16min | 2 tasks | 50 files |
+| Phase 01 P02 | 4min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -77,6 +78,9 @@ Recent decisions affecting current work:
 - [Phase 01]: HEX_FALLBACKS in chart-themes.ts for pre-paint timing safety (Gemini LOW concern addressed)
 - [Phase 01]: AG Grid token bridge via .ag-theme-quartz CSS variable overrides (no JS theme object)
 - [Phase 01]: Legacy migration files (002, 006, 007) left untouched for 01-03 scope; seed/ directory deleted as additional PG residue
+- [Phase 01]: os.environ.get for ORACLE_CLIENT_LIB_DIR before any app import -- prevents transitive thin-mode lock
+- [Phase 01]: Hard RuntimeError on missing ORACLE_CLIENT_LIB_DIR -- zero fallback to thin mode
+- [Phase 01]: pool_size=5 + max_overflow=5 + pool_recycle=1800 for Oracle engine tuning
 
 ### Pending Todos
 
@@ -90,6 +94,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-12T09:48:45.432Z
-Stopped at: Completed 01-05-PLAN.md
+Last session: 2026-04-12T09:56:00.110Z
+Stopped at: Completed 01-02-PLAN.md
 Resume file: None

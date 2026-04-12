@@ -68,7 +68,7 @@ Dependencies are strictly linear. Every page phase depends on Phase 1's global p
 **Plans**: 6 plans
 Plans:
 - [x] 01-01-PLAN.md — Backend config + deps + types (config.py, requirements.txt, .env.example, types.py, base.py)
-- [ ] 01-02-PLAN.md — Backend engine + main.py + services (engine.py, main.py, engine_manager.py, uri_builder.py, views.py)
+- [x] 01-02-PLAN.md — Backend engine + main.py + services (engine.py, main.py, engine_manager.py, uri_builder.py, views.py)
 - [ ] 01-03-PLAN.md — Alembic migration (delete old, rewrite env.py/alembic.ini, generate new migration)
 - [x] 01-04-PLAN.md — Frontend palette + chart themes (index.css Mist+Blue, series vars, AG Grid bridge, chart-themes.ts)
 - [x] 01-05-PLAN.md — Residue removal + CLAUDE.md verification (delete files/dirs, seed-oracle.py, grep audit)
