@@ -51,6 +51,13 @@ export const COLUMN_ROLE_LABELS: Record<ColumnRole, string> = {
   none: 'None',
 }
 
+export const COLUMN_ROLE_SHORT_LABELS: Record<ColumnRole, { singular: string; plural: string }> = {
+  dimension: { singular: 'dim', plural: 'dims' },
+  measure: { singular: 'meas', plural: 'meas' },
+  time: { singular: 'time', plural: 'time' },
+  none: { singular: 'none', plural: 'none' },
+}
+
 // --- Column data type display constants ---
 
 export const COLUMN_TYPE_STYLES: Record<ColumnDataType, string> = {

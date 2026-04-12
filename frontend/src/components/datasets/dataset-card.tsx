@@ -9,7 +9,7 @@ import {
   BACKEND_COLORS,
   BACKEND_BORDER_COLORS,
   COLUMN_ROLE_STYLES,
-  COLUMN_ROLE_LABELS,
+  COLUMN_ROLE_SHORT_LABELS,
 } from '@/lib/style-constants'
 import type { RecvizDataset } from '@/types/managed-dataset'
 import type { ColumnRole } from '@/types/managed-dataset'
@@ -87,7 +87,7 @@ export function DatasetCard({ dataset, databaseName, backendType, onClick, index
                       COLUMN_ROLE_STYLES[role as ColumnRole],
                     )}
                   >
-                    {count} {COLUMN_ROLE_LABELS[role as ColumnRole].toLowerCase().slice(0, 4) + ((count as number) > 1 ? 's' : '')}
+                    {count} {(count as number) > 1 ? COLUMN_ROLE_SHORT_LABELS[role as ColumnRole].plural : COLUMN_ROLE_SHORT_LABELS[role as ColumnRole].singular}
                   </span>
                 ))}
               </div>
