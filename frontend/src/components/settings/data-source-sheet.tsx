@@ -9,6 +9,9 @@ import {
   Trash2,
   ChevronRight,
   ChevronDown,
+  Plug,
+  CheckCircle2,
+  XCircle,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'motion/react'
 
@@ -521,30 +524,86 @@ function DetailView({
         </div>
       </ScrollArea>
 
-      {/* ── Sticky Footer (always visible) ── */}
-      <div className="border-t bg-background shrink-0">
-        <div className="px-6 py-3">
-          <ConnectionTestArea
-            onTest={onTestConnection}
-            isPending={testMutation.isPending}
-            result={testResult}
-          />
-        </div>
-        <Separator />
-        <div className="px-6 py-3 flex items-center justify-between">
-          <Button variant="outline" size="sm" onClick={onEdit}>
+      {/* ── Sticky Footer — Unified Action Bar ── */}
+      <div className="border-t shrink-0">
+        {/* Test result banner — slides in above the action bar when result arrives */}
+        <AnimatePresence>
+          {testResult && !testMutation.isPending && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+              className="overflow-hidden"
+            >
+              <div className={cn(
+                'px-5 py-2.5 text-xs font-medium flex items-center gap-2 border-b',
+                testResult.success
+                  ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400'
+                  : 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400',
+              )}>
+                {testResult.success ? (
+                  <motion.div
+                    initial={{ scale: 0, rotate: -90 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                  >
+                    <CheckCircle2 className="size-3.5" />
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    animate={{ x: [0, -3, 3, -3, 3, 0] }}
+                    transition={{ duration: 0.4 }}
+                  >
+                    <XCircle className="size-3.5" />
+                  </motion.div>
+                )}
+                {testResult.message}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Action bar — all actions on one row */}
+        <div className="px-5 py-3 flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onTestConnection}
+            disabled={testMutation.isPending}
+            className="shrink-0"
+          >
+            {testMutation.isPending ? (
+              <>
+                <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                Testing...
+              </>
+            ) : (
+              <>
+                <Plug className="mr-1.5 size-3.5" />
+                Test Connection
+              </>
+            )}
+          </Button>
+
+          <div className="flex-1" />
+
+          <Button
+            variant="default"
+            size="sm"
+            onClick={onEdit}
+          >
             <Pencil className="mr-1.5 size-3.5" />
             Edit Source
           </Button>
           <Button
             variant="ghost"
             size="sm"
-            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+            className="text-muted-foreground hover:text-destructive"
             onClick={onDelete}
             disabled={isDeleting}
           >
-            <Trash2 className="mr-1.5 size-3.5" />
-            Delete
+            <Trash2 className="size-3.5" />
           </Button>
         </div>
       </div>
