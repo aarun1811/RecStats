@@ -1,6 +1,7 @@
 import type { DatabaseBackend, ConnectionStatus } from '@/types/database'
 import type { ColumnRole, ColumnDataType } from '@/types/managed-dataset'
 import type { LibraryChartType } from '@/types/managed-chart'
+import type { AggregationType } from '@/types/managed-kpi'
 
 // --- Backend (database engine) display constants ---
 
@@ -144,4 +145,40 @@ export const CHART_TYPE_PILL_TEXT: Record<LibraryChartType, string> = {
   'funnel': 'text-fuchsia-600 dark:text-fuchsia-400',
   'graph': 'text-pink-600 dark:text-pink-400',
   'parallel': 'text-purple-600 dark:text-purple-400',
+}
+
+// --- KPI aggregation type accent display constants ---
+
+export const KPI_AGG_BORDER_COLORS: Record<AggregationType, string> = {
+  SUM: 'border-l-emerald-500',
+  AVG: 'border-l-blue-500',
+  COUNT: 'border-l-violet-500',
+  MIN: 'border-l-amber-500',
+  MAX: 'border-l-amber-500',
+  COUNT_DISTINCT: 'border-l-teal-500',
+}
+
+export const KPI_AGG_PILL_BG: Record<AggregationType, string> = {
+  SUM: 'bg-emerald-500/15',
+  AVG: 'bg-blue-500/15',
+  COUNT: 'bg-violet-500/15',
+  MIN: 'bg-amber-500/15',
+  MAX: 'bg-amber-500/15',
+  COUNT_DISTINCT: 'bg-teal-500/15',
+}
+
+export const KPI_AGG_PILL_TEXT: Record<AggregationType, string> = {
+  SUM: 'text-emerald-600 dark:text-emerald-400',
+  AVG: 'text-blue-600 dark:text-blue-400',
+  COUNT: 'text-violet-600 dark:text-violet-400',
+  MIN: 'text-amber-600 dark:text-amber-400',
+  MAX: 'text-amber-600 dark:text-amber-400',
+  COUNT_DISTINCT: 'text-teal-600 dark:text-teal-400',
+}
+
+export const THRESHOLD_BORDER_COLORS: Record<string, string> = {
+  green: 'border-l-green-500',
+  amber: 'border-l-amber-500',
+  red: 'border-l-red-500',
+  none: 'border-l-muted',
 }
