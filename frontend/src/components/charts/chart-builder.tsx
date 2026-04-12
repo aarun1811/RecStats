@@ -556,6 +556,12 @@ export function ChartBuilder({
                               <Button
                                 size="sm"
                                 onClick={handleMappingComplete}
+                                disabled={
+                                  state.columnMapping.metricColumns.length === 0 ||
+                                  (NEEDS_CATEGORY.has(state.chartType!) && !state.columnMapping.categoryColumn) ||
+                                  (state.chartType === 'scatter' && state.columnMapping.metricColumns.length < 2) ||
+                                  (state.chartType === 'combo' && state.columnMapping.metricColumns.length < 2)
+                                }
                               >
                                 Continue
                               </Button>
