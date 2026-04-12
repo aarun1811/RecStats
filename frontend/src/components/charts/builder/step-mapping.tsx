@@ -1,8 +1,13 @@
-import { Plus, X } from 'lucide-react'
+import { HelpCircle, Plus, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import {
   Select,
   SelectContent,
@@ -47,6 +52,93 @@ const MAPPING_FIELD_LABELS: Record<string, MappingFieldConfig> = {
 const AGGREGATION_OPTIONS: AggregationFunction[] = [
   'NONE', 'SUM', 'AVG', 'COUNT', 'MIN', 'MAX', 'COUNT_DISTINCT',
 ]
+
+const MAPPING_FIELD_TOOLTIPS: Record<string, Record<string, string>> = {
+  'bar': {
+    'X-Axis': 'The category axis. Each unique value becomes a bar group.',
+    'Metrics': 'Numeric columns to plot. Each metric becomes a separate bar series.',
+  },
+  'stacked-bar': {
+    'X-Axis': 'The category axis. Each unique value becomes a stacked group.',
+    'Metrics': 'Numeric columns to stack. Each metric becomes a segment in the bar.',
+  },
+  'line': {
+    'X-Axis': 'The horizontal axis. Typically a time or ordered category column.',
+    'Metrics': 'Numeric columns. Each becomes a separate line on the chart.',
+  },
+  'area': {
+    'X-Axis': 'The horizontal axis. Typically a time or ordered category.',
+    'Metrics': 'Numeric columns. Each becomes a filled area beneath its line.',
+  },
+  'pie': {
+    'Category': 'Dimension column. Each unique value becomes a slice of the pie.',
+    'Metric': 'Single numeric column determining the size of each slice.',
+  },
+  'donut': {
+    'Category': 'Dimension column. Each unique value becomes a segment.',
+    'Metric': 'Single numeric column determining segment size.',
+  },
+  'scatter': {
+    'X-Metric': 'The numeric column for the horizontal position of each point.',
+    'Y-Metric': 'The numeric column for the vertical position of each point.',
+  },
+  'heatmap': {
+    'X-Axis': 'The primary dimension. Columns of the heatmap grid.',
+    'Y-Axis': 'The secondary dimension. Rows in the heatmap grid.',
+    'Color Metric': 'Numeric column whose values determine cell color intensity.',
+  },
+  'treemap': {
+    'Category': 'Dimension column used as rectangle labels in the treemap.',
+    'Metric': 'Numeric column determining the size of each rectangle.',
+  },
+  'waterfall': {
+    'Category': 'Step labels along the x-axis (e.g., line items).',
+    'Metric': 'Numeric column. Positive values increase, negative values decrease.',
+  },
+  'bullet': {
+    'Category': 'Label for each bullet row.',
+    'Metric': 'The actual performance value to display as a bar.',
+  },
+  'box-plot': {
+    'Category': 'Grouping dimension for each box in the plot.',
+    'Value': 'Numeric column. Distribution (min, Q1, median, Q3, max) computed per category.',
+  },
+  'combo': {
+    'X-Axis': 'Shared category axis for both bar and line series.',
+    'Metrics': 'Two or more metrics. First renders as bars, second as a line.',
+  },
+  'sankey': {
+    'Source': 'Start node for each flow connection.',
+    'Target': 'End node for each flow connection.',
+    'Value': 'Numeric weight determining link thickness.',
+  },
+  'sunburst': {
+    'Levels': 'Hierarchical category column defining concentric rings.',
+    'Value': 'Numeric column determining arc size at each level.',
+  },
+  'radar': {
+    'Category': 'Indicator labels around the radar perimeter.',
+    'Metrics': 'Two or more numeric columns. Each becomes a radar axis.',
+  },
+  'gauge': {
+    'Metric': 'Single numeric value to display on the gauge dial.',
+  },
+  'funnel': {
+    'Category': 'Stage labels in the funnel from widest to narrowest.',
+    'Metric': 'Numeric column determining each stage width.',
+  },
+  'graph': {
+    'Source': 'Source node for each edge in the network.',
+    'Target': 'Target node for each edge.',
+    'Weight': 'Numeric weight of each edge connection.',
+  },
+  'parallel': {
+    'Category': 'Grouping dimension for color-coding lines.',
+    'Metrics': 'Two or more numeric columns. Each becomes a parallel axis.',
+  },
+}
+
+// ---------------------------------------------------------------------------
 
 interface StepMappingProps {
   chartType: LibraryChartType
@@ -182,7 +274,21 @@ export function StepMapping({ chartType, columns, mapping, onChange }: StepMappi
       {/* Primary dimension / category */}
       {fieldConfig.categoryLabel && (
         <div className="space-y-2">
-          <Label className="text-sm font-semibold">{fieldConfig.categoryLabel}</Label>
+          <div className="flex items-center gap-1.5">
+            <Label className="text-sm font-semibold">{fieldConfig.categoryLabel}</Label>
+            {MAPPING_FIELD_TOOLTIPS[chartType]?.[fieldConfig.categoryLabel] && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button type="button" className="text-muted-foreground hover:text-foreground transition-colors">
+                    <HelpCircle className="size-3.5" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent side="top" className="max-w-xs text-sm">
+                  {MAPPING_FIELD_TOOLTIPS[chartType][fieldConfig.categoryLabel]}
+                </PopoverContent>
+              </Popover>
+            )}
+          </div>
           <Select
             value={mapping.categoryColumn ?? ''}
             onValueChange={updateCategoryColumn}
@@ -223,7 +329,21 @@ export function StepMapping({ chartType, columns, mapping, onChange }: StepMappi
       {/* Secondary dimension (heatmap Y-Axis, sankey Target, graph Target) */}
       {fieldConfig.secondaryDimLabel && (
         <div className="space-y-2">
-          <Label className="text-sm font-semibold">{fieldConfig.secondaryDimLabel}</Label>
+          <div className="flex items-center gap-1.5">
+            <Label className="text-sm font-semibold">{fieldConfig.secondaryDimLabel}</Label>
+            {MAPPING_FIELD_TOOLTIPS[chartType]?.[fieldConfig.secondaryDimLabel] && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button type="button" className="text-muted-foreground hover:text-foreground transition-colors">
+                    <HelpCircle className="size-3.5" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent side="top" className="max-w-xs text-sm">
+                  {MAPPING_FIELD_TOOLTIPS[chartType][fieldConfig.secondaryDimLabel]}
+                </PopoverContent>
+              </Popover>
+            )}
+          </div>
           <Select
             value={secondaryDimValue}
             onValueChange={updateSecondaryDim}
@@ -257,7 +377,21 @@ export function StepMapping({ chartType, columns, mapping, onChange }: StepMappi
 
       {/* Metrics */}
       <div className="space-y-2">
-        <Label className="text-sm font-semibold">{fieldConfig.metricLabel}</Label>
+        <div className="flex items-center gap-1.5">
+          <Label className="text-sm font-semibold">{fieldConfig.metricLabel}</Label>
+          {MAPPING_FIELD_TOOLTIPS[chartType]?.[fieldConfig.metricLabel] && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <button type="button" className="text-muted-foreground hover:text-foreground transition-colors">
+                  <HelpCircle className="size-3.5" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent side="top" className="max-w-xs text-sm">
+                {MAPPING_FIELD_TOOLTIPS[chartType][fieldConfig.metricLabel]}
+              </PopoverContent>
+            </Popover>
+          )}
+        </div>
 
         {fieldConfig.multiMetric ? (
           <>

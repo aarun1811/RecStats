@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, Check, Loader2, Save, Trash2 } from 'lucide-react'
+import { AnimatePresence, motion } from 'motion/react'
+import { ArrowLeft, BookOpen, Check, Loader2, Save, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { cn } from '@/lib/utils'
@@ -17,6 +18,7 @@ import {
 import { getDatasetShape } from '@/lib/chart-compatibility'
 import { ChartTypeIcon, CHART_DISPLAY_NAMES } from '@/components/charts/chart-type-icon'
 import { ChartBuilderPreview } from '@/components/charts/chart-builder-preview'
+import { ChartBuilderHelpSheet } from '@/components/charts/chart-builder-help-sheet'
 import { DeleteChartDialog } from '@/components/charts/delete-chart-dialog'
 import { useCreateChart, useUpdateChart } from '@/hooks/use-managed-charts'
 import { StepDataset } from './builder/step-dataset'
@@ -69,6 +71,7 @@ const DEFAULT_APPEARANCE: ChartAppearance = {
   legendPosition: 'bottom',
   showXLabel: true,
   showYLabel: true,
+  typeSpecific: {},
 }
 
 function createInitialState(initialChart?: RecvizChart, dataset?: RecvizDataset | null): BuilderState {
@@ -158,6 +161,7 @@ export function ChartBuilder({
         : new Set<StepKey>(),
   )
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [helpSheetOpen, setHelpSheetOpen] = useState(false)
 
   // Sync dataset when initialDataset loads (for edit mode)
   useEffect(() => {
@@ -473,7 +477,13 @@ export function ChartBuilder({
                       <div className="flex flex-1 flex-col items-start gap-0.5">
                         <div className="flex items-center gap-2">
                           {completed && !isActive && (
-                            <Check className="size-4 text-primary" />
+                            <motion.div
+                              initial={{ scale: 0 }}
+                              animate={{ scale: 1 }}
+                              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                            >
+                              <Check className="size-4 text-primary" />
+                            </motion.div>
                           )}
                           <span className="text-sm font-semibold">
                             {STEP_LABELS[step]}
@@ -488,65 +498,85 @@ export function ChartBuilder({
                     </AccordionTrigger>
 
                     <AccordionContent className="p-4 pt-0">
-                      {step === 'dataset' && (
-                        <div className="space-y-3">
-                          <StepDataset
-                            selectedDataset={state.dataset}
-                            onSelect={handleDatasetSelect}
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.15, ease: 'easeOut' }}
+                      >
+                        {step === 'dataset' && (
+                          <div className="space-y-3">
+                            <StepDataset
+                              selectedDataset={state.dataset}
+                              onSelect={handleDatasetSelect}
+                            />
+                            {state.dataset && (
+                              <div className="flex justify-end">
+                                <Button
+                                  size="sm"
+                                  onClick={handleDatasetContinue}
+                                >
+                                  Continue
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {step === 'type' && state.dataset && (
+                          <StepType
+                            datasetShape={datasetShape}
+                            selectedType={state.chartType}
+                            onSelect={handleTypeSelect}
                           />
-                          {state.dataset && (
+                        )}
+                        {step === 'mapping' && state.chartType && state.dataset && (
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-xs text-muted-foreground">Map your dataset columns</span>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="size-7"
+                                onClick={() => setHelpSheetOpen(true)}
+                                title="Configuration reference"
+                              >
+                                <BookOpen className="size-3.5" />
+                              </Button>
+                            </div>
+                            <StepMapping
+                              chartType={state.chartType}
+                              columns={state.dataset.columns}
+                              mapping={state.columnMapping}
+                              onChange={handleMappingChange}
+                            />
                             <div className="flex justify-end">
                               <Button
                                 size="sm"
-                                onClick={handleDatasetContinue}
+                                onClick={handleMappingComplete}
                               >
                                 Continue
                               </Button>
                             </div>
-                          )}
-                        </div>
-                      )}
-                      {step === 'type' && state.dataset && (
-                        <StepType
-                          datasetShape={datasetShape}
-                          selectedType={state.chartType}
-                          onSelect={handleTypeSelect}
-                        />
-                      )}
-                      {step === 'mapping' && state.chartType && state.dataset && (
-                        <div className="space-y-3">
-                          <StepMapping
-                            chartType={state.chartType}
-                            columns={state.dataset.columns}
-                            mapping={state.columnMapping}
-                            onChange={handleMappingChange}
-                          />
-                          <div className="flex justify-end">
-                            <Button
-                              size="sm"
-                              onClick={handleMappingComplete}
-                            >
-                              Continue
-                            </Button>
                           </div>
-                        </div>
-                      )}
-                      {step === 'appearance' && (
-                        <div className="space-y-3">
-                          <StepAppearance
-                            appearance={state.appearance}
-                            onChange={handleAppearanceChange}
-                          />
-                          <div className="flex justify-end">
-                            <Button
-                              size="sm"
-                              onClick={handleAppearanceComplete}
-                            >
-                              Done
-                            </Button>
+                        )}
+                        {step === 'appearance' && (
+                          <div className="space-y-3">
+                            <StepAppearance
+                              appearance={state.appearance}
+                              onChange={handleAppearanceChange}
+                              chartType={state.chartType}
+                            />
+                            <div className="flex justify-end">
+                              <Button
+                                size="sm"
+                                onClick={handleAppearanceComplete}
+                              >
+                                Done
+                              </Button>
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
+                      </motion.div>
                     </AccordionContent>
                   </AccordionItem>
                 )
@@ -561,11 +591,22 @@ export function ChartBuilder({
             <span className="text-sm font-semibold tracking-tight">Preview</span>
           </div>
           <div className="flex-1 min-h-0 p-4">
-            <ChartBuilderPreview
-              state={previewState}
-              onPreviewData={() => {}}
-              allComplete={allStepsComplete}
-            />
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={`${state.chartType}-${state.columnMapping.metricColumns.join(',')}`}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="h-full"
+              >
+                <ChartBuilderPreview
+                  state={previewState}
+                  onPreviewData={() => {}}
+                  allComplete={allStepsComplete}
+                />
+              </motion.div>
+            </AnimatePresence>
           </div>
         </div>
       </div>
@@ -579,6 +620,13 @@ export function ChartBuilder({
           onDeleted={() => navigate({ to: '/charts' })}
         />
       )}
+
+      {/* Help sheet for chart config reference */}
+      <ChartBuilderHelpSheet
+        chartType={state.chartType}
+        open={helpSheetOpen}
+        onOpenChange={setHelpSheetOpen}
+      />
     </div>
   )
 }
