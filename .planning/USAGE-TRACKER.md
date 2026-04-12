@@ -237,7 +237,15 @@ None.
 
 ## Phase 5: KPIs Page
 
-*(To be filled by Phase 5 executor)*
+| File | Action | Plan | Notes |
+|------|--------|------|-------|
+| frontend/src/lib/style-constants.ts | modified | 05-01 | Added KPI_AGG_BORDER_COLORS, KPI_AGG_PILL_BG, KPI_AGG_PILL_TEXT, THRESHOLD_BORDER_COLORS |
+| frontend/src/components/kpis/kpi-library-list.tsx | modified | 05-01 | Added AnimatePresence view crossfade, upgraded filtered empty state to Empty component |
+| frontend/src/components/kpis/kpi-library-card.tsx | modified | 05-01 | Added motion.div wrapper, border-l-2 aggregation accent, colored pill |
+| frontend/src/components/kpis/kpi-library-row.tsx | modified | 05-01 | Added motion.div wrapper, border-l-2 accent, upgraded icon container |
+| frontend/src/components/kpis/kpi-detail-panel.tsx | modified | 05-02 | Added threshold border accent, entrance animation, section icon tint, delete aria-label |
+| frontend/src/components/kpis/kpi-builder.tsx | modified | 05-02 | Added accordion step motion, checkmark spring animation |
+| frontend/src/components/kpis/kpi-builder-preview.tsx | modified | 05-02 | Added AnimatePresence crossfade, entrance spring animation |
 
 ## Phase 6: Dashboards Page
 
