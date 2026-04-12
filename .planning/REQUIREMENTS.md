@@ -26,10 +26,10 @@ Each requirement maps to exactly one phase. All verification is **manual** (no a
 - [ ] **INFRA-15**: New `001_initial_oracle_schema.py` migration generated via `alembic revision --autogenerate`, hand-reviewed against 9-point checklist (six tables, `BLOB IS JSON` on `config`/`columns`/`extra_params`, `VARCHAR2(128 CHAR)` PKs, `CLOB` for `sql`/`encrypted_password`, `TIMESTAMP(6) WITH TIME ZONE` defaults, expected indexes, `UniqueConstraint` on `recviz_connections.name`), applied successfully via `alembic upgrade head`
 - [x] **INFRA-16**: `backend/.env.example` created/updated with all new Oracle env vars
 - [ ] **INFRA-17**: Postgres/Docker/Superset/Redis residue deleted — `docker-compose.yml`, `docker/init-db.sql`, `deployment/` (empty dir), `superset/` directory (if present), any Postgres seed SQL; grep audit of `postgresql`, `JSONB`, `asyncpg`, `psycopg2`, `superset`, `redis`, `celery` shows zero hits outside `.git/`
-- [ ] **INFRA-18**: Global shadcn palette applied — Phase 1 UI-SPEC gate confirms Mist+Blue (or alternative), CSS variables updated in `frontend/src/index.css` for both light and dark mode
-- [ ] **INFRA-19**: `--series-1..8` CSS variable extension added to `index.css` for categorical multi-series chart colors (Strategy B)
-- [ ] **INFRA-20**: `.ag-theme-quartz { --ag-*: var(--...) }` override block added to `index.css` so AG Grid reads Shadcn tokens
-- [ ] **INFRA-21**: `frontend/src/lib/chart-themes.ts` rewired — hard-coded 10-color series array replaced with CSS-var reads via `getComputedStyle()`; heatmap/treemap/waterfall hex overrides replaced with CSS vars
+- [x] **INFRA-18**: Global shadcn palette applied — Phase 1 UI-SPEC gate confirms Mist+Blue (or alternative), CSS variables updated in `frontend/src/index.css` for both light and dark mode
+- [x] **INFRA-19**: `--series-1..8` CSS variable extension added to `index.css` for categorical multi-series chart colors (Strategy B)
+- [x] **INFRA-20**: `.ag-theme-quartz { --ag-*: var(--...) }` override block added to `index.css` so AG Grid reads Shadcn tokens
+- [x] **INFRA-21**: `frontend/src/lib/chart-themes.ts` rewired — hard-coded 10-color series array replaced with CSS-var reads via `getComputedStyle()`; heatmap/treemap/waterfall hex overrides replaced with CSS vars
 - [ ] **INFRA-22**: `.planning/USAGE-TRACKER.md` initialized as the running dead-code audit document for the milestone
 - [ ] **INFRA-23**: Backend boots successfully against Oracle, `GET /health` returns 200, startup log shows `Oracle client driver: python-oracledb` (no `thn` suffix), frontend loads in browser without crashing (no functional expectations beyond "it starts")
 - [ ] **INFRA-24**: `docs/` directory deleted entirely — all stale files (API.md, ARCHITECTURE.md, CODEBASE_GUIDE.md, CONFIGURATION.md, DEPLOYMENT.md, DEVELOPMENT.md, GETTING_STARTED.md, SETUP.md, TESTING.md, `plans/`, `research/`, `testing/`, `superpowers/` subdirs) removed. User will recreate documentation as needed post-milestone.
@@ -175,10 +175,10 @@ Each requirement maps to exactly one phase. All verification is **manual** (no a
 | INFRA-15 | Phase 1 | Pending |
 | INFRA-16 | Phase 1 | Complete |
 | INFRA-17 | Phase 1 | Pending |
-| INFRA-18 | Phase 1 | Pending |
-| INFRA-19 | Phase 1 | Pending |
-| INFRA-20 | Phase 1 | Pending |
-| INFRA-21 | Phase 1 | Pending |
+| INFRA-18 | Phase 1 | Complete |
+| INFRA-19 | Phase 1 | Complete |
+| INFRA-20 | Phase 1 | Complete |
+| INFRA-21 | Phase 1 | Complete |
 | INFRA-22 | Phase 1 | Pending |
 | INFRA-23 | Phase 1 | Pending |
 | INFRA-24 | Phase 1 | Pending |
