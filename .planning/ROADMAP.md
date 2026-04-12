@@ -56,7 +56,7 @@ Dependencies are strictly linear. Every page phase depends on Phase 1's global p
 ## Phase Details
 
 ### Phase 1: Infrastructure Cutover
-**Goal**: Get the app running against Oracle Cloud 19c in thick mode with zero PG/async/Docker/Superset/Redis residue, plus lay down the global shadcn color palette and chart theme rewiring that every subsequent phase will consume.
+**Goal**: Get the app running against Docker Oracle (gvenzl/oracle-free locally, Oracle 19c in prod) in thick mode with zero PG/async/Docker-compose/Superset/Redis residue, plus lay down the global Mist+Blue shadcn color palette and chart theme rewiring that every subsequent phase will consume.
 **Depends on**: Nothing (first phase)
 **Requirements**: INFRA-01, INFRA-02, INFRA-03, INFRA-04, INFRA-05, INFRA-06, INFRA-07, INFRA-08, INFRA-09, INFRA-10, INFRA-11, INFRA-12, INFRA-13, INFRA-14, INFRA-15, INFRA-16, INFRA-17, INFRA-18, INFRA-19, INFRA-20, INFRA-21, INFRA-22, INFRA-23, INFRA-24, INFRA-25
 **Success Criteria** (what must be TRUE):
@@ -65,7 +65,14 @@ Dependencies are strictly linear. Every page phase depends on Phase 1's global p
   3. `alembic upgrade head` applies the single new `001_initial_oracle_schema.py` migration cleanly against a fresh Oracle schema, creating all six `recviz_*` tables with `BLOB IS JSON` on config columns
   4. Frontend loads in the browser with the new global palette applied in both light and dark mode — sidebar, primary buttons, and at least one chart all reflect the new tokens (no grayscale-only surfaces)
   5. A repo-wide grep for `postgresql`, `JSONB`, `asyncpg`, `psycopg2`, `superset`, `redis`, `celery` shows zero hits outside `.git/`, AND the same grep against `CLAUDE.md` also shows zero hits (CLAUDE.md verified clean), AND the `docs/` directory is deleted entirely
-**Plans**: TBD
+**Plans**: 6 plans
+Plans:
+- [ ] 01-01-PLAN.md — Backend config + deps + types (config.py, requirements.txt, .env.example, types.py, base.py)
+- [ ] 01-02-PLAN.md — Backend engine + main.py + services (engine.py, main.py, engine_manager.py, uri_builder.py, views.py)
+- [ ] 01-03-PLAN.md — Alembic migration (delete old, rewrite env.py/alembic.ini, generate new migration)
+- [ ] 01-04-PLAN.md — Frontend palette + chart themes (index.css Mist+Blue, series vars, AG Grid bridge, chart-themes.ts)
+- [ ] 01-05-PLAN.md — Residue removal + CLAUDE.md verification (delete files/dirs, seed-oracle.py, grep audit)
+- [ ] 01-06-PLAN.md — Boot validation + USAGE-TRACKER init (end-to-end smoke test, human verify, tracker init)
 **UI hint**: yes
 **Known risks / gotchas**:
   - **Phase 1 has a HARD user gate.** Oracle Cloud signup + 19c provisioning + wallet download + Instant Client install + `sqlplus` smoke test are manual USER steps that must complete *before* any Claude code work begins. Tenancy home region is a one-shot choice (cannot change later). 19c radio must appear before committing the tenancy.
@@ -213,7 +220,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Infrastructure Cutover | 0/TBD | Not started | - |
+| 1. Infrastructure Cutover | 0/6 | Planned | - |
 | 2. Settings Page | 0/TBD | Not started | - |
 | 3. Datasets Page | 0/TBD | Not started | - |
 | 4. Charts Page | 0/TBD | Not started | - |
