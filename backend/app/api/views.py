@@ -14,12 +14,12 @@ _views: dict[str, SavedView] = {}
 
 
 @router.get("")
-async def list_views():
+def list_views():
     return list(_views.values())
 
 
 @router.post("")
-async def create_view(body: SavedViewCreate):
+def create_view(body: SavedViewCreate):
     view_id = str(uuid.uuid4())[:8]
     view = SavedView(
         id=view_id,
@@ -33,7 +33,7 @@ async def create_view(body: SavedViewCreate):
 
 
 @router.delete("/{view_id}")
-async def delete_view(view_id: str):
+def delete_view(view_id: str):
     if view_id in _views:
         del _views[view_id]
         return {"deleted": True}

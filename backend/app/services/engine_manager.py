@@ -1,12 +1,9 @@
-"""Sync engine pool manager for data source connections.
+"""Sync engine pool manager for Oracle data source connections.
 
-Converted from async to sync on 2026-04-10. See ``app/db/engine.py`` docstring
-for the rationale (oracledb async is thin-mode only; many Oracle environments
-require thick mode).
-
-Thread safety: multiple FastAPI threadpool workers may call into this manager
-concurrently. We use a ``threading.Lock`` to serialize engine creation and
-disposal. Reads of the ``_engines`` dict are atomic for the hot path.
+Oracle-only. Thread safety: multiple FastAPI threadpool workers may call into
+this manager concurrently. We use a ``threading.Lock`` to serialize engine
+creation and disposal. Reads of the ``_engines`` dict are atomic for the
+hot path.
 """
 
 from __future__ import annotations
@@ -47,16 +44,7 @@ HEALTH_CHECK_SQL = {
 
 
 def _connect_args_for_backend(backend: str | None) -> dict:
-    """Return per-backend connect_args to enforce a server-side query timeout.
-
-    Oracle: NOT handled here -- ``call_timeout`` is a ``Connection``
-    attribute on python-oracledb, not a ``connect()`` kwarg. It is set via
-    a SQLAlchemy ``connect`` event listener in ``EngineManager.get_engine``
-    instead. Forwarding it through ``connect_args`` raises
-    ``connect() got an unexpected keyword argument 'call_timeout'``.
-
-    Unknown backends get no timeout and fall back to DB/pool defaults.
-    """
+    """Return per-backend connect_args. Oracle timeout is handled via event listener."""
     return {}
 
 
@@ -110,15 +98,8 @@ class EngineManager:
             if engine is not None:
                 return engine
             merged_kwargs = {**DEFAULT_POOL_KWARGS, **pool_kwargs}
-            # Per-backend connect_args (Oracle gets its call_timeout via
-            # the event listener below, because it is a Connection
-            # attribute not a connect() kwarg).
-            connect_args = _connect_args_for_backend(backend)
-            if connect_args:
-                merged_kwargs.setdefault("connect_args", connect_args)
             engine = create_engine(uri, **merged_kwargs)
-            if backend == "oracle":
-                _install_oracle_call_timeout(engine)
+            _install_oracle_call_timeout(engine)
             self._engines[connection_id] = engine
             logger.info("Created engine for connection %s", connection_id)
             return engine
@@ -171,17 +152,14 @@ class EngineManager:
         The ``timeout`` parameter governs pool acquisition; the single
         ``SELECT 1`` health check does not need a query-execution timeout.
         """
-        test_sql = HEALTH_CHECK_SQL.get(backend, "SELECT 1")
-        connect_args = _connect_args_for_backend(backend)
+        test_sql = HEALTH_CHECK_SQL.get(backend, "SELECT 1 FROM DUAL")
         engine = create_engine(
             uri,
             pool_size=1,
             max_overflow=0,
             pool_timeout=timeout,
-            connect_args=connect_args,
         )
-        if backend == "oracle":
-            _install_oracle_call_timeout(engine)
+        _install_oracle_call_timeout(engine)
         try:
             with engine.connect() as conn:
                 conn.execute(text(test_sql))
