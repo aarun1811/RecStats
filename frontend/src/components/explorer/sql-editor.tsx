@@ -9,7 +9,7 @@ type MonacoEditor = Parameters<OnMount>[0]
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Play, Loader2, Code2, WandSparkles, CheckCircle2, XCircle } from 'lucide-react'
-import { Kbd } from '@/components/ui/kbd'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 const IS_MAC =
   typeof navigator !== 'undefined' &&
@@ -88,13 +88,9 @@ export function SqlEditor({
               Format SQL
             </Button>
           )}
-          {disabled && disabledReason ? (
+          {disabled && disabledReason && (
             <span className="text-xs text-muted-foreground italic">
               {disabledReason}
-            </span>
-          ) : (
-            <span className="text-xs text-muted-foreground items-center gap-1 hidden sm:flex">
-              <Kbd>{IS_MAC ? '⌘' : 'Ctrl'}</Kbd>+<Kbd>↵</Kbd> to run
             </span>
           )}
           {runState === 'running' ? (
@@ -112,19 +108,26 @@ export function SqlEditor({
               </Button>
             </motion.div>
           ) : (
-            <Button
-              size="sm"
-              onClick={onRun}
-              disabled={disabled || isRunning || !value.trim()}
-              className="h-7"
-            >
-              {isRunning ? (
-                <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-              ) : (
-                <Play className="mr-1.5 size-3.5" />
-              )}
-              Run Query
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  onClick={onRun}
+                  disabled={disabled || isRunning || !value.trim()}
+                  className="h-7"
+                >
+                  {isRunning ? (
+                    <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                  ) : (
+                    <Play className="mr-1.5 size-3.5" />
+                  )}
+                  Run Query
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                {IS_MAC ? '⌘' : 'Ctrl'}+Enter
+              </TooltipContent>
+            </Tooltip>
           )}
           <AnimatePresence>
             {runState === 'success' && (

@@ -302,7 +302,7 @@ export function DatasetEditor({ mode, dataset, isLoading }: DatasetEditorProps) 
       {/* Header */}
       <div className="px-6 pt-4 pb-4 shrink-0 space-y-3">
         {/* Top bar: back link + mode badge + actions */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between pb-3 border-b border-border">
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"
@@ -355,7 +355,7 @@ export function DatasetEditor({ mode, dataset, isLoading }: DatasetEditorProps) 
 
         {/* Dataset name as editable heading */}
         <input
-          className="text-2xl font-semibold tracking-tight bg-transparent border-b border-transparent hover:border-border focus:border-primary outline-none w-full placeholder:text-muted-foreground/50 transition-colors pb-1"
+          className="text-2xl font-semibold tracking-tight bg-transparent border-b border-dashed border-border/50 hover:border-border focus:border-primary focus:border-solid outline-none w-full placeholder:text-muted-foreground/50 transition-colors pb-1"
           placeholder="Untitled Dataset"
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -405,7 +405,7 @@ export function DatasetEditor({ mode, dataset, isLoading }: DatasetEditorProps) 
       </div>
 
       {/* Results + Column Metadata split */}
-      <div className="flex gap-4 flex-1 min-h-0 px-6 pb-4">
+      <div className="flex gap-4 flex-1 min-h-0 px-6 pb-4" style={{ minHeight: '200px' }}>
         {/* Left: Results preview */}
         <div className="flex-1 min-w-0 rounded-lg border overflow-hidden flex flex-col bg-card">
           <div className="flex items-center justify-between px-3 h-9 border-b border-l-2 border-l-primary bg-muted/30 shrink-0">
@@ -479,7 +479,7 @@ export function DatasetEditor({ mode, dataset, isLoading }: DatasetEditorProps) 
                 animate={{ scale: [1, 1.05, 1], opacity: [0.3, 0.4, 0.3] }}
                 transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
               >
-                <Play className="size-10" />
+                <Play className="size-7" />
               </motion.div>
               <p className="text-sm">Run a query to see results</p>
             </div>
@@ -527,7 +527,7 @@ export function DatasetEditor({ mode, dataset, isLoading }: DatasetEditorProps) 
                 animate={{ scale: [1, 1.05, 1], opacity: [0.3, 0.4, 0.3] }}
                 transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
               >
-                <Columns3 className="size-10" />
+                <Columns3 className="size-7" />
               </motion.div>
               <p className="text-sm">Run a query to detect columns</p>
             </div>

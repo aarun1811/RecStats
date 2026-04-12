@@ -64,7 +64,7 @@ export function ColumnMetadataHelpSheet() {
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="sm" className="h-7 w-7 p-0" aria-label="Column metadata reference">
+        <Button variant="outline" size="sm" className="h-6 w-6 p-0 rounded-full" aria-label="Column metadata reference">
           <HelpCircle className="size-3.5" />
         </Button>
       </SheetTrigger>
