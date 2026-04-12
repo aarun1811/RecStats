@@ -291,7 +291,7 @@ export function DatasetEditor({ mode, dataset, isLoading }: DatasetEditorProps) 
         <Skeleton className="h-64 w-full" />
         <div className="flex gap-4">
           <Skeleton className="h-64 flex-1" />
-          <Skeleton className="h-64 w-[480px]" />
+          <Skeleton className="h-64 w-[560px]" />
         </div>
       </div>
     )
@@ -487,7 +487,7 @@ export function DatasetEditor({ mode, dataset, isLoading }: DatasetEditorProps) 
         </div>
 
         {/* Right: Column metadata */}
-        <div className="w-[480px] shrink-0 rounded-lg border bg-card overflow-hidden flex flex-col">
+        <div className="w-[560px] shrink-0 rounded-lg border bg-card overflow-hidden flex flex-col">
           <div className="flex items-center justify-between px-3 h-9 border-b border-l-2 border-l-primary bg-muted/30 shrink-0">
             <div className="flex items-center">
               <Columns3 className="mr-1.5 size-3.5 text-muted-foreground" />

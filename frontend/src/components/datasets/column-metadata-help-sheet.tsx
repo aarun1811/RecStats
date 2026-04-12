@@ -1,7 +1,9 @@
-import { HelpCircle, Target, Type, Calculator, Paintbrush } from 'lucide-react'
+import { HelpCircle, Target, Type, Calculator, Paintbrush, BarChart3, ArrowRight } from 'lucide-react'
 import { motion } from 'motion/react'
 
 import { Button } from '@/components/ui/button'
+import { Separator } from '@/components/ui/separator'
+import { cn } from '@/lib/utils'
 import {
   Sheet,
   SheetContent,
@@ -10,55 +12,141 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet'
+import {
+  COLUMN_ROLE_STYLES,
+  COLUMN_ROLE_LABELS,
+  COLUMN_TYPE_STYLES,
+  COLUMN_TYPE_LABELS,
+} from '@/lib/style-constants'
+import type { ColumnRole, ColumnDataType } from '@/types/managed-dataset'
 
-const SECTIONS = [
+// --- Section: Column Role ---
+
+const ROLE_ITEMS: {
+  role: ColumnRole
+  examples: string[]
+  chartEffect: string
+}[] = [
   {
-    icon: Target,
-    heading: 'Column Role',
-    content: [
-      { term: 'Dimension', desc: 'Groups or categorizes data on chart axes. Used for labels, categories, and series groupings.' },
-      { term: 'Measure', desc: 'Numeric values that get aggregated (summed, averaged, etc.). Used for chart values, KPI calculations.' },
-      { term: 'Time', desc: 'Date/time columns used for time-series axes. Enables date range filtering.' },
-      { term: 'None', desc: 'Column is stored but not used in charts or KPIs.' },
-    ],
+    role: 'dimension',
+    examples: ['region', 'desk', 'currency', 'status'],
+    chartEffect: 'Groups data on chart axes. Becomes labels, categories, or series.',
   },
   {
-    icon: Type,
-    heading: 'Data Type',
-    content: [
-      { term: 'String', desc: 'Text values. Displayed as-is.' },
-      { term: 'Number', desc: 'Numeric values. Can be formatted with separators, decimals.' },
-      { term: 'Date', desc: 'Date/datetime values. Parsed for time-series.' },
-      { term: 'Currency', desc: 'Monetary values. Formatted with currency symbol.' },
-    ],
+    role: 'measure',
+    examples: ['amount_usd', 'trade_count', 'pnl_total'],
+    chartEffect: 'Values that get aggregated (SUM, AVG). Powers bar heights, line values, KPI numbers.',
   },
   {
-    icon: Calculator,
-    heading: 'Aggregation',
-    content: [
-      { term: 'NONE', desc: 'No aggregation applied.' },
-      { term: 'SUM', desc: 'Sum of all values in the group.' },
-      { term: 'AVG', desc: 'Average of all values in the group.' },
-      { term: 'COUNT', desc: 'Number of rows in the group.' },
-      { term: 'MIN / MAX', desc: 'Minimum or maximum value in the group.' },
-      { term: 'COUNT_DISTINCT', desc: 'Number of unique values in the group.' },
-    ],
+    role: 'time',
+    examples: ['trade_date', 'settlement_date', 'created_at'],
+    chartEffect: 'Time-series X-axis. Enables date range filters and trend lines.',
   },
   {
-    icon: Paintbrush,
-    heading: 'Format Presets',
-    content: [
-      { term: 'None', desc: 'No formatting (raw value)' },
-      { term: 'Number', desc: 'Thousands separator -- 1,234' },
-      { term: 'Currency', desc: 'Dollar sign + decimals -- $1,234.56' },
-      { term: 'Percentage', desc: 'Percent suffix -- 85.3%' },
-      { term: 'Decimal (2)', desc: 'Two decimal places -- 1,234.56' },
-      { term: 'Date', desc: 'Short date -- Apr 06' },
-      { term: 'DateTime', desc: 'Date + time -- Apr 06 14:30' },
-      { term: 'Custom', desc: 'User-defined Intl.NumberFormat or date-fns pattern' },
-    ],
+    role: 'none',
+    examples: ['internal_id', 'hash_key', 'audit_flag'],
+    chartEffect: 'Stored in the dataset but excluded from charts and KPIs.',
   },
 ]
+
+// --- Section: Data Type ---
+
+const TYPE_ITEMS: {
+  type: ColumnDataType
+  examples: string[]
+  formatEffect: string
+}[] = [
+  {
+    type: 'string',
+    examples: ['region', 'counterparty', 'status'],
+    formatEffect: 'Displayed as-is. No numeric formatting applied.',
+  },
+  {
+    type: 'number',
+    examples: ['trade_count', 'quantity', 'score'],
+    formatEffect: 'Enables numeric formats (thousands separator, decimals).',
+  },
+  {
+    type: 'date',
+    examples: ['trade_date', 'created_at', 'expiry'],
+    formatEffect: 'Parsed as date/time. Enables date formats (Apr 06, Apr 06 14:30).',
+  },
+  {
+    type: 'currency',
+    examples: ['amount_usd', 'pnl_total', 'notional'],
+    formatEffect: 'Formatted with currency symbol and decimals ($1,234.56).',
+  },
+]
+
+// --- Section: Aggregation ---
+
+const AGG_ITEMS: {
+  func: string
+  desc: string
+  example: string
+}[] = [
+  { func: 'NONE', desc: 'No aggregation — raw row values', example: '42, 17, 89 → 42, 17, 89' },
+  { func: 'SUM', desc: 'Total of all values in group', example: '42 + 17 + 89 → 148' },
+  { func: 'AVG', desc: 'Average of all values in group', example: '42, 17, 89 → 49.3' },
+  { func: 'COUNT', desc: 'Number of rows in group', example: '3 rows → 3' },
+  { func: 'MIN', desc: 'Smallest value in group', example: '42, 17, 89 → 17' },
+  { func: 'MAX', desc: 'Largest value in group', example: '42, 17, 89 → 89' },
+  { func: 'COUNT_DISTINCT', desc: 'Number of unique values', example: 'A, B, A, C → 3' },
+]
+
+// --- Section: Format Presets ---
+
+const FORMAT_ITEMS: {
+  preset: string
+  before: string
+  after: string
+}[] = [
+  { preset: 'None', before: '1234567.89', after: '1234567.89' },
+  { preset: 'Number', before: '1234567.89', after: '1,234,567.89' },
+  { preset: 'Currency', before: '1234567.89', after: '$1,234,567.89' },
+  { preset: 'Percentage', before: '0.853', after: '85.3%' },
+  { preset: 'Decimal (2)', before: '1234567.891', after: '1,234,567.89' },
+  { preset: 'Date', before: '2026-04-06', after: 'Apr 06' },
+  { preset: 'DateTime', before: '2026-04-06T14:30', after: 'Apr 06 14:30' },
+]
+
+// --- Badge helper ---
+
+function InlineBadge({ className, children }: { className: string; children: React.ReactNode }) {
+  return (
+    <span className={cn(
+      'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold',
+      className,
+    )}>
+      {children}
+    </span>
+  )
+}
+
+function ExampleColumns({ names }: { names: string[] }) {
+  return (
+    <span className="text-xs text-muted-foreground">
+      e.g.{' '}
+      {names.map((n, i) => (
+        <span key={n}>
+          <code className="font-mono text-[11px] bg-muted px-1 py-0.5 rounded">{n}</code>
+          {i < names.length - 1 && ', '}
+        </span>
+      ))}
+    </span>
+  )
+}
+
+function ChartEffect({ text }: { text: string }) {
+  return (
+    <div className="flex items-start gap-1.5 mt-1.5">
+      <BarChart3 className="size-3 text-primary shrink-0 mt-0.5" />
+      <span className="text-xs text-muted-foreground">{text}</span>
+    </div>
+  )
+}
+
+// --- Main component ---
 
 export function ColumnMetadataHelpSheet() {
   return (
@@ -71,30 +159,140 @@ export function ColumnMetadataHelpSheet() {
       <SheetContent side="right" className="sm:max-w-lg overflow-y-auto">
         <SheetHeader>
           <SheetTitle>Column Metadata Reference</SheetTitle>
-          <SheetDescription>How each field affects charts, grids, and data behavior</SheetDescription>
+          <SheetDescription>
+            Configure how each column behaves in charts, KPIs, and data grids
+          </SheetDescription>
         </SheetHeader>
-        <div className="mt-6 space-y-6">
-          {SECTIONS.map((section, i) => (
-            <motion.div
-              key={section.heading}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.05, duration: 0.25, ease: 'easeOut' }}
-            >
-              <div className="flex items-center gap-2 mb-3">
-                <section.icon className="size-4 text-primary" />
-                <h3 className="text-sm font-semibold">{section.heading}</h3>
-              </div>
-              <dl className="space-y-2">
-                {section.content.map((item) => (
-                  <div key={item.term} className="pl-6">
-                    <dt className="text-sm font-medium">{item.term}</dt>
-                    <dd className="text-xs text-muted-foreground mt-0.5">{item.desc}</dd>
+
+        <div className="mt-6 space-y-8">
+          {/* --- Column Role --- */}
+          <motion.section
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0, duration: 0.25, ease: 'easeOut' }}
+          >
+            <div className="flex items-center gap-2 mb-4">
+              <Target className="size-4 text-primary" />
+              <h3 className="text-sm font-semibold">Column Role</h3>
+              <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">most important</span>
+            </div>
+            <div className="space-y-4">
+              {ROLE_ITEMS.map((item) => (
+                <div key={item.role} className="rounded-lg border bg-card p-3 space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <InlineBadge className={COLUMN_ROLE_STYLES[item.role]}>
+                      {COLUMN_ROLE_LABELS[item.role]}
+                    </InlineBadge>
                   </div>
-                ))}
-              </dl>
-            </motion.div>
-          ))}
+                  <ExampleColumns names={item.examples} />
+                  <ChartEffect text={item.chartEffect} />
+                </div>
+              ))}
+            </div>
+          </motion.section>
+
+          <Separator />
+
+          {/* --- Data Type --- */}
+          <motion.section
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05, duration: 0.25, ease: 'easeOut' }}
+          >
+            <div className="flex items-center gap-2 mb-4">
+              <Type className="size-4 text-primary" />
+              <h3 className="text-sm font-semibold">Data Type</h3>
+            </div>
+            <div className="space-y-4">
+              {TYPE_ITEMS.map((item) => (
+                <div key={item.type} className="rounded-lg border bg-card p-3 space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <InlineBadge className={COLUMN_TYPE_STYLES[item.type]}>
+                      {COLUMN_TYPE_LABELS[item.type]}
+                    </InlineBadge>
+                  </div>
+                  <ExampleColumns names={item.examples} />
+                  <ChartEffect text={item.formatEffect} />
+                </div>
+              ))}
+            </div>
+          </motion.section>
+
+          <Separator />
+
+          {/* --- Aggregation --- */}
+          <motion.section
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1, duration: 0.25, ease: 'easeOut' }}
+          >
+            <div className="flex items-center gap-2 mb-4">
+              <Calculator className="size-4 text-primary" />
+              <h3 className="text-sm font-semibold">Aggregation</h3>
+              <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">for measures</span>
+            </div>
+            <div className="rounded-lg border bg-card overflow-hidden">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b bg-muted/30">
+                    <th className="text-left font-semibold px-3 py-2 w-[120px]">Function</th>
+                    <th className="text-left font-semibold px-3 py-2">Description</th>
+                    <th className="text-left font-semibold px-3 py-2 w-[160px]">Example</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {AGG_ITEMS.map((item, i) => (
+                    <tr key={item.func} className={cn('border-b last:border-b-0', i % 2 === 0 ? '' : 'bg-muted/10')}>
+                      <td className="px-3 py-2 font-mono font-semibold text-foreground">{item.func}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{item.desc}</td>
+                      <td className="px-3 py-2 font-mono text-muted-foreground">{item.example}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </motion.section>
+
+          <Separator />
+
+          {/* --- Format Presets --- */}
+          <motion.section
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15, duration: 0.25, ease: 'easeOut' }}
+          >
+            <div className="flex items-center gap-2 mb-4">
+              <Paintbrush className="size-4 text-primary" />
+              <h3 className="text-sm font-semibold">Format Presets</h3>
+            </div>
+            <div className="rounded-lg border bg-card overflow-hidden">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b bg-muted/30">
+                    <th className="text-left font-semibold px-3 py-2 w-[100px]">Preset</th>
+                    <th className="text-left font-semibold px-3 py-2">Raw Value</th>
+                    <th className="text-center px-3 py-2 w-[30px]" />
+                    <th className="text-left font-semibold px-3 py-2">Formatted</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {FORMAT_ITEMS.map((item, i) => (
+                    <tr key={item.preset} className={cn('border-b last:border-b-0', i % 2 === 0 ? '' : 'bg-muted/10')}>
+                      <td className="px-3 py-2 font-semibold text-foreground">{item.preset}</td>
+                      <td className="px-3 py-2 font-mono text-muted-foreground">{item.before}</td>
+                      <td className="px-3 py-2 text-center text-muted-foreground">
+                        <ArrowRight className="size-3 inline" />
+                      </td>
+                      <td className="px-3 py-2 font-mono font-semibold text-foreground">{item.after}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-2 pl-1">
+              Choose &ldquo;Custom&rdquo; in the grid to enter an Intl.NumberFormat or date-fns pattern.
+            </p>
+          </motion.section>
         </div>
       </SheetContent>
     </Sheet>

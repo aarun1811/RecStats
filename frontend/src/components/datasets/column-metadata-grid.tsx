@@ -100,7 +100,7 @@ export function ColumnMetadataGrid({ columns, onChange }: ColumnMetadataGridProp
       {
         field: 'name',
         headerName: 'Name',
-        width: 120,
+        width: 110,
         editable: false,
         cellRenderer: NameCellRenderer,
         cellRendererParams: {
@@ -109,14 +109,14 @@ export function ColumnMetadataGrid({ columns, onChange }: ColumnMetadataGridProp
       },
       {
         field: 'displayName',
-        headerName: 'Display Name',
-        width: 140,
+        headerName: 'Display',
+        width: 110,
         editable: true,
       },
       {
         field: 'dataType',
         headerName: 'Type',
-        width: 100,
+        width: 90,
         editable: true,
         cellEditor: 'agSelectCellEditor',
         cellEditorParams: {
@@ -129,7 +129,7 @@ export function ColumnMetadataGrid({ columns, onChange }: ColumnMetadataGridProp
       {
         field: 'role',
         headerName: 'Role',
-        width: 100,
+        width: 95,
         editable: true,
         cellEditor: 'agSelectCellEditor',
         cellEditorParams: {
@@ -141,13 +141,14 @@ export function ColumnMetadataGrid({ columns, onChange }: ColumnMetadataGridProp
       },
       {
         field: 'aggregation',
-        headerName: 'Aggregation',
-        width: 120,
+        headerName: 'Agg',
+        width: 80,
         editable: true,
         cellEditor: 'agSelectCellEditor',
         cellEditorParams: {
           values: AGGREGATIONS,
         },
+        cellClass: 'text-xs font-mono',
         headerComponent: ColumnHeaderWithTooltip,
         headerComponentParams: { tooltipField: 'Aggregation' },
       },
@@ -155,7 +156,7 @@ export function ColumnMetadataGrid({ columns, onChange }: ColumnMetadataGridProp
         field: 'formatPreset',
         headerName: 'Format',
         flex: 1,
-        minWidth: 100,
+        minWidth: 75,
         editable: true,
         cellEditor: 'agSelectCellEditor',
         cellEditorParams: {
