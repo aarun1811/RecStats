@@ -67,7 +67,7 @@ Dependencies are strictly linear. Every page phase depends on Phase 1's global p
   5. A repo-wide grep for `postgresql`, `JSONB`, `asyncpg`, `psycopg2`, `superset`, `redis`, `celery` shows zero hits outside `.git/`, AND the same grep against `CLAUDE.md` also shows zero hits (CLAUDE.md verified clean), AND the `docs/` directory is deleted entirely
 **Plans**: 6 plans
 Plans:
-- [ ] 01-01-PLAN.md — Backend config + deps + types (config.py, requirements.txt, .env.example, types.py, base.py)
+- [x] 01-01-PLAN.md — Backend config + deps + types (config.py, requirements.txt, .env.example, types.py, base.py)
 - [ ] 01-02-PLAN.md — Backend engine + main.py + services (engine.py, main.py, engine_manager.py, uri_builder.py, views.py)
 - [ ] 01-03-PLAN.md — Alembic migration (delete old, rewrite env.py/alembic.ini, generate new migration)
 - [ ] 01-04-PLAN.md — Frontend palette + chart themes (index.css Mist+Blue, series vars, AG Grid bridge, chart-themes.ts)

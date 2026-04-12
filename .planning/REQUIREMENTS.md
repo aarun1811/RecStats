@@ -9,22 +9,22 @@ Each requirement maps to exactly one phase. All verification is **manual** (no a
 
 ### Infrastructure (Phase 1)
 
-- [ ] **INFRA-01**: Oracle Cloud Always Free Autonomous Database 19c provisioned with `recvizdev` name, Transaction Processing workload, admin password recorded
-- [ ] **INFRA-02**: Instance wallet downloaded, unpacked to `~/.oracle/wallets/recvizdev/`, `sqlnet.ora` edited to absolute `DIRECTORY` path, permissions locked to 700/600
-- [ ] **INFRA-03**: Oracle Instant Client 23.x macOS ARM64 installed natively (not via Rosetta), `libclntsh.dylib` verified as arm64
-- [ ] **INFRA-04**: `TNS_ADMIN` exported in `~/.zshrc`, `sqlplus ADMIN@recvizdev_low` smoke test passes (`SELECT sysdate FROM dual;` returns a row)
-- [ ] **INFRA-05**: `backend/requirements.txt` pruned — `psycopg2-binary`, `asyncpg`, and `sqlalchemy[asyncio]` extra removed; plain `sqlalchemy==2.0.49` remains
-- [ ] **INFRA-06**: `backend/app/config.py` updated with Oracle fields (`oracle_client_lib_dir`, `oracle_config_dir`, `recviz_db_user`, `recviz_db_password: SecretStr`, `recviz_db_dsn`, `oracle_wallet_password: SecretStr`); `recon_db_url` dropped; `recviz_db_url` default = `oracle+oracledb://`
+- [x] **INFRA-01**: Oracle Cloud Always Free Autonomous Database 19c provisioned with `recvizdev` name, Transaction Processing workload, admin password recorded
+- [x] **INFRA-02**: Instance wallet downloaded, unpacked to `~/.oracle/wallets/recvizdev/`, `sqlnet.ora` edited to absolute `DIRECTORY` path, permissions locked to 700/600
+- [x] **INFRA-03**: Oracle Instant Client 23.x macOS ARM64 installed natively (not via Rosetta), `libclntsh.dylib` verified as arm64
+- [x] **INFRA-04**: `TNS_ADMIN` exported in `~/.zshrc`, `sqlplus ADMIN@recvizdev_low` smoke test passes (`SELECT sysdate FROM dual;` returns a row)
+- [x] **INFRA-05**: `backend/requirements.txt` pruned — `psycopg2-binary`, `asyncpg`, and `sqlalchemy[asyncio]` extra removed; plain `sqlalchemy==2.0.49` remains
+- [x] **INFRA-06**: `backend/app/config.py` updated with Oracle fields (`oracle_client_lib_dir`, `oracle_config_dir`, `recviz_db_user`, `recviz_db_password: SecretStr`, `recviz_db_dsn`, `oracle_wallet_password: SecretStr`); `recon_db_url` dropped; `recviz_db_url` default = `oracle+oracledb://`
 - [ ] **INFRA-07**: `backend/app/db/engine.py` rewritten — uses `thick_mode={config_dir, driver_name, conditional lib_dir}` dict pattern, `connect_args` carries credentials/DSN, pool sized `pool_size=5, max_overflow=5, pool_pre_ping=True, pool_recycle=1800`; `build_oracle_engine()` helper exposed
-- [ ] **INFRA-08**: `backend/app/db/types.py` rewritten — `OracleJSON(TypeDecorator, SchemaType)` stores via `BLOB IS JSON` with `_set_table` `CheckConstraint`; `PortableJSON = OracleJSON` alias retained for one-milestone grace
-- [ ] **INFRA-09**: `backend/app/db/base.py` has explicit `MetaData(naming_convention=...)` applied to `Base.metadata`
+- [x] **INFRA-08**: `backend/app/db/types.py` rewritten — `OracleJSON(TypeDecorator, SchemaType)` stores via `BLOB IS JSON` with `_set_table` `CheckConstraint`; `PortableJSON = OracleJSON` alias retained for one-milestone grace
+- [x] **INFRA-09**: `backend/app/db/base.py` has explicit `MetaData(naming_convention=...)` applied to `Base.metadata`
 - [ ] **INFRA-10**: `backend/app/services/engine_manager.py` uses `build_oracle_engine()` helper so secondary engines share thick mode (once-per-process constraint)
 - [ ] **INFRA-11**: 3 remaining `async def` handlers in `backend/app/api/views.py` converted to plain `def`
 - [ ] **INFRA-12**: `backend/app/main.py` lifespan adds thick-mode startup assertion via `v$session_connect_info.client_driver`; boot refuses if `python-oracledb thn` detected
 - [ ] **INFRA-13**: `backend/app/migrations/alembic.ini` `sqlalchemy.url` cleared; `env.py` wires thick mode + `connect_args` in online mode with `compare_type`, `compare_server_default`, `transaction_per_migration=True`, `include_schemas=False`, `version_table="recviz_alembic_version"`
 - [ ] **INFRA-14**: All 7 existing Postgres-targeted Alembic migrations (`001_initial_schema.py` through `007_dataset_database_id_to_string.py`) deleted
 - [ ] **INFRA-15**: New `001_initial_oracle_schema.py` migration generated via `alembic revision --autogenerate`, hand-reviewed against 9-point checklist (six tables, `BLOB IS JSON` on `config`/`columns`/`extra_params`, `VARCHAR2(128 CHAR)` PKs, `CLOB` for `sql`/`encrypted_password`, `TIMESTAMP(6) WITH TIME ZONE` defaults, expected indexes, `UniqueConstraint` on `recviz_connections.name`), applied successfully via `alembic upgrade head`
-- [ ] **INFRA-16**: `backend/.env.example` created/updated with all new Oracle env vars
+- [x] **INFRA-16**: `backend/.env.example` created/updated with all new Oracle env vars
 - [ ] **INFRA-17**: Postgres/Docker/Superset/Redis residue deleted — `docker-compose.yml`, `docker/init-db.sql`, `deployment/` (empty dir), `superset/` directory (if present), any Postgres seed SQL; grep audit of `postgresql`, `JSONB`, `asyncpg`, `psycopg2`, `superset`, `redis`, `celery` shows zero hits outside `.git/`
 - [ ] **INFRA-18**: Global shadcn palette applied — Phase 1 UI-SPEC gate confirms Mist+Blue (or alternative), CSS variables updated in `frontend/src/index.css` for both light and dark mode
 - [ ] **INFRA-19**: `--series-1..8` CSS variable extension added to `index.css` for categorical multi-series chart colors (Strategy B)
@@ -158,22 +158,22 @@ Each requirement maps to exactly one phase. All verification is **manual** (no a
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INFRA-01 | Phase 1 | Pending |
-| INFRA-02 | Phase 1 | Pending |
-| INFRA-03 | Phase 1 | Pending |
-| INFRA-04 | Phase 1 | Pending |
-| INFRA-05 | Phase 1 | Pending |
-| INFRA-06 | Phase 1 | Pending |
+| INFRA-01 | Phase 1 | Complete |
+| INFRA-02 | Phase 1 | Complete |
+| INFRA-03 | Phase 1 | Complete |
+| INFRA-04 | Phase 1 | Complete |
+| INFRA-05 | Phase 1 | Complete |
+| INFRA-06 | Phase 1 | Complete |
 | INFRA-07 | Phase 1 | Pending |
-| INFRA-08 | Phase 1 | Pending |
-| INFRA-09 | Phase 1 | Pending |
+| INFRA-08 | Phase 1 | Complete |
+| INFRA-09 | Phase 1 | Complete |
 | INFRA-10 | Phase 1 | Pending |
 | INFRA-11 | Phase 1 | Pending |
 | INFRA-12 | Phase 1 | Pending |
 | INFRA-13 | Phase 1 | Pending |
 | INFRA-14 | Phase 1 | Pending |
 | INFRA-15 | Phase 1 | Pending |
-| INFRA-16 | Phase 1 | Pending |
+| INFRA-16 | Phase 1 | Complete |
 | INFRA-17 | Phase 1 | Pending |
 | INFRA-18 | Phase 1 | Pending |
 | INFRA-19 | Phase 1 | Pending |

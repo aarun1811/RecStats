@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 1 UI-SPEC approved
-last_updated: "2026-04-12T09:08:40.687Z"
-last_activity: 2026-04-12 -- Phase 1 planning complete
+stopped_at: Completed 01-01-PLAN.md
+last_updated: "2026-04-12T09:24:14.741Z"
+last_activity: 2026-04-12
 progress:
   total_phases: 8
   completed_phases: 0
   total_plans: 6
-  completed_plans: 0
-  percent: 0
+  completed_plans: 1
+  percent: 17
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-11)
 
 **Core value:** Business users can view, interact with, and customize reconciliation dashboards against Citi's production Oracle 19c environment, with zero local-vs-prod drift.
-**Current focus:** Phase 1 — Infrastructure Cutover (Oracle 19c wiring + global shadcn palette)
+**Current focus:** Phase 01 — infrastructure-cutover
 
 ## Current Position
 
-Phase: 1 of 8 (Infrastructure Cutover)
-Plan: 0 of TBD in current phase
+Phase: 01 (infrastructure-cutover) — EXECUTING
+Plan: 2 of 6
 Status: Ready to execute
-Last activity: 2026-04-12 -- Phase 1 planning complete
+Last activity: 2026-04-12
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -52,6 +52,7 @@ Progress: [░░░░░░░░░░] 0%
 - Trend: -
 
 *Updated after each plan completion*
+| Phase 01 P01 | 3min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -67,6 +68,9 @@ Recent decisions affecting current work:
 - Initialization: Global shadcn palette picked once in Phase 1's UI-SPEC gate (Mist+Blue recommended), applied via CSS variables, `--series-1..8` extension for categorical charts (Strategy B), `chart-themes.ts` rewired to read CSS vars
 - Initialization: Automated tests deferred to a future milestone — all verification this milestone is manual against live Oracle
 - Initialization: Milestone stays on `feature/add-color-remove-postgres`, no phase or milestone branches
+- [Phase 01]: Single recviz_db_url with no default -- app fails fast if env not configured
+- [Phase 01]: OracleJSON BLOB IS JSON via SchemaType _set_table hook; PortableJSON grace alias retained
+- [Phase 01]: MetaData naming_convention for ix/uq/ck/fk/pk ensures Alembic deterministic constraint names
 
 ### Pending Todos
 
@@ -80,6 +84,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-12T08:10:26.353Z
-Stopped at: Phase 1 UI-SPEC approved
-Resume file: .planning/phases/01-infrastructure-cutover/01-UI-SPEC.md
+Last session: 2026-04-12T09:24:14.739Z
+Stopped at: Completed 01-01-PLAN.md
+Resume file: None
