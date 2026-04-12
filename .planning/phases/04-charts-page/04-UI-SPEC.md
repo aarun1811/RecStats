@@ -36,7 +36,7 @@ Declared values (must be multiples of 4):
 |-------|-------|-------|
 | xs | 4px | Icon gaps, inline padding, badge internal spacing |
 | sm | 8px | Compact element spacing, icon-to-label gaps, card internal gaps |
-| md | 16px | Default element spacing, card padding (`p-4`), form field gaps |
+| md | 16px | Default element spacing, card padding (`p-4`), form field gaps, card metadata padding (`px-4 py-3`) |
 | lg | 24px | Page content `p-6`, section gaps, builder panel margins (`px-6`) |
 | xl | 32px | Layout gaps between major sections |
 | 2xl | 48px | Major section breaks (unused in Phase 4) |
@@ -44,7 +44,6 @@ Declared values (must be multiples of 4):
 
 Exceptions:
 - 12px (`p-3` / `px-3`): Section header bars in builder steps panel and preview panel (h-9 header pattern, same as Phase 2/3).
-- 14px (`px-3.5`): Card metadata padding (`px-3.5 py-3`) for thumbnail cards -- inherited from existing `chart-library-card.tsx`.
 - Touch targets: All interactive buttons maintain minimum 32px height (`h-8`). Card hover targets fill the full card area.
 - Builder panel width: `w-[380px]` -- inherited from existing `chart-builder.tsx`, not changed.
 - Detail panel width: `w-[500px]` -- inherited from existing `chart-detail-panel.tsx`, not changed.
@@ -57,31 +56,30 @@ Exceptions:
 
 ## Typography
 
-4 sizes, 2 weights:
+3 sizes, 2 weights:
 
 | Role | Size | Weight | Line Height | Tailwind Class |
 |------|------|--------|-------------|----------------|
 | Page title | 24px | 600 (semibold) | 1.2 (~29px) | `text-2xl font-semibold tracking-tight` |
-| Section heading | 14px | 600 (semibold) | 1.43 (~20px) | `text-sm font-semibold tracking-tight` |
-| Body | 14px | 400 (regular) | 1.43 (~20px) | `text-sm` |
-| Label / Caption | 12px | 400 (regular) | 1.33 (~16px) | `text-xs text-muted-foreground` |
+| Body / Section heading | 14px | 400 (regular) / 600 (semibold) | 1.43 (~20px) | `text-sm` / `text-sm font-semibold tracking-tight` |
+| Label / Caption | 12px | 400 (regular) / 600 (semibold) | 1.33 (~16px) | `text-xs text-muted-foreground` / `text-xs font-semibold` |
 
-Supplemental roles (use existing sizes with different weight/style):
+Supplemental roles (use only the 3 declared sizes and 2 declared weights):
 
 | Role | Size | Weight | Line Height | Tailwind Class |
 |------|------|--------|-------------|----------------|
 | Card title | 14px | 600 (semibold) | snug | `text-sm font-semibold truncate leading-snug` |
-| Card subtitle | 11px | 400 (regular) | snug | `text-[11px] text-muted-foreground truncate` |
+| Card subtitle | 12px | 400 (regular) | snug | `text-xs text-muted-foreground truncate` |
 | Inline editor heading | 24px | 600 (semibold) | 1.2 | `text-2xl font-semibold tracking-tight` (native `<input>`) |
-| Chart type pill | 10px | 500 (medium) | normal | `text-[10px] font-medium` |
-| Metadata label | 11px | 500 (medium) | normal | `text-[11px] font-medium text-muted-foreground uppercase tracking-wide` |
-| Tooltip body | 13px | 400 (regular) | 1.5 | `text-[13px]` (inside Popover) |
+| Chart type pill | 12px | 600 (semibold) | normal | `text-xs font-semibold` |
+| Metadata label | 12px | 600 (semibold) | normal | `text-xs font-semibold text-muted-foreground uppercase tracking-wide` |
+| Tooltip body | 14px | 400 (regular) | 1.5 | `text-sm` (inside Popover) |
 | Help sheet heading | 14px | 600 (semibold) | 1.43 | `text-sm font-semibold` |
-| Help sheet body | 13px | 400 (regular) | 1.5 | `text-[13px] text-muted-foreground` |
+| Help sheet body | 14px | 400 (regular) | 1.5 | `text-sm text-muted-foreground` |
 
 Font: `"Inter", system-ui, sans-serif` -- declared in `@layer base` body rule in `index.css`.
 
-**Source:** Phase 3 UI-SPEC typography table + existing chart component measurements.
+**Source:** Phase 3 UI-SPEC typography table + existing chart component measurements. Consolidated from 6 sizes to 3 and from 3 weights to 2 per checker feedback.
 
 ---
 
@@ -175,6 +173,8 @@ Import `resolveColor` from `chart-themes.ts` (or extract a shared `getCssVar` he
 
 No `max-w` constraint -- list page uses full width within the app shell for card grid density.
 
+**Focal point:** The card grid (or list rows) is the primary focal point. The toolbar is secondary. Page title anchors the top.
+
 ### Grid/List View Grid
 
 | View | Layout |
@@ -194,6 +194,8 @@ No `max-w` constraint -- list page uses full width within the app shell for card
 ```
 
 Builder layout is inherited from existing `chart-builder.tsx` and is not changed structurally.
+
+**Focal point:** The live chart preview panel (right side) is the primary focal point. The steps accordion (left side) is the active editing surface.
 
 **Source:** Existing codebase patterns.
 
@@ -219,7 +221,8 @@ Builder layout is inherited from existing `chart-builder.tsx` and is not changed
 |----------|---------|--------|
 | Wrapper | Plain `div` with CSS hover | `motion.div` wrapping, `whileHover={{ y: -2 }}`, `transition={{ duration: 0.15, ease: 'easeOut' }}` |
 | Left border | None | `border-l-2` + `CHART_TYPE_BORDER_COLORS[chart.chartType]` |
-| Chart type pill | `bg-background/80 text-muted-foreground` | `CHART_TYPE_PILL_BG[chart.chartType]` + `CHART_TYPE_PILL_TEXT[chart.chartType]` + `backdrop-blur-sm border-0` |
+| Chart type pill | `bg-background/80 text-muted-foreground` | `CHART_TYPE_PILL_BG[chart.chartType]` + `CHART_TYPE_PILL_TEXT[chart.chartType]` + `text-xs font-semibold backdrop-blur-sm border-0` |
+| Metadata padding | `px-3.5 py-3` | `px-4 py-3` |
 | Stagger entrance | None | `initial={{ opacity: 0, y: 8 }}`, `animate={{ opacity: 1, y: 0 }}`, `transition={{ delay: index * 0.05, duration: 0.2 }}` |
 | ECharts thumbnails | Not rendered (fallback icon only) | Wire `EChartWrapper` into card for ECharts types (sankey, radar, gauge, funnel, graph, parallel, sunburst) using same data-fetching pattern as AG Charts cards |
 | Shadow/spacing | CSS `hover:shadow-lg hover:-translate-y-0.5` | Remove CSS translate (handled by motion.div), keep `hover:shadow-lg hover:shadow-primary/5` |
@@ -437,13 +440,14 @@ All animations use `motion/react`. Timing values are prescriptive:
 | Destructive: Delete Chart | Dialog title: 'Delete "{chartName}"?' / Body: "This will permanently remove the chart from the library. Any dashboards using this chart will lose it. This cannot be undone." / Confirm: "Delete Chart" / Cancel: "Keep Chart" |
 | Destructive: Cannot delete | Dialog title: 'Cannot delete "{chartName}"' / Body: "This chart is used in the following dashboards. Remove it from those dashboards first:" / Dismiss: "Close" |
 | Builder step labels | "1. Dataset", "2. Chart Type", "3. Column Mapping", "4. Appearance" |
-| Builder step "Continue" | "Continue" (steps 1, 3) |
-| Builder step "Done" | "Done" (step 4) |
+| Builder step "Continue" (step 1) | "Continue to Chart Type" |
+| Builder step "Continue" (step 3) | "Continue to Appearance" |
+| Builder step "Done" (step 4) | "Finish Chart" |
 | Help sheet button tooltip | "Configuration reference" |
 | Chart name placeholder | "Untitled Chart" |
 | Description placeholder | "Add a description..." |
 
-**Source:** Existing codebase copy (preserved where good), CONTEXT.md decisions.
+**Source:** Existing codebase copy (preserved where good), CONTEXT.md decisions. Wizard CTAs made more specific per checker recommendation.
 
 ---
 
