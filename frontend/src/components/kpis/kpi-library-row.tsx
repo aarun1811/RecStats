@@ -1,25 +1,35 @@
 import { ChevronRight, Gauge } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
+import { motion } from 'motion/react'
 
 import { cn } from '@/lib/utils'
-import { Badge } from '@/components/ui/badge'
+import {
+  KPI_AGG_BORDER_COLORS,
+  KPI_AGG_PILL_BG,
+  KPI_AGG_PILL_TEXT,
+} from '@/lib/style-constants'
 import type { RecvizKpi } from '@/types/managed-kpi'
 
 interface KpiLibraryRowProps {
   kpi: RecvizKpi
   datasetName: string
   onClick: () => void
+  index: number
 }
 
-export function KpiLibraryRow({ kpi, datasetName, onClick }: KpiLibraryRowProps) {
+export function KpiLibraryRow({ kpi, datasetName, onClick, index }: KpiLibraryRowProps) {
   const timeAgo = formatDistanceToNow(new Date(kpi.updatedAt), { addSuffix: true })
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: 'easeOut', delay: index * 0.05 }}
       className={cn(
-        'group flex items-center gap-4 rounded-md border px-4 py-3',
+        'group flex items-center gap-4 rounded-md border border-l-2 px-4 py-3',
         'cursor-pointer transition-all duration-150',
         'hover:border-primary/20 hover:bg-muted/50',
+        KPI_AGG_BORDER_COLORS[kpi.aggregation],
       )}
       onClick={onClick}
       tabIndex={0}
@@ -32,7 +42,7 @@ export function KpiLibraryRow({ kpi, datasetName, onClick }: KpiLibraryRowProps)
       }}
     >
       {/* Icon */}
-      <div className="flex items-center justify-center size-9 rounded-md bg-muted/50 shrink-0">
+      <div className="flex items-center justify-center size-9 rounded-md bg-primary/5 border border-primary/10 shrink-0">
         <Gauge size={18} className="text-muted-foreground" />
       </div>
 
@@ -44,10 +54,14 @@ export function KpiLibraryRow({ kpi, datasetName, onClick }: KpiLibraryRowProps)
         </p>
       </div>
 
-      {/* Aggregation badge */}
-      <Badge variant="outline" className="shrink-0 text-xs">
+      {/* Aggregation pill */}
+      <span className={cn(
+        'shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider',
+        KPI_AGG_PILL_BG[kpi.aggregation],
+        KPI_AGG_PILL_TEXT[kpi.aggregation],
+      )}>
         {kpi.aggregation}
-      </Badge>
+      </span>
 
       {/* Dataset */}
       <div className="hidden lg:block shrink-0 text-right">
@@ -64,6 +78,6 @@ export function KpiLibraryRow({ kpi, datasetName, onClick }: KpiLibraryRowProps)
         size={14}
         className="shrink-0 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5 group-hover:text-muted-foreground"
       />
-    </div>
+    </motion.div>
   )
 }
