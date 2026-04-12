@@ -161,7 +161,11 @@ Plans:
   2. User can create a new KPI, save it, re-open it for edit, and delete it — all against Oracle
   3. User can view a KPI card and see the animated counter roll up smoothly with palette-themed accent colors (trend arrows, positive/negative semantic colors both work in light and dark mode)
   4. KPI create/edit pages reflect the global palette in both light and dark mode
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 05-01-PLAN.md — Style constants + list page motion (cards, rows, AnimatePresence, empty state)
+- [ ] 05-02-PLAN.md — Builder accordion motion + detail panel threshold accent
+- [ ] 05-03-PLAN.md — Playwright MCP verification + USAGE-TRACKER update
 **UI hint**: yes
 **Known risks / gotchas**:
   - KPI counter animation uses `motion/react` — ensure the trend color semantics (`text-green-600 dark:text-green-400` / red equivalent) survive the palette swap. Status colors are intentionally kept as semantic utilities, not tokenized.
@@ -237,7 +241,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 2. Settings Page | 3/3 | Complete | 2026-04-12 |
 | 3. Datasets Page | 0/3 | Not started | - |
 | 4. Charts Page | 0/4 | Not started | - |
-| 5. KPIs Page | 0/TBD | Not started | - |
+| 5. KPIs Page | 0/3 | Not started | - |
 | 6. Dashboards Page | 0/TBD | Not started | - |
 | 7. Explorer Page | 0/TBD | Not started | - |
 | 8. Alembic Audit + Dead Code Sweep + Memory Cleanup | 0/TBD | Not started | - |
