@@ -47,17 +47,17 @@ Exceptions: none
 
 | Role | Size | Weight | Line Height |
 |------|------|--------|-------------|
+| Caption/Label | 12px (`text-xs`) | 400 (regular) | 1.4 |
 | Body | 14px (`text-sm`) | 400 (regular) | 1.5 |
-| Label | 11px (`text-[11px]`) | 500 (medium) | 1.4 |
-| Heading | 18px (`text-lg`) | 600 (semibold) | 1.2 |
+| Heading | 24px (`text-2xl`) | 700 (bold) | 1.2 |
 | Display (KPI value) | 48px (`text-5xl`) in detail/builder, 24px (`text-2xl`) in cards | 700 (bold) | 1.1 |
 
 Additional conventions:
-- Aggregation type labels: 10px (`text-[10px]`) uppercase tracking-wider, weight 500
-- Section headers in detail panel: 11px uppercase tracking-wide, weight 500, `text-muted-foreground`
-- Card metadata: 11px (`text-[11px]`), weight 400, `text-muted-foreground`
-- KPI name on cards: 14px (`text-sm`), weight 600 (semibold), truncate single line
-- Page title: 24px (`text-2xl`), weight 600, `tracking-tight`
+- Aggregation type labels: 12px (`text-xs`) uppercase tracking-wider, weight 400, `text-muted-foreground`
+- Section headers in detail panel: 12px (`text-xs`) uppercase tracking-wide, weight 400, `text-muted-foreground`
+- Card metadata: 12px (`text-xs`), weight 400, `text-muted-foreground`
+- KPI name on cards: 14px (`text-sm`), weight 700 (bold), truncate single line
+- Page title: 24px (`text-2xl`), weight 700, `tracking-tight`
 
 ---
 
@@ -120,7 +120,7 @@ Accent reserved for:
 | Hero KPI value | CountAnimation 0.8s | `text-5xl font-bold tabular-nums`, radial glow behind value |
 | Metadata grid | none | 2-col grid with section header icons (Database, Hash, Settings2, Calendar) |
 | Threshold indicators | none | Colored dots (green/amber/red) with threshold values |
-| Sticky footer | none | "Edit KPI" primary button + ghost delete icon button |
+| Sticky footer | none | "Edit KPI" primary button + ghost delete icon button (`aria-label="Delete KPI"`, tooltip "Delete KPI" on hover) |
 
 ### Builder Components
 
@@ -169,7 +169,7 @@ Accent reserved for:
 3. CountAnimation re-triggers with new number
 
 ### Delete Flow
-1. User clicks delete icon (detail panel footer or builder header)
+1. User clicks delete icon button (detail panel footer or builder header) — button has `aria-label="Delete KPI"` and shows tooltip "Delete KPI" on hover
 2. Dialog opens, checks references via API
 3. If no references: shows confirmation with "Delete" destructive button
 4. If references exist: shows blocker with dashboard list and "Keep KPI" button
@@ -186,7 +186,7 @@ Accent reserved for:
 | Empty state body | "Create your first KPI template to get started." |
 | Filtered empty state heading | "No KPIs found" |
 | Filtered empty state body | "No KPIs matching your search. Try a different term or clear filters." |
-| Error state (data load) | "Could not load preview data." |
+| Error state (data load) | "Could not load preview data. Check the dataset connection or try again." |
 | Delete confirmation title | Delete "[KPI name]"? |
 | Delete confirmation body | "This will permanently delete '[KPI name]'. Any dashboards using this KPI will lose it. This cannot be undone." |
 | Delete blocked title | Cannot delete "[KPI name]" |
