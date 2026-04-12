@@ -57,12 +57,12 @@ Each requirement maps to exactly one phase. All verification is **manual** (no a
 ### Charts Page (Phase 4)
 
 - [x] **CHRT-01**: Charts list page colorized per global palette in both modes
-- [ ] **CHRT-02**: Chart create/edit pages (builder wizard) colorized per global palette in both modes
+- [x] **CHRT-02**: Chart create/edit pages (builder wizard) colorized per global palette in both modes
 - [x] **CHRT-03**: Chart rendering verified end-to-end — AG Charts (line, bar, area, pie, donut, scatter, heatmap, treemap, waterfall, bullet, box plot, combo) and ECharts (Sankey, sunburst, radar, gauge, parallel coords, funnel) all render correctly with new palette colors
 - [x] **CHRT-04**: Chart factory (`chart-factory.tsx`) correctly routes to AG Charts vs ECharts based on `vizType`
 - [x] **CHRT-05**: Hard-coded hex in `types/chart.ts` and `components/charts/builder/step-appearance.tsx` audited and removed (replaced with CSS variable references)
 - [ ] **CHRT-06**: Dashboard config JSON stored in `recviz_charts.config` audited for hex leakage; stale color overrides migrated or purged
-- [ ] **CHRT-07**: Any fixes/enhancements discovered in phase discuss are implemented and verified
+- [x] **CHRT-07**: Any fixes/enhancements discovered in phase discuss are implemented and verified
 - [ ] **CHRT-08**: `.planning/USAGE-TRACKER.md` updated
 
 ### KPIs Page (Phase 5)
@@ -197,12 +197,12 @@ Each requirement maps to exactly one phase. All verification is **manual** (no a
 | DATA-05 | Phase 3 | Complete |
 | DATA-06 | Phase 3 | Complete |
 | CHRT-01 | Phase 4 | Complete |
-| CHRT-02 | Phase 4 | Pending |
+| CHRT-02 | Phase 4 | Complete |
 | CHRT-03 | Phase 4 | Complete |
 | CHRT-04 | Phase 4 | Complete |
 | CHRT-05 | Phase 4 | Complete |
 | CHRT-06 | Phase 4 | Pending |
-| CHRT-07 | Phase 4 | Pending |
+| CHRT-07 | Phase 4 | Complete |
 | CHRT-08 | Phase 4 | Pending |
 | KPI-01 | Phase 5 | Pending |
 | KPI-02 | Phase 5 | Pending |
