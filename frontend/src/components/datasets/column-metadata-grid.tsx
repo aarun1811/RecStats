@@ -6,7 +6,6 @@ import { X } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useTheme } from '@/components/layout/theme-provider'
-import { cn } from '@/lib/utils'
 import { RoleBadgeRenderer } from './role-badge-renderer'
 import { TypeBadgeRenderer } from './type-badge-renderer'
 import { ColumnHeaderWithTooltip } from './column-header-with-tooltip'
@@ -210,9 +209,7 @@ export function ColumnMetadataGrid({ columns, onChange }: ColumnMetadataGridProp
   const useAutoHeight = columns.length <= 10
 
   return (
-    <div
-      className={cn(useAutoHeight ? 'w-full' : 'w-full h-full')}
-    >
+    <div className="w-full h-full">
       <AgGridReact<MergedColumn>
         theme={gridTheme}
         rowData={columns}

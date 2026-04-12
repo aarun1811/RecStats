@@ -553,14 +553,19 @@ export function DatasetEditor({ mode, dataset, isLoading }: DatasetEditorProps) 
 
       {/* Expanded column metadata dialog */}
       <Dialog open={metadataExpanded} onOpenChange={setMetadataExpanded}>
-        <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
+        <DialogContent className="max-w-[90vw] w-[900px] h-[80vh] flex flex-col">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Columns3 className="size-4 text-muted-foreground" />
-              Column Metadata
-            </DialogTitle>
+            <div className="flex items-center justify-between">
+              <DialogTitle className="flex items-center gap-2">
+                <Columns3 className="size-4 text-muted-foreground" />
+                Column Metadata
+              </DialogTitle>
+              <div className="flex items-center gap-1.5">
+                <ColumnMetadataHelpSheet />
+              </div>
+            </div>
           </DialogHeader>
-          <div className="flex-1 min-h-0 overflow-auto">
+          <div className="flex-1 min-h-0">
             <ColumnMetadataGrid columns={columns} onChange={setColumns} />
           </div>
         </DialogContent>
