@@ -110,7 +110,8 @@ export function ColumnMetadataGrid({ columns, onChange }: ColumnMetadataGridProp
       {
         field: 'displayName',
         headerName: 'Display Name',
-        width: 180,
+        minWidth: 140,
+        flex: 1,
         editable: true,
       },
       {
