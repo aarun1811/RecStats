@@ -120,7 +120,7 @@ Plans:
 **Plans**: 3 plans
 Plans:
 - [x] 03-01-PLAN.md — Style constants extraction + list page enhancements (cards, rows, animations, empty states)
-- [ ] 03-02-PLAN.md — Editor enhancements (section headers, mode badge, run state machine, stats, column metadata badges/tooltips/help sheet)
+- [x] 03-02-PLAN.md — Editor enhancements (section headers, mode badge, run state machine, stats, column metadata badges/tooltips/help sheet)
 - [ ] 03-03-PLAN.md — CRUD + SQL verification against Oracle + USAGE-TRACKER update
 **UI hint**: yes
 **Known risks / gotchas**:
