@@ -141,7 +141,7 @@ Plans:
 **Plans**: 4 plans
 Plans:
 - [x] 04-01-PLAN.md — Style constants + CSS tokens + hex migration + chart config audit
-- [ ] 04-02-PLAN.md — List page colorization + animations + ECharts thumbnails + detail panel
+- [x] 04-02-PLAN.md — List page colorization + animations + ECharts thumbnails + detail panel
 - [ ] 04-03-PLAN.md — Builder wizard polish + appearance expansion + tooltips + help sheet
 - [ ] 04-04-PLAN.md — Stored config hex audit + console error triage + USAGE-TRACKER
 **UI hint**: yes

@@ -56,7 +56,7 @@ Each requirement maps to exactly one phase. All verification is **manual** (no a
 
 ### Charts Page (Phase 4)
 
-- [ ] **CHRT-01**: Charts list page colorized per global palette in both modes
+- [x] **CHRT-01**: Charts list page colorized per global palette in both modes
 - [ ] **CHRT-02**: Chart create/edit pages (builder wizard) colorized per global palette in both modes
 - [x] **CHRT-03**: Chart rendering verified end-to-end — AG Charts (line, bar, area, pie, donut, scatter, heatmap, treemap, waterfall, bullet, box plot, combo) and ECharts (Sankey, sunburst, radar, gauge, parallel coords, funnel) all render correctly with new palette colors
 - [x] **CHRT-04**: Chart factory (`chart-factory.tsx`) correctly routes to AG Charts vs ECharts based on `vizType`
@@ -196,7 +196,7 @@ Each requirement maps to exactly one phase. All verification is **manual** (no a
 | DATA-04 | Phase 3 | Complete |
 | DATA-05 | Phase 3 | Complete |
 | DATA-06 | Phase 3 | Complete |
-| CHRT-01 | Phase 4 | Pending |
+| CHRT-01 | Phase 4 | Complete |
 | CHRT-02 | Phase 4 | Pending |
 | CHRT-03 | Phase 4 | Complete |
 | CHRT-04 | Phase 4 | Complete |
