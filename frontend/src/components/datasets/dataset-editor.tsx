@@ -226,6 +226,9 @@ export function DatasetEditor({ mode, dataset, isLoading }: DatasetEditorProps) 
         toast.success(`Dataset "${dataset.name}" deleted`)
         navigate({ to: '/datasets' })
       },
+      onError: (err) => {
+        toast.error(`Failed to delete dataset: ${err.message}`)
+      },
     })
   }, [dataset, deleteDataset, navigate])
 
