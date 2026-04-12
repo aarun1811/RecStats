@@ -117,7 +117,11 @@ Plans:
   2. User can create a new dataset with a parameterized SQL template (using `{{filters}}`, `{{values}}`, `{{date_range_clause}}` placeholders), save it, re-open it for edit, and delete it — all against Oracle
   3. User can execute a sample query on a dataset from the edit page and see real rows returned from Oracle 19c (no mock data, no thin-mode fallback)
   4. Dataset create/edit pages reflect the global palette in both light and dark mode — form controls, buttons, code editor chrome all re-themed
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 03-01-PLAN.md — Style constants extraction + list page enhancements (cards, rows, animations, empty states)
+- [ ] 03-02-PLAN.md — Editor enhancements (section headers, mode badge, run state machine, stats, column metadata badges/tooltips/help sheet)
+- [ ] 03-03-PLAN.md — CRUD + SQL verification against Oracle + USAGE-TRACKER update
 **UI hint**: yes
 **Known risks / gotchas**:
   - Parameterized SQL template rendering (`_build_sql()` in `query_engine.py`) is sync-path critical — any residual async wrapping needs to be caught here.
@@ -226,7 +230,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 |-------|----------------|--------|-----------|
 | 1. Infrastructure Cutover | 6/6 | Complete | - |
 | 2. Settings Page | 3/3 | Complete | 2026-04-12 |
-| 3. Datasets Page | 0/TBD | Not started | - |
+| 3. Datasets Page | 0/3 | Not started | - |
 | 4. Charts Page | 0/TBD | Not started | - |
 | 5. KPIs Page | 0/TBD | Not started | - |
 | 6. Dashboards Page | 0/TBD | Not started | - |
