@@ -13,6 +13,12 @@ created: 2026-04-13
 
 ---
 
+## Focal Point
+
+The dashboard list page is the user's launchpad -- every card must feel like an invitation to explore. The left-border accent, hover lift, and stagger entrance create a sense of depth and intentionality. Inside a dashboard, the renderer sections cascade in with purposeful timing so the user perceives a single orchestrated reveal, not a collection of independent loads.
+
+---
+
 ## Design System
 
 | Property | Value |
@@ -67,17 +73,17 @@ Supplemental roles (use only the 3 declared sizes and 2 declared weights):
 | Role | Size | Weight | Line Height | Tailwind Class |
 |------|------|--------|-------------|----------------|
 | Card title | 14px | 600 (semibold) | snug | `text-sm font-semibold truncate leading-snug` |
-| Card subtitle | 11px | 400 (regular) | snug | `text-[11px] text-muted-foreground truncate` |
-| Filter label | 12px | 500 (medium) | normal | `text-xs font-medium uppercase text-muted-foreground` |
-| KPI label (renderer) | 11px | 500 (medium) | normal | `text-[11px] font-medium uppercase tracking-wider text-muted-foreground` |
+| Card subtitle | 12px | 400 (regular) | snug | `text-xs text-muted-foreground truncate` |
+| Filter label | 12px | 600 (semibold) | normal | `text-xs font-semibold uppercase text-muted-foreground` |
+| KPI label (renderer) | 12px | 600 (semibold) | normal | `text-xs font-semibold uppercase tracking-wider text-muted-foreground` |
 | KPI value (renderer) | 24px | 600 (semibold) | tight | `text-2xl font-semibold tabular-nums tracking-tight` |
-| Stat counter (card) | 10px | 500 (medium) | normal | `text-[10px] font-medium tabular-nums` |
+| Stat counter (card) | 12px | 600 (semibold) | normal | `text-xs font-semibold tabular-nums` |
 | Detail header metadata | 14px | 400 (regular) | 1.5 | `text-sm text-muted-foreground` |
-| Picker dialog card title | 14px | 500 (medium) | normal | `text-sm font-medium truncate` |
+| Picker dialog card title | 14px | 600 (semibold) | normal | `text-sm font-semibold truncate` |
 
 Font: `"Inter", system-ui, sans-serif` -- declared in `@layer base` body rule in `index.css`.
 
-**Source:** Phase 4/5 UI-SPEC typography + existing dashboard component measurements.
+**Source:** Phase 4/5 UI-SPEC typography + existing dashboard component measurements. Sizes collapsed to 3 (12px, 14px, 24px). Weights collapsed to 2 (400, 600) -- all former font-medium (500) uses promoted to font-semibold (600).
 
 ---
 
@@ -91,7 +97,7 @@ Phase 6 inherits the complete Mist+Blue palette from Phase 1. All colors consume
 |------|-------------|-------|
 | Dominant (60%) | `--background` | Page background, main content area, embed background |
 | Secondary (30%) | `--card`, `--muted`, `--secondary` | Cards, filter bar (`bg-muted/50`), toolbar chrome (`bg-background/80`), builder panels |
-| Accent (10%) | `--primary` (Blue) | "Create Dashboard" CTA, "Save Dashboard" CTA, card `border-l-2 border-l-primary`, row icon container accent (`bg-primary/5`), Apply button, focus rings |
+| Accent (10%) | `--primary` (Blue) | "Create Dashboard" CTA, "Save Dashboard" CTA, card `border-l-2 border-l-primary`, row icon container accent (`bg-primary/5`), Apply Filters button, focus rings |
 | Destructive | `--destructive` | "Delete Dashboard" button, delete confirmation dialog |
 
 Accent reserved for:
@@ -99,7 +105,7 @@ Accent reserved for:
 - "Save Dashboard" / "Save Changes" primary CTA in builder
 - Dashboard card `border-l-2 border-l-primary` left accent
 - Dashboard row icon container `bg-primary/5 border border-primary/10` tint
-- "Apply" button in filter bar
+- "Apply Filters" button in filter bar
 - "Add to Dashboard" button in picker dialogs
 - Focus rings on inputs and controls
 
@@ -253,6 +259,19 @@ Metadata row layout:
 | Chart card entrance | Immediate render | `motion.div` wrapper on each card: `initial={{ opacity: 0 }}`, `animate={{ opacity: 1 }}`, `transition={{ duration: 0.3, delay: 0.1 }}` (fade in from skeleton) |
 | Chart toolbar | Already has `AnimatePresence` opacity fade on hover | Verify polish: ensure `bg-background/80 backdrop-blur-sm` survives both modes |
 
+#### Chart Toolbar Accessibility (D-13 addendum)
+
+Icon-only buttons in the chart toolbar require `aria-label` attributes for screen reader access:
+
+| Button | Icon | `aria-label` |
+|--------|------|-------------|
+| Expand chart | `Maximize2` | `"Expand chart"` |
+| Download chart | `Download` | `"Download chart as image"` |
+| Refresh chart | `RefreshCw` | `"Refresh chart data"` |
+| Chart options | `MoreVertical` | `"Chart options"` |
+
+Implementation: pass `aria-label` to each `<Button variant="ghost" size="icon">` in the toolbar.
+
 #### Dashboard Toolbar (D-14)
 
 | Property | Current | Target |
@@ -305,7 +324,7 @@ The detail grid already uses `AnimatePresence` with height/opacity animation for
 | `FilterConfigDialog` | Dialog entrance only -- no card grid to stagger |
 
 Picker dialog empty state copy:
-- ChartPickerDialog: "No charts found" (already present)
+- ChartPickerDialog: "No charts found"
 - KpiPickerDialog: "No KPIs found"
 - DatasetPickerDialog: "No datasets found"
 
@@ -389,7 +408,7 @@ All animations use `motion/react`. Timing values are prescriptive:
 
 ### Renderer: Filter Apply Flow
 1. User selects filter values in dropdowns
-2. User clicks "Apply" button
+2. User clicks "Apply Filters" button
 3. Filter store updates `applied` snapshot
 4. All query-sourced charts refetch with new filters
 5. KPI row refetches and re-animates values
@@ -444,18 +463,19 @@ All animations use `motion/react`. Timing values are prescriptive:
 | Empty state body | "Create your first dashboard to start visualizing reconciliation data. Add charts, KPIs, and filters from your libraries." |
 | Filtered empty state heading | 'No dashboards matching "{searchQuery}"' |
 | Filtered empty state body | "Try a different search term or clear your filters." |
-| Error state (data load) | "Failed to load chart data" (per chart card, via ErrorPanel) |
-| Error state (KPI load) | "Failed to load KPI data" (KPI row, via ErrorPanel) |
-| Error state (dashboard not found) | "Dashboard not found" |
-| Destructive: Delete Dashboard | Dialog title: 'Delete "{dashboardName}"?' / Body: "This will permanently delete '{dashboardName}'. This cannot be undone." / Confirm: "Delete" / Cancel: "Cancel" |
+| Error state (data load) | "Failed to load chart data. Check the dataset connection and try refreshing the panel." |
+| Error state (KPI load) | "Failed to load KPI data. Verify the dataset is accessible and refresh the dashboard." |
+| Error state (dashboard not found) | "Dashboard not found. It may have been deleted or the URL is incorrect. Return to the dashboard list to continue." |
+| Error state (filter options) | "Could not load filter options. Check that the dataset connection is active and try again." |
+| Destructive: Delete Dashboard | Dialog title: 'Delete "{dashboardName}"?' / Body: "This will permanently delete '{dashboardName}'. This cannot be undone." / Confirm: "Delete Dashboard" / Cancel: "Cancel" |
 | Refresh toast (success) | "Dashboard refreshed" |
-| Refresh toast (failure) | "Refresh failed: {error}. Showing cached data." |
+| Refresh toast (failure) | "Refresh failed: {error}. Showing cached data. Try again in a moment." |
 | Picker: no charts | "No charts found" |
 | Picker: no KPIs | "No KPIs found" |
 | Picker: no datasets | "No datasets found" |
 | Picker: add CTA | "Add to Dashboard" |
-| Filter bar: Apply | "Apply" |
-| Filter bar: Reset | "Reset" |
+| Filter bar: Apply | "Apply Filters" |
+| Filter bar: Reset | "Reset Filters" |
 | Cross-filter bar: label | "Filtered by:" |
 | Cross-filter bar: clear | "Clear all" |
 | Drill breadcrumb root | "Overview" |
@@ -470,10 +490,10 @@ All animations use `motion/react`. Timing values are prescriptive:
 | Dashboard card | `bg-card border` + `border-l-2 border-l-primary` | `y: -2`, `shadow-lg shadow-primary/5`, `border-primary/20` | N/A (click navigates) | N/A | `Skeleton h-[140px]` |
 | Dashboard row | `border bg-card` + `border-l-2 border-l-primary` | `border-primary/30`, `shadow-sm shadow-primary/5` | N/A (click navigates) | N/A | `Skeleton h-[56px]` |
 | View toggle button | `variant="outline"` | Standard outline hover | Active view filled | N/A | N/A |
-| Apply button | `variant="default"` (primary) | Standard primary hover | N/A | N/A | N/A |
-| Reset button | `variant="outline"` | Standard outline hover | N/A | N/A | N/A |
+| Apply Filters button | `variant="default"` (primary) | Standard primary hover | N/A | N/A | N/A |
+| Reset Filters button | `variant="outline"` | Standard outline hover | N/A | N/A | N/A |
 | Refresh button | `variant="outline"` | Standard outline hover | N/A | `disabled` (refreshing) | `animate-spin` on RefreshCw icon |
-| Chart toolbar button | `variant="ghost" size="icon"` | Standard ghost hover | N/A | N/A | N/A |
+| Chart toolbar button | `variant="ghost" size="icon"` + `aria-label` (see accessibility table) | Standard ghost hover | N/A | N/A | N/A |
 | Picker dialog card | `border rounded-lg p-3` | `border-primary/30 bg-accent/50` | `border-primary bg-primary/5` | N/A | `Skeleton h-[72px]` |
 | Filter chip (builder) | `border bg-background px-2.5 py-1.5` | N/A (draggable) | `opacity-50` while dragging | N/A | N/A |
 | Cross-filter chip | `Badge variant="secondary"` | X button: `bg-muted-foreground/20` | N/A | N/A | N/A |
