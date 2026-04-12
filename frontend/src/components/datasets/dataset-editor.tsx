@@ -184,6 +184,9 @@ export function DatasetEditor({ mode, dataset, isLoading }: DatasetEditorProps) 
             toast.success(`Dataset "${name.trim()}" created`)
             navigate({ to: '/datasets' })
           },
+          onError: (err) => {
+            toast.error(`Failed to create dataset: ${err.message}`)
+          },
         },
       )
     } else if (dataset) {
@@ -200,6 +203,9 @@ export function DatasetEditor({ mode, dataset, isLoading }: DatasetEditorProps) 
         {
           onSuccess: () => {
             toast.success(`Dataset "${name.trim()}" updated`)
+          },
+          onError: (err) => {
+            toast.error(`Failed to update dataset: ${err.message}`)
           },
         },
       )
