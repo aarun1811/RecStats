@@ -59,6 +59,9 @@ export function ConfigKpiRow({
   partialMatches,
 }: ConfigKpiRowProps) {
   const appliedFilters = useFilterStore((s) => s.applied)
+
+  // Don't render anything if no KPIs are configured
+  if (kpis.length === 0) return null
   const { data, isLoading, isError, error, refetch } = useDashboardKpis(kpis, appliedFilters)
 
   // Build partial match lookup for quick access
