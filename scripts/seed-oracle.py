@@ -1221,7 +1221,7 @@ def insert_returning_ids_batch(
 
 
 # --------------------------------------------------------------------------- #
-# Section 5: (removed — seed_curated_dataset_pair eliminated per D-11)
+# Section 5: (removed — dual-write pairing helper eliminated per D-11)
 # --------------------------------------------------------------------------- #
 
 
@@ -2582,7 +2582,7 @@ def wipe_managed_tables(cur) -> None:
 
 
 def seed_managed_datasets(cur) -> None:
-    """Insert dataset rows into recviz_datasets only (no recviz_data_sources per D-11)."""
+    """Insert dataset rows into recviz_datasets only (data sources table excluded per D-11)."""
     for ds in CURATED_DATASETS:
         managed_sql = ds["sql_template"].replace(" {{filters}}", "").replace(
             "{{filters}}", ""
