@@ -183,7 +183,13 @@ Plans:
   3. User can open `/embed/dashboards/:id?filter.foo=bar&filter.lock=foo&hide=sidebar,header&theme=dark` and the dashboard renders in embed mode with filters applied, locked, and chrome hidden as specified
   4. All dashboard pages (list, detail, create, edit) reflect the global palette in both light and dark mode
   5. The legacy dead dashboard code (`filter-bar.tsx`, `kpi-row.tsx`, `chart-grid.tsx`, old store shapes) is deleted from the repo — grep shows zero remaining references
-**Plans**: TBD
+**Plans**: 5 plans
+Plans:
+- [ ] 06-01-PLAN.md — Backend pipeline fix: rewire ConfigStore from recviz_data_sources to recviz_datasets + recviz_connections
+- [ ] 06-02-PLAN.md — List page polish: motion cards/rows, AnimatePresence crossfade, filtered empty state, detail header metadata row
+- [ ] 06-03-PLAN.md — Renderer premium treatment: filter bar header, KPI trend accents, chart fade-in, toolbar accessibility, drill breadcrumb motion
+- [ ] 06-04-PLAN.md — Builder polish + legacy audit: filter chip animation, picker stagger, store dead code audit, stale import grep
+- [ ] 06-05-PLAN.md — E2E verification via Playwright MCP + embed route + USAGE-TRACKER update
 **UI hint**: yes
 **Known risks / gotchas**:
   - **This is the second biggest phase after Phase 1.** Contains four distinct workstreams: colorization, broken-pipeline fix, legacy code deletion, embed route verification. Plan-phase should split into multiple plans.
@@ -242,7 +248,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 3. Datasets Page | 0/3 | Not started | - |
 | 4. Charts Page | 0/4 | Not started | - |
 | 5. KPIs Page | 0/3 | Not started | - |
-| 6. Dashboards Page | 0/TBD | Not started | - |
+| 6. Dashboards Page | 0/5 | Not started | - |
 | 7. Explorer Page | 0/TBD | Not started | - |
 | 8. Alembic Audit + Dead Code Sweep + Memory Cleanup | 0/TBD | Not started | - |
 
