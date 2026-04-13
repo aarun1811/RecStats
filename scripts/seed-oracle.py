@@ -1773,37 +1773,85 @@ def _chart(
 
 
 CURATED_CHARTS: list[dict] = [
-    _chart(
-        "chart-txn-trend-line",
-        "Transaction Volume — Daily",
-        "Daily transaction count line chart.",
+    # ------------------------------------------------------------------
+    # Dataset: ds-recon-transactions-daily
+    #   columns: trade_date, txn_count, total_usd
+    # ------------------------------------------------------------------
+    _chart(  # 1
+        "chart-daily-txn-volume",
+        "Daily Transaction Volume",
+        "Line chart tracking daily transaction count over the 2-year window -- identifies volume spikes and seasonal patterns.",
         "ds-recon-transactions-daily",
         "line",
         "trade_date",
         ["txn_count"],
     ),
-    _chart(
-        "chart-txn-trend-area",
-        "Transaction Amount — Daily",
-        "Daily USD volume area chart.",
+    _chart(  # 2
+        "chart-daily-usd-volume",
+        "Daily USD Volume",
+        "Area chart of daily total USD flow -- reveals high-value trading days and liquidity patterns.",
         "ds-recon-transactions-daily",
         "area",
         "trade_date",
         ["total_usd"],
     ),
-    _chart(
-        "chart-txn-by-region-bar",
-        "Transactions by Region",
-        "Region rollup bar chart.",
+    _chart(  # 3
+        "chart-daily-volume-combo",
+        "Volume vs Amount -- Daily Trend",
+        "Combo chart overlaying transaction count (bars) with USD amount (line) per day.",
+        "ds-recon-transactions-daily",
+        "combo",
+        "trade_date",
+        ["txn_count", "total_usd"],
+    ),
+    # ------------------------------------------------------------------
+    # Dataset: ds-recon-monthly-volume (NEW)
+    #   columns: month, txn_count, total_usd
+    # ------------------------------------------------------------------
+    _chart(  # 4
+        "chart-monthly-txn-bar",
+        "Monthly Transaction Count",
+        "Bar chart of monthly transaction volumes -- spot month-over-month trends.",
+        "ds-recon-monthly-volume",
+        "bar",
+        "month",
+        ["txn_count"],
+    ),
+    _chart(  # 5
+        "chart-monthly-usd-area",
+        "Monthly USD Volume",
+        "Stacked area of monthly total USD -- shows cumulative flow patterns.",
+        "ds-recon-monthly-volume",
+        "area",
+        "month",
+        ["total_usd"],
+    ),
+    # ------------------------------------------------------------------
+    # Dataset: ds-recon-transactions-by-region
+    #   columns: region, region_name, txn_count, total_usd
+    # ------------------------------------------------------------------
+    _chart(  # 6
+        "chart-region-txn-bar",
+        "Transaction Count by Region",
+        "Horizontal bar chart comparing transaction count across all regions.",
         "ds-recon-transactions-by-region",
         "bar",
         "region",
         ["txn_count"],
     ),
-    _chart(
-        "chart-txn-by-region-pie",
-        "Transactions by Region (share)",
-        "Region share pie chart.",
+    _chart(  # 7
+        "chart-region-usd-bar",
+        "USD Volume by Region",
+        "Bar chart ranking regions by total USD volume processed.",
+        "ds-recon-transactions-by-region",
+        "bar",
+        "region",
+        ["total_usd"],
+    ),
+    _chart(  # 8
+        "chart-region-share-pie",
+        "Regional Volume Share",
+        "Pie chart showing each region's share of total USD volume.",
         "ds-recon-transactions-by-region",
         "pie",
         "region",
@@ -1811,122 +1859,212 @@ CURATED_CHARTS: list[dict] = [
         show_x_label=False,
         show_y_label=False,
     ),
-    _chart(
-        "chart-txn-status-donut",
-        "Match Status",
-        "Status distribution donut.",
-        "ds-recon-transactions-by-status",
+    _chart(  # 9
+        "chart-region-txn-donut",
+        "Regional Transaction Share",
+        "Donut chart of transaction count distribution across regions.",
+        "ds-recon-transactions-by-region",
         "donut",
-        "status",
+        "region",
         ["txn_count"],
         show_x_label=False,
         show_y_label=False,
     ),
-    _chart(
-        "chart-txn-status-stacked",
-        "Status by Region",
-        "Stacked bar of count + USD per region.",
-        "ds-recon-transactions-by-region",
+    # ------------------------------------------------------------------
+    # Dataset: ds-recon-transactions-by-status
+    #   columns: status, status_name, category, txn_count
+    # ------------------------------------------------------------------
+    _chart(  # 10
+        "chart-status-distribution-bar",
+        "Transaction Status Distribution",
+        "Bar chart of transaction count per match status -- reveals unmatched backlog size.",
+        "ds-recon-transactions-by-status",
+        "bar",
+        "status_name",
+        ["txn_count"],
+    ),
+    _chart(  # 11
+        "chart-status-donut",
+        "Match Status Breakdown",
+        "Donut chart showing the proportion of matched, pending, and exception transactions.",
+        "ds-recon-transactions-by-status",
+        "donut",
+        "status_name",
+        ["txn_count"],
+        show_x_label=False,
+        show_y_label=False,
+    ),
+    _chart(  # 12
+        "chart-status-category-pie",
+        "Status Category Split",
+        "Pie chart grouping transactions by status category (CLOSED, OPEN, EXCEPTION).",
+        "ds-recon-transactions-by-status",
+        "pie",
+        "category",
+        ["txn_count"],
+        show_x_label=False,
+        show_y_label=False,
+    ),
+    # ------------------------------------------------------------------
+    # Dataset: ds-recon-status-by-region
+    #   columns: region, matched, auto_matched, manual_matched, pending,
+    #            unmatched, exceptions
+    # ------------------------------------------------------------------
+    _chart(  # 13
+        "chart-status-region-stacked",
+        "Status by Region -- Stacked",
+        "Stacked bar showing status composition per region -- quickly identify regions with high exception rates.",
+        "ds-recon-status-by-region",
         "stacked-bar",
         "region",
-        ["txn_count", "total_usd"],
+        ["matched", "auto_matched", "manual_matched", "pending", "unmatched", "exceptions"],
     ),
-    _chart(
-        "chart-breaks-by-type",
+    _chart(  # 14
+        "chart-status-region-bar",
+        "Unmatched by Region",
+        "Bar chart of unmatched transaction count per region -- highlights problem areas.",
+        "ds-recon-status-by-region",
+        "bar",
+        "region",
+        ["unmatched"],
+    ),
+    # ------------------------------------------------------------------
+    # Dataset: ds-recon-breaks-summary
+    #   columns: break_type, resolution, break_count, total_break_usd, avg_aging
+    # ------------------------------------------------------------------
+    _chart(  # 15
+        "chart-breaks-by-type-bar",
         "Breaks by Type",
-        "Break type bar chart.",
+        "Bar chart showing break count per break type -- identify which types drive the most breaks.",
         "ds-recon-breaks-summary",
         "bar",
         "break_type",
         ["break_count"],
     ),
-    _chart(
-        "chart-breaks-aging-waterfall",
-        "Aging Waterfall",
-        "Aging bucket waterfall view.",
-        "ds-recon-breaks-aging",
-        "waterfall",
-        "bucket",
-        ["break_count"],
-    ),
-    _chart(
-        "chart-breaks-aging-bar",
-        "Aging Distribution",
-        "Aging bucket bar chart.",
-        "ds-recon-breaks-aging",
+    _chart(  # 16
+        "chart-breaks-usd-by-type",
+        "Break Exposure by Type",
+        "Bar chart of total break USD per type -- shows where the financial risk concentrates.",
+        "ds-recon-breaks-summary",
         "bar",
-        "bucket",
-        ["break_count"],
+        "break_type",
+        ["total_break_usd"],
     ),
-    _chart(
-        "chart-volume-desk-treemap",
-        "Desk Volume Treemap",
-        "Treemap of desk volume by asset class.",
-        "ds-recon-volume-by-desk",
-        "treemap",
-        "desk",
-        ["total_usd", "txn_count"],
+    _chart(  # 17
+        "chart-breaks-resolution-donut",
+        "Break Resolution Status",
+        "Donut chart of break count by resolution status -- shows resolved vs open proportion.",
+        "ds-recon-breaks-summary",
+        "donut",
+        "resolution",
+        ["break_count"],
         show_x_label=False,
         show_y_label=False,
     ),
-    _chart(
-        "chart-txn-scatter",
-        "Amount vs Fee",
-        "Scatter of amount vs fee.",
-        "ds-recon-transactions-scatter",
-        "scatter",
-        None,
-        ["amount_usd", "fee"],
+    _chart(  # 18
+        "chart-breaks-aging-by-type",
+        "Average Aging by Break Type",
+        "Bar chart of average aging days per break type -- spot types with the longest resolution times.",
+        "ds-recon-breaks-summary",
+        "bar",
+        "break_type",
+        ["avg_aging"],
     ),
-    _chart(
-        "chart-sla-heatmap",
-        "SLA Breach Heatmap",
-        "SLA breach heatmap by type and region.",
-        "ds-sla-breach-summary",
-        "heatmap",
-        "sla_type",
-        ["region", "breach_rate"],
+    # ------------------------------------------------------------------
+    # Dataset: ds-recon-breaks-aging
+    #   columns: bucket, label, sort_order, severity, break_count, total_usd
+    # ------------------------------------------------------------------
+    _chart(  # 19
+        "chart-aging-waterfall",
+        "Aging Bucket Waterfall",
+        "Waterfall chart of break count across aging buckets -- visualize how breaks accumulate over time.",
+        "ds-recon-breaks-aging",
+        "waterfall",
+        "label",
+        ["break_count"],
     ),
-    _chart(
-        "chart-txn-combo",
-        "Volume & Amount Combo",
-        "Combo chart -- count + USD volume per day.",
-        "ds-recon-transactions-daily",
-        "combo",
-        "trade_date",
-        ["txn_count", "total_usd"],
+    _chart(  # 20
+        "chart-aging-bar",
+        "Aging Distribution",
+        "Bar chart of break count per aging bucket ordered by severity.",
+        "ds-recon-breaks-aging",
+        "bar",
+        "label",
+        ["break_count"],
     ),
-    _chart(
-        "chart-breaks-histogram",
-        "Break Amount Distribution",
-        "Histogram of break amounts.",
-        "ds-recon-transactions-scatter",
-        "histogram",
-        None,
-        ["amount_usd"],
+    _chart(  # 21
+        "chart-aging-usd-bar",
+        "Aging Exposure by Bucket",
+        "Bar chart of total USD at risk per aging bucket -- oldest breaks carry highest exposure.",
+        "ds-recon-breaks-aging",
+        "bar",
+        "label",
+        ["total_usd"],
     ),
-    _chart(
-        "chart-break-flow-sankey",
-        "Break Flow",
-        "Sankey diagram of break lifecycle.",
-        "ds-recon-break-flow-sankey",
-        "sankey",
-        None,
-        ["source", "target", "value"],
+    # ------------------------------------------------------------------
+    # Dataset: ds-recon-breaks-by-region (NEW)
+    #   columns: region, region_name, break_count, total_break_usd, avg_aging
+    # ------------------------------------------------------------------
+    _chart(  # 22
+        "chart-breaks-region-bar",
+        "Breaks by Region",
+        "Bar chart of break count per region -- identify regional break hotspots.",
+        "ds-recon-breaks-by-region",
+        "bar",
+        "region",
+        ["break_count"],
     ),
-    _chart(
-        "chart-kpi-radar",
-        "KPI Scorecard",
-        "Radar chart of quality KPIs vs benchmarks.",
-        "ds-recon-kpi-scorecard",
-        "radar",
-        "metric",
-        ["score", "benchmark"],
+    _chart(  # 23
+        "chart-breaks-region-usd",
+        "Break Exposure by Region",
+        "Bar chart of total break USD per region -- shows where financial risk concentrates geographically.",
+        "ds-recon-breaks-by-region",
+        "bar",
+        "region",
+        ["total_break_usd"],
     ),
-    _chart(
+    # ------------------------------------------------------------------
+    # Dataset: ds-recon-breaks-by-desk (NEW)
+    #   columns: desk, desk_name, asset_class, break_count, total_break_usd
+    # ------------------------------------------------------------------
+    _chart(  # 24
+        "chart-breaks-desk-bar",
+        "Breaks by Desk",
+        "Bar chart of break count per desk -- identify which trading desks generate the most breaks.",
+        "ds-recon-breaks-by-desk",
+        "bar",
+        "desk_name",
+        ["break_count"],
+    ),
+    _chart(  # 25
+        "chart-breaks-desk-treemap",
+        "Break Volume by Desk -- Treemap",
+        "Treemap of break count by desk, sized by count and grouped by asset class.",
+        "ds-recon-breaks-by-desk",
+        "treemap",
+        "desk_name",
+        ["break_count"],
+        show_x_label=False,
+        show_y_label=False,
+        type_specific={"colorKey": "asset_class"},
+    ),
+    # ------------------------------------------------------------------
+    # Dataset: ds-recon-match-rate-daily
+    #   columns: date, match_rate, txn_count
+    # ------------------------------------------------------------------
+    _chart(  # 26
+        "chart-match-rate-trend",
+        "Daily Match Rate Trend",
+        "Line chart of daily match rate percentage -- track matching quality over time.",
+        "ds-recon-match-rate-daily",
+        "line",
+        "date",
+        ["match_rate"],
+    ),
+    _chart(  # 27
         "chart-match-rate-gauge",
-        "Match Rate Gauge",
-        "Gauge showing match rate.",
+        "Current Match Rate",
+        "Gauge showing the latest match rate against target thresholds.",
         "ds-recon-match-rate-daily",
         "gauge",
         None,
@@ -1934,38 +2072,139 @@ CURATED_CHARTS: list[dict] = [
         show_legend=False,
         show_x_label=False,
         show_y_label=False,
+        type_specific={"min": 0, "max": 100, "greenAbove": 90, "amberAbove": 75},
     ),
-    _chart(
-        "chart-match-funnel",
-        "Match Type Funnel",
-        "Funnel of match type counts.",
-        "ds-recon-match-events-by-type",
-        "funnel",
-        "match_type",
-        ["event_count"],
+    # ------------------------------------------------------------------
+    # Dataset: ds-recon-match-rate-by-region (NEW)
+    #   columns: region, region_name, match_rate, txn_count
+    # ------------------------------------------------------------------
+    _chart(  # 28
+        "chart-match-rate-region-bar",
+        "Match Rate by Region",
+        "Bar chart of match rate per region -- spot underperforming regions.",
+        "ds-recon-match-rate-by-region",
+        "bar",
+        "region",
+        ["match_rate"],
     ),
-    _chart(
-        "chart-recon-graph",
-        "Recon Graph Network",
-        "Graph network of recon flows (reuses sankey shape).",
-        "ds-recon-break-flow-sankey",
-        "graph",
+    # ------------------------------------------------------------------
+    # Dataset: ds-sla-breach-summary
+    #   columns: sla_type, region, breach_count, total_events, breach_rate
+    # ------------------------------------------------------------------
+    _chart(  # 29
+        "chart-sla-heatmap",
+        "SLA Breach Heatmap",
+        "Heatmap of breach rate by SLA type and region -- dark cells indicate high breach zones.",
+        "ds-sla-breach-summary",
+        "heatmap",
+        "sla_type",
+        ["region", "breach_rate"],
+        type_specific={"colorRange": ["#22c55e", "#eab308", "#ef4444"]},
+    ),
+    _chart(  # 30
+        "chart-sla-breach-bar",
+        "SLA Breaches by Type",
+        "Bar chart of breach count per SLA type -- identify which SLAs are most frequently breached.",
+        "ds-sla-breach-summary",
+        "bar",
+        "sla_type",
+        ["breach_count"],
+    ),
+    _chart(  # 31
+        "chart-sla-breach-rate-bar",
+        "SLA Breach Rate by Region",
+        "Bar chart of breach rate per region -- compare regional SLA compliance.",
+        "ds-sla-breach-summary",
+        "bar",
+        "region",
+        ["breach_rate"],
+    ),
+    # ------------------------------------------------------------------
+    # Dataset: ds-recon-sla-daily (NEW)
+    #   columns: event_date, breach_count, total_events
+    # ------------------------------------------------------------------
+    _chart(  # 32
+        "chart-sla-daily-trend",
+        "Daily SLA Breach Trend",
+        "Line chart of daily SLA breach count -- track compliance over time.",
+        "ds-recon-sla-daily",
+        "line",
+        "event_date",
+        ["breach_count"],
+    ),
+    _chart(  # 33
+        "chart-sla-daily-combo",
+        "SLA Events vs Breaches -- Daily",
+        "Combo chart comparing total SLA events (bars) with breach count (line) per day.",
+        "ds-recon-sla-daily",
+        "combo",
+        "event_date",
+        ["total_events", "breach_count"],
+    ),
+    # ------------------------------------------------------------------
+    # Dataset: ds-recon-volume-by-desk
+    #   columns: asset_class, desk, desk_name, txn_count, total_usd, avg_usd
+    # ------------------------------------------------------------------
+    _chart(  # 34
+        "chart-desk-volume-treemap",
+        "Desk Volume Treemap",
+        "Treemap of total USD by desk -- larger tiles represent higher-volume desks.",
+        "ds-recon-volume-by-desk",
+        "treemap",
+        "desk_name",
+        ["total_usd"],
+        show_x_label=False,
+        show_y_label=False,
+        type_specific={"colorKey": "asset_class"},
+    ),
+    _chart(  # 35
+        "chart-desk-volume-bar",
+        "Transaction Count by Desk",
+        "Bar chart ranking desks by transaction count.",
+        "ds-recon-volume-by-desk",
+        "bar",
+        "desk_name",
+        ["txn_count"],
+    ),
+    _chart(  # 36
+        "chart-desk-avg-usd",
+        "Average Transaction Size by Desk",
+        "Bar chart of average USD per transaction by desk -- reveals high-value vs high-frequency desks.",
+        "ds-recon-volume-by-desk",
+        "bar",
+        "desk_name",
+        ["avg_usd"],
+    ),
+    # ------------------------------------------------------------------
+    # Dataset: ds-recon-transactions-scatter
+    #   columns: id, amount_usd, fee, currency_id
+    # ------------------------------------------------------------------
+    _chart(  # 37
+        "chart-amount-fee-scatter",
+        "Amount vs Fee Correlation",
+        "Scatter plot of transaction amount vs fee -- reveals fee structure and outliers.",
+        "ds-recon-transactions-scatter",
+        "scatter",
         None,
-        ["source", "target", "value"],
+        ["amount_usd", "fee"],
     ),
-    _chart(
-        "chart-txn-parallel",
-        "Transaction Parallel Coords",
-        "Parallel coordinates over scatter columns.",
+    _chart(  # 38
+        "chart-txn-parallel-coords",
+        "Transaction Parallel Coordinates",
+        "Parallel coordinates over amount and fee dimensions -- identify clusters and anomalies.",
         "ds-recon-transactions-scatter",
         "parallel",
         None,
         ["amount_usd", "fee"],
     ),
-    _chart(
+    # ------------------------------------------------------------------
+    # Dataset: ds-recon-currency-distribution
+    #   columns: currency, name, txn_count, total_usd
+    # ------------------------------------------------------------------
+    _chart(  # 39
         "chart-currency-pie",
         "Currency Distribution",
-        "Pie of currency rollup by USD.",
+        "Pie chart of USD volume by currency -- shows concentration in major currencies.",
         "ds-recon-currency-distribution",
         "pie",
         "currency",
@@ -1973,19 +2212,80 @@ CURATED_CHARTS: list[dict] = [
         show_x_label=False,
         show_y_label=False,
     ),
-    _chart(
+    _chart(  # 40
+        "chart-currency-bar",
+        "Transaction Count by Currency",
+        "Bar chart ranking currencies by transaction count.",
+        "ds-recon-currency-distribution",
+        "bar",
+        "currency",
+        ["txn_count"],
+    ),
+    # ------------------------------------------------------------------
+    # Dataset: ds-recon-match-events-by-type
+    #   columns: match_type, event_count, avg_confidence
+    # ------------------------------------------------------------------
+    _chart(  # 41
+        "chart-match-funnel",
+        "Match Type Funnel",
+        "Funnel chart of match event counts by type -- shows the matching pipeline stages.",
+        "ds-recon-match-events-by-type",
+        "funnel",
+        "match_type",
+        ["event_count"],
+    ),
+    _chart(  # 42
+        "chart-match-confidence-bar",
+        "Match Confidence by Type",
+        "Bar chart of average confidence score per match type.",
+        "ds-recon-match-events-by-type",
+        "bar",
+        "match_type",
+        ["avg_confidence"],
+    ),
+    # ------------------------------------------------------------------
+    # Dataset: ds-recon-counterparty-top
+    #   columns: short_name, country_code, tier, txn_count, total_usd
+    # ------------------------------------------------------------------
+    _chart(  # 43
         "chart-counterparty-top-bar",
-        "Top 20 Counterparties",
-        "Top counterparties bar chart.",
+        "Top 20 Counterparties by Volume",
+        "Horizontal bar chart of top 20 counterparties ranked by total USD volume.",
         "ds-recon-counterparty-top",
         "bar",
         "short_name",
         ["total_usd"],
     ),
+    # ------------------------------------------------------------------
+    # Dataset: ds-recon-break-flow-sankey
+    #   columns: source, target, value
+    # ------------------------------------------------------------------
+    _chart(  # 44
+        "chart-break-flow-sankey",
+        "Break Lifecycle Flow",
+        "Sankey diagram showing flow of transactions from ingestion through matching to resolution.",
+        "ds-recon-break-flow-sankey",
+        "sankey",
+        None,
+        ["source", "target", "value"],
+    ),
+    # ------------------------------------------------------------------
+    # Dataset: ds-recon-kpi-scorecard
+    #   columns: metric, score, benchmark
+    # ------------------------------------------------------------------
+    _chart(  # 45
+        "chart-kpi-radar",
+        "Reconciliation Quality Scorecard",
+        "Radar chart of quality metrics vs benchmarks -- quickly spot areas below target.",
+        "ds-recon-kpi-scorecard",
+        "radar",
+        "metric",
+        ["score", "benchmark"],
+    ),
 ]
 
-assert len(CURATED_CHARTS) == 22, (
-    f"CURATED_CHARTS must have 22 entries, got {len(CURATED_CHARTS)}"
+assert len(CURATED_CHARTS) == 45, (
+    f"CURATED_CHARTS must have 45 entries, got {len(CURATED_CHARTS)}"
 )
 
 
