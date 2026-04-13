@@ -44,6 +44,9 @@ export function ConfigFilterBar({ filters }: ConfigFilterBarProps) {
   const applyFilters = useFilterStore((s) => s.applyFilters)
   const resetFilters = useFilterStore((s) => s.resetFilters)
 
+  // Don't render anything if no filters are configured
+  if (filters.length === 0) return null
+
   const defaults = useMemo(() => {
     const d: Record<string, FilterValue> = {}
     for (const f of filters) {
