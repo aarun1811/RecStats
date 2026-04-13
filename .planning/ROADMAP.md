@@ -1,262 +1,172 @@
-# Roadmap: RecViz — Oracle-Only Cutover + Frontend Colorization
+# Roadmap: RecViz — Production Demo Seed
 
-## Milestone Overview
+## Milestones
 
-**Milestone:** Oracle-Only Cutover + Frontend Colorization
-**Phases:** 8
-**Requirements:** 68 (all v1, 100% mapped)
-**Granularity:** standard
-**Branch:** `feature/add-color-remove-postgres` (no phase branches)
-**Verification mode:** manual only — automated tests deferred to a future milestone
+- [x] **v1.0 Oracle-Only Cutover + Frontend Colorization** - Phases 01-08 (shipped 2026-04-13)
+- [ ] **v2.0 Production Demo Seed** - Phases 1-3 (in progress)
 
-**Core value:** Business users can view, interact with, and customize reconciliation dashboards against Citi's production Oracle 19c environment, with zero local-vs-prod drift — what works locally must work on Citi's servers.
+## Overview
 
-**Delivery strategy:** A brownfield consolidation milestone delivered page-by-page. Phase 1 rebuilds the infrastructure (Oracle 19c via Oracle Cloud Always Free, thick-mode `oracledb`, sync SQLAlchemy, fresh Alembic migration, PG/Docker/Superset/Redis residue removed) and lays down the global shadcn color palette with chart-theme rewiring. Phases 2–7 each take one page (Settings → Datasets → Charts → KPIs → Dashboards → Explorer), colorize it using the Phase 1 palette tokens, fix issues discovered during phase discuss, and verify against live Oracle in the browser. Phase 8 runs a global Alembic audit, dead-code sweep (using the `.planning/USAGE-TRACKER.md` accumulated across all phases), memory cleanup, and milestone-end smoke test. No automated tests are written. No separate branches are cut. Every phase must leave a working app.
+Rewrite the seed script with production-quality demo data for stakeholder demos. Phase 1 builds the seed script infrastructure (CLI args, dimension tables, fact generation with realistic distributions, no `recviz_data_sources` writes). Phase 2 populates the chart and KPI libraries (40-50 charts across all supported types, 15-20 KPIs with proper thresholds/trends/formats, all configs validated against the builder schema). Phase 3 composes everything into 10+ story-driven dashboards with filters, cross-filters, and drill-down, then verifies the entire pipeline end-to-end in the browser.
 
 ## Phases
 
-- [ ] **Phase 1: Infrastructure Cutover** - Oracle 19c wiring, async/PG/Docker/Superset/Redis residue removed, global shadcn palette + chart theme rewired
-- [x] **Phase 2: Settings Page** - Colorize Appearance/Saved Views/Data Sources tabs; verify Data Sources CRUD end-to-end against Oracle
-- [ ] **Phase 3: Datasets Page** - Colorize list/create/edit; verify dataset CRUD and parameterized SQL execution against Oracle
-- [ ] **Phase 4: Charts Page** - Colorize list/builder; audit hard-coded hex; verify AG Charts + ECharts rendering with new palette
-- [ ] **Phase 5: KPIs Page** - Colorize list/create/edit; verify KPI CRUD and animated counter rendering against Oracle
-- [ ] **Phase 6: Dashboards Page** - Colorize; fix `recviz_data_sources` renderer gap; delete legacy dead code; verify dashboards and embed route end-to-end
-- [ ] **Phase 7: Explorer Page** - Colorize; migrate AG Grid to Theming API; verify SQL execution via sync `oracledb`
-- [ ] **Phase 8: Alembic Audit + Dead Code Sweep + Memory Cleanup** - Final consolidation, milestone-end smoke test, requirements prune, memory cleanup
+**Phase Numbering:**
+- Integer phases (1, 2, 3): Planned milestone work
+- Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
-## Phase Dependency Graph
+Decimal phases appear between their surrounding integers in numeric order.
 
-```
-Phase 1 (Infrastructure + Global Palette)
-   |
-   v
-Phase 2 (Settings)
-   |
-   v
-Phase 3 (Datasets)
-   |
-   v
-Phase 4 (Charts)
-   |
-   v
-Phase 5 (KPIs)
-   |
-   v
-Phase 6 (Dashboards)        <-- fixes broken pipeline, deletes legacy dead code
-   |
-   v
-Phase 7 (Explorer)
-   |
-   v
-Phase 8 (Alembic Audit + Dead Code Sweep + Memory Cleanup)
-```
-
-Dependencies are strictly linear. Every page phase depends on Phase 1's global palette and Oracle infrastructure being live. Phase 8 depends on every previous phase because it consumes the accumulated `.planning/USAGE-TRACKER.md` and requires a complete app to smoke-test.
+- [ ] **Phase 1: Seed Script Infrastructure** - CLI args, dimension tables, fact generation with realistic distributions, no recviz_data_sources writes
+- [ ] **Phase 2: Charts + KPIs Library** - 40-50 charts, 15-20 KPIs, all configs validated against builder schema
+- [ ] **Phase 3: Dashboards + Verification** - 10+ story dashboards with filters/cross-filter/drill-down, E2E verification
 
 ## Phase Details
 
-### Phase 1: Infrastructure Cutover
-**Goal**: Get the app running against Docker Oracle (gvenzl/oracle-free locally, Oracle 19c in prod) in thick mode with zero PG/async/Docker-compose/Superset/Redis residue, plus lay down the global Mist+Blue shadcn color palette and chart theme rewiring that every subsequent phase will consume.
+### Phase 1: Seed Script Infrastructure
+**Goal**: Seed script generates rich, realistic reconciliation data into Oracle with configurable scale, configurable DB connection, and zero writes to recviz_data_sources.
 **Depends on**: Nothing (first phase)
-**Requirements**: INFRA-01, INFRA-02, INFRA-03, INFRA-04, INFRA-05, INFRA-06, INFRA-07, INFRA-08, INFRA-09, INFRA-10, INFRA-11, INFRA-12, INFRA-13, INFRA-14, INFRA-15, INFRA-16, INFRA-17, INFRA-18, INFRA-19, INFRA-20, INFRA-21, INFRA-22, INFRA-23, INFRA-24, INFRA-25
+**Requirements**: SEED-01, SEED-02, SEED-03, SEED-04, SEED-05, SEED-06, SEED-07, SEED-08
 **Success Criteria** (what must be TRUE):
-  1. User can run `sqlplus ADMIN@recvizdev_low` and `SELECT sysdate FROM dual;` returns a row (Oracle Cloud wallet + Instant Client wired end-to-end on the dev machine)
-  2. Backend boots via `uvicorn` against Oracle, `GET /health` returns 200, and the startup log shows `Oracle client driver: python-oracledb` with no `thn` suffix (thick mode enforced)
-  3. `alembic upgrade head` applies the single new `001_initial_oracle_schema.py` migration cleanly against a fresh Oracle schema, creating all six `recviz_*` tables with `BLOB IS JSON` on config columns
-  4. Frontend loads in the browser with the new global palette applied in both light and dark mode — sidebar, primary buttons, and at least one chart all reflect the new tokens (no grayscale-only surfaces)
-  5. A repo-wide grep for `postgresql`, `JSONB`, `asyncpg`, `psycopg2`, `superset`, `redis`, `celery` shows zero hits outside `.git/`, AND the same grep against `CLAUDE.md` also shows zero hits (CLAUDE.md verified clean), AND the `docs/` directory is deleted entirely
-**Plans**: 6 plans
+  1. User can run the seed script with `--rows 100000` and see progress output with per-table row counts and total elapsed time printed to stdout
+  2. User can specify `--host`, `--port`, `--service`, `--user`, `--password` CLI args to target any Oracle instance — no hardcoded credentials exist in the script
+  3. After seeding, `recviz_data_sources` has zero rows written by the seed script, while `recviz_datasets` and `recviz_connections` contain the seeded records with non-NULL `schema_name` on every connection row
+  4. Dimension tables contain rich data: 8+ regions, 25+ desks, 50+ counterparties, 12+ currencies, 8+ SLA types, 6+ match types, 6+ aging buckets, 20+ accounts
+  5. Fact table data exhibits realistic distributions — top 20% counterparties hold ~80% of volume, seasonal patterns on volumes, clustered breaks by region/desk, time-decaying aging
+**Plans**: TBD
+
 Plans:
-- [x] 01-01-PLAN.md — Backend config + deps + types (config.py, requirements.txt, .env.example, types.py, base.py)
-- [x] 01-02-PLAN.md — Backend engine + main.py + services (engine.py, main.py, engine_manager.py, uri_builder.py, views.py)
-- [x] 01-03-PLAN.md — Alembic migration (delete old, rewrite env.py/alembic.ini, generate new migration)
-- [x] 01-04-PLAN.md — Frontend palette + chart themes (index.css Mist+Blue, series vars, AG Grid bridge, chart-themes.ts)
-- [x] 01-05-PLAN.md — Residue removal + CLAUDE.md verification (delete files/dirs, seed-oracle.py, grep audit)
-- [x] 01-06-PLAN.md — Boot validation + USAGE-TRACKER init (end-to-end smoke test, human verify, tracker init)
-**UI hint**: yes
-**Known risks / gotchas**:
-  - **Phase 1 has a HARD user gate.** Oracle Cloud signup + 19c provisioning + wallet download + Instant Client install + `sqlplus` smoke test are manual USER steps that must complete *before* any Claude code work begins. Tenancy home region is a one-shot choice (cannot change later). 19c radio must appear before committing the tenancy.
-  - **NCS 871 character-set parity gap is permanent.** Oracle Cloud Always Free is locked to `AL32UTF8`/`AL16UTF16`; Citi prod uses NCS 871 (CESU-8). Mitigation is procedural only: force thick mode unconditionally, startup assertion refuses boot if thin mode engages, document loudly. NCHAR-specific bugs cannot surface locally.
-  - **Once-per-process thick-mode constraint.** Every engine in the process must use thick mode. `EngineManager` secondary engines must go through the new `build_oracle_engine()` helper, otherwise whole process locks into thin mode.
-  - **`chart-themes.ts` hard-coded hex is the single biggest blocker** to the palette swap landing cleanly. Surfaces will colorize but charts stay gray unless the series array is rewired to read CSS vars. Must land in Phase 1 or Phase 4 charts phase will look broken.
-  - **Oracle DDL auto-commits.** Half-applied migrations cannot roll back — recovery is manual `DROP TABLE ... CASCADE CONSTRAINTS`. Document in Phase 1 runbook.
-  - **Free Tier quota constraints:** 7-day inactivity auto-stop (weekly ping cron needed), 90 cumulative stopped days = permanent reclaim + delete, 30 simultaneous session hard cap (pool sized `pool_size=5, max_overflow=5` = 10 ceiling).
-  - **Alembic autogenerate is not trustworthy** for `IS JSON` check constraints. Hand-review against the 9-point checklist (six tables, `BLOB IS JSON`, `VARCHAR2(128 CHAR)` PKs, `CLOB` for `sql`/`encrypted_password`, `TIMESTAMP(6) WITH TIME ZONE` defaults, expected indexes, `UniqueConstraint` on `recviz_connections.name`) and manually add anything it drops.
-  - **`shadcn apply` rewrites `index.css` in place.** Git-commit first, diff after, restore clobbered `@layer components` custom rules.
+- [ ] 01-01: TBD
+- [ ] 01-02: TBD
 
 ---
 
-### Phase 2: Settings Page
-**Goal**: Colorize the Settings page end-to-end and verify the Data Sources tab (the highest-value tab) is fully functional against live Oracle, plus resolve the dead UI stubs in the Appearance tab.
+### Phase 2: Charts + KPIs Library
+**Goal**: A library of 40-50 production-quality charts and 15-20 KPIs exists in the database, each with builder-validated configs that render without errors.
 **Depends on**: Phase 1
-**Requirements**: SETT-01, SETT-02, SETT-03, SETT-04, SETT-05, SETT-06, SETT-07
+**Requirements**: CHRT-01, CHRT-02, CHRT-03, CHRT-04, CHRT-05, KPI-01, KPI-02, KPI-03, KPI-04, KPI-05
 **Success Criteria** (what must be TRUE):
-  1. User can open the Settings page and see all three tabs (Appearance, Saved Views, Data Sources) rendered with the Phase 1 global palette in both light and dark mode
-  2. User can list existing data sources, create a new data source, test its connection, edit it, and delete it — all operations round-trip against Oracle 19c
-  3. User can toggle light/dark theme via the Appearance tab and the entire Settings page re-themes correctly with no gray-only holdouts
-  4. User can list, load, and delete Saved Views from the Saved Views tab against Oracle
-  5. The previously-dead "Density" and "Font Size" buttons are either functional or removed (no non-functional stubs remain in the Appearance tab)
-**Plans**: 3 plans
+  1. User can open the Charts list page and see 40-50 charts with meaningful names and descriptions spanning all supported chart types (line, bar, area, pie, donut, scatter, heatmap, treemap, waterfall, combo, stacked-bar, sankey, radar, gauge, funnel, parallel-coords)
+  2. User can open any seeded chart in the builder and it loads without error — columnMapping references real dataset columns, typeSpecific config is valid for the chart type
+  3. User can open the KPIs list page and see 15-20 KPIs with correct threshold colors (green/amber/red), trend indicators, diverse aggregation types (SUM, AVG, COUNT, MIN, MAX, COUNT_DISTINCT), and proper format configs (percentage for rates, currency for amounts, number for counts)
+  4. Charts cover diverse analytical use cases — time series trends, category comparisons, distributions, part-to-whole, correlations, geographic breakdowns, flow analysis — with no duplicate or placeholder entries
+**Plans**: TBD
+
 Plans:
-- [x] 02-01-PLAN.md — Appearance tab: display-store, theme preview cards, layout + tab animations, display controls
-- [x] 02-02-PLAN.md — Data source enhancements: AnimatedStatusBadge, ConnectionTestArea, ConnectionHealthHeader, sheet animations
+- [ ] 02-01: TBD
+- [ ] 02-02: TBD
+
+---
+
+### Phase 3: Dashboards + Verification
+**Goal**: 10+ story-driven dashboards compose the seeded charts and KPIs into coherent analytical narratives, with filters, cross-filters, and drill-down working end-to-end against Oracle.
+**Depends on**: Phase 2
+**Requirements**: DASH-01, DASH-02, DASH-03, DASH-04, DASH-05, DASH-06, DASH-07, DASH-08, DASH-09, DASH-10, VERIF-01, VERIF-02, VERIF-03, VERIF-04, VERIF-05, VERIF-06, VERIF-07
+**Success Criteria** (what must be TRUE):
+  1. User can open the Dashboards list and see 10+ dashboards with descriptive names and themes (Executive Summary, SLA Health, Break Analysis, Match Performance, Volume Trends, Regional Breakdown, Counterparty Risk, Currency Exposure, Desk Performance, Operational Detail), each rendering 3-8 chart panels and 2-4 KPI cards with real data from Oracle
+  2. User can apply global filters (Region, Status, Currency, Date Range) on configured dashboards and charts update; cross-filter clicks on bar/pie/heatmap charts filter other panels; drill-down navigates through hierarchies (Region to Desk to Account, Status to Detail)
+  3. User can open any dashboard in builder edit mode and see all panels correctly positioned — no overlapping, no infinite loading, no stale chart references (all chart/KPI IDs match actual seeded records)
+  4. Seed completes at 100K rows (default) in under 2 minutes and at 1M rows (demo) without OOM or timeout
+  5. Every chart renders with data, every KPI shows a computed value with correct threshold color, and no console errors appear (except AG license warnings)
+**Plans**: TBD
+
+Plans:
+- [ ] 03-01: TBD
+- [ ] 03-02: TBD
+
+---
+
+<details>
+<summary>v1.0 Oracle-Only Cutover + Frontend Colorization (Phases 01-08) - SHIPPED 2026-04-13</summary>
+
+### Phase 01: Infrastructure Cutover
+**Goal**: Oracle 19c wiring, async/PG/Docker/Superset/Redis residue removed, global shadcn palette + chart theme rewired
+**Plans**: 6/6 complete
+
+Plans:
+- [x] 01-01-PLAN.md — Backend config + deps + types
+- [x] 01-02-PLAN.md — Backend engine + main.py + services
+- [x] 01-03-PLAN.md — Alembic migration
+- [x] 01-04-PLAN.md — Frontend palette + chart themes
+- [x] 01-05-PLAN.md — Residue removal + CLAUDE.md verification
+- [x] 01-06-PLAN.md — Boot validation + USAGE-TRACKER init
+
+### Phase 02: Settings Page
+**Goal**: Colorize Settings page, verify Data Sources CRUD end-to-end against Oracle
+**Plans**: 3/3 complete
+
+Plans:
+- [x] 02-01-PLAN.md — Appearance tab: display-store, theme preview cards, layout + tab animations
+- [x] 02-02-PLAN.md — Data source enhancements: AnimatedStatusBadge, ConnectionTestArea, sheet animations
 - [x] 02-03-PLAN.md — E2E verification against Oracle + USAGE-TRACKER update
-**UI hint**: yes
-**Known risks / gotchas**:
-  - Data Sources tab depends on the Oracle connection flow working — if Phase 1's `build_oracle_engine()` helper isn't also used by connection testing, new user-created sources may silently fall back to thin mode.
-  - Dead UI stubs (Density, Font Size) require a discuss-gate decision: implement or delete. No hand-waving.
 
----
+### Phase 03: Datasets Page
+**Goal**: Colorize Datasets page, verify dataset CRUD and SQL execution against Oracle
+**Plans**: 3/3 complete
 
-### Phase 3: Datasets Page
-**Goal**: Colorize the Datasets page (list + create + edit) and verify dataset CRUD plus parameterized SQL execution works end-to-end against Oracle via the sync `oracledb` driver.
-**Depends on**: Phase 1
-**Requirements**: DATA-01, DATA-02, DATA-03, DATA-04, DATA-05, DATA-06
-**Success Criteria** (what must be TRUE):
-  1. User can view the Datasets list page with the global palette applied in both light and dark mode
-  2. User can create a new dataset with a parameterized SQL template (using `{{filters}}`, `{{values}}`, `{{date_range_clause}}` placeholders), save it, re-open it for edit, and delete it — all against Oracle
-  3. User can execute a sample query on a dataset from the edit page and see real rows returned from Oracle 19c (no mock data, no thin-mode fallback)
-  4. Dataset create/edit pages reflect the global palette in both light and dark mode — form controls, buttons, code editor chrome all re-themed
-**Plans**: 3 plans
 Plans:
-- [x] 03-01-PLAN.md — Style constants extraction + list page enhancements (cards, rows, animations, empty states)
-- [x] 03-02-PLAN.md — Editor enhancements (section headers, mode badge, run state machine, stats, column metadata badges/tooltips/help sheet)
-- [x] 03-03-PLAN.md — CRUD + SQL verification against Oracle + USAGE-TRACKER update
-**UI hint**: yes
-**Known risks / gotchas**:
-  - Parameterized SQL template rendering (`_build_sql()` in `query_engine.py`) is sync-path critical — any residual async wrapping needs to be caught here.
-  - NCHAR/NVARCHAR2 columns in user SQL cannot be exercised against Oracle Cloud (NCS 871 gap). Mental check only: does this dataset touch NCHAR? If yes, manually verify in Citi post-milestone.
+- [x] 03-01-PLAN.md — Style constants extraction + list page enhancements
+- [x] 03-02-PLAN.md — Editor enhancements
+- [x] 03-03-PLAN.md — CRUD + SQL verification against Oracle
 
----
+### Phase 04: Charts Page
+**Goal**: Colorize Charts page, verify AG Charts + ECharts rendering with new palette
+**Plans**: 4/4 complete
 
-### Phase 4: Charts Page
-**Goal**: Colorize the Charts page (list + builder wizard), verify all supported chart types (AG Charts + ECharts) render with the new palette, and purge hard-coded hex from chart config shapes and stored dashboard JSON.
-**Depends on**: Phase 1
-**Requirements**: CHRT-01, CHRT-02, CHRT-03, CHRT-04, CHRT-05, CHRT-06, CHRT-07, CHRT-08
-**Success Criteria** (what must be TRUE):
-  1. User can view the Charts list page with the global palette applied in both light and dark mode
-  2. User can open the chart builder, preview each supported AG Charts type (line, bar, area, pie, donut, scatter, heatmap, treemap, waterfall, bullet, box plot, combo) and each supported ECharts type (Sankey, sunburst, radar, gauge, parallel coords, funnel), and every chart renders with palette-derived colors (no leftover hex)
-  3. User can save a chart and re-open it for edit without any gray-only or mis-themed rendering
-  4. Stored chart config JSON in `recviz_charts.config` is audited and any stale hex color overrides from earlier builds are migrated or purged
-**Plans**: 4 plans
 Plans:
 - [x] 04-01-PLAN.md — Style constants + CSS tokens + hex migration + chart config audit
 - [x] 04-02-PLAN.md — List page colorization + animations + ECharts thumbnails + detail panel
 - [x] 04-03-PLAN.md — Builder wizard polish + appearance expansion + tooltips + help sheet
 - [x] 04-04-PLAN.md — Stored config hex audit + console error triage + USAGE-TRACKER
-**UI hint**: yes
-**Known risks / gotchas**:
-  - `frontend/src/types/chart.ts` and `frontend/src/components/charts/builder/step-appearance.tsx` may carry hard-coded hex in chart config defaults — must grep and replace with CSS variable references.
-  - `recviz_charts.config` may store hex color overrides from pre-Phase-1 builds. Need read-all-configs audit pass; migration may be ALTER-free (just a JSON rewrite) but plan for breakage.
-  - ECharts exotic charts (Sankey, gauge, radar, etc.) use different color-injection APIs than AG Charts; wrapper in `EChartWrapper` needs a pass to confirm it reads the new `--series-1..8` tokens.
 
----
+### Phase 05: KPIs Page
+**Goal**: Colorize KPIs page, verify KPI CRUD and animated counter rendering
+**Plans**: 3/3 complete
 
-### Phase 5: KPIs Page
-**Goal**: Colorize the KPIs page (list + create + edit) and verify KPI CRUD plus animated counter rendering works end-to-end against Oracle.
-**Depends on**: Phase 1
-**Requirements**: KPI-01, KPI-02, KPI-03, KPI-04, KPI-05
-**Success Criteria** (what must be TRUE):
-  1. User can view the KPIs list page with the global palette applied in both light and dark mode
-  2. User can create a new KPI, save it, re-open it for edit, and delete it — all against Oracle
-  3. User can view a KPI card and see the animated counter roll up smoothly with palette-themed accent colors (trend arrows, positive/negative semantic colors both work in light and dark mode)
-  4. KPI create/edit pages reflect the global palette in both light and dark mode
-**Plans**: 3 plans
 Plans:
-- [ ] 05-01-PLAN.md — Style constants + list page motion (cards, rows, AnimatePresence, empty state)
-- [ ] 05-02-PLAN.md — Builder accordion motion + detail panel threshold accent
-- [ ] 05-03-PLAN.md — Playwright MCP verification + USAGE-TRACKER update
-**UI hint**: yes
-**Known risks / gotchas**:
-  - KPI counter animation uses `motion/react` — ensure the trend color semantics (`text-green-600 dark:text-green-400` / red equivalent) survive the palette swap. Status colors are intentionally kept as semantic utilities, not tokenized.
-  - Smallest of the page phases. If discuss surfaces a large discovery, push back or split.
+- [x] 05-01-PLAN.md — Style constants + list page motion
+- [x] 05-02-PLAN.md — Builder accordion motion + detail panel threshold accent
+- [x] 05-03-PLAN.md — Playwright MCP verification + USAGE-TRACKER update
 
----
+### Phase 06: Dashboards Page
+**Goal**: Colorize dashboards, fix recviz_data_sources renderer gap, delete legacy dead code, verify end-to-end
+**Plans**: 5/5 complete
 
-### Phase 6: Dashboards Page
-**Goal**: Colorize all dashboard-related pages, fix the `recviz_data_sources` renderer gap that currently blocks end-to-end rendering, delete the legacy dead dashboard code, and verify dashboards (including the embed route) work fully against Oracle.
-**Depends on**: Phase 1
-**Requirements**: DASH-01, DASH-02, DASH-03, DASH-04, DASH-05, DASH-06, DASH-07, DASH-08, DASH-09, DASH-10
-**Success Criteria** (what must be TRUE):
-  1. User can view a dashboard end-to-end — charts render with real data from Oracle, KPIs animate, filter bar applies, cross-filters interact, drill-down navigates through levels, all without errors
-  2. User can exercise dashboard CRUD (list, create, edit via drag-and-drop builder with undo/redo, save, delete) against Oracle 19c, and all operations round-trip correctly
-  3. User can open `/embed/dashboards/:id?filter.foo=bar&filter.lock=foo&hide=sidebar,header&theme=dark` and the dashboard renders in embed mode with filters applied, locked, and chrome hidden as specified
-  4. All dashboard pages (list, detail, create, edit) reflect the global palette in both light and dark mode
-  5. The legacy dead dashboard code (`filter-bar.tsx`, `kpi-row.tsx`, `chart-grid.tsx`, old store shapes) is deleted from the repo — grep shows zero remaining references
-**Plans**: 5 plans
 Plans:
-- [ ] 06-01-PLAN.md — Backend pipeline fix: rewire ConfigStore from recviz_data_sources to recviz_datasets + recviz_connections
-- [ ] 06-02-PLAN.md — List page polish: motion cards/rows, AnimatePresence crossfade, filtered empty state, detail header metadata row
-- [ ] 06-03-PLAN.md — Renderer premium treatment: filter bar header, KPI trend accents, chart fade-in, toolbar accessibility, drill breadcrumb motion
-- [ ] 06-04-PLAN.md — Builder polish + legacy audit: filter chip animation, picker stagger, store dead code audit, stale import grep
-- [ ] 06-05-PLAN.md — E2E verification via Playwright MCP + embed route + USAGE-TRACKER update
-**UI hint**: yes
-**Known risks / gotchas**:
-  - **This is the second biggest phase after Phase 1.** Contains four distinct workstreams: colorization, broken-pipeline fix, legacy code deletion, embed route verification. Plan-phase should split into multiple plans.
-  - **`recviz_data_sources` gap is architectural, not cosmetic.** Post-Superset, the chart renderer still reads from a table that is never written. Likely fix is rerouting reads through `recviz_datasets` or `recviz_connections`. Discovery happens in phase discuss, not upfront.
-  - **Legacy dead code contains useful cross-filter + drill-down logic.** Before deletion, confirm the config-driven path already has equivalent logic in `frontend/src/lib/cross-filter.ts` + `drill-store`. If not, port first, then delete.
-  - **Embed route verification is a success criterion, not a separate phase.** Do not split it out.
-  - `dashboard-url-state.ts` filter round-tripping must survive the refactor — any breakage to URL search param sync surfaces here.
+- [x] 06-01-PLAN.md — Backend pipeline fix
+- [x] 06-02-PLAN.md — List page polish
+- [x] 06-03-PLAN.md — Renderer premium treatment
+- [x] 06-04-PLAN.md — Builder polish + legacy audit
+- [x] 06-05-PLAN.md — E2E verification + embed route + USAGE-TRACKER update
 
----
+### Phase 07: Explorer Page
+**Goal**: Colorize Explorer, migrate AG Grid to Theming API, verify SQL execution via sync oracledb
+**Plans**: 2/2 complete
 
-### Phase 7: Explorer Page
-**Goal**: Colorize the SQL Explorer page, migrate the AG Grid query results from the legacy CSS-class theme to the new Theming API, and verify arbitrary SQL execution resolves end-to-end through sync `oracledb`.
-**Depends on**: Phase 1
-**Requirements**: EXPL-01, EXPL-02, EXPL-03, EXPL-04, EXPL-05, EXPL-06, EXPL-07
-**Success Criteria** (what must be TRUE):
-  1. User can open the Explorer page with the global palette applied to the Monaco editor chrome, schema browser, and query results grid in both light and dark mode
-  2. User can type arbitrary SQL into the Monaco editor, pick a registered Oracle data source, run the query, and see real rows returned in the AG Grid results pane
-  3. AG Grid results grid uses the Theming API (`themeQuartz.withPart(colorSchemeDark)`) and re-themes instantly on dark/light toggle — no residual `ag-theme-quartz-dark` CSS class references
-  4. User can execute a query returning a large result set (thousands of rows) without the grid crashing, and columns render correctly
-  5. Schema browser (if present) lists Oracle tables and columns fetched from live data source metadata
-**Plans**: 2 plans
 Plans:
-- [ ] 07-01-PLAN.md — AG Grid Theming API migration + seed fix + dead code deletion + light polish
-- [ ] 07-02-PLAN.md — Playwright MCP verification + USAGE-TRACKER update
-**UI hint**: yes
-**Known risks / gotchas**:
-  - Monaco editor theme must re-theme on toggle. `vs-dark` vs `vs-light` switch lives in the editor wrapper and needs a theme subscription.
-  - AG Grid Theming API migration is a breaking change to the existing `query-results.tsx` import surface — grep all Explorer files for legacy `ag-theme-*` classes.
-  - Large result sets against Oracle Cloud Free Tier may hit the 30-session cap if the query runs across pool boundary — monitor.
+- [x] 07-01-PLAN.md — AG Grid Theming API migration + seed fix + dead code deletion + polish
+- [x] 07-02-PLAN.md — Playwright MCP verification + USAGE-TRACKER update
 
----
+### Phase 08: Alembic Audit + Dead Code Sweep + Memory Cleanup
+**Goal**: Final milestone consolidation — Alembic audit, dead code sweep, requirements prune, memory cleanup, smoke test
+**Plans**: 2/2 complete
 
-### Phase 8: Alembic Audit + Dead Code Sweep + Memory Cleanup
-**Goal**: Final milestone consolidation — audit Alembic fresh against live Oracle, execute the dead code sweep using the accumulated `.planning/USAGE-TRACKER.md`, prune `requirements.txt`, remove the `PortableJSON` alias, clean stale memory entries, and run the milestone-end smoke test.
-**Depends on**: Phase 1, Phase 2, Phase 3, Phase 4, Phase 5, Phase 6, Phase 7
-**Requirements**: FINAL-01, FINAL-02, FINAL-03, FINAL-04, FINAL-05, FINAL-06, FINAL-07, FINAL-08, FINAL-09
-**Success Criteria** (what must be TRUE):
-  1. Running `alembic upgrade head` against a freshly provisioned Oracle schema creates only the intended six `recviz_*` tables — no extraneous objects, no orphaned indexes, no Superset/PG residue
-  2. The dead code sweep has executed against `.planning/USAGE-TRACKER.md` — user-approved candidates are deleted, a grep pass confirms no broken imports remain
-  3. `backend/requirements.txt` contains only dependencies that are actually imported somewhere in `backend/app/`, and the `PortableJSON` alias is removed with all imports updated to `OracleJSON` directly
-  4. Stale memory entries (`project_superset_alembic`, `project_superset_ditched`, `project_broken_dashboard_pipeline`, `project_local_dev_setup`) are pruned or rewritten to reflect Oracle-only reality; `project_backend_test_coverage_gap` is retained since tests are still deferred
-  5. Milestone-end smoke test passes — full app boots, every page (Settings, Datasets, Charts, KPIs, Dashboards, Explorer) renders in both light and dark mode, data sources connect to Oracle, dashboards render with real data
-**Plans**: 2 plans
 Plans:
-- [ ] 08-01-PLAN.md — Backend cleanup: Alembic audit, PortableJSON removal, dead code sweep, requirements prune, CLAUDE.md drift fix
-- [ ] 08-02-PLAN.md — Memory cleanup + milestone-end smoke test (human checkpoint)
-**Known risks / gotchas**:
-  - `v$parameter` for `COMPATIBLE` must be queried and documented — on Oracle Cloud it's expected at 19.0.0 (128-byte identifier limit), but the value for Citi prod is unknown until someone runs it there. Longest constraint name in the schema is currently 42 bytes, well under either limit, but this needs to be captured for future reference.
-  - `USAGE-TRACKER.md` accuracy depends on every earlier phase actually updating it. Plan-phase for earlier phases must enforce this or Phase 8 has nothing to sweep.
-  - Memory cleanup is milestone-scoped work — it should happen at the end, not mid-milestone, to avoid pruning entries that are still load-bearing for earlier phases.
-  - No automated tests means smoke test failure leaves no safety net. Run the smoke test on a fresh `alembic upgrade head` against a throwaway schema if possible.
+- [x] 08-01-PLAN.md — Backend cleanup: Alembic audit, PortableJSON removal, dead code sweep, requirements prune
+- [x] 08-02-PLAN.md — Memory cleanup + milestone-end smoke test
+
+</details>
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
+Phases execute in numeric order: 1 → 2 → 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Infrastructure Cutover | 6/6 | Complete | - |
-| 2. Settings Page | 3/3 | Complete | 2026-04-12 |
-| 3. Datasets Page | 0/3 | Not started | - |
-| 4. Charts Page | 0/4 | Not started | - |
-| 5. KPIs Page | 0/3 | Not started | - |
-| 6. Dashboards Page | 0/5 | Not started | - |
-| 7. Explorer Page | 0/2 | Not started | - |
-| 8. Alembic Audit + Dead Code Sweep + Memory Cleanup | 0/2 | Not started | - |
+| 1. Seed Script Infrastructure | 0/? | Not started | - |
+| 2. Charts + KPIs Library | 0/? | Not started | - |
+| 3. Dashboards + Verification | 0/? | Not started | - |
 
 ---
-*Roadmap created: 2026-04-11*
+*Roadmap created: 2026-04-13*
