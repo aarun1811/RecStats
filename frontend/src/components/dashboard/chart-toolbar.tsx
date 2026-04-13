@@ -41,7 +41,7 @@ export function ChartToolbar({
         {/* Export dropdown — no Tooltip wrapper; Radix Tooltip steals focus and kills the dropdown */}
         <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="size-7 p-0" title="Export chart">
+            <Button variant="ghost" size="icon" className="size-7 p-0" aria-label="Download chart as image">
               <Download className="size-3.5" />
             </Button>
           </DropdownMenuTrigger>
@@ -93,6 +93,7 @@ export function ChartToolbar({
                 size="icon"
                 className="size-7 p-0"
                 onClick={onFullscreen}
+                aria-label="Expand chart"
               >
                 <Maximize2 className="size-3.5" />
               </Button>
@@ -110,6 +111,7 @@ export function ChartToolbar({
                 size="icon"
                 className="size-7 p-0"
                 onClick={onRefresh}
+                aria-label="Refresh chart data"
               >
                 <RefreshCw className={`size-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
               </Button>
