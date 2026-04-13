@@ -273,7 +273,13 @@ None.
 
 ## Phase 7: Explorer Page
 
-*(To be filled by Phase 7 executor)*
+| File | Action | Plan | Notes |
+|------|--------|------|-------|
+| frontend/src/components/explorer/query-results.tsx | modified | 07-01 | AG Grid Theming API migration (themeQuartz + colorSchemeDark), empty state animation |
+| frontend/src/components/explorer/schema-browser.tsx | modified | 07-01 | Structured error state with AlertCircle, primary-tinted Database header icon |
+| frontend/src/components/explorer/sql-editor.tsx | modified | 07-01 | Primary-tinted Code2 header icon |
+| frontend/src/components/explorer/chart-builder-dialog.tsx | removed | 07-01 | Dead code — imported nowhere |
+| scripts/seed-oracle.py | modified | 07-01 | schema_name set to RECVIZ (was None) |
 
 ## Phase 8: Alembic Audit + Dead Code Sweep
 

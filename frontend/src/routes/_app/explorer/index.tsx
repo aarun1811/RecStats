@@ -139,17 +139,17 @@ function Explorer() {
           {/* Results / History — fills remaining 60% */}
           <div className="flex-1 min-h-0 rounded-lg border bg-card overflow-hidden">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
-              <div className="border-b bg-muted/40 px-4 shrink-0">
-                <TabsList className="h-9 bg-transparent p-0 gap-0">
+              <div className="px-3 pt-1.5 shrink-0">
+                <TabsList className="h-8 bg-muted/50 p-0.5 rounded-md gap-0.5">
                   <TabsTrigger
                     value="results"
-                    className="text-xs rounded-none border-b-2 border-transparent px-4 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+                    className="text-xs px-3 h-7 rounded-sm data-[state=active]:bg-background data-[state=active]:shadow-sm"
                   >
                     Results
                   </TabsTrigger>
                   <TabsTrigger
                     value="history"
-                    className="text-xs rounded-none border-b-2 border-transparent px-4 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+                    className="text-xs px-3 h-7 rounded-sm data-[state=active]:bg-background data-[state=active]:shadow-sm"
                   >
                     History
                   </TabsTrigger>

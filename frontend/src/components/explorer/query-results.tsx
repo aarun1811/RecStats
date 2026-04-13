@@ -3,9 +3,23 @@ import { AgGridReact } from 'ag-grid-react'
 import { type ColDef, type GridApi, type GridReadyEvent, themeQuartz, colorSchemeDark } from 'ag-grid-community'
 import { useTheme } from '@/components/layout/theme-provider'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Download, Copy, CheckCircle2, XCircle, Clock, Save, BarChart3 } from 'lucide-react'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import {
+  AlertCircle,
+  CheckCircle2,
+  Clock,
+  ClipboardCopy,
+  Download,
+  Rows3,
+  Save,
+  Table2,
+} from 'lucide-react'
 import { motion } from 'motion/react'
 import { toast } from 'sonner'
 import type { SqlResult } from '@/types/api'
@@ -68,11 +82,14 @@ export function QueryResults({ result, isLoading, executionTime, onSaveAsDataset
     toast.success('Copied to clipboard')
   }
 
+  // ── Loading state ──
   if (isLoading) {
     return (
       <div className="flex flex-col h-full">
-        <div className="flex items-center gap-2 px-3 py-2 border-b bg-muted/30">
-          <Skeleton className="h-5 w-24" />
+        <div className="flex items-center gap-3 px-4 py-2.5 border-b bg-muted/30">
+          <Skeleton className="h-4 w-16 rounded" />
+          <Skeleton className="h-4 w-24 rounded" />
+          <Skeleton className="h-4 w-16 rounded" />
         </div>
         <div className="flex-1 p-4">
           <Skeleton className="h-full w-full rounded-lg" />
@@ -81,29 +98,47 @@ export function QueryResults({ result, isLoading, executionTime, onSaveAsDataset
     )
   }
 
+  // ── Empty state ──
   if (!result) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2">
+      <div className="flex flex-col items-center justify-center h-full gap-3">
         <motion.div
-          animate={{ opacity: [0.3, 0.5, 0.3] }}
+          animate={{ opacity: [0.2, 0.4, 0.2] }}
           transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+          className="flex items-center justify-center size-14 rounded-xl bg-muted/50"
         >
-          <BarChart3 className="size-10" />
+          <Table2 className="size-6 text-muted-foreground" />
         </motion.div>
-        <p className="text-sm">Run a query to see results</p>
+        <div className="text-center">
+          <p className="text-sm font-medium text-muted-foreground">No results yet</p>
+          <p className="text-xs text-muted-foreground/60 mt-0.5">
+            Write a query and press <kbd className="px-1 py-0.5 rounded bg-muted text-[10px] font-mono">⌘ Enter</kbd> to execute
+          </p>
+        </div>
       </div>
     )
   }
 
+  // ── Error state ──
   if (result.status === 'error') {
     return (
       <div className="flex flex-col h-full">
-        <div className="flex items-center gap-2 px-3 py-2 border-b bg-destructive/10">
-          <XCircle className="size-4 text-destructive" />
-          <span className="text-sm font-medium text-destructive">Query Error</span>
+        <div className="flex items-center gap-2 px-4 py-2.5 border-b bg-destructive/5">
+          <div className="flex items-center justify-center size-5 rounded bg-destructive/10">
+            <AlertCircle className="size-3 text-destructive" />
+          </div>
+          <span className="text-xs font-semibold tracking-wide uppercase text-destructive">
+            Query Failed
+          </span>
+          {executionTime !== null && (
+            <span className="text-xs text-destructive/60 flex items-center gap-1 ml-auto">
+              <Clock className="size-3" />
+              {executionTime}ms
+            </span>
+          )}
         </div>
-        <div className="p-4">
-          <pre className="text-sm text-destructive bg-destructive/5 p-3 rounded-md whitespace-pre-wrap">
+        <div className="p-4 flex-1 overflow-auto">
+          <pre className="text-xs text-destructive/90 bg-destructive/5 border border-destructive/10 p-4 rounded-lg whitespace-pre-wrap font-mono leading-relaxed">
             {result.error}
           </pre>
         </div>
@@ -111,42 +146,67 @@ export function QueryResults({ result, isLoading, executionTime, onSaveAsDataset
     )
   }
 
+  // ── Success state ──
   return (
     <div className="flex flex-col h-full">
       {/* Status bar */}
-      <div className="flex items-center justify-between px-3 py-1.5 border-b bg-muted/30">
+      <div className="flex items-center justify-between px-4 py-2 border-b bg-muted/20">
+        {/* Left — stats */}
         <div className="flex items-center gap-3">
-          <Badge variant="outline" className="gap-1 text-xs">
-            <CheckCircle2 className="size-3 text-green-500" />
-            Success
-          </Badge>
-          <span className="text-xs text-muted-foreground">
+          <div className="flex items-center gap-1.5">
+            <div className="flex items-center justify-center size-4 rounded-full bg-green-500/10">
+              <CheckCircle2 className="size-2.5 text-green-600 dark:text-green-400" />
+            </div>
+            <span className="text-xs font-medium text-green-600 dark:text-green-400">Success</span>
+          </div>
+          <span className="text-[10px] text-muted-foreground/40">|</span>
+          <span className="text-xs text-muted-foreground flex items-center gap-1">
+            <Rows3 className="size-3" />
             {result.rowCount.toLocaleString()} rows
           </span>
-          {executionTime !== null && (
-            <span className="text-xs text-muted-foreground flex items-center gap-1">
-              <Clock className="size-3" />
-              {executionTime}ms
-            </span>
-          )}
+          <span className="text-xs text-muted-foreground flex items-center gap-1">
+            <Clock className="size-3" />
+            {executionTime !== null ? `${executionTime}ms` : '--'}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {columnNames.length} cols
+          </span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleCopy}>
-            <Copy className="mr-1 size-3" />
-            Copy
-          </Button>
-          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleExportCsv}>
-            <Download className="mr-1 size-3" />
-            CSV
-          </Button>
-          {onSaveAsDataset && (
-            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={onSaveAsDataset}>
-              <Save className="mr-1 size-3" />
-              Save as Dataset
-            </Button>
-          )}
-        </div>
+
+        {/* Right — actions */}
+        <TooltipProvider delayDuration={300}>
+          <div className="flex items-center gap-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="size-7" onClick={handleCopy}>
+                  <ClipboardCopy className="size-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Copy as TSV</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="size-7" onClick={handleExportCsv}>
+                  <Download className="size-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Export CSV</TooltipContent>
+            </Tooltip>
+            {onSaveAsDataset && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-7 text-xs ml-1" onClick={onSaveAsDataset}>
+                    <Save className="mr-1 size-3" />
+                    Save as Dataset
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Create a reusable dataset from this query</TooltipContent>
+              </Tooltip>
+            )}
+          </div>
+        </TooltipProvider>
       </div>
+
       {/* Results grid */}
       <div className="flex-1 min-h-0">
         <AgGridReact
