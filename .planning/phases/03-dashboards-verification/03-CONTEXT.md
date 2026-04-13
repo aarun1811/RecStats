@@ -130,6 +130,7 @@ Each dashboard entry has: `id`, `name`, `description`, `config` (with nested `id
 - Every dataset ID referenced must match actual seeded records from Phase 1
 - Dashboard names should NOT have "Phase 10 ·" or any prefix — clean descriptive names
 - The 10 themes match the success criteria list exactly
+- **Color diversity:** Current charts all look blue — update `appearance.colors` or `typeSpecific` color configs on existing charts to use diverse palettes per dashboard theme. Different dashboards should have visually distinct color schemes so they don't all blend together. Use the CSS variable chart colors (`--color-chart-1..5`) and per-chart overrides where needed.
 
 </specifics>
 
