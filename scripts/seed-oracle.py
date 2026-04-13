@@ -28,28 +28,13 @@ import random
 import sys
 import time
 from datetime import datetime, timedelta, timezone
-from urllib.parse import urlparse
 
-import psycopg2
-import psycopg2.extras
+import oracledb
 
 # --------------------------------------------------------------------------- #
 # Safety guards
 # --------------------------------------------------------------------------- #
 
-RECON_DB_URL = "postgresql://recviz:recviz_dev@localhost:5432/recon_data"
-RECVIZ_DB_URL = "postgresql://recviz:recviz_dev@localhost:5432/superset_meta"
-
-
-def _assert_safe(url: str) -> None:
-    parsed = urlparse(url)
-    host = parsed.hostname or ""
-    if host not in {"localhost", "127.0.0.1"}:
-        sys.exit(f"REFUSE: {url} has non-localhost host {host!r}")
-
-
-_assert_safe(RECON_DB_URL)
-_assert_safe(RECVIZ_DB_URL)
 if os.environ.get("RECVIZ_ENV", "").lower() in {"prod", "production"}:
     sys.exit("REFUSE: RECVIZ_ENV=production")
 
@@ -208,112 +193,121 @@ _LEGACY_SOURCE_TABLES = (
 )
 
 
+def _drop_table_if_exists(cur, table: str) -> None:
+    """Oracle-safe DROP TABLE (no IF EXISTS before 23c)."""
+    try:
+        cur.execute(f"DROP TABLE {table} CASCADE CONSTRAINTS PURGE")
+    except oracledb.DatabaseError as exc:
+        # ORA-00942: table or view does not exist
+        if "ORA-00942" in str(exc):
+            pass
+        else:
+            raise
+
+
 def drop_recon_schema(cur) -> None:
     """Drop every legacy table in the recon_data database."""
     for table in _LEGACY_SOURCE_TABLES:
-        cur.execute(f"DROP TABLE IF EXISTS {table} CASCADE")
-    cur.execute(
-        "DROP TABLE IF EXISTS reconmgmt.mr_csum_man_match_stats_hist CASCADE"
-    )
-    cur.execute("DROP SCHEMA IF EXISTS reconmgmt CASCADE")
+        _drop_table_if_exists(cur, table)
 
 
 def create_recon_schema(cur) -> None:
     """Create all 8 dimension tables + 4 fact tables with indexes.
 
-    Mirrors RESEARCH.md §1.2 and §1.3 verbatim.
+    Uses Oracle-native DDL: NUMBER, VARCHAR2, TIMESTAMP WITH TIME ZONE,
+    GENERATED ALWAYS AS IDENTITY for auto-increment primary keys.
     """
     # ── Dimensions ─────────────────────────────────────────────── #
     cur.execute(
         """
         CREATE TABLE recon_engines (
-            id          SERIAL PRIMARY KEY,
-            code        VARCHAR(32)  NOT NULL UNIQUE,
-            name        VARCHAR(128) NOT NULL,
-            vendor      VARCHAR(64)  NOT NULL,
-            is_active   BOOLEAN      NOT NULL DEFAULT TRUE
+            id          NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            code        VARCHAR2(32)  NOT NULL UNIQUE,
+            name        VARCHAR2(128) NOT NULL,
+            vendor      VARCHAR2(64)  NOT NULL,
+            is_active   NUMBER(1)     DEFAULT 1 NOT NULL
         )
         """
     )
     cur.execute(
         """
         CREATE TABLE regions (
-            id              SERIAL PRIMARY KEY,
-            code            VARCHAR(8)  NOT NULL UNIQUE,
-            name            VARCHAR(64) NOT NULL,
-            parent_region   VARCHAR(32)
+            id              NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            code            VARCHAR2(8)  NOT NULL UNIQUE,
+            name            VARCHAR2(64) NOT NULL,
+            parent_region   VARCHAR2(32)
         )
         """
     )
     cur.execute(
         """
         CREATE TABLE desks (
-            id              SERIAL PRIMARY KEY,
-            code            VARCHAR(16)  NOT NULL UNIQUE,
-            name            VARCHAR(64)  NOT NULL,
-            asset_class     VARCHAR(32)  NOT NULL,
-            region_id       INTEGER REFERENCES regions(id)
+            id              NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            code            VARCHAR2(16)  NOT NULL UNIQUE,
+            name            VARCHAR2(64)  NOT NULL,
+            asset_class     VARCHAR2(32)  NOT NULL,
+            region_id       NUMBER REFERENCES regions(id)
         )
         """
     )
     cur.execute(
         """
         CREATE TABLE currencies (
-            id              SERIAL PRIMARY KEY,
-            code            CHAR(3)      NOT NULL UNIQUE,
-            name            VARCHAR(64)  NOT NULL,
-            decimal_places  SMALLINT     NOT NULL DEFAULT 2,
-            is_active       BOOLEAN      NOT NULL DEFAULT TRUE
+            id              NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            code            CHAR(3)       NOT NULL UNIQUE,
+            name            VARCHAR2(64)  NOT NULL,
+            decimal_places  NUMBER(5)     DEFAULT 2 NOT NULL,
+            is_active       NUMBER(1)     DEFAULT 1 NOT NULL
         )
         """
     )
     cur.execute(
         """
         CREATE TABLE statuses (
-            id              SERIAL PRIMARY KEY,
-            code            VARCHAR(24)  NOT NULL UNIQUE,
-            name            VARCHAR(64)  NOT NULL,
-            category        VARCHAR(16)  NOT NULL,
-            sort_order      SMALLINT     NOT NULL
+            id              NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            code            VARCHAR2(24)  NOT NULL UNIQUE,
+            name            VARCHAR2(64)  NOT NULL,
+            category        VARCHAR2(16)  NOT NULL,
+            sort_order      NUMBER(5)     NOT NULL
         )
         """
     )
     cur.execute(
         """
         CREATE TABLE aging_buckets (
-            id              SERIAL PRIMARY KEY,
-            code            VARCHAR(16)  NOT NULL UNIQUE,
-            label           VARCHAR(32)  NOT NULL,
-            min_days        INTEGER      NOT NULL,
-            max_days        INTEGER,
-            sort_order      SMALLINT     NOT NULL,
-            severity        VARCHAR(8)   NOT NULL
+            id              NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            code            VARCHAR2(16)  NOT NULL UNIQUE,
+            label           VARCHAR2(32)  NOT NULL,
+            min_days        NUMBER        NOT NULL,
+            max_days        NUMBER,
+            sort_order      NUMBER(5)     NOT NULL,
+            severity        VARCHAR2(8)   NOT NULL
         )
         """
     )
     cur.execute(
         """
         CREATE TABLE counterparties (
-            id              SERIAL PRIMARY KEY,
-            lei             VARCHAR(20)  NOT NULL UNIQUE,
-            short_name      VARCHAR(64)  NOT NULL,
-            legal_name      VARCHAR(256) NOT NULL,
-            country_code    CHAR(2)      NOT NULL,
-            tier            SMALLINT     NOT NULL
+            id              NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            lei             VARCHAR2(20)  NOT NULL UNIQUE,
+            short_name      VARCHAR2(64)  NOT NULL,
+            legal_name      VARCHAR2(256) NOT NULL,
+            country_code    CHAR(2)       NOT NULL,
+            tier            NUMBER(5)     NOT NULL
         )
         """
     )
     cur.execute(
         """
         CREATE TABLE accounts (
-            id              SERIAL PRIMARY KEY,
-            account_number  VARCHAR(32)  NOT NULL UNIQUE,
-            name            VARCHAR(128) NOT NULL,
-            type            VARCHAR(16)  NOT NULL,
-            region_id       INTEGER NOT NULL REFERENCES regions(id),
-            currency_id     INTEGER NOT NULL REFERENCES currencies(id),
-            opened_date     DATE         NOT NULL,
-            is_active       BOOLEAN      NOT NULL DEFAULT TRUE
+            id              NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            account_number  VARCHAR2(32)  NOT NULL UNIQUE,
+            name            VARCHAR2(128) NOT NULL,
+            type            VARCHAR2(16)  NOT NULL,
+            region_id       NUMBER NOT NULL REFERENCES regions(id),
+            currency_id     NUMBER NOT NULL REFERENCES currencies(id),
+            opened_date     DATE          NOT NULL,
+            is_active       NUMBER(1)     DEFAULT 1 NOT NULL
         )
         """
     )
@@ -326,23 +320,23 @@ def create_recon_schema(cur) -> None:
     cur.execute(
         """
         CREATE TABLE recon_transactions (
-            id                  BIGSERIAL PRIMARY KEY,
-            external_ref        VARCHAR(40)  NOT NULL,
-            engine_id           INTEGER      NOT NULL REFERENCES recon_engines(id),
-            account_id          INTEGER      NOT NULL REFERENCES accounts(id),
-            counterparty_id     INTEGER               REFERENCES counterparties(id),
-            desk_id             INTEGER      NOT NULL REFERENCES desks(id),
-            region_id           INTEGER      NOT NULL REFERENCES regions(id),
-            currency_id         INTEGER      NOT NULL REFERENCES currencies(id),
-            status_id           INTEGER      NOT NULL REFERENCES statuses(id),
-            amount              NUMERIC(18,4) NOT NULL,
-            fee                 NUMERIC(18,4),
-            fx_rate             NUMERIC(12,6),
-            amount_usd          NUMERIC(18,4) NOT NULL,
-            trade_date          DATE         NOT NULL,
-            settle_date         DATE         NOT NULL,
-            booking_ts          TIMESTAMPTZ  NOT NULL,
-            last_updated_ts     TIMESTAMPTZ  NOT NULL
+            id                  NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            external_ref        VARCHAR2(40)  NOT NULL,
+            engine_id           NUMBER        NOT NULL REFERENCES recon_engines(id),
+            account_id          NUMBER        NOT NULL REFERENCES accounts(id),
+            counterparty_id     NUMBER                 REFERENCES counterparties(id),
+            desk_id             NUMBER        NOT NULL REFERENCES desks(id),
+            region_id           NUMBER        NOT NULL REFERENCES regions(id),
+            currency_id         NUMBER        NOT NULL REFERENCES currencies(id),
+            status_id           NUMBER        NOT NULL REFERENCES statuses(id),
+            amount              NUMBER(18,4)  NOT NULL,
+            fee                 NUMBER(18,4),
+            fx_rate             NUMBER(12,6),
+            amount_usd          NUMBER(18,4)  NOT NULL,
+            trade_date          DATE          NOT NULL,
+            settle_date         DATE          NOT NULL,
+            booking_ts          TIMESTAMP WITH TIME ZONE NOT NULL,
+            last_updated_ts     TIMESTAMP WITH TIME ZONE NOT NULL
         )
         """
     )
@@ -362,18 +356,18 @@ def create_recon_schema(cur) -> None:
     cur.execute(
         """
         CREATE TABLE recon_breaks (
-            id                  BIGSERIAL PRIMARY KEY,
-            transaction_id      BIGINT       NOT NULL REFERENCES recon_transactions(id),
-            break_type          VARCHAR(24)  NOT NULL,
-            break_amount        NUMERIC(18,4),
-            break_amount_usd    NUMERIC(18,4),
-            aging_days          INTEGER      NOT NULL,
-            aging_bucket_id     INTEGER      NOT NULL REFERENCES aging_buckets(id),
-            opened_at           TIMESTAMPTZ  NOT NULL,
-            resolved_at         TIMESTAMPTZ,
-            resolution          VARCHAR(32),
-            root_cause          VARCHAR(64),
-            assigned_to         VARCHAR(64)
+            id                  NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            transaction_id      NUMBER        NOT NULL REFERENCES recon_transactions(id),
+            break_type          VARCHAR2(24)  NOT NULL,
+            break_amount        NUMBER(18,4),
+            break_amount_usd    NUMBER(18,4),
+            aging_days          NUMBER        NOT NULL,
+            aging_bucket_id     NUMBER        NOT NULL REFERENCES aging_buckets(id),
+            opened_at           TIMESTAMP WITH TIME ZONE NOT NULL,
+            resolved_at         TIMESTAMP WITH TIME ZONE,
+            resolution          VARCHAR2(32),
+            root_cause          VARCHAR2(64),
+            assigned_to         VARCHAR2(64)
         )
         """
     )
@@ -390,13 +384,13 @@ def create_recon_schema(cur) -> None:
     cur.execute(
         """
         CREATE TABLE recon_match_events (
-            id                  BIGSERIAL PRIMARY KEY,
-            transaction_id      BIGINT       NOT NULL REFERENCES recon_transactions(id),
-            break_id            BIGINT                REFERENCES recon_breaks(id),
-            match_type          VARCHAR(16)  NOT NULL,
-            matcher             VARCHAR(64)  NOT NULL,
-            matched_at          TIMESTAMPTZ  NOT NULL,
-            confidence_score    NUMERIC(5,2)
+            id                  NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            transaction_id      NUMBER        NOT NULL REFERENCES recon_transactions(id),
+            break_id            NUMBER                 REFERENCES recon_breaks(id),
+            match_type          VARCHAR2(16)  NOT NULL,
+            matcher             VARCHAR2(64)  NOT NULL,
+            matched_at          TIMESTAMP WITH TIME ZONE NOT NULL,
+            confidence_score    NUMBER(5,2)
         )
         """
     )
@@ -409,16 +403,16 @@ def create_recon_schema(cur) -> None:
     cur.execute(
         """
         CREATE TABLE sla_events (
-            id                  BIGSERIAL PRIMARY KEY,
-            transaction_id      BIGINT       NOT NULL REFERENCES recon_transactions(id),
-            break_id            BIGINT                REFERENCES recon_breaks(id),
-            sla_type            VARCHAR(32)  NOT NULL,
-            sla_target_mins     INTEGER      NOT NULL,
-            sla_elapsed_mins    INTEGER      NOT NULL,
-            breach              BOOLEAN      NOT NULL,
-            severity            VARCHAR(8)   NOT NULL,
-            event_ts            TIMESTAMPTZ  NOT NULL,
-            region_id           INTEGER      NOT NULL REFERENCES regions(id)
+            id                  NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            transaction_id      NUMBER        NOT NULL REFERENCES recon_transactions(id),
+            break_id            NUMBER                 REFERENCES recon_breaks(id),
+            sla_type            VARCHAR2(32)  NOT NULL,
+            sla_target_mins     NUMBER        NOT NULL,
+            sla_elapsed_mins    NUMBER        NOT NULL,
+            breach              NUMBER(1)     NOT NULL,
+            severity            VARCHAR2(8)   NOT NULL,
+            event_ts            TIMESTAMP WITH TIME ZONE NOT NULL,
+            region_id           NUMBER        NOT NULL REFERENCES regions(id)
         )
         """
     )
@@ -432,8 +426,8 @@ def create_recon_schema(cur) -> None:
 # Section 2: Dimension generators (pure Python -- no DB)
 # --------------------------------------------------------------------------- #
 
-# Tuples are emitted in column order. The seeded SERIAL ids are returned by
-# `RETURNING id` after insertion so the fact generators can use real ids.
+# Tuples are emitted in column order. The generated IDENTITY ids are returned
+# after insertion so the fact generators can use real ids.
 
 
 def gen_recon_engines() -> list[tuple]:
@@ -690,8 +684,48 @@ def _log_normal_amount(rng: random.Random) -> float:
     return min(val, 10_000_000.0)
 
 
+def _build_pareto_weights(n: int, shape: float = 1.0) -> list[float]:
+    """Generate Pareto weights where top 20% get ~80% of mass (D-06)."""
+    raw = [(1.0 / (i + 1)) ** shape for i in range(n)]
+    total = sum(raw)
+    return [w / total for w in raw]
+
+
+def _seasonal_date(rng: random.Random, anchor: datetime, range_days: int) -> datetime:
+    """Pick a date with weekday bias + month-end spike + growth trend (D-07)."""
+    while True:
+        # Uniform day offset
+        day_offset = rng.randint(0, range_days)
+        candidate = anchor + timedelta(days=day_offset)
+        weekday = candidate.weekday()  # 0=Mon, 6=Sun
+
+        # Weekday bias: Mon-Fri 5x more likely than Sat-Sun
+        if weekday >= 5 and rng.random() > 0.25:
+            continue  # reject 75% of weekend dates
+
+        # Month-end spike: last 3 days of month get 2x boost
+        if candidate.day >= 28 or rng.random() > 0.5:
+            pass  # accept month-end or survive coin flip
+
+        # Growth trend: later dates slightly more likely
+        growth_factor = 0.7 + 0.6 * (day_offset / max(range_days, 1))
+        if rng.random() < growth_factor:
+            return candidate
+
+
+def _bimodal_confidence(rng: random.Random) -> float:
+    """Bimodal confidence: peak at 0.92 and 0.25 per D-10."""
+    if rng.random() < 0.70:
+        # High confidence cluster (70% of scored matches)
+        return round(max(0.0, min(1.0, rng.gauss(0.92, 0.04))), 2)
+    else:
+        # Low confidence cluster (30%)
+        return round(max(0.0, min(1.0, rng.gauss(0.25, 0.08))), 2)
+
+
 def gen_recon_transactions(
     rng: random.Random,
+    target_count: int,
     engine_ids: list[int],
     account_ids: list[int],
     desk_ids: list[int],
@@ -700,13 +734,15 @@ def gen_recon_transactions(
     status_ids: list[int],
     counterparty_ids: list[int],
 ) -> list[tuple]:
-    """Exactly 100,000 rows. Bakes in every D-05 edge case."""
-    target_count = 100_000
+    """Generate target_count transaction rows with Pareto counterparties and seasonal dates."""
     rows: list[tuple] = []
 
     # Find USD currency id (first row in gen_currencies returns id 1)
     usd_index = 0  # USD is the first currency seeded
     usd_currency_id = currency_ids[usd_index]
+
+    # Pareto-weighted counterparty selection (D-06)
+    cp_weights = _build_pareto_weights(len(counterparty_ids), shape=1.16)
 
     # Pre-compute ~status weights so MATCHED dominates (realistic GRU)
     # statuses ids are in declared order; index 0=MATCHED, 1=UNMATCHED, ...
@@ -732,14 +768,14 @@ def gen_recon_transactions(
         region_id = rng.choice(region_ids)
         currency_id = rng.choice(currency_ids)
         status_id = rng.choices(status_choices, weights=status_probs, k=1)[0]
-        # Counterparty NULL ~5%
+        # Counterparty NULL ~5%, else Pareto-weighted (D-06)
         if rng.random() < 0.05:
             counterparty_id = None
         else:
-            counterparty_id = rng.choice(counterparty_ids)
+            counterparty_id = rng.choices(counterparty_ids, weights=cp_weights, k=1)[0]
 
-        # Booking timestamp: most uniform; some forced edge cases (handled
-        # via index buckets below)
+        # Booking timestamp: first 250 rows are forced edge cases,
+        # remainder use seasonal distribution (D-07)
         if i < 140:
             # Leap day records
             booking_ts = LEAP_DAY + timedelta(minutes=rng.randint(0, 600))
@@ -769,7 +805,14 @@ def gen_recon_transactions(
                 minutes=rng.randint(0, 600)
             )
         else:
-            booking_ts = _random_booking_ts(rng)
+            # Seasonal date with weekday bias + month-end spikes (D-07)
+            booking_ts = _seasonal_date(rng, DATE_ANCHOR, DATE_RANGE_DAYS)
+            # Add random time-of-day
+            booking_ts = booking_ts + timedelta(
+                hours=rng.randint(6, 22),
+                minutes=rng.randint(0, 59),
+                seconds=rng.randint(0, 59),
+            )
 
         trade_date = booking_ts.date()
         # T+2 settlement
@@ -820,29 +863,54 @@ def gen_recon_transactions(
 
 def gen_recon_breaks(
     rng: random.Random,
+    target_count: int,
+    transaction_data: list[tuple],
     transaction_ids: list[int],
     aging_bucket_ids: list[int],
+    region_ids: list[int],
+    desk_ids: list[int],
 ) -> list[tuple]:
-    """~20,000 break rows. 60/15/10/10/5 distribution per RESEARCH.md §1.3."""
-    target_count = 20_000
+    """Generate target_count break rows with clustering (D-08) and decaying aging (D-09)."""
     rows: list[tuple] = []
 
-    # Sample 20k unique transactions to attach breaks to
-    sampled_ids = rng.sample(transaction_ids, target_count)
+    # Break clustering per D-08: weight transactions by region+desk combo
+    # APAC sub-regions: JP(index 9), HK(10), SG(11) in the 14-region list -> IDs
+    apac_region_ids = set()
+    nam_region_ids = set()
+    for i, rid in enumerate(region_ids):
+        # Indices 9,10,11 are JP,HK,SG (APAC sub-regions)
+        if i in {9, 10, 11}:
+            apac_region_ids.add(rid)
+        # Indices 0,4,5 are NAM, US, CA
+        if i in {0, 4, 5}:
+            nam_region_ids.add(rid)
 
-    # Aging bucket distribution: 50% fresh, 30% mid, 20% stale
-    # bucket ids in declared order: 0-1D, 2-3D, 4-7D, 8-14D, 15-30D, 30D+
-    bucket_weights = [
-        (aging_bucket_ids[0], 0.25),  # 0D
-        (aging_bucket_ids[1], 0.20),  # 1D
-        (aging_bucket_ids[2], 0.15),  # 2-3D
-        (aging_bucket_ids[3], 0.12),  # 4-7D
-        (aging_bucket_ids[4], 0.10),  # 8-14D
-        (aging_bucket_ids[5], 0.08),  # 15-30D
-        (aging_bucket_ids[6], 0.06),  # 31-60D
-        (aging_bucket_ids[7], 0.04),  # 60D+
-    ]
-    bucket_choices, bucket_probs = zip(*bucket_weights, strict=True)
+    # FX desks are first 4 desk IDs; Rates desks are indices 4-7
+    fx_desk_ids = set(desk_ids[:4]) if len(desk_ids) >= 4 else set(desk_ids)
+    rates_desk_ids = set(desk_ids[4:8]) if len(desk_ids) >= 8 else set()
+
+    break_weights: list[float] = []
+    for txn in transaction_data:
+        # In transaction tuple: index 4=desk_id, index 5=region_id
+        t_region_id = txn[5]
+        t_desk_id = txn[4]
+        w = 1.0
+        if t_region_id in apac_region_ids:
+            w *= 2.0
+        if t_desk_id in fx_desk_ids:
+            w *= 1.5
+        if t_region_id in nam_region_ids and t_desk_id in rates_desk_ids:
+            w *= 0.3
+        break_weights.append(w)
+
+    # Sample target_count transaction indices weighted by break clustering
+    sampled_indices = rng.choices(range(len(transaction_ids)), weights=break_weights, k=target_count)
+    sampled_ids = [transaction_ids[idx] for idx in sampled_indices]
+
+    # Time-decaying aging per D-09: exponential decay
+    bucket_decay_weights = [math.exp(-0.5 * i) for i in range(len(aging_bucket_ids))]
+    bucket_total = sum(bucket_decay_weights)
+    bucket_probs = [w / bucket_total for w in bucket_decay_weights]
 
     # Break type distribution
     type_weights = [
@@ -876,12 +944,13 @@ def gen_recon_breaks(
         None,  # unassigned
     ]
 
+    aging_day_ranges = [(0, 0), (1, 1), (2, 3), (4, 7), (8, 14), (15, 30), (31, 60), (61, 120)]
+
     for txn_id in sampled_ids:
         break_type = rng.choices(type_choices, weights=type_probs, k=1)[0]
-        bucket_id = rng.choices(bucket_choices, weights=bucket_probs, k=1)[0]
+        bucket_id = rng.choices(aging_bucket_ids, weights=bucket_probs, k=1)[0]
         # aging_days correlated with bucket
         bucket_index = aging_bucket_ids.index(bucket_id)
-        aging_day_ranges = [(0, 0), (1, 1), (2, 3), (4, 7), (8, 14), (15, 30), (31, 60), (61, 120)]
         lo, hi = aging_day_ranges[bucket_index]
         aging_days = rng.randint(lo, hi)
 
@@ -930,14 +999,14 @@ def gen_recon_breaks(
 
 def gen_recon_match_events(
     rng: random.Random,
+    target_count: int,
     transaction_ids: list[int],
     break_ids: list[int],
 ) -> list[tuple]:
-    """~80,000 match events. 65/20/10/5 distribution per RESEARCH.md §1.3."""
-    target_count = 80_000
+    """Generate target_count match events with bimodal confidence (D-10)."""
     rows: list[tuple] = []
 
-    # Sample 80k transactions (with replacement is fine -- multiple events ok)
+    # Sample transactions (with replacement -- multiple events ok)
     sampled_txn_ids = rng.choices(transaction_ids, k=target_count)
 
     type_weights = [
@@ -962,9 +1031,13 @@ def gen_recon_match_events(
             if break_ids and rng.random() < 0.25
             else None
         )
-        # confidence_score: NULL for AUTO/MANUAL, populated for RULE/AI
+        # Bimodal confidence per D-10:
+        # RULE_BASED and AI_ASSISTED get bimodal distribution
+        # AUTO gets NULL, MANUAL gets high confidence (0.85-0.99)
         if match_type in ("RULE_BASED", "AI_ASSISTED"):
-            confidence_score = round(rng.uniform(0.60, 0.99), 2)
+            confidence_score = _bimodal_confidence(rng)
+        elif match_type == "MANUAL":
+            confidence_score = round(rng.uniform(0.85, 0.99), 2)
         else:
             confidence_score = None
 
@@ -984,22 +1057,27 @@ def gen_recon_match_events(
 
 def gen_sla_events(
     rng: random.Random,
+    target_count: int,
     transaction_ids: list[int],
     break_ids: list[int],
     region_ids: list[int],
 ) -> list[tuple]:
-    """~5,000 SLA events. ~8% breach rate per Q-4 RESOLVED inverted amber."""
-    target_count = 5_000
+    """Generate target_count SLA events with 8+ SLA types (D-04). ~8% breach rate."""
     rows: list[tuple] = []
 
-    sampled_txn_ids = rng.sample(transaction_ids, target_count)
+    # Use choices with replacement to handle target_count > len(transaction_ids)
+    sampled_txn_ids = rng.choices(transaction_ids, k=target_count)
 
+    # 8 SLA types per D-04
     sla_specs = [
         ("MATCH_WITHIN_4H", 240),
-        ("BREAK_RESOLVE_WITHIN_24H", 1440),
+        ("BREAK_RESOLVE_24H", 1440),
         ("DAILY_CLOSE", 1440),
         ("SETTLEMENT_T2", 2880),
         ("REGULATORY_REPORT", 1440),
+        ("ESCALATION_RESPONSE", 480),
+        ("HIGH_VALUE_REVIEW", 120),
+        ("COUNTERPARTY_CONFIRM", 720),
     ]
 
     for txn_id in sampled_txn_ids:
@@ -1050,20 +1128,21 @@ def insert_batch(
     rows: list[tuple],
     batch_size: int = 5000,
 ) -> None:
-    """Insert rows in batches via psycopg2.extras.execute_values.
+    """Insert rows in batches via Oracle executemany.
 
-    Uses %s parameterization throughout. The {table} and {columns} f-string
-    placeholders are static SQL identifiers, NOT user data.
+    Uses :N positional bind parameterization. The {table} and {columns}
+    f-string placeholders are static SQL identifiers, NOT user data.
     """
     if not rows:
         return
-    cols_sql = ",".join(columns)
-    sql = f"INSERT INTO {table} ({cols_sql}) VALUES %s"
+    cols_sql = ", ".join(columns)
+    binds_sql = ", ".join(f":{i + 1}" for i in range(len(columns)))
+    sql = f"INSERT INTO {table} ({cols_sql}) VALUES ({binds_sql})"
     total = len(rows)
     t0 = time.time()
     for i in range(0, total, batch_size):
         chunk = rows[i : i + batch_size]
-        psycopg2.extras.execute_values(cur, sql, chunk)
+        cur.executemany(sql, chunk)
         progress = min(i + batch_size, total)
         # Per D-14: for large row counts, print progress every 100K rows
         if total >= 100_000:
@@ -1142,48 +1221,8 @@ def insert_returning_ids_batch(
 
 
 # --------------------------------------------------------------------------- #
-# Section 5: Dual-row dataset pairing helper (A10 guard)
+# Section 5: (removed — seed_curated_dataset_pair eliminated per D-11)
 # --------------------------------------------------------------------------- #
-
-
-def seed_curated_dataset_pair(
-    cur,
-    dataset_id: str,
-    name: str,
-    description: str,
-    database_id: int,
-    database_name: str,
-    sql_template: str,
-    managed_sql: str,
-    columns: list[dict],
-    filter_mappings: list[dict],
-) -> None:
-    """Insert paired rows in `recviz_datasets` and `recviz_data_sources`.
-
-    Same string id in both tables -- the A10 architectural guard.
-    """
-    cur.execute(
-        "INSERT INTO recviz_datasets "
-        "(id, name, description, database_id, superset_id, sql, columns, "
-        "sync_status, schema_version, created_at, updated_at) "
-        "VALUES (%s, %s, %s, %s, NULL, %s, %s::jsonb, 'synced', 1, NOW(), NOW())",
-        (dataset_id, name, description, database_id, managed_sql, json.dumps(columns)),
-    )
-    ds_config = {
-        "id": dataset_id,
-        "name": name,
-        "database_routing": {"type": "static", "database": database_name},
-        "query": sql_template,
-        "filter_mappings": filter_mappings,
-        "columns": [
-            {"name": c["name"], "type": c["data_type"]} for c in columns
-        ],
-    }
-    cur.execute(
-        "INSERT INTO recviz_data_sources (id, name, schema_version, config) "
-        "VALUES (%s, %s, 1, %s::jsonb)",
-        (dataset_id, name, json.dumps(ds_config)),
-    )
 
 
 # --------------------------------------------------------------------------- #
@@ -1391,6 +1430,34 @@ CURATED_DATASETS: list[dict] = [
             _col("avg_usd", "Avg USD", "currency", "measure", "AVG", "currency"),
         ],
         "filter_mappings": [_BASE_FILTER_MAPPINGS[3]],
+    },
+    {
+        "id": "ds-recon-status-by-region",
+        "name": "Transactions -- Status x Region (Pivot)",
+        "description": "Pivoted count by status per region for stacked bar.",
+        "sql_template": (
+            "SELECT r.name AS region, "
+            "SUM(CASE WHEN s.name = 'Matched' THEN 1 ELSE 0 END) AS matched, "
+            "SUM(CASE WHEN s.name = 'Auto-Matched' THEN 1 ELSE 0 END) AS auto_matched, "
+            "SUM(CASE WHEN s.name = 'Manual Matched' THEN 1 ELSE 0 END) AS manual_matched, "
+            "SUM(CASE WHEN s.name = 'Pending Match' THEN 1 ELSE 0 END) AS pending, "
+            "SUM(CASE WHEN s.name = 'Unmatched' THEN 1 ELSE 0 END) AS unmatched, "
+            "SUM(CASE WHEN s.name IN ('Disputed','Escalated','Written Off') THEN 1 ELSE 0 END) AS exceptions "
+            "FROM recon_transactions t "
+            "JOIN regions r ON t.region_id = r.id "
+            "JOIN statuses s ON t.status_id = s.id WHERE 1=1 {{filters}} "
+            "GROUP BY r.name ORDER BY r.name"
+        ),
+        "columns": [
+            _col("region", "Region", "string", "dimension"),
+            _col("matched", "Matched", "number", "measure", "SUM", "number"),
+            _col("auto_matched", "Auto-Matched", "number", "measure", "SUM", "number"),
+            _col("manual_matched", "Manual Matched", "number", "measure", "SUM", "number"),
+            _col("pending", "Pending", "number", "measure", "SUM", "number"),
+            _col("unmatched", "Unmatched", "number", "measure", "SUM", "number"),
+            _col("exceptions", "Exceptions", "number", "measure", "SUM", "number"),
+        ],
+        "filter_mappings": [_BASE_FILTER_MAPPINGS[0]],
     },
     {
         "id": "ds-recon-transactions-scatter",
@@ -2510,26 +2577,22 @@ def wipe_managed_tables(cur) -> None:
     cur.execute("DELETE FROM recviz_charts")
     cur.execute("DELETE FROM recviz_kpis")
     cur.execute("DELETE FROM recviz_datasets")
-    cur.execute("DELETE FROM recviz_data_sources")
+    # NOTE: recviz_data_sources deliberately NOT wiped (D-11/D-12)
+    cur.execute("DELETE FROM recviz_connections")
 
 
 def seed_managed_datasets(cur) -> None:
-    """Insert dual-row dataset/data-source pairs (A10 guard)."""
+    """Insert dataset rows into recviz_datasets only (no recviz_data_sources per D-11)."""
     for ds in CURATED_DATASETS:
         managed_sql = ds["sql_template"].replace(" {{filters}}", "").replace(
             "{{filters}}", ""
         )
-        seed_curated_dataset_pair(
-            cur,
-            dataset_id=ds["id"],
-            name=ds["name"],
-            description=ds["description"],
-            database_id=DEFAULT_DATABASE_ID,
-            database_name=DEFAULT_DATABASE_NAME,
-            sql_template=ds["sql_template"],
-            managed_sql=managed_sql,
-            columns=ds["columns"],
-            filter_mappings=ds["filter_mappings"],
+        cur.execute(
+            "INSERT INTO recviz_datasets "
+            "(id, name, description, database_id, sql, columns, "
+            "schema_version, created_at, updated_at) "
+            "VALUES (:1, :2, :3, :4, :5, :6, 1, SYSTIMESTAMP, SYSTIMESTAMP)",
+            (ds["id"], ds["name"], ds["description"], CONNECTION_ID, managed_sql, _jb(ds["columns"])),
         )
 
 
@@ -2544,14 +2607,14 @@ def seed_managed_charts(cur) -> None:
         cur.execute(
             "INSERT INTO recviz_charts "
             "(id, name, description, dataset_id, chart_type, config, created_at, updated_at) "
-            "VALUES (%s, %s, %s, %s, %s, %s::jsonb, NOW(), NOW())",
+            "VALUES (:1, :2, :3, :4, :5, :6, SYSTIMESTAMP, SYSTIMESTAMP)",
             (
                 chart["id"],
                 chart["name"],
                 chart["description"],
                 chart["dataset_id"],
                 chart["chart_type"],
-                json.dumps(chart["config"]),
+                _jb(chart["config"]),
             ),
         )
 
@@ -2563,7 +2626,7 @@ def seed_managed_kpis(cur) -> None:
             "INSERT INTO recviz_kpis "
             "(id, name, description, dataset_id, metric_column, aggregation, "
             "config, created_at, updated_at) "
-            "VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb, NOW(), NOW())",
+            "VALUES (:1, :2, :3, :4, :5, :6, :7, SYSTIMESTAMP, SYSTIMESTAMP)",
             (
                 kpi["id"],
                 kpi["name"],
@@ -2571,7 +2634,7 @@ def seed_managed_kpis(cur) -> None:
                 kpi["dataset_id"],
                 kpi["metric_column"],
                 kpi["aggregation"],
-                json.dumps(kpi["config"]),
+                _jb(kpi["config"]),
             ),
         )
 
@@ -2582,19 +2645,54 @@ def seed_managed_dashboards(cur) -> None:
         cur.execute(
             "INSERT INTO recviz_dashboards "
             "(id, name, description, schema_version, config, created_at, updated_at) "
-            "VALUES (%s, %s, %s, 1, %s::jsonb, NOW(), NOW())",
+            "VALUES (:1, :2, :3, 1, :4, SYSTIMESTAMP, SYSTIMESTAMP)",
             (
                 dash["id"],
                 dash["name"],
                 dash["description"],
-                json.dumps(dash["config"]),
+                _jb(dash["config"]),
             ),
         )
 
 
 # --------------------------------------------------------------------------- #
-# Section 7b: Dashboard names snapshot writer (M-3 cross-check)
+# Section 7b: Connection seeding + Dashboard names snapshot
 # --------------------------------------------------------------------------- #
+
+
+def seed_connection(cur, args: argparse.Namespace) -> None:
+    """Insert the Oracle connection with encrypted password and schema_name (D-15)."""
+    user = args.user or os.environ.get("ORACLE_USER", "recviz")
+    password = args.password or os.environ.get("ORACLE_PASSWORD", "recviz_dev")
+    host = args.host or os.environ.get("ORACLE_HOST", "localhost")
+    port = args.port or int(os.environ.get("ORACLE_PORT", "1521"))
+    service = args.service or os.environ.get("ORACLE_SERVICE", "FREEPDB1")
+    schema_name = _get_schema_name(args)
+
+    encrypted_pw = _encrypt_password(password)
+    cur.execute(
+        "INSERT INTO recviz_connections "
+        "(id, name, display_name, backend, host, port, database_name, "
+        "username, encrypted_password, schema_name, extra_params, status, "
+        "created_at, updated_at) "
+        "VALUES (:1, :2, :3, :4, :5, :6, :7, :8, :9, :10, :11, :12, "
+        "SYSTIMESTAMP, SYSTIMESTAMP)",
+        (
+            CONNECTION_ID,
+            CONNECTION_NAME,
+            f"Oracle ({host}:{port}/{service})",
+            "oracle",
+            host,
+            port,
+            service,
+            user,
+            encrypted_pw,
+            schema_name,
+            _jb({"timeout": 30}),
+            "active",
+        ),
+    )
+    print(f"  recviz_connections: 1 row (schema_name={schema_name})")
 
 
 def write_dashboard_names_snapshot() -> None:
@@ -2614,200 +2712,226 @@ def write_dashboard_names_snapshot() -> None:
 
 def main() -> None:
     args = parse_args()
+    total_start = time.time()
 
-    print("RecViz Oracle seed script -- clean-slate rebuild")
+    target_rows = args.rows
+    break_count = int(target_rows * 0.20)
+    match_count = int(target_rows * 0.80)
+    sla_count = int(target_rows * 0.05)
+
+    print(f"RecViz Oracle seed script -- target: {target_rows:,} transaction rows")
+    print(f"  Derived: ~{break_count:,} breaks, ~{match_count:,} match events, ~{sla_count:,} SLA events")
     print("=" * 60)
-    rng = random.Random(RANDOM_SEED)
 
+    rng = random.Random(RANDOM_SEED)
     conn = _get_connection(args)
-    # Oracle auto-commits DDL. We manually commit DML.
     conn.autocommit = False
     cur = conn.cursor()
 
-            print("\n=== recon_data: dimensions ===")
-            engine_ids = insert_returning_ids(
-                cur,
-                "recon_engines",
-                ["code", "name", "vendor", "is_active"],
-                gen_recon_engines(),
-            )
-            print(f"  recon_engines: {len(engine_ids)} rows")
+    try:
+        # Part 1: DDL
+        print("\n=== Recon data: drop + create schema ===")
+        drop_recon_schema(cur)
+        create_recon_schema(cur)
+        print("  Schema created (8 dimension + 4 fact tables)")
 
-            region_ids = insert_returning_ids(
-                cur,
-                "regions",
-                ["code", "name", "parent_region"],
-                gen_regions(),
-            )
-            print(f"  regions: {len(region_ids)} rows")
+        # Part 2: Dimensions
+        print("\n=== Recon data: dimensions ===")
+        engine_ids = insert_returning_ids(
+            cur,
+            "recon_engines",
+            ["code", "name", "vendor", "is_active"],
+            gen_recon_engines(),
+        )
+        region_ids = insert_returning_ids(
+            cur,
+            "regions",
+            ["code", "name", "parent_region"],
+            gen_regions(),
+        )
+        desk_ids = insert_returning_ids(
+            cur,
+            "desks",
+            ["code", "name", "asset_class", "region_id"],
+            gen_desks(region_ids),
+        )
+        currency_ids = insert_returning_ids(
+            cur,
+            "currencies",
+            ["code", "name", "decimal_places", "is_active"],
+            gen_currencies(),
+        )
+        status_ids = insert_returning_ids(
+            cur,
+            "statuses",
+            ["code", "name", "category", "sort_order"],
+            gen_statuses(),
+        )
+        aging_bucket_ids = insert_returning_ids(
+            cur,
+            "aging_buckets",
+            ["code", "label", "min_days", "max_days", "sort_order", "severity"],
+            gen_aging_buckets(),
+        )
+        counterparty_ids = insert_returning_ids(
+            cur,
+            "counterparties",
+            ["lei", "short_name", "legal_name", "country_code", "tier"],
+            gen_counterparties(rng),
+        )
+        account_ids = insert_returning_ids(
+            cur,
+            "accounts",
+            [
+                "account_number",
+                "name",
+                "type",
+                "region_id",
+                "currency_id",
+                "opened_date",
+                "is_active",
+            ],
+            gen_accounts(rng, region_ids, currency_ids),
+        )
+        conn.commit()
 
-            desk_ids = insert_returning_ids(
-                cur,
-                "desks",
-                ["code", "name", "asset_class", "region_id"],
-                gen_desks(region_ids),
-            )
-            print(f"  desks: {len(desk_ids)} rows")
+        # Part 3: Facts with configurable counts
+        print(f"\n=== Recon data: facts ({target_rows:,} transactions) ===")
+        txn_rows = gen_recon_transactions(
+            rng,
+            target_rows,
+            engine_ids,
+            account_ids,
+            desk_ids,
+            region_ids,
+            currency_ids,
+            status_ids,
+            counterparty_ids,
+        )
+        txn_ids = insert_returning_ids_batch(
+            cur,
+            "recon_transactions",
+            [
+                "external_ref",
+                "engine_id",
+                "account_id",
+                "counterparty_id",
+                "desk_id",
+                "region_id",
+                "currency_id",
+                "status_id",
+                "amount",
+                "fee",
+                "fx_rate",
+                "amount_usd",
+                "trade_date",
+                "settle_date",
+                "booking_ts",
+                "last_updated_ts",
+            ],
+            txn_rows,
+        )
+        conn.commit()
 
-            currency_ids = insert_returning_ids(
-                cur,
-                "currencies",
-                ["code", "name", "decimal_places", "is_active"],
-                gen_currencies(),
-            )
-            print(f"  currencies: {len(currency_ids)} rows")
+        break_rows = gen_recon_breaks(
+            rng, break_count, txn_rows, txn_ids, aging_bucket_ids,
+            region_ids, desk_ids,
+        )
+        break_ids = insert_returning_ids_batch(
+            cur,
+            "recon_breaks",
+            [
+                "transaction_id",
+                "break_type",
+                "break_amount",
+                "break_amount_usd",
+                "aging_days",
+                "aging_bucket_id",
+                "opened_at",
+                "resolved_at",
+                "resolution",
+                "root_cause",
+                "assigned_to",
+            ],
+            break_rows,
+        )
+        conn.commit()
 
-            status_ids = insert_returning_ids(
-                cur,
-                "statuses",
-                ["code", "name", "category", "sort_order"],
-                gen_statuses(),
-            )
-            print(f"  statuses: {len(status_ids)} rows")
+        match_rows = gen_recon_match_events(rng, match_count, txn_ids, break_ids)
+        insert_batch(
+            cur,
+            "recon_match_events",
+            [
+                "transaction_id",
+                "break_id",
+                "match_type",
+                "matcher",
+                "matched_at",
+                "confidence_score",
+            ],
+            match_rows,
+        )
+        conn.commit()
 
-            aging_bucket_ids = insert_returning_ids(
-                cur,
-                "aging_buckets",
-                ["code", "label", "min_days", "max_days", "sort_order", "severity"],
-                gen_aging_buckets(),
-            )
-            print(f"  aging_buckets: {len(aging_bucket_ids)} rows")
+        sla_rows = gen_sla_events(rng, sla_count, txn_ids, break_ids, region_ids)
+        insert_batch(
+            cur,
+            "sla_events",
+            [
+                "transaction_id",
+                "break_id",
+                "sla_type",
+                "sla_target_mins",
+                "sla_elapsed_mins",
+                "breach",
+                "severity",
+                "event_ts",
+                "region_id",
+            ],
+            sla_rows,
+        )
+        conn.commit()
 
-            counterparty_ids = insert_returning_ids(
-                cur,
-                "counterparties",
-                ["lei", "short_name", "legal_name", "country_code", "tier"],
-                gen_counterparties(rng),
-            )
-            print(f"  counterparties: {len(counterparty_ids)} rows")
+        # Part 4: Managed catalog
+        print("\n=== Managed catalog: wipe + seed ===")
+        wipe_managed_tables(cur)
+        seed_connection(cur, args)
+        seed_managed_datasets(cur)
+        print(f"  recviz_datasets: {len(CURATED_DATASETS)} rows")
+        seed_managed_charts(cur)
+        print(f"  recviz_charts: {len(CURATED_CHARTS)} rows")
+        seed_managed_kpis(cur)
+        print(f"  recviz_kpis: {len(CURATED_KPIS)} rows")
+        seed_managed_dashboards(cur)
+        print(f"  recviz_dashboards: {len(CURATED_DASHBOARDS)} rows")
+        conn.commit()
 
-            account_ids = insert_returning_ids(
-                cur,
-                "accounts",
-                [
-                    "account_number",
-                    "name",
-                    "type",
-                    "region_id",
-                    "currency_id",
-                    "opened_date",
-                    "is_active",
-                ],
-                gen_accounts(rng, region_ids, currency_ids),
-            )
-            print(f"  accounts: {len(account_ids)} rows")
+        write_dashboard_names_snapshot()
 
-            print("\n=== recon_data: facts (100k+) ===")
-            txn_rows = gen_recon_transactions(
-                rng,
-                engine_ids,
-                account_ids,
-                desk_ids,
-                region_ids,
-                currency_ids,
-                status_ids,
-                counterparty_ids,
-            )
-            txn_ids = insert_returning_ids(
-                cur,
-                "recon_transactions",
-                [
-                    "external_ref",
-                    "engine_id",
-                    "account_id",
-                    "counterparty_id",
-                    "desk_id",
-                    "region_id",
-                    "currency_id",
-                    "status_id",
-                    "amount",
-                    "fee",
-                    "fx_rate",
-                    "amount_usd",
-                    "trade_date",
-                    "settle_date",
-                    "booking_ts",
-                    "last_updated_ts",
-                ],
-                txn_rows,
-            )
-            print(f"  recon_transactions: {len(txn_ids)} rows")
+        # Summary with total elapsed time per D-13
+        total_elapsed = time.time() - total_start
+        dim_count = (
+            len(engine_ids) + len(region_ids) + len(desk_ids)
+            + len(currency_ids) + len(status_ids) + len(aging_bucket_ids)
+            + len(counterparty_ids) + len(account_ids)
+        )
+        fact_count = len(txn_ids) + len(break_ids) + len(match_rows) + len(sla_rows)
 
-            break_rows = gen_recon_breaks(rng, txn_ids, aging_bucket_ids)
-            break_ids = insert_returning_ids(
-                cur,
-                "recon_breaks",
-                [
-                    "transaction_id",
-                    "break_type",
-                    "break_amount",
-                    "break_amount_usd",
-                    "aging_days",
-                    "aging_bucket_id",
-                    "opened_at",
-                    "resolved_at",
-                    "resolution",
-                    "root_cause",
-                    "assigned_to",
-                ],
-                break_rows,
-            )
-            print(f"  recon_breaks: {len(break_ids)} rows")
+        print("\n" + "=" * 60)
+        print("Seed complete!")
+        print(f"  Dimensions: {dim_count:,} rows across 8 tables")
+        print(f"  Facts: {fact_count:,} rows across 4 tables")
+        print(f"  Catalog: 1 connection, {len(CURATED_DATASETS)} datasets, "
+              f"{len(CURATED_CHARTS)} charts, {len(CURATED_KPIS)} KPIs, "
+              f"{len(CURATED_DASHBOARDS)} dashboards")
+        print(f"  Total time: {total_elapsed:.1f}s")
 
-            match_rows = gen_recon_match_events(rng, txn_ids, break_ids)
-            insert_batch(
-                cur,
-                "recon_match_events",
-                [
-                    "transaction_id",
-                    "break_id",
-                    "match_type",
-                    "matcher",
-                    "matched_at",
-                    "confidence_score",
-                ],
-                match_rows,
-            )
-            print(f"  recon_match_events: {len(match_rows)} rows")
-
-            sla_rows = gen_sla_events(rng, txn_ids, break_ids, region_ids)
-            insert_batch(
-                cur,
-                "sla_events",
-                [
-                    "transaction_id",
-                    "break_id",
-                    "sla_type",
-                    "sla_target_mins",
-                    "sla_elapsed_mins",
-                    "breach",
-                    "severity",
-                    "event_ts",
-                    "region_id",
-                ],
-                sla_rows,
-            )
-            print(f"  sla_events: {len(sla_rows)} rows")
-
-        recon_conn.commit()
-
-    with psycopg2.connect(RECVIZ_DB_URL) as recviz_conn:
-        recviz_conn.autocommit = False
-        with recviz_conn.cursor() as cur:
-            print("\n=== superset_meta: wipe + seed managed catalog ===")
-            wipe_managed_tables(cur)
-            seed_managed_datasets(cur)
-            print(f"  recviz_datasets + recviz_data_sources: {len(CURATED_DATASETS)} pairs")
-            seed_managed_charts(cur)
-            print(f"  recviz_charts: {len(CURATED_CHARTS)} rows")
-            seed_managed_kpis(cur)
-            print(f"  recviz_kpis: {len(CURATED_KPIS)} rows")
-            seed_managed_dashboards(cur)
-            print(f"  recviz_dashboards: {len(CURATED_DASHBOARDS)} rows")
-        recviz_conn.commit()
-
-    write_dashboard_names_snapshot()
-    print("\nSeed complete.")
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cur.close()
+        conn.close()
 
 
 if __name__ == "__main__":
