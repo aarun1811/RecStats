@@ -121,7 +121,7 @@ export function PanelConfigPopover({
     <>
       {children}
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[520px] gap-0 p-0 overflow-hidden">
+        <DialogContent className="sm:max-w-[640px] gap-0 p-0 overflow-hidden">
           {/* ── Header ── */}
           <DialogHeader className="px-5 pt-5 pb-3">
             <div className="flex items-center gap-2.5">
