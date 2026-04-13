@@ -2747,7 +2747,7 @@ CURATED_DASHBOARDS: list[dict] = [
             "kpis": [
                 _kpi_card("kpi-sla-breach-rate"),
                 _kpi_card("kpi-match-rate"),
-                _kpi_card("kpi-avg-aging-days"),
+                _kpi_card("kpi-avg-aging"),
             ],
             "charts": [
                 _dash_chart_ref(
@@ -2761,18 +2761,18 @@ CURATED_DASHBOARDS: list[dict] = [
                     drill_detail_data_source_id="ds-recon-transaction-detail",
                 ),
                 _dash_chart_ref(
-                    "chart-txn-status-stacked",
+                    "chart-status-region-stacked",
                     "Status by Region",
                     "stacked-bar",
-                    "ds-recon-transactions-by-region",
+                    "ds-recon-status-by-region",
                     _layout(0, 3, 6),
-                    metric="txn_count",
+                    metric="matched",
                     cross_filter=True,
                     drill_hierarchy=["region", "status"],
                     drill_detail_data_source_id="ds-recon-transaction-detail",
                 ),
                 _dash_chart_ref(
-                    "chart-breaks-aging-waterfall",
+                    "chart-aging-waterfall",
                     "Aging Waterfall",
                     "waterfall",
                     "ds-recon-breaks-aging",
@@ -2824,13 +2824,13 @@ CURATED_DASHBOARDS: list[dict] = [
             "features": {"crossFilter": True, "drillDown": True},
             "filters": _GLOBAL_FILTERS[:],
             "kpis": [
-                _kpi_card("kpi-avg-aging-days"),
+                _kpi_card("kpi-avg-aging"),
                 _kpi_card("kpi-total-breaks"),
-                _kpi_card("kpi-high-value-breaks"),
+                _kpi_card("kpi-break-exposure"),
             ],
             "charts": [
                 _dash_chart_ref(
-                    "chart-breaks-aging-bar",
+                    "chart-aging-bar",
                     "Aging Distribution",
                     "bar",
                     "ds-recon-breaks-aging",
@@ -2840,7 +2840,7 @@ CURATED_DASHBOARDS: list[dict] = [
                     drill_detail_data_source_id="ds-recon-breaks-summary",
                 ),
                 _dash_chart_ref(
-                    "chart-breaks-aging-waterfall",
+                    "chart-aging-waterfall",
                     "Aging Waterfall",
                     "waterfall",
                     "ds-recon-breaks-aging",
@@ -2848,7 +2848,7 @@ CURATED_DASHBOARDS: list[dict] = [
                     metric="break_count",
                 ),
                 _dash_chart_ref(
-                    "chart-breaks-by-type",
+                    "chart-breaks-by-type-bar",
                     "Breaks by Type",
                     "bar",
                     "ds-recon-breaks-summary",
@@ -2885,7 +2885,7 @@ CURATED_DASHBOARDS: list[dict] = [
             ],
             "charts": [
                 _dash_chart_ref(
-                    "chart-txn-trend-line",
+                    "chart-daily-txn-volume",
                     "Transaction Volume — Daily",
                     "line",
                     "ds-recon-transactions-daily",
@@ -2902,7 +2902,7 @@ CURATED_DASHBOARDS: list[dict] = [
                     _layout(0, 3, 6),
                 ),
                 _dash_chart_ref(
-                    "chart-txn-status-donut",
+                    "chart-status-donut",
                     "Match Status",
                     "donut",
                     "ds-recon-transactions-by-status",
@@ -2910,7 +2910,7 @@ CURATED_DASHBOARDS: list[dict] = [
                     cross_filter=True,
                 ),
                 _dash_chart_ref(
-                    "chart-txn-combo",
+                    "chart-daily-volume-combo",
                     "Volume & Amount Combo",
                     "combo",
                     "ds-recon-transactions-daily",
@@ -2934,13 +2934,13 @@ CURATED_DASHBOARDS: list[dict] = [
             "filters": _GLOBAL_FILTERS[:],
             "kpis": [
                 _kpi_card("kpi-total-transactions"),
-                _kpi_card("kpi-total-amount-usd"),
+                _kpi_card("kpi-total-usd-volume"),
                 _kpi_card("kpi-largest-txn"),
             ],
             "charts": [
                 # Row 1: 12c treemap (cross-filter source)
                 _dash_chart_ref(
-                    "chart-volume-desk-treemap",
+                    "chart-desk-volume-treemap",
                     "Desk Volume Treemap",
                     "treemap",
                     "ds-recon-volume-by-desk",
@@ -2951,7 +2951,7 @@ CURATED_DASHBOARDS: list[dict] = [
                 ),
                 # Row 2: 6c + 6c
                 _dash_chart_ref(
-                    "chart-txn-by-region-bar",
+                    "chart-region-txn-bar",
                     "Transactions by Region",
                     "bar",
                     "ds-recon-transactions-by-region",
@@ -2974,15 +2974,15 @@ CURATED_DASHBOARDS: list[dict] = [
                     _layout(0, 6, 6),
                 ),
                 _dash_chart_ref(
-                    "chart-txn-scatter",
+                    "chart-amount-fee-scatter",
                     "Amount vs Fee",
                     "scatter",
                     "ds-recon-transactions-scatter",
                     _layout(6, 6, 6),
                 ),
-                # Row 4: 6c chart-txn-trend-area (Q-3b RESOLVED placement)
+                # Row 4: 6c daily usd volume area
                 _dash_chart_ref(
-                    "chart-txn-trend-area",
+                    "chart-daily-usd-volume",
                     "Transaction Amount — Daily",
                     "area",
                     "ds-recon-transactions-daily",
@@ -2990,7 +2990,7 @@ CURATED_DASHBOARDS: list[dict] = [
                 ),
                 # Row 5: 12c parallel
                 _dash_chart_ref(
-                    "chart-txn-parallel",
+                    "chart-txn-parallel-coords",
                     "Transaction Parallel Coords",
                     "parallel",
                     "ds-recon-transactions-scatter",
@@ -3015,12 +3015,12 @@ CURATED_DASHBOARDS: list[dict] = [
             "kpis": [
                 _kpi_card("kpi-total-breaks"),
                 _kpi_card("kpi-open-breaks"),
-                _kpi_card("kpi-high-value-breaks"),
-                _kpi_card("kpi-txn-uniques"),
+                _kpi_card("kpi-break-exposure"),
+                _kpi_card("kpi-unique-counterparties"),
             ],
             "charts": [
                 _dash_chart_ref(
-                    "chart-breaks-by-type",
+                    "chart-breaks-by-type-bar",
                     "Breaks by Type",
                     "bar",
                     "ds-recon-breaks-summary",
@@ -3030,7 +3030,7 @@ CURATED_DASHBOARDS: list[dict] = [
                     drill_detail_data_source_id="ds-recon-breaks-summary",
                 ),
                 _dash_chart_ref(
-                    "chart-txn-status-donut",
+                    "chart-status-donut",
                     "Match Status",
                     "donut",
                     "ds-recon-transactions-by-status",
@@ -3038,16 +3038,16 @@ CURATED_DASHBOARDS: list[dict] = [
                     cross_filter=True,
                 ),
                 _dash_chart_ref(
-                    "chart-breaks-histogram",
-                    "Break Amount Distribution",
-                    "histogram",
-                    "ds-recon-transactions-scatter",
+                    "chart-breaks-usd-by-type",
+                    "Break Amount by Type",
+                    "bar",
+                    "ds-recon-breaks-summary",
                     _layout(0, 3, 6),
                 ),
                 _dash_chart_ref(
-                    "chart-recon-graph",
-                    "Recon Graph Network",
-                    "graph",
+                    "chart-break-flow-sankey",
+                    "Break Flow",
+                    "sankey",
                     "ds-recon-break-flow-sankey",
                     _layout(0, 6, 12),
                 ),
