@@ -1,6 +1,7 @@
-import { useCallback } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import {
+  AlertTriangle,
   ArrowDownUp,
   BarChart3,
   Filter,
@@ -34,10 +35,10 @@ import { Separator } from '@/components/ui/separator'
 import { Switch } from '@/components/ui/switch'
 import { DrillHierarchyEditor } from '@/components/builder/drill-hierarchy-editor'
 import { useBuilderStore } from '@/stores/builder-store'
-import type { BuilderItem } from '@/types/builder'
+import type { BuilderItem, BuilderChartRef, BuilderGridRef } from '@/types/builder'
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Types
 // ---------------------------------------------------------------------------
 
 interface PanelConfigPopoverProps {
@@ -46,6 +47,28 @@ interface PanelConfigPopoverProps {
   onOpenChange: (open: boolean) => void
   children: React.ReactNode
 }
+
+/** Snapshot of editable fields — used for cancel/revert. */
+interface ChartDraft {
+  title: string
+  crossFilter: boolean
+  drillHierarchy: string[]
+  drillDetailDataSourceId: string | null
+  refreshInterval: number | null
+}
+
+interface GridDraft {
+  title: string
+  rowLimit: number
+  defaultSortColumn: string | null
+  defaultSortDirection: 'asc' | 'desc'
+}
+
+type KpiDraft = { title: string }
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
 const PANEL_TYPE_META: Record<string, { icon: typeof BarChart3; label: string }> = {
   chart: { icon: BarChart3, label: 'Chart' },
@@ -80,20 +103,36 @@ function Section({ icon: Icon, title, hint, children, className }: SectionProps)
   )
 }
 
+function snapshotChart(chart: BuilderChartRef): ChartDraft {
+  return {
+    title: chart.title,
+    crossFilter: chart.crossFilter,
+    drillHierarchy: [...chart.drillHierarchy],
+    drillDetailDataSourceId: chart.drillDetailDataSourceId,
+    refreshInterval: chart.refreshInterval,
+  }
+}
+
+function snapshotGrid(grid: BuilderGridRef): GridDraft {
+  return {
+    title: grid.title,
+    rowLimit: grid.rowLimit,
+    defaultSortColumn: grid.defaultSortColumn,
+    defaultSortDirection: grid.defaultSortDirection,
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
 /**
- * Panel configuration dialog — centered modal matching the global filter
- * configuration pattern.
+ * Panel configuration dialog with explicit Apply / Cancel semantics.
  *
- * Previously a Popover, but Radix Popover mis-positions inside
- * react-grid-layout's CSS transform context (top: -800px bug).
- * Dialog uses fixed centered positioning and avoids this entirely.
- *
- * The `children` prop (trigger button) is rendered inline — the Dialog
- * is controlled via the `open` / `onOpenChange` props from the parent.
+ * - Edits are made to local draft state, NOT the builder store.
+ * - **Apply** commits the draft to the store (marks dashboard dirty).
+ * - **Cancel** (or closing the dialog) reverts to the snapshot taken on open.
+ * - **Open in Builder** shows a confirmation before navigating away.
  */
 export function PanelConfigPopover({
   item,
@@ -104,24 +143,114 @@ export function PanelConfigPopover({
   const navigate = useNavigate()
   const updateItemConfig = useBuilderStore((s) => s.updateItemConfig)
 
-  const title =
-    item.chart?.title ?? item.kpi?.title ?? item.grid?.title ?? ''
-
-  const handleTitleChange = useCallback(
-    (newTitle: string) => {
-      updateItemConfig(item.id, { title: newTitle })
-    },
-    [item.id, updateItemConfig],
-  )
-
   const meta = PANEL_TYPE_META[item.type] ?? PANEL_TYPE_META.chart
   const TypeIcon = meta.icon
+
+  // ── Local draft state (not committed until Apply) ──
+
+  const [chartDraft, setChartDraft] = useState<ChartDraft | null>(null)
+  const [gridDraft, setGridDraft] = useState<GridDraft | null>(null)
+  const [kpiDraft, setKpiDraft] = useState<KpiDraft | null>(null)
+  const [showNavConfirm, setShowNavConfirm] = useState(false)
+
+  // Snapshot on open
+  useEffect(() => {
+    if (!open) return
+    if (item.type === 'chart' && item.chart) {
+      setChartDraft(snapshotChart(item.chart))
+    } else if (item.type === 'grid' && item.grid) {
+      setGridDraft(snapshotGrid(item.grid))
+    } else if (item.type === 'kpi' && item.kpi) {
+      setKpiDraft({ title: item.kpi.title })
+    }
+    setShowNavConfirm(false)
+  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Convenience: current title from whichever draft is active
+  const draftTitle =
+    chartDraft?.title ?? gridDraft?.title ?? kpiDraft?.title ?? ''
+
+  const setDraftTitle = useCallback((t: string) => {
+    setChartDraft((d) => d ? { ...d, title: t } : d)
+    setGridDraft((d) => d ? { ...d, title: t } : d)
+    setKpiDraft((d) => d ? { ...d, title: t } : d)
+  }, [])
+
+  // ── Actions ──
+
+  const handleApply = useCallback(() => {
+    if (item.type === 'chart' && chartDraft) {
+      updateItemConfig(item.id, chartDraft)
+    } else if (item.type === 'grid' && gridDraft) {
+      updateItemConfig(item.id, gridDraft)
+    } else if (item.type === 'kpi' && kpiDraft) {
+      updateItemConfig(item.id, kpiDraft)
+    }
+    onOpenChange(false)
+  }, [item, chartDraft, gridDraft, kpiDraft, updateItemConfig, onOpenChange])
+
+  const handleCancel = useCallback(() => {
+    // Just close — draft is discarded, store untouched
+    onOpenChange(false)
+  }, [onOpenChange])
+
+  const handleNavigateToBuilder = useCallback(() => {
+    setShowNavConfirm(true)
+  }, [])
+
+  const confirmNavigate = useCallback(() => {
+    if (item.type === 'chart' && item.chart) {
+      navigate({
+        to: '/charts/$chartId/edit',
+        params: { chartId: item.chart.chartId },
+      })
+    } else if (item.type === 'kpi' && item.kpi) {
+      navigate({
+        to: '/kpis/$kpiId/edit',
+        params: { kpiId: item.kpi.kpiId },
+      })
+    }
+  }, [item, navigate])
 
   return (
     <>
       {children}
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[640px] gap-0 p-0 overflow-hidden">
+      <Dialog open={open} onOpenChange={(v) => { if (!v) handleCancel() }}>
+        <DialogContent className="sm:max-w-[640px] gap-0 p-0 overflow-hidden" onInteractOutside={(e) => e.preventDefault()}>
+
+          {/* ── Navigation confirmation overlay ── */}
+          {showNavConfirm && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/80 backdrop-blur-sm rounded-lg">
+              <div className="flex flex-col items-center gap-3 px-8 text-center">
+                <div className="flex items-center justify-center size-10 rounded-full bg-amber-500/10">
+                  <AlertTriangle className="size-5 text-amber-500" />
+                </div>
+                <p className="text-sm font-medium">Leave Dashboard Builder?</p>
+                <p className="text-xs text-muted-foreground max-w-xs">
+                  You&apos;ll navigate to the {meta.label} Builder. Any unsaved changes to this dashboard will be lost.
+                </p>
+                <div className="flex gap-2 mt-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs"
+                    onClick={() => setShowNavConfirm(false)}
+                  >
+                    Stay Here
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="text-xs"
+                    onClick={confirmNavigate}
+                  >
+                    Leave Builder
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* ── Header ── */}
           <DialogHeader className="px-5 pt-5 pb-3">
             <div className="flex items-center gap-2.5">
@@ -150,15 +279,15 @@ export function PanelConfigPopover({
               hint="Override the panel's display title on this dashboard."
             >
               <Input
-                value={title}
-                onChange={(e) => handleTitleChange(e.target.value)}
+                value={draftTitle}
+                onChange={(e) => setDraftTitle(e.target.value)}
                 placeholder="Panel title"
                 className="h-8 text-sm bg-muted/30 border-border/50 focus-visible:bg-background"
               />
             </Section>
 
             {/* ── Chart-specific ── */}
-            {item.type === 'chart' && item.chart && (
+            {item.type === 'chart' && chartDraft && (
               <>
                 <Separator className="opacity-50" />
 
@@ -169,12 +298,12 @@ export function PanelConfigPopover({
                 >
                   <div className="flex items-center justify-between rounded-md border border-border/50 bg-muted/30 px-3 py-2">
                     <span className="text-sm text-foreground">
-                      {item.chart.crossFilter ? 'Enabled' : 'Disabled'}
+                      {chartDraft.crossFilter ? 'Enabled' : 'Disabled'}
                     </span>
                     <Switch
-                      checked={item.chart.crossFilter}
+                      checked={chartDraft.crossFilter}
                       onCheckedChange={(checked) =>
-                        updateItemConfig(item.id, { crossFilter: checked })
+                        setChartDraft((d) => d ? { ...d, crossFilter: checked } : d)
                       }
                     />
                   </div>
@@ -188,18 +317,14 @@ export function PanelConfigPopover({
                   hint="Define columns users can drill into, from summary to detail. The detail data source provides the row-level grid at the deepest level."
                 >
                   <DrillHierarchyEditor
-                    datasetId={item.chart.datasetId}
-                    hierarchy={item.chart.drillHierarchy}
-                    drillDetailDataSourceId={
-                      item.chart.drillDetailDataSourceId
-                    }
+                    datasetId={item.chart!.datasetId}
+                    hierarchy={chartDraft.drillHierarchy}
+                    drillDetailDataSourceId={chartDraft.drillDetailDataSourceId}
                     onHierarchyChange={(h) =>
-                      updateItemConfig(item.id, { drillHierarchy: h })
+                      setChartDraft((d) => d ? { ...d, drillHierarchy: h } : d)
                     }
                     onDetailDataSourceChange={(id) =>
-                      updateItemConfig(item.id, {
-                        drillDetailDataSourceId: id,
-                      })
+                      setChartDraft((d) => d ? { ...d, drillDetailDataSourceId: id } : d)
                     }
                   />
                 </Section>
@@ -212,11 +337,12 @@ export function PanelConfigPopover({
                   hint="Auto-refresh this chart independently of the dashboard-level refresh."
                 >
                   <Select
-                    value={String(item.chart.refreshInterval ?? 'none')}
+                    value={String(chartDraft.refreshInterval ?? 'none')}
                     onValueChange={(v) =>
-                      updateItemConfig(item.id, {
+                      setChartDraft((d) => d ? {
+                        ...d,
                         refreshInterval: v === 'none' ? null : Number(v),
-                      })
+                      } : d)
                     }
                   >
                     <SelectTrigger className="h-8 text-sm bg-muted/30 border-border/50">
@@ -235,7 +361,7 @@ export function PanelConfigPopover({
             )}
 
             {/* ── Grid-specific ── */}
-            {item.type === 'grid' && item.grid && (
+            {item.type === 'grid' && gridDraft && (
               <>
                 <Separator className="opacity-50" />
 
@@ -245,9 +371,9 @@ export function PanelConfigPopover({
                   hint="Maximum rows fetched from the database for this grid panel."
                 >
                   <Select
-                    value={String(item.grid.rowLimit)}
+                    value={String(gridDraft.rowLimit)}
                     onValueChange={(v) =>
-                      updateItemConfig(item.id, { rowLimit: Number(v) })
+                      setGridDraft((d) => d ? { ...d, rowLimit: Number(v) } : d)
                     }
                   >
                     <SelectTrigger className="h-8 text-sm bg-muted/30 border-border/50">
@@ -271,21 +397,23 @@ export function PanelConfigPopover({
                 >
                   <div className="flex gap-2">
                     <Input
-                      value={item.grid.defaultSortColumn ?? ''}
+                      value={gridDraft.defaultSortColumn ?? ''}
                       onChange={(e) =>
-                        updateItemConfig(item.id, {
+                        setGridDraft((d) => d ? {
+                          ...d,
                           defaultSortColumn: e.target.value || null,
-                        })
+                        } : d)
                       }
                       placeholder="Column name"
                       className="h-8 text-sm flex-1 bg-muted/30 border-border/50 focus-visible:bg-background"
                     />
                     <Select
-                      value={item.grid.defaultSortDirection}
+                      value={gridDraft.defaultSortDirection}
                       onValueChange={(v) =>
-                        updateItemConfig(item.id, {
+                        setGridDraft((d) => d ? {
+                          ...d,
                           defaultSortDirection: v as 'asc' | 'desc',
-                        })
+                        } : d)
                       }
                     >
                       <SelectTrigger className="h-8 text-sm w-28 bg-muted/30 border-border/50">
@@ -303,34 +431,42 @@ export function PanelConfigPopover({
           </div>
 
           {/* ── Footer ── */}
-          {(item.type === 'chart' || item.type === 'kpi') && (
-            <>
-              <Separator />
-              <div className="px-5 py-3">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full text-xs h-8"
-                  onClick={() => {
-                    if (item.type === 'chart' && item.chart) {
-                      navigate({
-                        to: '/charts/$chartId/edit',
-                        params: { chartId: item.chart.chartId },
-                      })
-                    } else if (item.type === 'kpi' && item.kpi) {
-                      navigate({
-                        to: '/kpis/$kpiId/edit',
-                        params: { kpiId: item.kpi.kpiId },
-                      })
-                    }
-                  }}
-                >
-                  <Pencil className="mr-1.5 size-3" />
-                  Open in {meta.label} Builder
-                </Button>
-              </div>
-            </>
-          )}
+          <Separator />
+          <div className="px-5 py-3 flex items-center justify-between gap-2">
+            {/* Left: Open in Builder (charts/KPIs only) */}
+            {(item.type === 'chart' || item.type === 'kpi') ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs h-8 text-muted-foreground"
+                onClick={handleNavigateToBuilder}
+              >
+                <Pencil className="mr-1.5 size-3" />
+                Open in {meta.label} Builder
+              </Button>
+            ) : (
+              <div />
+            )}
+
+            {/* Right: Cancel + Apply */}
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs h-8"
+                onClick={handleCancel}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                className="text-xs h-8 shadow-sm shadow-primary/20"
+                onClick={handleApply}
+              >
+                Apply Changes
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </>
