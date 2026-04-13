@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Download, Copy, CheckCircle2, XCircle, Clock, Save, BarChart3 } from 'lucide-react'
+import { motion } from 'motion/react'
 import { toast } from 'sonner'
 import type { SqlResult } from '@/types/api'
 
@@ -83,7 +84,12 @@ export function QueryResults({ result, isLoading, executionTime, onSaveAsDataset
   if (!result) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2">
-        <BarChart3 className="size-10 opacity-30" />
+        <motion.div
+          animate={{ opacity: [0.3, 0.5, 0.3] }}
+          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+        >
+          <BarChart3 className="size-10" />
+        </motion.div>
         <p className="text-sm">Run a query to see results</p>
       </div>
     )

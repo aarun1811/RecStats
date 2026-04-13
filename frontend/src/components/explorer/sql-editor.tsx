@@ -82,7 +82,7 @@ export function SqlEditor({
       {/* Toolbar */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-l-2 border-l-primary bg-muted/30 shrink-0">
         <div className="flex items-center">
-          <Code2 className="mr-1.5 size-3.5 text-muted-foreground" />
+          <Code2 className="mr-1.5 size-3.5 text-primary/70" />
           <span className="text-sm font-semibold tracking-tight">SQL Editor</span>
         </div>
         <div className="flex items-center gap-3">
