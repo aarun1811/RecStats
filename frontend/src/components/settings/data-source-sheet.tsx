@@ -40,14 +40,11 @@ import {
   useSyncDatasets,
 } from '@/hooks/use-databases'
 import { useManagedDataset } from '@/hooks/use-managed-datasets'
-import { Badge } from '@/components/ui/badge'
-
 import {
   BACKEND_LABELS,
   BACKEND_COLORS,
 } from '@/lib/style-constants'
 import { AnimatedStatusBadge } from './animated-status-badge'
-import { ConnectionTestArea } from './connection-test-area'
 import { ConnectionHealthHeader } from './connection-health-header'
 
 import type {

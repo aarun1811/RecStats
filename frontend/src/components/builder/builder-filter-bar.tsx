@@ -90,7 +90,7 @@ export function BuilderFilterBar({
             exit={{ opacity: 0, scale: 0.9 }}
             transition={{ duration: 0.15 }}
             draggable
-            onDragStart={(e) => handleDragStart(e, filter.id)}
+            onDragStart={(e) => handleDragStart(e as unknown as React.DragEvent<HTMLDivElement>, filter.id)}
             onDragOver={(e) => handleDragOver(e, filter.id)}
             onDrop={handleDrop}
             onDragEnd={handleDragEnd}

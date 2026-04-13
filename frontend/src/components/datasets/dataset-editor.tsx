@@ -3,7 +3,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { motion, AnimatePresence } from 'motion/react'
 import { toast } from 'sonner'
 import { format as formatSql } from 'sql-formatter'
-import { ArrowLeft, Play, Loader2, Trash2, Save, Columns3, Eye, Code2, Maximize2 } from 'lucide-react'
+import { ArrowLeft, Play, Loader2, Trash2, Save, Columns3, Eye, Maximize2 } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -80,7 +80,6 @@ export function DatasetEditor({ mode, dataset, isLoading }: DatasetEditorProps) 
   // Run state machine
   const [runState, setRunState] = useState<RunState>('idle')
   const [runResultText, setRunResultText] = useState('')
-  const [runStartTime, setRunStartTime] = useState(0)
   const [executionTime, setExecutionTime] = useState<number | null>(null)
 
   // Derived state
@@ -105,7 +104,6 @@ export function DatasetEditor({ mode, dataset, isLoading }: DatasetEditorProps) 
 
     const startTime = Date.now()
     setRunState('running')
-    setRunStartTime(startTime)
 
     sqlExecute.mutate(
       { sql, databaseId, limit: 1000 },
