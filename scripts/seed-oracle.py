@@ -1371,16 +1371,16 @@ CURATED_DATASETS: list[dict] = [
         "name": "Match Rate — Daily",
         "description": "Daily match-rate percentage and transaction count.",
         "sql_template": (
-            "SELECT t.trade_date AS date, "
-            "(CAST(SUM(CASE WHEN s.category = 'CLOSED' THEN 1 ELSE 0 END) AS NUMBER) "
-            "/ NULLIF(COUNT(*), 0)) * 100 AS match_rate, "
+            "SELECT t.trade_date AS trade_date, "
+            "ROUND((CAST(SUM(CASE WHEN s.category = 'CLOSED' THEN 1 ELSE 0 END) AS NUMBER) "
+            "/ NULLIF(COUNT(*), 0)) * 100, 1) AS match_rate, "
             "COUNT(*) AS txn_count "
             "FROM recon_transactions t "
             "JOIN statuses s ON t.status_id = s.id WHERE 1=1 {{filters}} "
             "GROUP BY t.trade_date ORDER BY t.trade_date"
         ),
         "columns": [
-            _col("date", "Date", "date", "time"),
+            _col("trade_date", "Trade Date", "date", "time"),
             _col("match_rate", "Match Rate", "number", "measure", "AVG", "percentage"),
             _col("txn_count", "Transaction Count", "number", "measure", "SUM", "number"),
         ],
@@ -1466,7 +1466,7 @@ CURATED_DATASETS: list[dict] = [
         "sql_template": (
             "SELECT id, amount_usd, COALESCE(fee, 0) AS fee, currency_id "
             "FROM recon_transactions "
-            "WHERE 1=1 AND amount_usd BETWEEN 0 AND 100000 {{filters}} LIMIT 5000"
+            "WHERE 1=1 AND amount_usd BETWEEN 0 AND 100000 {{filters}} FETCH FIRST 5000 ROWS ONLY"
         ),
         "columns": [
             _col("id", "Id", "number", "dimension"),
@@ -1485,7 +1485,7 @@ CURATED_DATASETS: list[dict] = [
             "COUNT(*) AS txn_count, SUM(t.amount_usd) AS total_usd "
             "FROM recon_transactions t "
             "JOIN currencies c ON t.currency_id = c.id WHERE 1=1 {{filters}} "
-            "GROUP BY c.code, c.name ORDER BY total_usd DESC LIMIT 15"
+            "GROUP BY c.code, c.name ORDER BY total_usd DESC FETCH FIRST 15 ROWS ONLY"
         ),
         "columns": [
             _col("currency", "Currency", "string", "dimension"),
@@ -1523,7 +1523,7 @@ CURATED_DATASETS: list[dict] = [
             "JOIN counterparties cp ON t.counterparty_id = cp.id "
             "WHERE 1=1 AND t.counterparty_id IS NOT NULL {{filters}} "
             "GROUP BY cp.short_name, cp.country_code, cp.tier "
-            "ORDER BY total_usd DESC LIMIT 20"
+            "ORDER BY total_usd DESC FETCH FIRST 20 ROWS ONLY"
         ),
         "columns": [
             _col("short_name", "Short Name", "string", "dimension"),
@@ -1606,7 +1606,7 @@ CURATED_DATASETS: list[dict] = [
             "JOIN desks d ON t.desk_id = d.id "
             "JOIN currencies c ON t.currency_id = c.id "
             "LEFT JOIN counterparties cp ON t.counterparty_id = cp.id "
-            "WHERE 1=1 {{filters}} ORDER BY t.trade_date DESC LIMIT 1000"
+            "WHERE 1=1 {{filters}} ORDER BY t.trade_date DESC FETCH FIRST 1000 ROWS ONLY"
         ),
         "columns": [
             _col("external_ref", "External Ref", "string", "dimension"),
@@ -1710,11 +1710,11 @@ CURATED_DATASETS: list[dict] = [
         "name": "SLA -- Daily Breach Count",
         "description": "Daily SLA breach and total event counts.",
         "sql_template": (
-            "SELECT TRUNC(event_timestamp, 'DD') AS event_date, "
+            "SELECT TRUNC(event_ts, 'DD') AS event_date, "
             "SUM(CASE WHEN breach = 1 THEN 1 ELSE 0 END) AS breach_count, "
             "COUNT(*) AS total_events "
             "FROM sla_events WHERE 1=1 {{filters}} "
-            "GROUP BY TRUNC(event_timestamp, 'DD') ORDER BY event_date"
+            "GROUP BY TRUNC(event_ts, 'DD') ORDER BY event_date"
         ),
         "columns": [
             _col("event_date", "Event Date", "date", "time"),
