@@ -906,11 +906,19 @@ def insert_batch(
     binds_sql = ", ".join(f":{i + 1}" for i in range(len(columns)))
     sql = f"INSERT INTO {table} ({cols_sql}) VALUES ({binds_sql})"
     total = len(rows)
+    t0 = time.time()
     for i in range(0, total, batch_size):
         chunk = rows[i : i + batch_size]
         cur.executemany(sql, chunk)
         progress = min(i + batch_size, total)
-        print(f"  {table}: inserted {progress}/{total}")
+        # Per D-14: for large row counts, print progress every 100K rows
+        if total >= 100_000:
+            if progress % 100_000 == 0 or progress == total:
+                elapsed = time.time() - t0
+                pct = progress * 100 // total
+                print(f"  {table}: {progress:,} / {total:,} ({pct}%) [{elapsed:.1f}s]")
+    elapsed = time.time() - t0
+    print(f"  {table}: {total:,} rows ({elapsed:.1f}s)")
 
 
 def insert_returning_ids(
@@ -930,10 +938,13 @@ def insert_returning_ids(
     binds_sql = ", ".join(f":{i + 1}" for i in range(len(columns)))
     sql = f"INSERT INTO {table} ({cols_sql}) VALUES ({binds_sql}) RETURNING id INTO :out_id"
     ids: list[int] = []
+    t0 = time.time()
     for row in rows:
         out_var = cur.var(oracledb.NUMBER)
         cur.execute(sql, list(row) + [out_var])
         ids.append(int(out_var.getvalue()[0]))
+    elapsed = time.time() - t0
+    print(f"  {table}: {len(ids):,} rows ({elapsed:.1f}s)")
     return ids
 
 
@@ -956,15 +967,23 @@ def insert_returning_ids_batch(
     sql = f"INSERT INTO {table} ({cols_sql}) VALUES ({binds_sql})"
 
     total = len(rows)
+    t0 = time.time()
     for i in range(0, total, batch_size):
         chunk = rows[i : i + batch_size]
         cur.executemany(sql, chunk)
         progress = min(i + batch_size, total)
-        print(f"  {table}: inserted {progress}/{total}")
+        if total >= 100_000:
+            if progress % 100_000 == 0 or progress == total:
+                elapsed = time.time() - t0
+                pct = progress * 100 // total
+                print(f"  {table}: {progress:,} / {total:,} ({pct}%) [{elapsed:.1f}s]")
 
     # Retrieve all generated IDs
     cur.execute(f"SELECT id FROM {table} ORDER BY id")
-    return [row[0] for row in cur.fetchall()]
+    ids = [row[0] for row in cur.fetchall()]
+    elapsed = time.time() - t0
+    print(f"  {table}: {len(ids):,} rows ({elapsed:.1f}s)")
+    return ids
 
 
 # --------------------------------------------------------------------------- #
