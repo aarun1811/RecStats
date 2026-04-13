@@ -234,8 +234,8 @@ Plans:
   5. Milestone-end smoke test passes — full app boots, every page (Settings, Datasets, Charts, KPIs, Dashboards, Explorer) renders in both light and dark mode, data sources connect to Oracle, dashboards render with real data
 **Plans**: 2 plans
 Plans:
-- [ ] 07-01-PLAN.md — AG Grid Theming API migration + seed fix + dead code deletion + light polish
-- [ ] 07-02-PLAN.md — Playwright MCP verification + USAGE-TRACKER update
+- [ ] 08-01-PLAN.md — Backend cleanup: Alembic audit, PortableJSON removal, dead code sweep, requirements prune, CLAUDE.md drift fix
+- [ ] 08-02-PLAN.md — Memory cleanup + milestone-end smoke test (human checkpoint)
 **Known risks / gotchas**:
   - `v$parameter` for `COMPATIBLE` must be queried and documented — on Oracle Cloud it's expected at 19.0.0 (128-byte identifier limit), but the value for Citi prod is unknown until someone runs it there. Longest constraint name in the schema is currently 42 bytes, well under either limit, but this needs to be captured for future reference.
   - `USAGE-TRACKER.md` accuracy depends on every earlier phase actually updating it. Plan-phase for earlier phases must enforce this or Phase 8 has nothing to sweep.
@@ -256,7 +256,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 5. KPIs Page | 0/3 | Not started | - |
 | 6. Dashboards Page | 0/5 | Not started | - |
 | 7. Explorer Page | 0/2 | Not started | - |
-| 8. Alembic Audit + Dead Code Sweep + Memory Cleanup | 0/TBD | Not started | - |
+| 8. Alembic Audit + Dead Code Sweep + Memory Cleanup | 0/2 | Not started | - |
 
 ---
 *Roadmap created: 2026-04-11*
