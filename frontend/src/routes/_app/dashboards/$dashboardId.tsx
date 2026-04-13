@@ -92,6 +92,13 @@ function DashboardPage() {
     return () => clearTimeout(handle)
   }, [applied, navigate, isEditChildActive])
 
+  // Hooks MUST be called unconditionally before any early returns (Rules of Hooks).
+  const counts = useMemo(() => countPanels(config), [config])
+  const totalPanels = counts.kpis + counts.charts + counts.grids
+  const timeAgo = dashboard?.updatedAt
+    ? formatDistanceToNow(new Date(dashboard.updatedAt), { addSuffix: true })
+    : undefined
+
   // When the edit child route is matched, render ONLY the Outlet — let the
   // BuilderPage own the screen. Skip the view-mode skeleton, header, and
   // DashboardRenderer entirely.
@@ -112,12 +119,6 @@ function DashboardPage() {
       </div>
     )
   }
-
-  const counts = useMemo(() => countPanels(config), [config])
-  const totalPanels = counts.kpis + counts.charts + counts.grids
-  const timeAgo = dashboard?.updatedAt
-    ? formatDistanceToNow(new Date(dashboard.updatedAt), { addSuffix: true })
-    : undefined
 
   if (!dashboard || !config) {
     return <div className="p-6 text-muted-foreground">Dashboard not found</div>
