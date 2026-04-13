@@ -75,7 +75,7 @@ export function DashboardListCard({
         {/* Composition pill — top right. Per-type counts with matching builder
             icons (Gauge=KPI, BarChart3=chart, Table2=grid). Zero counts hidden.
             Empty dashboards fall back to a single LayoutDashboard glyph. */}
-        <div className="absolute top-2.5 right-2.5 z-10 flex items-center gap-1.5 rounded-full bg-background/80 px-2 py-0.5 text-[10px] font-medium text-muted-foreground backdrop-blur-sm border border-border/50 tabular-nums">
+        <div className="absolute top-2.5 right-2.5 z-10 flex items-center gap-1.5 rounded-full bg-background/80 px-2 py-0.5 text-[10px] font-medium text-muted-foreground backdrop-blur-sm border border-primary/30 tabular-nums">
           {totalPanels === 0 ? (
             <LayoutDashboard size={10} />
           ) : (
