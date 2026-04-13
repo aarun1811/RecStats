@@ -1620,10 +1620,113 @@ CURATED_DATASETS: list[dict] = [
         ],
         "filter_mappings": _BASE_FILTER_MAPPINGS[:],
     },
+    # ------------------------------------------------------------------
+    # Datasets 18-22: added for Phase 2 chart library expansion
+    # ------------------------------------------------------------------
+    {
+        "id": "ds-recon-breaks-by-region",
+        "name": "Breaks -- By Region",
+        "description": "Break count and amount aggregated by region.",
+        "sql_template": (
+            "SELECT r.code AS region, r.name AS region_name, "
+            "COUNT(*) AS break_count, SUM(b.break_amount_usd) AS total_break_usd, "
+            "ROUND(AVG(b.aging_days), 2) AS avg_aging "
+            "FROM recon_breaks b "
+            "JOIN recon_transactions t ON b.transaction_id = t.id "
+            "JOIN regions r ON t.region_id = r.id WHERE 1=1 {{filters}} "
+            "GROUP BY r.code, r.name ORDER BY break_count DESC"
+        ),
+        "columns": [
+            _col("region", "Region", "string", "dimension"),
+            _col("region_name", "Region Name", "string", "dimension"),
+            _col("break_count", "Break Count", "number", "measure", "SUM", "number"),
+            _col("total_break_usd", "Total Break USD", "currency", "measure", "SUM", "currency"),
+            _col("avg_aging", "Avg Aging", "number", "measure", "AVG", "decimal"),
+        ],
+        "filter_mappings": [_BASE_FILTER_MAPPINGS[0]],
+    },
+    {
+        "id": "ds-recon-breaks-by-desk",
+        "name": "Breaks -- By Desk",
+        "description": "Break count and amount aggregated by desk and asset class.",
+        "sql_template": (
+            "SELECT d.code AS desk, d.name AS desk_name, d.asset_class, "
+            "COUNT(*) AS break_count, SUM(b.break_amount_usd) AS total_break_usd "
+            "FROM recon_breaks b "
+            "JOIN recon_transactions t ON b.transaction_id = t.id "
+            "JOIN desks d ON t.desk_id = d.id WHERE 1=1 {{filters}} "
+            "GROUP BY d.code, d.name, d.asset_class ORDER BY break_count DESC"
+        ),
+        "columns": [
+            _col("desk", "Desk", "string", "dimension"),
+            _col("desk_name", "Desk Name", "string", "dimension"),
+            _col("asset_class", "Asset Class", "string", "dimension"),
+            _col("break_count", "Break Count", "number", "measure", "SUM", "number"),
+            _col("total_break_usd", "Total Break USD", "currency", "measure", "SUM", "currency"),
+        ],
+        "filter_mappings": [_BASE_FILTER_MAPPINGS[3]],
+    },
+    {
+        "id": "ds-recon-match-rate-by-region",
+        "name": "Match Rate -- By Region",
+        "description": "Match rate percentage per region.",
+        "sql_template": (
+            "SELECT r.code AS region, r.name AS region_name, "
+            "ROUND((SUM(CASE WHEN s.category = 'CLOSED' THEN 1 ELSE 0 END) "
+            "/ NULLIF(COUNT(*), 0)) * 100, 2) AS match_rate, "
+            "COUNT(*) AS txn_count "
+            "FROM recon_transactions t "
+            "JOIN statuses s ON t.status_id = s.id "
+            "JOIN regions r ON t.region_id = r.id WHERE 1=1 {{filters}} "
+            "GROUP BY r.code, r.name ORDER BY match_rate DESC"
+        ),
+        "columns": [
+            _col("region", "Region", "string", "dimension"),
+            _col("region_name", "Region Name", "string", "dimension"),
+            _col("match_rate", "Match Rate", "number", "measure", "AVG", "percentage"),
+            _col("txn_count", "Transaction Count", "number", "measure", "SUM", "number"),
+        ],
+        "filter_mappings": [_BASE_FILTER_MAPPINGS[0]],
+    },
+    {
+        "id": "ds-recon-monthly-volume",
+        "name": "Transactions -- Monthly Volume",
+        "description": "Monthly aggregated transaction count and USD volume.",
+        "sql_template": (
+            "SELECT TRUNC(trade_date, 'MM') AS month, "
+            "COUNT(*) AS txn_count, SUM(amount_usd) AS total_usd "
+            "FROM recon_transactions WHERE 1=1 {{filters}} "
+            "GROUP BY TRUNC(trade_date, 'MM') ORDER BY month"
+        ),
+        "columns": [
+            _col("month", "Month", "date", "time"),
+            _col("txn_count", "Transaction Count", "number", "measure", "SUM", "number"),
+            _col("total_usd", "Total USD", "currency", "measure", "SUM", "currency"),
+        ],
+        "filter_mappings": [_BASE_FILTER_MAPPINGS[5]],
+    },
+    {
+        "id": "ds-recon-sla-daily",
+        "name": "SLA -- Daily Breach Count",
+        "description": "Daily SLA breach and total event counts.",
+        "sql_template": (
+            "SELECT TRUNC(event_timestamp, 'DD') AS event_date, "
+            "SUM(CASE WHEN breach = 1 THEN 1 ELSE 0 END) AS breach_count, "
+            "COUNT(*) AS total_events "
+            "FROM sla_events WHERE 1=1 {{filters}} "
+            "GROUP BY TRUNC(event_timestamp, 'DD') ORDER BY event_date"
+        ),
+        "columns": [
+            _col("event_date", "Event Date", "date", "time"),
+            _col("breach_count", "Breach Count", "number", "measure", "SUM", "number"),
+            _col("total_events", "Total Events", "number", "measure", "SUM", "number"),
+        ],
+        "filter_mappings": [_BASE_FILTER_MAPPINGS[5]],
+    },
 ]
 
-assert len(CURATED_DATASETS) == 17, (
-    f"CURATED_DATASETS must have 17 entries, got {len(CURATED_DATASETS)}"
+assert len(CURATED_DATASETS) == 22, (
+    f"CURATED_DATASETS must have 22 entries, got {len(CURATED_DATASETS)}"
 )
 
 
@@ -1640,8 +1743,18 @@ def _chart(
     legend_position: str = "bottom",
     show_x_label: bool = True,
     show_y_label: bool = True,
+    type_specific: dict | None = None,
 ) -> dict:
     """Build a chart entry with ChartConfigSchema-compliant config."""
+    appearance: dict = {
+        "title": name,
+        "showLegend": show_legend,
+        "legendPosition": legend_position,
+        "showXLabel": show_x_label,
+        "showYLabel": show_y_label,
+    }
+    if type_specific is not None:
+        appearance["typeSpecific"] = type_specific
     return {
         "id": chart_id,
         "name": name,
@@ -1654,13 +1767,7 @@ def _chart(
                 "metricColumns": metrics,
                 "aggregations": {},
             },
-            "appearance": {
-                "title": name,
-                "showLegend": show_legend,
-                "legendPosition": legend_position,
-                "showXLabel": show_x_label,
-                "showYLabel": show_y_label,
-            },
+            "appearance": appearance,
         },
     }
 
