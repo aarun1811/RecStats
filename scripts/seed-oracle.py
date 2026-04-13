@@ -1392,7 +1392,7 @@ CURATED_DATASETS: list[dict] = [
         "description": "SLA breach rate per type and region.",
         "sql_template": (
             "SELECT sla_type, r.code AS region, "
-            "SUM(CASE WHEN breach THEN 1 ELSE 0 END) AS breach_count, "
+            "SUM(CASE WHEN breach = 1 THEN 1 ELSE 0 END) AS breach_count, "
             "COUNT(*) AS total_events, "
             "(CAST(SUM(CASE WHEN breach = 1 THEN 1 ELSE 0 END) AS NUMBER) "
             "/ NULLIF(COUNT(*), 0)) * 100 AS breach_rate "
