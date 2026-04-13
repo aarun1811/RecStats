@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { AgGridReact } from 'ag-grid-react'
-import type { ColDef, GridApi, GridReadyEvent } from 'ag-grid-community'
+import { type ColDef, type GridApi, type GridReadyEvent, themeQuartz, colorSchemeDark } from 'ag-grid-community'
 import { useTheme } from '@/components/layout/theme-provider'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -28,7 +28,7 @@ export function QueryResults({ result, isLoading, executionTime, onSaveAsDataset
   const [gridApi, setGridApi] = useState<GridApi | null>(null)
   const { resolvedTheme } = useTheme()
 
-  const themeClass = resolvedTheme === 'dark' ? 'ag-theme-quartz-dark' : 'ag-theme-quartz'
+  const gridTheme = resolvedTheme === 'dark' ? themeQuartz.withPart(colorSchemeDark) : themeQuartz
 
   const columnNames = useMemo(
     () => result?.columns?.map((col) => typeof col === 'string' ? col : col.column_name ?? col.name) ?? [],
@@ -142,8 +142,9 @@ export function QueryResults({ result, isLoading, executionTime, onSaveAsDataset
         </div>
       </div>
       {/* Results grid */}
-      <div className={`flex-1 min-h-0 ${themeClass}`}>
+      <div className="flex-1 min-h-0">
         <AgGridReact
+          theme={gridTheme}
           ref={gridRef}
           rowData={rowData}
           columnDefs={columnDefs}

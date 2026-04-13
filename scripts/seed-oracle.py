@@ -2309,7 +2309,7 @@ def seed_connection(cur: oracledb.Cursor) -> None:
             "FREEPDB1",
             "recviz",
             encrypted_pw,
-            None,
+            'RECVIZ',
             _jb({"timeout": 30}),
             "active",
         ),
