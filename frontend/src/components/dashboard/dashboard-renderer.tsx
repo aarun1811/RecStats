@@ -61,7 +61,7 @@ export function DashboardRenderer({
 
   // Manual refresh handler.
   // TanStack Query deduplicates: shared query keys = single network request.
-  // No staggering needed -- TQ scheduling + HTTP/2 multiplexing + Superset cache handle concurrency.
+  // No staggering needed -- TQ scheduling + HTTP/2 multiplexing handle concurrency.
   const [isRefreshing, setIsRefreshing] = useState(false)
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true)
