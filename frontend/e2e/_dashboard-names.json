@@ -1,7 +1,12 @@
 {
-  "dash-sla": "Phase 10 · SLA Overview",
-  "dash-aging": "Phase 10 · Aging Analysis",
-  "dash-match-rate": "Phase 10 · Match Rate Tracker",
-  "dash-volume": "Phase 10 · Volume Dashboard",
-  "dash-breaks-summary": "Phase 10 · Breaks Summary"
+  "dash-executive-summary": "Executive Summary",
+  "dash-sla-health": "SLA Health",
+  "dash-break-analysis": "Break Analysis",
+  "dash-match-performance": "Match Performance",
+  "dash-volume-trends": "Volume Trends",
+  "dash-regional-breakdown": "Regional Breakdown",
+  "dash-counterparty-risk": "Counterparty Risk",
+  "dash-currency-exposure": "Currency Exposure",
+  "dash-desk-performance": "Desk Performance",
+  "dash-operational-detail": "Operational Detail"
 }
