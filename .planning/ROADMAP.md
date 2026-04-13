@@ -72,7 +72,7 @@ Plans:
 
 Plans:
 - [x] 03-01-PLAN.md — 10 story-driven dashboards with layouts, cross-filters, drill-down, grids + chart color diversity
-- [ ] 03-02-PLAN.md — Seed execution at 100K/1M + end-to-end browser verification
+- [x] 03-02-PLAN.md — Seed execution at 100K/1M + end-to-end browser verification
 
 ---
 
