@@ -15,7 +15,7 @@ These are hard rules. Breaking them guarantees breakage in Citi's environment.
 1. **Oracle 19c only.** No PostgreSQL. No other databases. Period. Dev and prod both use Oracle 19c.
 2. **`oracledb` thick mode only.** Production uses character set NCS 871 which thin mode does not support. Local dev matches via Oracle Instant Client.
 3. **No async DB.** Oracle 19c's driver does not support async. Use sync `SQLAlchemy` `Session`, sync `oracledb`, FastAPI route handlers as plain `def` (Starlette runs them in a threadpool). Framework-level `async def` (lifespan, middleware) is fine.
-4. **No Docker.** Not in dev, not in prod. Everything runs natively.
+4. **No Docker for the application.** Not in dev, not in prod. Python, FastAPI, and the frontend run natively. The Oracle database server runs in Docker locally (`gvenzl/oracle-free`) for convenience.
 5. **No Redis, no Celery, no Superset.** All removed or being removed.
 6. **No automated tests in this milestone.** Test writing is deferred to a future milestone. All verification is manual.
 7. **Desktop only.** No mobile/tablet responsive design.
@@ -193,11 +193,13 @@ recviz/
 ## Infrastructure
 
 ### Local Dev
-- **Oracle Cloud Always Free Autonomous Database 19c** — stands in for Citi's Oracle. Personal account allowed (dev machine is not Citi-issued).
+- **Docker Oracle** (`gvenzl/oracle-free:latest`) -- local dev database. Oracle 23ai Free in container, code targets 19c compatibility. Start: `docker run -d --name oracle-free -p 1521:1521 -e ORACLE_PASSWORD=RecViz2026 -e APP_USER=recviz -e APP_USER_PASSWORD=recviz_dev gvenzl/oracle-free:latest`
 - **Oracle Instant Client** installed locally for thick mode parity with prod.
 - **Backend**: `uvicorn app.main:app --reload`
 - **Frontend**: `pnpm dev`
-- **No Docker. No Postgres. No Redis. No Celery.**
+- **Seed data**: `cd backend && PYTHONPATH=. python ../scripts/seed-oracle.py`
+- **Migrations**: `cd backend && PYTHONPATH=. alembic -c app/migrations/alembic.ini upgrade head`
+- **No Postgres. No Redis. No Celery.**
 
 ### Production (Citi)
 - Native on RHEL — no containers.

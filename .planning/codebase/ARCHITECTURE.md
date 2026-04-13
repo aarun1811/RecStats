@@ -56,8 +56,7 @@
   - `engine_manager.py` — `EngineManager`. Manages one sync SQLAlchemy `Engine` per registered connection (keyed by connection UUID) with a pool of 5 + 10 overflow. Decrypts passwords on engine creation and enforces per-query timeouts via `oracledb.call_timeout` (Oracle) or `statement_timeout` (PostgreSQL).
   - `connection_resolver.py` — `ConnectionResolver`. Caches logical-name → connection-UUID + dialect + schema in memory. Synced at startup and after connection CRUD.
   - `connection_status.py` — `ConnectionStatusTracker`. In-memory status map (connected / unreachable) refreshed by query execution outcomes and a startup health-check sweep.
-  - `config_store.py` — `ConfigStore`. Session-scoped accessor for `recviz_data_sources` rows, running `config_migrator.migrate_config` on read.
-  - `config_migrator.py` — Migrates legacy data source config shapes.
+  - `config_store.py` — `ConfigStore`. Session-scoped accessor for `recviz_data_sources` rows.
   - `merge_engine.py` — `MergeEngine.merge()`. Client-side outer/inner join of multiple query results by join keys.
   - `encryption.py` — `EncryptionService`. Symmetric encryption for stored DB passwords; key from `settings.recviz_encryption_key`.
   - `uri_builder.py` — `build_sync_uri()`. Builds SQLAlchemy URIs per backend (Oracle, PostgreSQL) from connection fields.
@@ -66,15 +65,15 @@
 - Used by: API route handlers via dependency injection
 
 **Database Layer (Metadata):**
-- Purpose: Stores RecViz-managed entities (dashboards, charts, KPIs, datasets, data sources, database connections) in a PostgreSQL metadata database
+- Purpose: Stores RecViz-managed entities (dashboards, charts, KPIs, datasets, data sources, database connections) in an Oracle metadata database
 - Location: `backend/app/db/` and `backend/app/migrations/`
 - Contains:
   - `backend/app/db/engine.py` — Sync SQLAlchemy engine (`create_engine`) and `session_factory` (`sessionmaker`). Pool 10 + 5 overflow, `pool_pre_ping=True`.
   - `backend/app/db/base.py` — `DeclarativeBase`.
-  - `backend/app/db/types.py` — `PortableJSON` custom type (JSONB on PostgreSQL, JSON on Oracle).
+  - `backend/app/db/types.py` — `OracleJSON` custom type (BLOB IS JSON on Oracle 19c).
   - `backend/app/db/models/` — ORM models: `RecvizDashboard`, `RecvizChart`, `RecvizKpi`, `RecvizDataset`, `RecvizDataSource`, `RecvizConnection`. All tables prefixed `recviz_`, all use SQLAlchemy 2.0 `Mapped[T] + mapped_column()` style.
   - `backend/app/migrations/` — Alembic environment and versioned migrations. Uses the `recviz_alembic_version` table to avoid conflicts with Superset's own Alembic history.
-- Depends on: PostgreSQL (via psycopg2 in sync mode; asyncpg is no longer used)
+- Depends on: Oracle 19c (via oracledb in thick mode, sync SQLAlchemy)
 - Used by: Service layer and API layer via `DbSessionDep`
 
 **External Database Layer (Data):**
@@ -146,8 +145,8 @@
 - Examples: `backend/app/models/base.py`, subclassed by every request/response model (`DashboardCreate`, `DashboardResponse`, `ChartResponse`, etc.)
 - Pattern: `model_config = {"alias_generator": to_camel, "populate_by_name": True}`
 
-**PortableJSON:**
-- Purpose: Custom SQLAlchemy type that maps to JSONB on PostgreSQL and JSON on Oracle so the same ORM models work in dev (PG) and prod (Oracle)
+**OracleJSON:**
+- Purpose: Custom SQLAlchemy TypeDecorator + SchemaType that stores JSON as BLOB with IS JSON check constraint on Oracle 19c (which lacks a native JSON column type)
 - Examples: `backend/app/db/types.py`, used by `RecvizDashboard.config`, `RecvizDataset.columns`, `RecvizChart.config`, `RecvizKpi.config`, `RecvizDataSource.config`, `RecvizConnection.extra_params`
 
 **EngineManager:**
@@ -161,9 +160,9 @@
 - Pattern: Stateful service (holds `_engine_manager`, `_resolver`, `_status_tracker`). Per-request `execute()` accepts a `DataSourceConfig`, a filter dict, and the request-scoped metadata session (so it can look up `RecvizConnection` rows without opening a second session).
 
 **ConfigStore:**
-- Purpose: Session-scoped accessor that reads `recviz_data_sources` rows and migrates their config JSON before Pydantic validation
+- Purpose: Session-scoped accessor that reads `recviz_data_sources` rows and validates their config JSON via Pydantic
 - Examples: `backend/app/services/config_store.py`
-- Pattern: One instance per request (`ConfigStoreDep`). Runs `migrate_config()` to upgrade legacy shapes before returning `DataSourceConfig`.
+- Pattern: One instance per request (`ConfigStoreDep`). Returns `DataSourceConfig` after Pydantic validation.
 
 **FastAPI Dependency Types:**
 - Purpose: Reusable `Annotated[Type, Depends(factory)]` shortcuts for request-scoped services

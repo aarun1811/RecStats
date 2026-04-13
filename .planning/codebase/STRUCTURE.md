@@ -80,7 +80,6 @@ RecViz/
 │   │   │   ├── connection_resolver.py  # Name → UUID → dialect/schema cache
 │   │   │   ├── connection_status.py    # In-memory connection status tracker
 │   │   │   ├── config_store.py         # recviz_data_sources accessor
-│   │   │   ├── config_migrator.py      # Legacy config shape migration
 │   │   │   ├── merge_engine.py         # Multi-result client-side joins
 │   │   │   ├── encryption.py           # Symmetric password encryption
 │   │   │   ├── uri_builder.py          # Backend-specific SQLAlchemy URI builder
@@ -102,7 +101,7 @@ RecViz/
 │   │   ├── db/
 │   │   │   ├── engine.py               # Sync engine + session_factory
 │   │   │   ├── base.py                 # DeclarativeBase
-│   │   │   ├── types.py                # PortableJSON (JSONB / JSON)
+│   │   │   ├── types.py                # OracleJSON (BLOB IS JSON)
 │   │   │   └── models/                 # SQLAlchemy ORM models
 │   │   │       ├── dashboard.py        # RecvizDashboard
 │   │   │       ├── chart.py            # RecvizChart
@@ -180,7 +179,7 @@ RecViz/
 
 **`frontend/src/components/explorer/`:**
 - Purpose: SQL Explorer
-- Contains: `sql-editor.tsx` (Monaco), `schema-browser.tsx`, `query-results.tsx`, `query-history.tsx`, `save-as-dataset-dialog.tsx`, `chart-builder-dialog.tsx`
+- Contains: `sql-editor.tsx` (Monaco), `schema-browser.tsx`, `query-results.tsx`, `query-history.tsx`, `save-as-dataset-dialog.tsx`
 
 **`frontend/src/components/settings/`:**
 - Purpose: Settings page — primarily data source management
@@ -217,7 +216,7 @@ RecViz/
 
 **`backend/app/services/`:**
 - Purpose: Business logic that is not tied to the HTTP layer
-- Contains: `query_engine.py`, `engine_manager.py`, `connection_resolver.py`, `connection_status.py`, `config_store.py`, `config_migrator.py`, `merge_engine.py`, `encryption.py`, `uri_builder.py`, `query_utils.py`
+- Contains: `query_engine.py`, `engine_manager.py`, `connection_resolver.py`, `connection_status.py`, `config_store.py`, `merge_engine.py`, `encryption.py`, `uri_builder.py`, `query_utils.py`
 
 **`backend/app/models/`:**
 - Purpose: Pydantic v2 request/response models — the HTTP-level shape
@@ -226,7 +225,7 @@ RecViz/
 
 **`backend/app/db/`:**
 - Purpose: Database engine, session factory, and ORM models for the RecViz metadata DB
-- Contains: `engine.py` (sync engine, `session_factory`), `base.py` (DeclarativeBase), `types.py` (PortableJSON), `models/` with one file per table
+- Contains: `engine.py` (sync engine, `session_factory`), `base.py` (DeclarativeBase), `types.py` (OracleJSON), `models/` with one file per table
 - Key files: `db/models/dashboard.py`, `db/models/chart.py`, `db/models/kpi.py`, `db/models/dataset.py`, `db/models/data_source.py`, `db/models/connection.py`
 
 **`backend/app/migrations/`:**
@@ -388,7 +387,7 @@ RecViz/
 **New DB model / table:**
 - File: `backend/app/db/models/<name>.py`
 - Subclass `Base`, use `Mapped[T]` + `mapped_column()`, prefix table name with `recviz_`
-- Use `PortableJSON()` from `backend/app/db/types.py` for JSON columns
+- Use `OracleJSON()` from `backend/app/db/types.py` for JSON columns
 - Create an Alembic migration under `backend/app/migrations/versions/<nnn>_<desc>.py`
 - Import the new model in any module that needs Alembic autogenerate to see it (usually `db/models/__init__.py`)
 
