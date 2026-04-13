@@ -2323,157 +2323,248 @@ def _kpi(
 
 
 CURATED_KPIS: list[dict] = [
+    # ---- 1. Total Transactions (SUM, number) ----
     _kpi(
         "kpi-total-transactions",
         "Total Transactions",
-        "Total transaction count over the selected window.",
+        "Total transaction count across the entire reconciliation window.",
         "ds-recon-transactions-daily",
         "txn_count",
         "SUM",
         fmt={"type": "number", "decimals": 0, "abbreviate": True, "currencyCode": None},
         trend={"mode": "previous_period", "period": "month"},
         thresholds={"greenAbove": 80000, "amberAbove": 50000},
+        subtitle="All transactions processed",
     ),
+    # ---- 2. Total USD Volume (SUM, currency) ----
     _kpi(
-        "kpi-total-amount-usd",
-        "Total Amount (USD)",
-        "Total USD volume over the selected window.",
+        "kpi-total-usd-volume",
+        "Total USD Volume",
+        "Aggregate USD value of all transactions in the window.",
         "ds-recon-transactions-daily",
         "total_usd",
         "SUM",
         fmt={"type": "currency", "decimals": 0, "abbreviate": True, "currencyCode": "USD"},
         trend={"mode": "previous_period", "period": "week"},
         thresholds={"greenAbove": 1_000_000_000, "amberAbove": 500_000_000},
+        subtitle="Total processed value",
     ),
+    # ---- 3. Match Rate (AVG, percentage) ----
     _kpi(
         "kpi-match-rate",
         "Match Rate",
-        "Average match rate (% closed transactions).",
+        "Average daily match rate -- percentage of transactions with CLOSED status.",
         "ds-recon-match-rate-daily",
         "match_rate",
         "AVG",
         fmt={"type": "percentage", "decimals": 1, "abbreviate": False, "currencyCode": None},
         trend={"mode": "static_target", "targetValue": 95.0, "targetLabel": "Target"},
         thresholds={"greenAbove": 90, "amberAbove": 75},
+        subtitle="vs 95% target",
     ),
+    # ---- 4. Total Breaks (SUM, number) ----
     _kpi(
         "kpi-total-breaks",
         "Total Breaks",
-        "Total open + resolved break count.",
+        "Total number of reconciliation breaks (all types, all resolutions).",
         "ds-recon-breaks-summary",
         "break_count",
         "SUM",
-        fmt={"type": "number", "decimals": 0, "abbreviate": False, "currencyCode": None},
+        fmt={"type": "number", "decimals": 0, "abbreviate": True, "currencyCode": None},
         trend={"mode": "previous_period", "period": "day"},
         thresholds={"greenAbove": 50000, "amberAbove": 30000},
-        comment=(
-            "Lower is better for this metric. Numerically inverted thresholds: "
-            "green = room above 50k, amber = room above 30k, red = below 30k. "
-            "Seeded value ~20k lands in red band."
-        ),
+        subtitle="Lower is better",
+        comment="Inverted metric -- lower values are better. Green threshold intentionally high so seeded data shows amber/red.",
     ),
-    _kpi(
-        "kpi-avg-aging-days",
-        "Average Aging (days)",
-        "Average days each break has been open.",
-        "ds-recon-breaks-summary",
-        "avg_aging",
-        "AVG",
-        fmt={"type": "decimal", "decimals": 1, "abbreviate": False, "currencyCode": None},
-        trend={"mode": "static_target", "targetValue": 3.0, "targetLabel": "SLA"},
-        thresholds={"greenAbove": 7, "amberAbove": 4},
-        comment=(
-            "Lower is better for this metric. Numerically inverted thresholds: "
-            "green = above 7 days (impossible -- always green-band would be bad), "
-            "amber = >= 4 days. Seeded ~4.5 lands amber."
-        ),
-    ),
-    _kpi(
-        "kpi-sla-breach-rate",
-        "SLA Breach Rate",
-        "SLA breach rate (% breached events).",
-        "ds-sla-breach-summary",
-        "breach_rate",
-        "AVG",
-        fmt={"type": "percentage", "decimals": 2, "abbreviate": False, "currencyCode": None},
-        trend={"mode": "previous_period", "period": "week"},
-        thresholds={"greenAbove": 12, "amberAbove": 6},
-        comment=(
-            "Lower is better for this metric. Numerically inverted thresholds: "
-            "green = above 12%, amber = above 6%, red = below 6%. "
-            "Seeded ~8% lands amber."
-        ),
-    ),
+    # ---- 5. Open Breaks (SUM, number) ----
     _kpi(
         "kpi-open-breaks",
         "Open Breaks",
-        "Count of breaks with NULL resolved_at.",
+        "Count of breaks not yet resolved -- NULL resolved_at in the breaks table.",
         "ds-recon-breaks-summary",
         "break_count",
         "SUM",
         fmt={"type": "number", "decimals": 0, "abbreviate": True, "currencyCode": None},
         trend={"mode": "previous_period", "period": "day"},
         thresholds={"greenAbove": 5000, "amberAbove": 10000},
+        subtitle="Pending resolution",
     ),
+    # ---- 6. Break Exposure (SUM, currency) ----
     _kpi(
-        "kpi-auto-match-pct",
-        "Auto-Match %",
-        "Percentage of match events flagged AUTO.",
-        "ds-recon-match-events-by-type",
-        "event_count",
-        "COUNT",
-        fmt={"type": "percentage", "decimals": 1, "abbreviate": False, "currencyCode": None},
-        trend={"mode": "static_target", "targetValue": 80.0, "targetLabel": "Target"},
-        thresholds={"greenAbove": 75, "amberAbove": 60},
-    ),
-    _kpi(
-        "kpi-high-value-breaks",
-        "High-Value Break $",
-        "Total USD value of all break amounts.",
+        "kpi-break-exposure",
+        "Break Exposure",
+        "Total USD value of all break amounts -- financial risk from unreconciled items.",
         "ds-recon-breaks-summary",
         "total_break_usd",
         "SUM",
         fmt={"type": "currency", "decimals": 0, "abbreviate": True, "currencyCode": "USD"},
         trend={"mode": "previous_period", "period": "month"},
         thresholds={"greenAbove": 1_000_000, "amberAbove": 5_000_000},
+        subtitle="Total at-risk value",
     ),
+    # ---- 7. Average Break Aging (AVG, decimal) ----
+    _kpi(
+        "kpi-avg-aging",
+        "Average Break Aging",
+        "Average number of days breaks have been open -- lower is better.",
+        "ds-recon-breaks-summary",
+        "avg_aging",
+        "AVG",
+        fmt={"type": "decimal", "decimals": 1, "abbreviate": False, "currencyCode": None},
+        trend={"mode": "static_target", "targetValue": 3.0, "targetLabel": "SLA"},
+        thresholds={"greenAbove": 7, "amberAbove": 4},
+        subtitle="Days open (target <3)",
+        comment="Inverted metric -- lower is better. Seeded ~4.5 days lands in amber.",
+    ),
+    # ---- 8. SLA Breach Rate (AVG, percentage) ----
+    _kpi(
+        "kpi-sla-breach-rate",
+        "SLA Breach Rate",
+        "Percentage of SLA events that breached their target -- lower is better.",
+        "ds-sla-breach-summary",
+        "breach_rate",
+        "AVG",
+        fmt={"type": "percentage", "decimals": 2, "abbreviate": False, "currencyCode": None},
+        trend={"mode": "previous_period", "period": "week"},
+        thresholds={"greenAbove": 12, "amberAbove": 6},
+        subtitle="Lower is better",
+        comment="Inverted metric. Seeded ~8% lands in amber band.",
+    ),
+    # ---- 9. Auto-Match Rate (COUNT, percentage) ----
+    _kpi(
+        "kpi-auto-match-pct",
+        "Auto-Match Rate",
+        "Percentage of match events processed automatically (AUTO type).",
+        "ds-recon-match-events-by-type",
+        "event_count",
+        "COUNT",
+        fmt={"type": "percentage", "decimals": 1, "abbreviate": False, "currencyCode": None},
+        trend={"mode": "static_target", "targetValue": 80.0, "targetLabel": "Target"},
+        thresholds={"greenAbove": 75, "amberAbove": 60},
+        subtitle="vs 80% target",
+    ),
+    # ---- 10. Match Confidence Score (AVG, decimal) ----
     _kpi(
         "kpi-avg-confidence",
-        "Avg Match Confidence",
-        "Average confidence score across rule/AI match events.",
+        "Match Confidence Score",
+        "Average confidence score across all rule-based and AI match events.",
         "ds-recon-match-events-by-type",
         "avg_confidence",
         "AVG",
         fmt={"type": "decimal", "decimals": 2, "abbreviate": False, "currencyCode": None},
-        trend=None,
+        trend={"mode": "static_target", "targetValue": 0.90, "targetLabel": "Target"},
         thresholds={"greenAbove": 0.85, "amberAbove": 0.70},
+        subtitle="Score 0-1 scale",
     ),
-    _kpi(
-        "kpi-txn-uniques",
-        "Unique References",
-        "Unique transaction reference count.",
-        "ds-recon-transactions-daily",
-        "txn_count",
-        "COUNT_DISTINCT",
-        fmt={"type": "number", "decimals": 0, "abbreviate": True, "currencyCode": None},
-        trend=None,
-        thresholds=None,
-    ),
+    # ---- 11. Largest Transaction (MAX, currency) ----
     _kpi(
         "kpi-largest-txn",
         "Largest Transaction",
-        "Largest single transaction USD value.",
+        "Maximum single-transaction USD value in the window -- outlier indicator.",
         "ds-recon-transactions-daily",
         "total_usd",
         "MAX",
         fmt={"type": "currency", "decimals": 0, "abbreviate": False, "currencyCode": "USD"},
+        trend={"mode": "previous_period", "period": "month"},
+        thresholds={"greenAbove": 50_000_000, "amberAbove": 20_000_000},
+        subtitle="Peak daily USD",
+    ),
+    # ---- 12. Minimum Daily Volume (MIN, number) ----
+    _kpi(
+        "kpi-min-daily-volume",
+        "Minimum Daily Volume",
+        "Lowest single-day transaction count -- holiday/outage indicator.",
+        "ds-recon-transactions-daily",
+        "txn_count",
+        "MIN",
+        fmt={"type": "number", "decimals": 0, "abbreviate": False, "currencyCode": None},
         trend=None,
-        thresholds=None,
+        thresholds={"greenAbove": 100, "amberAbove": 50},
+        subtitle="Lowest day count",
+    ),
+    # ---- 13. Active Counterparties (COUNT_DISTINCT, number) ----
+    _kpi(
+        "kpi-unique-counterparties",
+        "Active Counterparties",
+        "Count of distinct counterparties transacted -- measures market breadth.",
+        "ds-recon-counterparty-top",
+        "short_name",
+        "COUNT_DISTINCT",
+        fmt={"type": "number", "decimals": 0, "abbreviate": False, "currencyCode": None},
+        trend={"mode": "previous_period", "period": "month"},
+        thresholds={"greenAbove": 40, "amberAbove": 20},
+        subtitle="Distinct counterparties",
+    ),
+    # ---- 14. SLA Breach Count (SUM, number) ----
+    _kpi(
+        "kpi-sla-breach-count",
+        "SLA Breach Count",
+        "Total number of SLA breach events across all types and regions.",
+        "ds-sla-breach-summary",
+        "breach_count",
+        "SUM",
+        fmt={"type": "number", "decimals": 0, "abbreviate": True, "currencyCode": None},
+        trend={"mode": "previous_period", "period": "week"},
+        thresholds={"greenAbove": 500, "amberAbove": 1000},
+        subtitle="Total breaches",
+        comment="Inverted metric -- fewer breaches is better.",
+    ),
+    # ---- 15. Average Transaction Size (AVG, currency) ----
+    _kpi(
+        "kpi-avg-txn-size",
+        "Average Transaction Size",
+        "Average USD value per transaction across all desks.",
+        "ds-recon-volume-by-desk",
+        "avg_usd",
+        "AVG",
+        fmt={"type": "currency", "decimals": 0, "abbreviate": True, "currencyCode": "USD"},
+        trend={"mode": "previous_period", "period": "month"},
+        thresholds={"greenAbove": 50000, "amberAbove": 20000},
+        subtitle="Avg USD per txn",
+    ),
+    # ---- 16. Active Currencies (COUNT_DISTINCT, number) ----
+    _kpi(
+        "kpi-currency-count",
+        "Active Currencies",
+        "Count of distinct currencies with transaction activity.",
+        "ds-recon-currency-distribution",
+        "currency",
+        "COUNT_DISTINCT",
+        fmt={"type": "number", "decimals": 0, "abbreviate": False, "currencyCode": None},
+        trend=None,
+        thresholds={"greenAbove": 10, "amberAbove": 5},
+        subtitle="Distinct currencies",
+    ),
+    # ---- 17. Avg Breaks per Region (AVG, decimal) ----
+    _kpi(
+        "kpi-region-break-avg",
+        "Avg Breaks per Region",
+        "Average break count across regions -- measures distribution evenness.",
+        "ds-recon-breaks-by-region",
+        "break_count",
+        "AVG",
+        fmt={"type": "decimal", "decimals": 0, "abbreviate": True, "currencyCode": None},
+        trend={"mode": "previous_period", "period": "week"},
+        thresholds={"greenAbove": 500, "amberAbove": 1000},
+        subtitle="Per-region average",
+    ),
+    # ---- 18. Monthly Transaction Volume (SUM, number) ----
+    _kpi(
+        "kpi-monthly-volume-growth",
+        "Monthly Transaction Volume",
+        "Total monthly transaction count -- growth tracking metric.",
+        "ds-recon-monthly-volume",
+        "txn_count",
+        "SUM",
+        fmt={"type": "number", "decimals": 0, "abbreviate": True, "currencyCode": None},
+        trend={"mode": "previous_period", "period": "month"},
+        thresholds={"greenAbove": 30000, "amberAbove": 15000},
+        subtitle="Month-over-month",
     ),
 ]
 
-assert len(CURATED_KPIS) == 12, (
-    f"CURATED_KPIS must have 12 entries, got {len(CURATED_KPIS)}"
+assert len(CURATED_KPIS) == 18, (
+    f"CURATED_KPIS must have 18 entries, got {len(CURATED_KPIS)}"
 )
 
 
