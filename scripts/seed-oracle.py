@@ -384,29 +384,38 @@ def create_recon_schema(cur: oracledb.Cursor) -> None:
 
 
 def gen_recon_engines() -> list[tuple]:
-    """5 rows, one inactive for filter edge cases."""
+    """8 rows, one inactive for filter edge cases."""
     return [
         ("TLM", "TLM Smart Recon", "SmartStream", 1),
         ("SMARTSTREAM", "SmartStream Corona", "SmartStream", 1),
         ("INTELLIMATCH", "IntelliMatch", "FIS", 1),
         ("DUCO", "Duco Cube", "Duco", 1),
         ("OPTIONS", "Options Recon", "Options", 0),
+        ("GRESHAM", "Gresham Clareti", "Gresham", 1),
+        ("FENERGO", "Fenergo Recon", "Fenergo", 1),
+        ("BROADRIDGE", "Broadridge Recon", "Broadridge", 1),
     ]
 
 
 def gen_regions() -> list[tuple]:
-    """10 regions with 2-level hierarchy via parent_region."""
+    """14 regions with 2-level hierarchy via parent_region."""
     return [
+        # Top-level
         ("NAM", "North America", None),
         ("EMEA", "Europe Middle East & Africa", None),
         ("APAC", "Asia Pacific", None),
         ("LATAM", "Latin America", None),
+        # Sub-regions
         ("US", "United States", "NAM"),
+        ("CA", "Canada", "NAM"),
         ("UK", "United Kingdom", "EMEA"),
+        ("DE", "Germany", "EMEA"),
+        ("FR", "France", "EMEA"),
         ("JP", "Japan", "APAC"),
         ("HK", "Hong Kong", "APAC"),
         ("SG", "Singapore", "APAC"),
         ("AU", "Australia", "APAC"),
+        ("BR", "Brazil", "LATAM"),
     ]
 
 
@@ -486,7 +495,7 @@ def gen_currencies() -> list[tuple]:
 
 
 def gen_statuses() -> list[tuple]:
-    """8 status rows covering OPEN/CLOSED/PENDING categories."""
+    """10 status rows covering OPEN/CLOSED/PENDING categories."""
     return [
         ("MATCHED", "Matched", "CLOSED", 1),
         ("UNMATCHED", "Unmatched", "OPEN", 2),
@@ -496,66 +505,47 @@ def gen_statuses() -> list[tuple]:
         ("DISPUTED", "Disputed", "OPEN", 6),
         ("WRITTEN_OFF", "Written Off", "CLOSED", 7),
         ("ESCALATED", "Escalated", "OPEN", 8),
+        ("AWAITING_DOCS", "Awaiting Documentation", "PENDING", 9),
+        ("CANCELLED", "Cancelled", "CLOSED", 10),
     ]
 
 
 def gen_aging_buckets() -> list[tuple]:
-    """6 aging buckets with severity gradient."""
+    """8 aging buckets with severity gradient."""
     return [
-        ("0-1D", "0-1 days", 0, 1, 1, "OK"),
-        ("2-3D", "2-3 days", 2, 3, 2, "OK"),
-        ("4-7D", "4-7 days", 4, 7, 3, "WARN"),
-        ("8-14D", "8-14 days", 8, 14, 4, "WARN"),
-        ("15-30D", "15-30 days", 15, 30, 5, "CRIT"),
-        ("30D+", "30+ days", 31, None, 6, "CRIT"),
+        ("0D", "Same day", 0, 0, 1, "OK"),
+        ("1D", "1 day", 1, 1, 2, "OK"),
+        ("2-3D", "2-3 days", 2, 3, 3, "OK"),
+        ("4-7D", "4-7 days", 4, 7, 4, "WARN"),
+        ("8-14D", "8-14 days", 8, 14, 5, "WARN"),
+        ("15-30D", "15-30 days", 15, 30, 6, "CRIT"),
+        ("31-60D", "31-60 days", 31, 60, 7, "CRIT"),
+        ("60D+", "60+ days", 61, None, 8, "CRIT"),
     ]
 
 
 def gen_counterparties(rng: random.Random) -> list[tuple]:
-    """200 counterparties with synthetic LEIs and short-names."""
+    """200 counterparties with synthetic LEIs and 62 unique institution names."""
     short_name_pool = [
-        "GS Intl",
-        "JPMC",
-        "DB Global",
-        "MS Inc",
-        "BofA",
-        "Citi",
-        "Barclays",
-        "Credit Suisse",
-        "UBS",
-        "BNP Paribas",
-        "Soc Gen",
-        "Nomura",
-        "Mizuho",
-        "MUFG",
-        "RBC",
-        "TD Bank",
-        "ING",
-        "Santander",
-        "BBVA",
-        "Standard Chartered",
-        "HSBC",
-        "ANZ",
-        "Westpac",
-        "NAB",
-        "Commerzbank",
-        "Rabobank",
-        "SEB",
-        "Nordea",
-        "Danske Bank",
-        "Lloyds",
-        "NatWest",
-        "Goldman Sachs",
-        "Wells Fargo",
-        "PNC",
-        "State Street",
-        "BNY Mellon",
-        "Northern Trust",
-        "Macquarie",
+        "GS Intl", "JPMC", "DB Global", "MS Inc", "BofA", "Citi",
+        "Barclays", "Credit Suisse", "UBS", "BNP Paribas",
+        "Soc Gen", "Nomura", "Mizuho", "MUFG", "RBC",
+        "TD Bank", "ING", "Santander", "BBVA", "Standard Chartered",
+        "HSBC", "ANZ", "Westpac", "NAB", "Commerzbank",
+        "Rabobank", "SEB", "Nordea", "Danske Bank", "Lloyds",
+        "NatWest", "Goldman Sachs", "Wells Fargo", "PNC",
+        "State Street", "BNY Mellon", "Northern Trust", "Macquarie",
+        "KBC Group", "Credit Agricole", "UniCredit", "Intesa Sanpaolo",
+        "Sumitomo Mitsui", "Daiwa Securities", "DBS Bank", "OCBC",
+        "Bank of China", "ICBC", "China Construction Bank", "Itau Unibanco",
+        "Bradesco", "BTG Pactual", "Investec", "FirstRand", "Nedbank",
+        "Hana Financial", "KB Financial", "Shinhan Financial",
+        "Siam Commercial", "Bangkok Bank", "Maybank", "CIMB Group",
     ]
     countries = [
         "US", "GB", "DE", "FR", "JP", "HK", "SG", "AU",
         "CA", "CH", "IT", "ES", "NL", "BR", "MX",
+        "KR", "TH", "MY", "CN", "ZA", "IN", "SE",
     ]
     rows: list[tuple] = []
     for i in range(200):
@@ -567,7 +557,8 @@ def gen_counterparties(rng: random.Random) -> list[tuple]:
         short_name = base if suffix == 0 else f"{base} {suffix}"
         legal_name = f"{short_name} Holdings Ltd"
         country = rng.choice(countries)
-        tier = rng.choice([1, 1, 2, 2, 2, 3])
+        # Weighted tier distribution: more Tier 1/2 than Tier 3
+        tier = rng.choices([1, 2, 3], weights=[35, 45, 20], k=1)[0]
         rows.append((lei, short_name, legal_name, country, tier))
     return rows
 
@@ -577,8 +568,8 @@ def gen_accounts(
     region_ids: list[int],
     currency_ids: list[int],
 ) -> list[tuple]:
-    """5000 accounts."""
-    types = ["NOSTRO", "VOSTRO", "INTERNAL", "CUSTOMER"]
+    """5000 accounts across 6 account types."""
+    types = ["NOSTRO", "VOSTRO", "INTERNAL", "CUSTOMER", "SUSPENSE", "COLLATERAL"]
     rows: list[tuple] = []
     for i in range(5000):
         acct_no = f"ACC-{i + 1:06d}"
@@ -638,14 +629,16 @@ def gen_recon_transactions(
     usd_currency_id = currency_ids[0]  # USD is first
 
     status_weights = [
-        (status_ids[0], 0.45),  # MATCHED
+        (status_ids[0], 0.42),  # MATCHED
         (status_ids[1], 0.10),  # UNMATCHED
         (status_ids[2], 0.05),  # PENDING_MATCH
-        (status_ids[3], 0.20),  # AUTO_MATCHED
-        (status_ids[4], 0.10),  # MANUAL_MATCHED
+        (status_ids[3], 0.18),  # AUTO_MATCHED
+        (status_ids[4], 0.09),  # MANUAL_MATCHED
         (status_ids[5], 0.05),  # DISPUTED
         (status_ids[6], 0.03),  # WRITTEN_OFF
         (status_ids[7], 0.02),  # ESCALATED
+        (status_ids[8], 0.03),  # AWAITING_DOCS
+        (status_ids[9], 0.03),  # CANCELLED
     ]
     status_choices, status_probs = zip(*status_weights, strict=True)
 
@@ -727,12 +720,14 @@ def gen_recon_breaks(
     sampled_ids = rng.sample(transaction_ids, target_count)
 
     bucket_weights = [
-        (aging_bucket_ids[0], 0.30),
-        (aging_bucket_ids[1], 0.20),
-        (aging_bucket_ids[2], 0.15),
-        (aging_bucket_ids[3], 0.15),
-        (aging_bucket_ids[4], 0.12),
-        (aging_bucket_ids[5], 0.08),
+        (aging_bucket_ids[0], 0.25),  # 0D
+        (aging_bucket_ids[1], 0.20),  # 1D
+        (aging_bucket_ids[2], 0.15),  # 2-3D
+        (aging_bucket_ids[3], 0.12),  # 4-7D
+        (aging_bucket_ids[4], 0.10),  # 8-14D
+        (aging_bucket_ids[5], 0.08),  # 15-30D
+        (aging_bucket_ids[6], 0.06),  # 31-60D
+        (aging_bucket_ids[7], 0.04),  # 60D+
     ]
     bucket_choices, bucket_probs = zip(*bucket_weights, strict=True)
 
@@ -758,7 +753,7 @@ def gen_recon_breaks(
         break_type = rng.choices(type_choices, weights=type_probs, k=1)[0]
         bucket_id = rng.choices(bucket_choices, weights=bucket_probs, k=1)[0]
         bucket_index = aging_bucket_ids.index(bucket_id)
-        aging_day_ranges = [(0, 1), (2, 3), (4, 7), (8, 14), (15, 30), (31, 90)]
+        aging_day_ranges = [(0, 0), (1, 1), (2, 3), (4, 7), (8, 14), (15, 30), (31, 60), (61, 120)]
         lo, hi = aging_day_ranges[bucket_index]
         aging_days = rng.randint(lo, hi)
 
