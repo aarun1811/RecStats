@@ -221,7 +221,10 @@ function QueryChartItemWithDrill({
 
   return (
     <Fragment>
-      <div
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3, delay: 0.1 }}
         style={{
           gridColumn: `span ${chart.layout.width}`,
           gridRow: `span ${chart.layout.height}`,
@@ -272,7 +275,7 @@ function QueryChartItemWithDrill({
             />
           </CardContent>
         </Card>
-      </div>
+      </motion.div>
 
       {/* Fullscreen dialog with IDENTICAL cross-filter state as the dashboard card */}
       <ChartFullscreenDialog
@@ -504,8 +507,11 @@ export function ConfigChartGrid({ charts, kpiResults, crossFilterEnabled, drillD
       {charts.map((chart) => {
         if (chart.sourceType === 'kpi_values') {
           return (
-            <div
+            <motion.div
               key={chart.id}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.3, delay: 0.1 }}
               style={{
                 gridColumn: `span ${chart.layout.width}`,
                 gridRow: `span ${chart.layout.height}`,
@@ -518,7 +524,7 @@ export function ConfigChartGrid({ charts, kpiResults, crossFilterEnabled, drillD
                 onRefresh={onRefreshKpis}
                 isRefreshing={isRefreshingKpis}
               />
-            </div>
+            </motion.div>
           )
         }
         return (
