@@ -249,7 +249,27 @@ None.
 
 ## Phase 6: Dashboards Page
 
-*(To be filled by Phase 6 executor)*
+| File | Action | Plan | Notes |
+|------|--------|------|-------|
+| backend/app/services/config_store.py | modified | 06-01 | Rewired from recviz_data_sources to recviz_datasets + recviz_connections |
+| frontend/src/components/dashboard/config-chart-grid.tsx | modified | 06-01 | Removed Superset comment |
+| frontend/src/components/dashboard/dashboard-list.tsx | modified | 06-02 | AnimatePresence crossfade, filtered empty state upgrade |
+| frontend/src/components/dashboard/dashboard-list-card.tsx | modified | 06-02 | motion.div wrapper, border-l-primary accent, stagger entrance |
+| frontend/src/components/dashboard/dashboard-list-row.tsx | modified | 06-02 | motion.div wrapper, border-l-primary accent |
+| frontend/src/routes/_app/dashboards/index.tsx | modified | 06-02 | Staggered page entrance animation |
+| frontend/src/routes/_app/dashboards/$dashboardId.tsx | modified | 06-02 | Detail header metadata row with panel counts + hooks fix |
+| frontend/src/components/dashboard/dashboard-renderer.tsx | modified | 06-03 | Superset comment removed |
+| frontend/src/components/dashboard/config-filter-bar.tsx | modified | 06-03 | SlidersHorizontal section header + stagger entrance |
+| frontend/src/components/dashboard/config-kpi-row.tsx | modified | 06-03 | Spring entrance + border-l-2 trend accent |
+| frontend/src/components/dashboard/config-chart-grid.tsx | modified | 06-03 | Chart card fade-in entrance |
+| frontend/src/components/dashboard/chart-toolbar.tsx | modified | 06-03 | aria-label on icon buttons |
+| frontend/src/components/dashboard/drill-breadcrumb.tsx | modified | 06-03 | motion entrance + layout |
+| frontend/src/components/builder/builder-filter-bar.tsx | modified | 06-04 | AnimatePresence filter chip entrance/exit |
+| frontend/src/components/builder/chart-picker-dialog.tsx | modified | 06-04 | Stagger entrance on card grid |
+| frontend/src/components/builder/kpi-picker-dialog.tsx | modified | 06-04 | Stagger entrance on card grid |
+| frontend/src/components/builder/dataset-picker-dialog.tsx | modified | 06-04 | Stagger entrance on card grid |
+| frontend/src/stores/filter-store.ts | modified | 06-04 | Removed dead setLocked action |
+| frontend/src/stores/builder-store.ts | modified | 06-04 | Removed dead updateFilter action |
 
 ## Phase 7: Explorer Page
 
