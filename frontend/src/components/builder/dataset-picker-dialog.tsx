@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 
 import { Plus, Search, Table2 } from 'lucide-react'
+import { motion } from 'motion/react'
 import { useNavigate } from '@tanstack/react-router'
 
 import { cn } from '@/lib/utils'
@@ -94,9 +95,12 @@ export function DatasetPickerDialog({
             </p>
           ) : (
             <div className="grid grid-cols-2 gap-3">
-              {filtered.map((dataset) => (
-                <div
+              {filtered.map((dataset, i) => (
+                <motion.div
                   key={dataset.id}
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.03, duration: 0.2 }}
                   className={cn(
                     'border rounded-lg p-3 cursor-pointer hover:border-primary/30 hover:bg-accent/50 transition-colors',
                     selectedId === dataset.id && 'border-primary bg-primary/5'
@@ -115,7 +119,7 @@ export function DatasetPickerDialog({
                   <Badge variant="secondary" className="mt-1.5 text-xs">
                     {dataset.columns.length} column{dataset.columns.length !== 1 ? 's' : ''}
                   </Badge>
-                </div>
+                </motion.div>
               ))}
             </div>
           )}
