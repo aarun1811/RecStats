@@ -15,7 +15,7 @@ Expand the curated charts from 22 to 40-50 and KPIs from 12 to 15-20 in `scripts
 ## Implementation Decisions
 
 ### Chart Design Strategy
-- **D-01:** Design charts per dataset — each of the 17 datasets should have 2-4 charts showing different visualizations of the same data. This ensures every dataset is used and charts are diverse.
+- **D-01:** DELETE all 22 existing CURATED_CHARTS and start from scratch. The current charts have config mismatches and were not properly thought through. Design new charts per dataset — each of the 17 datasets should have 2-4 charts showing different visualizations of the same data.
 - **D-02:** Chart type distribution target: ~15 bar/line/area (AG Charts basics), ~8 pie/donut, ~5 heatmap/treemap/waterfall (AG Charts advanced), ~5 scatter/combo, ~7 ECharts exotic (sankey, radar, gauge, funnel, parallel-coords). Total: ~40-50.
 - **D-03:** Every chart must have a meaningful `name` and `description` — no "Chart 1" or generic names. Names should tell the user what insight the chart provides.
 - **D-04:** `columnMapping.categoryColumn` must reference an actual column from the dataset's `columns` array. `metricColumns` must reference actual measure columns.
@@ -26,7 +26,7 @@ Expand the curated charts from 22 to 40-50 and KPIs from 12 to 15-20 in `scripts
 - **D-07:** Chart IDs use the `chart-{slug}` pattern (no UUIDs) — must match exactly what dashboards reference in Phase 3.
 
 ### KPI Design Strategy
-- **D-08:** 15-20 KPIs covering: transaction volume (SUM), break count (SUM), match rate (AVG %), SLA breach rate (AVG %), aging days (AVG), high-value exposure (SUM $), auto-match % (COUNT), counterparty concentration (COUNT_DISTINCT), open breaks (SUM), confidence score (AVG), daily volume (SUM), resolved rate (AVG %), and a few per-region/per-desk variants.
+- **D-08:** DELETE all 12 existing CURATED_KPIS and start from scratch. Design 15-20 KPIs covering: transaction volume (SUM), break count (SUM), match rate (AVG %), SLA breach rate (AVG %), aging days (AVG), high-value exposure (SUM $), auto-match % (COUNT), counterparty concentration (COUNT_DISTINCT), open breaks (SUM), confidence score (AVG), daily volume (SUM), resolved rate (AVG %), and a few per-region/per-desk variants.
 - **D-09:** Every KPI `threshold` config must have meaningful green/amber/red levels. Example: match rate green > 90%, amber > 75%, red < 75%.
 - **D-10:** Every KPI `trend` config uses either `previous_period` (vs last week/month/day) or `static_target` (target: 95% for SLA).
 - **D-11:** KPI `format` must match the metric type: `percentage` for rates, `currency` for USD amounts, `number` for counts, `decimal` for scores.
