@@ -1,26 +1,32 @@
 #!/usr/bin/env python3
 """Phase 10 seed script -- clean-slate advanced seed for RecViz testing.
 
-Rewrites recon_data schema + inserts 100k fact rows + seeds the curated
-Phase 10 catalog (16 datasets, 22 charts, 12 KPIs, 5 dashboards) into the
-managed tables. Idempotent -- drop-and-recreate on every run.
+Seeds recon data tables (8 dimensions + 4 facts with configurable row count)
+and curated catalog (16 datasets, 22 charts, 12 KPIs, 5 dashboards) into
+recviz_* managed tables. Idempotent -- DROP CASCADE + CREATE on every run.
 
-NOTE: 22 charts covers all 18 WORKING chart types. bullet, box-plot,
-sunburst are declared but fall back to bar / need hierarchical transform --
-excluded from the curated catalog per user correction 2026-04-08.
+All data lives in the same Oracle PDB under the schema user.
+Recon dimension/fact tables are plain tables; managed catalog tables (recviz_*)
+are created by Alembic and only have rows DELETE + INSERT here.
 
-SAFETY: Hard-coded to localhost. Refuses to run against non-localhost
-databases. Refuses if RECVIZ_ENV=production.
+SAFETY: Refuses if RECVIZ_ENV=production.
+
+Usage:
+    python scripts/seed-oracle.py
+    python scripts/seed-oracle.py --rows 1000000 --host myhost --port 1521 --service MYPDB
+    python scripts/seed-oracle.py --help
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import math
 import os
 import pathlib
 import random
 import sys
+import time
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlparse
 
@@ -66,6 +72,102 @@ DEFAULT_DATABASE_ID = 1
 # Excluded chart types per user correction 2026-04-08. The seed config MUST
 # refuse any CURATED_CHARTS entry whose chart_type lands in this set.
 EXCLUDED_CHART_TYPES = frozenset({"bullet", "box-plot", "sunburst"})
+
+# Connection name registered in recviz_connections -- the data_source
+# config's database_routing.database field points to this name.
+CONNECTION_NAME = "oracle-local"
+CONNECTION_ID = "conn-oracle-local"
+
+
+def parse_args() -> argparse.Namespace:
+    """Parse CLI arguments for row count and Oracle connection details."""
+    parser = argparse.ArgumentParser(
+        description="RecViz Oracle seed script -- generate demo reconciliation data."
+    )
+    parser.add_argument(
+        "--rows",
+        type=int,
+        default=100_000,
+        help=(
+            "Number of fact rows for recon_transactions (default: 100000). "
+            "Suggested: 100000 (dev), 1000000 (demo), 5000000 (large), 10000000 (stress)."
+        ),
+    )
+    parser.add_argument(
+        "--host",
+        type=str,
+        default=None,
+        help="Oracle host (default: env ORACLE_HOST or localhost)",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=None,
+        help="Oracle port (default: env ORACLE_PORT or 1521)",
+    )
+    parser.add_argument(
+        "--service",
+        type=str,
+        default=None,
+        help="Oracle service name (default: env ORACLE_SERVICE or FREEPDB1)",
+    )
+    parser.add_argument(
+        "--user",
+        type=str,
+        default=None,
+        help="Oracle user (default: env ORACLE_USER or recviz)",
+    )
+    parser.add_argument(
+        "--password",
+        type=str,
+        default=None,
+        help="Oracle password (default: env ORACLE_PASSWORD or recviz_dev)",
+    )
+    return parser.parse_args()
+
+
+def _get_connection(args: argparse.Namespace) -> oracledb.Connection:
+    """Connect to Oracle using 3-tier fallback: CLI arg > env var > default."""
+    host = args.host or os.environ.get("ORACLE_HOST", "localhost")
+    port = args.port or int(os.environ.get("ORACLE_PORT", "1521"))
+    service = args.service or os.environ.get("ORACLE_SERVICE", "FREEPDB1")
+    user = args.user or os.environ.get("ORACLE_USER", "recviz")
+    password = args.password or os.environ.get("ORACLE_PASSWORD", "recviz_dev")
+    dsn = f"{host}:{port}/{service}"
+    print(f"  Connecting to {user}@{dsn}")
+    return oracledb.connect(user=user, password=password, dsn=dsn)
+
+
+def _get_schema_name(args: argparse.Namespace) -> str:
+    """Return Oracle schema name (uppercased username)."""
+    user = args.user or os.environ.get("ORACLE_USER", "recviz")
+    return user.upper()
+
+
+def _jb(obj: dict | list) -> bytes:
+    """Serialize to UTF-8 bytes for BLOB IS JSON columns."""
+    return json.dumps(obj).encode("utf-8")
+
+
+def _encrypt_password(plaintext: str) -> str:
+    """Encrypt password with the project's Fernet key for recviz_connections."""
+    from cryptography.fernet import Fernet
+
+    key = os.environ.get("RECVIZ_ENCRYPTION_KEY")
+    if not key:
+        # Try reading from backend/.env
+        env_path = os.path.join(os.path.dirname(__file__), "..", "backend", ".env")
+        if os.path.isfile(env_path):
+            with open(env_path) as f:
+                for line in f:
+                    if line.startswith("RECVIZ_ENCRYPTION_KEY="):
+                        key = line.split("=", 1)[1].strip()
+                        break
+    if not key:
+        # Fallback to hardcoded dev key
+        key = "ZtmS2OQUhct4iBQmAcreQftJoeodRw4h7Rz3fU8ZPG4="
+    fernet = Fernet(key.encode())
+    return fernet.encrypt(plaintext.encode()).decode()
 
 
 # --------------------------------------------------------------------------- #
@@ -335,29 +437,38 @@ def create_recon_schema(cur) -> None:
 
 
 def gen_recon_engines() -> list[tuple]:
-    """5 rows, one inactive for filter edge cases."""
+    """8 rows, one inactive for filter edge cases."""
     return [
-        ("TLM", "TLM Smart Recon", "SmartStream", True),
-        ("SMARTSTREAM", "SmartStream Corona", "SmartStream", True),
-        ("INTELLIMATCH", "IntelliMatch", "FIS", True),
-        ("DUCO", "Duco Cube", "Duco", True),
-        ("OPTIONS", "Options Recon", "Options", False),
+        ("TLM", "TLM Smart Recon", "SmartStream", 1),
+        ("SMARTSTREAM", "SmartStream Corona", "SmartStream", 1),
+        ("INTELLIMATCH", "IntelliMatch", "FIS", 1),
+        ("DUCO", "Duco Cube", "Duco", 1),
+        ("OPTIONS", "Options Recon", "Options", 0),
+        ("GRESHAM", "Gresham Clareti", "Gresham", 1),
+        ("FENERGO", "Fenergo Recon", "Fenergo", 1),
+        ("BROADRIDGE", "Broadridge Recon", "Broadridge", 1),
     ]
 
 
 def gen_regions() -> list[tuple]:
-    """10 regions with 2-level hierarchy via parent_region."""
+    """14 regions with 2-level hierarchy via parent_region."""
     return [
+        # Top-level
         ("NAM", "North America", None),
         ("EMEA", "Europe Middle East & Africa", None),
         ("APAC", "Asia Pacific", None),
         ("LATAM", "Latin America", None),
+        # Sub-regions
         ("US", "United States", "NAM"),
+        ("CA", "Canada", "NAM"),
         ("UK", "United Kingdom", "EMEA"),
+        ("DE", "Germany", "EMEA"),
+        ("FR", "France", "EMEA"),
         ("JP", "Japan", "APAC"),
         ("HK", "Hong Kong", "APAC"),
         ("SG", "Singapore", "APAC"),
         ("AU", "Australia", "APAC"),
+        ("BR", "Brazil", "LATAM"),
     ]
 
 
@@ -448,7 +559,7 @@ def gen_currencies() -> list[tuple]:
 
 
 def gen_statuses() -> list[tuple]:
-    """8 status rows covering OPEN/CLOSED/PENDING categories."""
+    """10 status rows covering OPEN/CLOSED/PENDING categories."""
     return [
         ("MATCHED", "Matched", "CLOSED", 1),
         ("UNMATCHED", "Unmatched", "OPEN", 2),
@@ -458,71 +569,47 @@ def gen_statuses() -> list[tuple]:
         ("DISPUTED", "Disputed", "OPEN", 6),
         ("WRITTEN_OFF", "Written Off", "CLOSED", 7),
         ("ESCALATED", "Escalated", "OPEN", 8),
+        ("AWAITING_DOCS", "Awaiting Documentation", "PENDING", 9),
+        ("CANCELLED", "Cancelled", "CLOSED", 10),
     ]
 
 
 def gen_aging_buckets() -> list[tuple]:
-    """6 aging buckets with severity gradient."""
+    """8 aging buckets with severity gradient."""
     return [
-        ("0-1D", "0-1 days", 0, 1, 1, "OK"),
-        ("2-3D", "2-3 days", 2, 3, 2, "OK"),
-        ("4-7D", "4-7 days", 4, 7, 3, "WARN"),
-        ("8-14D", "8-14 days", 8, 14, 4, "WARN"),
-        ("15-30D", "15-30 days", 15, 30, 5, "CRIT"),
-        ("30D+", "30+ days", 31, None, 6, "CRIT"),
+        ("0D", "Same day", 0, 0, 1, "OK"),
+        ("1D", "1 day", 1, 1, 2, "OK"),
+        ("2-3D", "2-3 days", 2, 3, 3, "OK"),
+        ("4-7D", "4-7 days", 4, 7, 4, "WARN"),
+        ("8-14D", "8-14 days", 8, 14, 5, "WARN"),
+        ("15-30D", "15-30 days", 15, 30, 6, "CRIT"),
+        ("31-60D", "31-60 days", 31, 60, 7, "CRIT"),
+        ("60D+", "60+ days", 61, None, 8, "CRIT"),
     ]
 
 
 def gen_counterparties(rng: random.Random) -> list[tuple]:
-    """200 counterparties with synthetic LEIs and short-names. No real PII."""
+    """200 counterparties with synthetic LEIs and 62 unique institution names."""
     short_name_pool = [
-        "GS Intl",
-        "JPMC",
-        "DB Global",
-        "MS Inc",
-        "BofA",
-        "Citi",
-        "Barclays",
-        "Credit Suisse",
-        "UBS",
-        "BNP Paribas",
-        "Soc Gen",
-        "Nomura",
-        "Mizuho",
-        "MUFG",
-        "RBC",
-        "TD Bank",
-        "ING",
-        "Santander",
-        "BBVA",
-        "Standard Chartered",
-        "HSBC",
-        "Lloyds",
-        "NatWest",
-        "Goldman Sachs",
-        "Wells Fargo",
-        "PNC",
-        "State Street",
-        "BNY Mellon",
-        "Northern Trust",
-        "Macquarie",
+        "GS Intl", "JPMC", "DB Global", "MS Inc", "BofA", "Citi",
+        "Barclays", "Credit Suisse", "UBS", "BNP Paribas",
+        "Soc Gen", "Nomura", "Mizuho", "MUFG", "RBC",
+        "TD Bank", "ING", "Santander", "BBVA", "Standard Chartered",
+        "HSBC", "ANZ", "Westpac", "NAB", "Commerzbank",
+        "Rabobank", "SEB", "Nordea", "Danske Bank", "Lloyds",
+        "NatWest", "Goldman Sachs", "Wells Fargo", "PNC",
+        "State Street", "BNY Mellon", "Northern Trust", "Macquarie",
+        "KBC Group", "Credit Agricole", "UniCredit", "Intesa Sanpaolo",
+        "Sumitomo Mitsui", "Daiwa Securities", "DBS Bank", "OCBC",
+        "Bank of China", "ICBC", "China Construction Bank", "Itau Unibanco",
+        "Bradesco", "BTG Pactual", "Investec", "FirstRand", "Nedbank",
+        "Hana Financial", "KB Financial", "Shinhan Financial",
+        "Siam Commercial", "Bangkok Bank", "Maybank", "CIMB Group",
     ]
     countries = [
-        "US",
-        "GB",
-        "DE",
-        "FR",
-        "JP",
-        "HK",
-        "SG",
-        "AU",
-        "CA",
-        "CH",
-        "IT",
-        "ES",
-        "NL",
-        "BR",
-        "MX",
+        "US", "GB", "DE", "FR", "JP", "HK", "SG", "AU",
+        "CA", "CH", "IT", "ES", "NL", "BR", "MX",
+        "KR", "TH", "MY", "CN", "ZA", "IN", "SE",
     ]
     rows: list[tuple] = []
     for i in range(200):
@@ -535,7 +622,8 @@ def gen_counterparties(rng: random.Random) -> list[tuple]:
         short_name = base if suffix == 0 else f"{base} {suffix}"
         legal_name = f"{short_name} Holdings Ltd"
         country = rng.choice(countries)
-        tier = rng.choice([1, 1, 2, 2, 2, 3])  # tier-1 weighted
+        # Weighted tier distribution: more Tier 1/2 than Tier 3
+        tier = rng.choices([1, 2, 3], weights=[35, 45, 20], k=1)[0]
         rows.append((lei, short_name, legal_name, country, tier))
     return rows
 
@@ -545,8 +633,8 @@ def gen_accounts(
     region_ids: list[int],
     currency_ids: list[int],
 ) -> list[tuple]:
-    """5000 accounts. The primary dimension cardinality driver."""
-    types = ["NOSTRO", "VOSTRO", "INTERNAL", "CUSTOMER"]
+    """5000 accounts across 6 account types."""
+    types = ["NOSTRO", "VOSTRO", "INTERNAL", "CUSTOMER", "SUSPENSE", "COLLATERAL"]
     rows: list[tuple] = []
     for i in range(5000):
         acct_no = f"ACC-{i + 1:06d}"
@@ -623,14 +711,16 @@ def gen_recon_transactions(
     # Pre-compute ~status weights so MATCHED dominates (realistic GRU)
     # statuses ids are in declared order; index 0=MATCHED, 1=UNMATCHED, ...
     status_weights = [
-        (status_ids[0], 0.45),  # MATCHED
+        (status_ids[0], 0.42),  # MATCHED
         (status_ids[1], 0.10),  # UNMATCHED
         (status_ids[2], 0.05),  # PENDING_MATCH
-        (status_ids[3], 0.20),  # AUTO_MATCHED
-        (status_ids[4], 0.10),  # MANUAL_MATCHED
+        (status_ids[3], 0.18),  # AUTO_MATCHED
+        (status_ids[4], 0.09),  # MANUAL_MATCHED
         (status_ids[5], 0.05),  # DISPUTED
         (status_ids[6], 0.03),  # WRITTEN_OFF
         (status_ids[7], 0.02),  # ESCALATED
+        (status_ids[8], 0.03),  # AWAITING_DOCS
+        (status_ids[9], 0.03),  # CANCELLED
     ]
     status_choices, status_probs = zip(*status_weights, strict=True)
 
@@ -743,12 +833,14 @@ def gen_recon_breaks(
     # Aging bucket distribution: 50% fresh, 30% mid, 20% stale
     # bucket ids in declared order: 0-1D, 2-3D, 4-7D, 8-14D, 15-30D, 30D+
     bucket_weights = [
-        (aging_bucket_ids[0], 0.30),
-        (aging_bucket_ids[1], 0.20),
-        (aging_bucket_ids[2], 0.15),
-        (aging_bucket_ids[3], 0.15),
-        (aging_bucket_ids[4], 0.12),
-        (aging_bucket_ids[5], 0.08),
+        (aging_bucket_ids[0], 0.25),  # 0D
+        (aging_bucket_ids[1], 0.20),  # 1D
+        (aging_bucket_ids[2], 0.15),  # 2-3D
+        (aging_bucket_ids[3], 0.12),  # 4-7D
+        (aging_bucket_ids[4], 0.10),  # 8-14D
+        (aging_bucket_ids[5], 0.08),  # 15-30D
+        (aging_bucket_ids[6], 0.06),  # 31-60D
+        (aging_bucket_ids[7], 0.04),  # 60D+
     ]
     bucket_choices, bucket_probs = zip(*bucket_weights, strict=True)
 
@@ -789,14 +881,7 @@ def gen_recon_breaks(
         bucket_id = rng.choices(bucket_choices, weights=bucket_probs, k=1)[0]
         # aging_days correlated with bucket
         bucket_index = aging_bucket_ids.index(bucket_id)
-        aging_day_ranges = [
-            (0, 1),
-            (2, 3),
-            (4, 7),
-            (8, 14),
-            (15, 30),
-            (31, 90),
-        ]
+        aging_day_ranges = [(0, 0), (1, 1), (2, 3), (4, 7), (8, 14), (15, 30), (31, 60), (61, 120)]
         lo, hi = aging_day_ranges[bucket_index]
         aging_days = rng.randint(lo, hi)
 
@@ -975,11 +1060,19 @@ def insert_batch(
     cols_sql = ",".join(columns)
     sql = f"INSERT INTO {table} ({cols_sql}) VALUES %s"
     total = len(rows)
+    t0 = time.time()
     for i in range(0, total, batch_size):
         chunk = rows[i : i + batch_size]
         psycopg2.extras.execute_values(cur, sql, chunk)
         progress = min(i + batch_size, total)
-        print(f"  {table}: inserted {progress}/{total}")
+        # Per D-14: for large row counts, print progress every 100K rows
+        if total >= 100_000:
+            if progress % 100_000 == 0 or progress == total:
+                elapsed = time.time() - t0
+                pct = progress * 100 // total
+                print(f"  {table}: {progress:,} / {total:,} ({pct}%) [{elapsed:.1f}s]")
+    elapsed = time.time() - t0
+    print(f"  {table}: {total:,} rows ({elapsed:.1f}s)")
 
 
 def insert_returning_ids(
@@ -996,16 +1089,56 @@ def insert_returning_ids(
     """
     if not rows:
         return []
-    cols_sql = ",".join(columns)
-    sql = f"INSERT INTO {table} ({cols_sql}) VALUES %s RETURNING id"
-    returned = psycopg2.extras.execute_values(
-        cur,
-        sql,
-        rows,
-        page_size=1000,
-        fetch=True,
-    )
-    return [row[0] for row in returned]
+    cols_sql = ", ".join(columns)
+    binds_sql = ", ".join(f":{i + 1}" for i in range(len(columns)))
+    sql = f"INSERT INTO {table} ({cols_sql}) VALUES ({binds_sql}) RETURNING id INTO :out_id"
+    ids: list[int] = []
+    t0 = time.time()
+    for row in rows:
+        out_var = cur.var(oracledb.NUMBER)
+        cur.execute(sql, list(row) + [out_var])
+        ids.append(int(out_var.getvalue()[0]))
+    elapsed = time.time() - t0
+    print(f"  {table}: {len(ids):,} rows ({elapsed:.1f}s)")
+    return ids
+
+
+def insert_returning_ids_batch(
+    cur: oracledb.Cursor,
+    table: str,
+    columns: list[str],
+    rows: list[tuple],
+    batch_size: int = 5000,
+) -> list[int]:
+    """Insert large row sets in batches, returning IDENTITY ids.
+
+    For large fact tables (100k rows), we insert in batches and query
+    back the generated IDs using the known sequential nature of IDENTITY.
+    """
+    if not rows:
+        return []
+    cols_sql = ", ".join(columns)
+    binds_sql = ", ".join(f":{i + 1}" for i in range(len(columns)))
+    sql = f"INSERT INTO {table} ({cols_sql}) VALUES ({binds_sql})"
+
+    total = len(rows)
+    t0 = time.time()
+    for i in range(0, total, batch_size):
+        chunk = rows[i : i + batch_size]
+        cur.executemany(sql, chunk)
+        progress = min(i + batch_size, total)
+        if total >= 100_000:
+            if progress % 100_000 == 0 or progress == total:
+                elapsed = time.time() - t0
+                pct = progress * 100 // total
+                print(f"  {table}: {progress:,} / {total:,} ({pct}%) [{elapsed:.1f}s]")
+
+    # Retrieve all generated IDs
+    cur.execute(f"SELECT id FROM {table} ORDER BY id")
+    ids = [row[0] for row in cur.fetchall()]
+    elapsed = time.time() - t0
+    print(f"  {table}: {len(ids):,} rows ({elapsed:.1f}s)")
+    return ids
 
 
 # --------------------------------------------------------------------------- #
@@ -1422,8 +1555,8 @@ CURATED_DATASETS: list[dict] = [
     },
 ]
 
-assert len(CURATED_DATASETS) == 16, (
-    f"CURATED_DATASETS must have 16 entries, got {len(CURATED_DATASETS)}"
+assert len(CURATED_DATASETS) == 17, (
+    f"CURATED_DATASETS must have 17 entries, got {len(CURATED_DATASETS)}"
 )
 
 
@@ -2480,15 +2613,16 @@ def write_dashboard_names_snapshot() -> None:
 
 
 def main() -> None:
-    print("Phase 10 seed script -- clean-slate rebuild")
+    args = parse_args()
+
+    print("RecViz Oracle seed script -- clean-slate rebuild")
+    print("=" * 60)
     rng = random.Random(RANDOM_SEED)
 
-    with psycopg2.connect(RECON_DB_URL) as recon_conn:
-        recon_conn.autocommit = False
-        with recon_conn.cursor() as cur:
-            print("\n=== recon_data: drop + create schema ===")
-            drop_recon_schema(cur)
-            create_recon_schema(cur)
+    conn = _get_connection(args)
+    # Oracle auto-commits DDL. We manually commit DML.
+    conn.autocommit = False
+    cur = conn.cursor()
 
             print("\n=== recon_data: dimensions ===")
             engine_ids = insert_returning_ids(
