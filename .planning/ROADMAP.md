@@ -210,7 +210,10 @@ Plans:
   3. AG Grid results grid uses the Theming API (`themeQuartz.withPart(colorSchemeDark)`) and re-themes instantly on dark/light toggle — no residual `ag-theme-quartz-dark` CSS class references
   4. User can execute a query returning a large result set (thousands of rows) without the grid crashing, and columns render correctly
   5. Schema browser (if present) lists Oracle tables and columns fetched from live data source metadata
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 07-01-PLAN.md — AG Grid Theming API migration + seed fix + dead code deletion + light polish
+- [ ] 07-02-PLAN.md — Playwright MCP verification + USAGE-TRACKER update
 **UI hint**: yes
 **Known risks / gotchas**:
   - Monaco editor theme must re-theme on toggle. `vs-dark` vs `vs-light` switch lives in the editor wrapper and needs a theme subscription.
@@ -229,7 +232,10 @@ Plans:
   3. `backend/requirements.txt` contains only dependencies that are actually imported somewhere in `backend/app/`, and the `PortableJSON` alias is removed with all imports updated to `OracleJSON` directly
   4. Stale memory entries (`project_superset_alembic`, `project_superset_ditched`, `project_broken_dashboard_pipeline`, `project_local_dev_setup`) are pruned or rewritten to reflect Oracle-only reality; `project_backend_test_coverage_gap` is retained since tests are still deferred
   5. Milestone-end smoke test passes — full app boots, every page (Settings, Datasets, Charts, KPIs, Dashboards, Explorer) renders in both light and dark mode, data sources connect to Oracle, dashboards render with real data
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 07-01-PLAN.md — AG Grid Theming API migration + seed fix + dead code deletion + light polish
+- [ ] 07-02-PLAN.md — Playwright MCP verification + USAGE-TRACKER update
 **Known risks / gotchas**:
   - `v$parameter` for `COMPATIBLE` must be queried and documented — on Oracle Cloud it's expected at 19.0.0 (128-byte identifier limit), but the value for Citi prod is unknown until someone runs it there. Longest constraint name in the schema is currently 42 bytes, well under either limit, but this needs to be captured for future reference.
   - `USAGE-TRACKER.md` accuracy depends on every earlier phase actually updating it. Plan-phase for earlier phases must enforce this or Phase 8 has nothing to sweep.
@@ -249,7 +255,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 4. Charts Page | 0/4 | Not started | - |
 | 5. KPIs Page | 0/3 | Not started | - |
 | 6. Dashboards Page | 0/5 | Not started | - |
-| 7. Explorer Page | 0/TBD | Not started | - |
+| 7. Explorer Page | 0/2 | Not started | - |
 | 8. Alembic Audit + Dead Code Sweep + Memory Cleanup | 0/TBD | Not started | - |
 
 ---
