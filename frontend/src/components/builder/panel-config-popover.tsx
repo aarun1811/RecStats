@@ -81,40 +81,53 @@ export function PanelConfigPopover({
                 placeholder="Panel title"
                 className="mt-1 h-8 text-sm"
               />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Override the panel&apos;s display title on this dashboard.
+              </p>
             </div>
 
             {/* Chart-specific sections */}
             {item.type === 'chart' && item.chart && (
               <>
                 {/* Cross-filter toggle */}
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs font-medium uppercase text-muted-foreground">
-                    Cross-filtering
-                  </Label>
-                  <Switch
-                    checked={item.chart.crossFilter}
-                    onCheckedChange={(checked) =>
-                      updateItemConfig(item.id, { crossFilter: checked })
-                    }
-                  />
+                <div>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-medium uppercase text-muted-foreground">
+                      Cross-filtering
+                    </Label>
+                    <Switch
+                      checked={item.chart.crossFilter}
+                      onCheckedChange={(checked) =>
+                        updateItemConfig(item.id, { crossFilter: checked })
+                      }
+                    />
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    When enabled, clicking a data point on this chart filters other charts and KPIs on the dashboard.
+                  </p>
                 </div>
 
                 {/* Drill hierarchy (D-27 column picker) */}
-                <DrillHierarchyEditor
-                  datasetId={item.chart.datasetId}
-                  hierarchy={item.chart.drillHierarchy}
-                  drillDetailDataSourceId={
-                    item.chart.drillDetailDataSourceId
-                  }
-                  onHierarchyChange={(h) =>
-                    updateItemConfig(item.id, { drillHierarchy: h })
-                  }
-                  onDetailDataSourceChange={(id) =>
-                    updateItemConfig(item.id, {
-                      drillDetailDataSourceId: id,
-                    })
-                  }
-                />
+                <div>
+                  <DrillHierarchyEditor
+                    datasetId={item.chart.datasetId}
+                    hierarchy={item.chart.drillHierarchy}
+                    drillDetailDataSourceId={
+                      item.chart.drillDetailDataSourceId
+                    }
+                    onHierarchyChange={(h) =>
+                      updateItemConfig(item.id, { drillHierarchy: h })
+                    }
+                    onDetailDataSourceChange={(id) =>
+                      updateItemConfig(item.id, {
+                        drillDetailDataSourceId: id,
+                      })
+                    }
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Define columns users can drill into, from summary to detail. The detail data source provides the row-level grid at the deepest level.
+                  </p>
+                </div>
 
                 {/* Refresh interval */}
                 <div>
@@ -140,6 +153,9 @@ export function PanelConfigPopover({
                       <SelectItem value="1800000">30 minutes</SelectItem>
                     </SelectContent>
                   </Select>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Auto-refresh this chart independently of the dashboard-level refresh.
+                  </p>
                 </div>
 
                 {/* Open in Chart Builder */}
@@ -202,6 +218,9 @@ export function PanelConfigPopover({
                       <SelectItem value="1000">1000 rows</SelectItem>
                     </SelectContent>
                   </Select>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Maximum rows fetched from the database for this grid panel.
+                  </p>
                 </div>
 
                 {/* Default sort column */}
@@ -219,6 +238,9 @@ export function PanelConfigPopover({
                     placeholder="Column name"
                     className="mt-1 h-8 text-sm"
                   />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Column to sort by when the grid first loads. Leave empty for default order.
+                  </p>
                 </div>
 
                 {/* Default sort direction */}
@@ -242,6 +264,9 @@ export function PanelConfigPopover({
                       <SelectItem value="desc">Descending</SelectItem>
                     </SelectContent>
                   </Select>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Initial sort order when the grid loads. Users can change this by clicking column headers.
+                  </p>
                 </div>
               </>
             )}
