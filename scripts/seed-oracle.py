@@ -2572,7 +2572,7 @@ assert len(CURATED_KPIS) == 18, (
 # Section 6b: Curated dashboards
 # --------------------------------------------------------------------------- #
 
-# Standard global filter bar reused across all 5 dashboards.
+# Standard global filter bar reused across all 10 dashboards.
 _GLOBAL_FILTERS = [
     {
         "id": "region_code",
@@ -2734,54 +2734,55 @@ def _kpi_card(kpi_id: str) -> dict:
 
 
 CURATED_DASHBOARDS: list[dict] = [
+    # ------------------------------------------------------------------ #
+    # 1. Executive Summary
+    # ------------------------------------------------------------------ #
     {
-        "id": "dash-sla",
-        "name": "Phase 10 · SLA Overview",
-        "description": "Daily SLA health -- breach rate by SLA type, breach by region, time-to-resolve distribution.",
+        "id": "dash-executive-summary",
+        "name": "Executive Summary",
+        "description": "High-level health check -- volume, match rate, breaks, and SLA compliance at a glance.",
         "config": {
-            "id": "dash-sla",
-            "name": "Phase 10 · SLA Overview",
-            "description": "Daily SLA health -- breach rate by SLA type, breach by region, time-to-resolve distribution.",
+            "id": "dash-executive-summary",
+            "name": "Executive Summary",
+            "description": "High-level health check -- volume, match rate, breaks, and SLA compliance at a glance.",
             "features": {"crossFilter": True, "drillDown": True},
             "filters": _GLOBAL_FILTERS[:],
             "kpis": [
-                _kpi_card("kpi-sla-breach-rate"),
+                _kpi_card("kpi-total-transactions"),
                 _kpi_card("kpi-match-rate"),
-                _kpi_card("kpi-avg-aging"),
+                _kpi_card("kpi-total-breaks"),
+                _kpi_card("kpi-sla-breach-rate"),
             ],
             "charts": [
                 _dash_chart_ref(
-                    "chart-sla-heatmap",
-                    "SLA Breach Heatmap",
-                    "heatmap",
-                    "ds-sla-breach-summary",
+                    "chart-daily-volume-combo",
+                    "Volume vs Amount -- Daily Trend",
+                    "combo",
+                    "ds-recon-transactions-daily",
                     _layout(0, 0, 12),
-                    metric="breach_rate",
                     cross_filter=True,
+                    drill_hierarchy=["year", "month", "day"],
                     drill_detail_data_source_id="ds-recon-transaction-detail",
                 ),
                 _dash_chart_ref(
-                    "chart-status-region-stacked",
-                    "Status by Region",
-                    "stacked-bar",
-                    "ds-recon-status-by-region",
+                    "chart-region-txn-bar",
+                    "Transactions by Region",
+                    "bar",
+                    "ds-recon-transactions-by-region",
                     _layout(0, 3, 6),
-                    metric="matched",
                     cross_filter=True,
-                    drill_hierarchy=["region", "status"],
-                    drill_detail_data_source_id="ds-recon-transaction-detail",
                 ),
                 _dash_chart_ref(
-                    "chart-aging-waterfall",
-                    "Aging Waterfall",
-                    "waterfall",
-                    "ds-recon-breaks-aging",
+                    "chart-status-donut",
+                    "Match Status Breakdown",
+                    "donut",
+                    "ds-recon-transactions-by-status",
                     _layout(6, 3, 6),
-                    metric="break_count",
+                    cross_filter=True,
                 ),
                 _dash_chart_ref(
                     "chart-match-rate-gauge",
-                    "Match Rate Gauge",
+                    "Current Match Rate",
                     "gauge",
                     "ds-recon-match-rate-daily",
                     _layout(0, 6, 6),
@@ -2796,7 +2797,7 @@ CURATED_DASHBOARDS: list[dict] = [
             ],
             "grids": [
                 {
-                    "id": "grid-sla-detail",
+                    "id": "grid-exec-detail",
                     "title": "Transaction Detail",
                     "dataSourceId": "ds-recon-transaction-detail",
                     "columns": [
@@ -2804,7 +2805,10 @@ CURATED_DASHBOARDS: list[dict] = [
                         {"field": "trade_date", "header": "Trade Date", "type": "date"},
                         {"field": "status", "header": "Status", "type": "string"},
                         {"field": "region", "header": "Region", "type": "string"},
+                        {"field": "desk", "header": "Desk", "type": "string"},
                         {"field": "amount_usd", "header": "Amount USD", "type": "number"},
+                        {"field": "counterparty", "header": "Counterparty", "type": "string"},
+                        {"field": "currency", "header": "Currency", "type": "string"},
                     ],
                     "layout": _layout(0, 9, 12, 4),
                 }
@@ -2813,69 +2817,183 @@ CURATED_DASHBOARDS: list[dict] = [
             "autoRefreshInterval": 600000,
         },
     },
+    # ------------------------------------------------------------------ #
+    # 2. SLA Health
+    # ------------------------------------------------------------------ #
     {
-        "id": "dash-aging",
-        "name": "Phase 10 · Aging Analysis",
-        "description": "What's stale, where, and why.",
+        "id": "dash-sla-health",
+        "name": "SLA Health",
+        "description": "Are we meeting our SLA commitments? Breach rates, daily trends, and regional hotspots.",
         "config": {
-            "id": "dash-aging",
-            "name": "Phase 10 · Aging Analysis",
-            "description": "What's stale, where, and why.",
+            "id": "dash-sla-health",
+            "name": "SLA Health",
+            "description": "Are we meeting our SLA commitments? Breach rates, daily trends, and regional hotspots.",
             "features": {"crossFilter": True, "drillDown": True},
             "filters": _GLOBAL_FILTERS[:],
             "kpis": [
+                _kpi_card("kpi-sla-breach-rate"),
+                _kpi_card("kpi-sla-breach-count"),
                 _kpi_card("kpi-avg-aging"),
-                _kpi_card("kpi-total-breaks"),
-                _kpi_card("kpi-break-exposure"),
             ],
             "charts": [
                 _dash_chart_ref(
-                    "chart-aging-bar",
-                    "Aging Distribution",
-                    "bar",
-                    "ds-recon-breaks-aging",
-                    _layout(0, 0, 6),
+                    "chart-sla-heatmap",
+                    "SLA Breach Heatmap",
+                    "heatmap",
+                    "ds-sla-breach-summary",
+                    _layout(0, 0, 12),
+                    metric="breach_rate",
                     cross_filter=True,
-                    drill_hierarchy=["severity", "aging_bucket"],
-                    drill_detail_data_source_id="ds-recon-breaks-summary",
+                    drill_hierarchy=["sla_type", "region"],
+                    drill_detail_data_source_id="ds-recon-transaction-detail",
                 ),
                 _dash_chart_ref(
-                    "chart-aging-waterfall",
-                    "Aging Waterfall",
-                    "waterfall",
-                    "ds-recon-breaks-aging",
-                    _layout(6, 0, 6),
-                    metric="break_count",
+                    "chart-sla-breach-bar",
+                    "SLA Breaches by Type",
+                    "bar",
+                    "ds-sla-breach-summary",
+                    _layout(0, 3, 6),
+                    cross_filter=True,
                 ),
+                _dash_chart_ref(
+                    "chart-sla-breach-rate-bar",
+                    "SLA Breach Rate by Region",
+                    "bar",
+                    "ds-sla-breach-summary",
+                    _layout(6, 3, 6),
+                ),
+                _dash_chart_ref(
+                    "chart-sla-daily-trend",
+                    "Daily SLA Breach Trend",
+                    "line",
+                    "ds-recon-sla-daily",
+                    _layout(0, 6, 6),
+                ),
+                _dash_chart_ref(
+                    "chart-sla-daily-combo",
+                    "SLA Events vs Breaches -- Daily",
+                    "combo",
+                    "ds-recon-sla-daily",
+                    _layout(6, 6, 6),
+                ),
+            ],
+            "grids": [
+                {
+                    "id": "grid-sla-detail",
+                    "title": "Transaction Detail",
+                    "dataSourceId": "ds-recon-transaction-detail",
+                    "columns": [
+                        {"field": "external_ref", "header": "Ref", "type": "string"},
+                        {"field": "trade_date", "header": "Trade Date", "type": "date"},
+                        {"field": "status", "header": "Status", "type": "string"},
+                        {"field": "region", "header": "Region", "type": "string"},
+                        {"field": "desk", "header": "Desk", "type": "string"},
+                        {"field": "amount_usd", "header": "Amount USD", "type": "number"},
+                        {"field": "counterparty", "header": "Counterparty", "type": "string"},
+                        {"field": "currency", "header": "Currency", "type": "string"},
+                    ],
+                    "layout": _layout(0, 9, 12, 4),
+                }
+            ],
+            "layout": {"type": "flow", "sections": ["filters", "kpis", "charts", "grids"]},
+            "autoRefreshInterval": 600000,
+        },
+    },
+    # ------------------------------------------------------------------ #
+    # 3. Break Analysis
+    # ------------------------------------------------------------------ #
+    {
+        "id": "dash-break-analysis",
+        "name": "Break Analysis",
+        "description": "Where are breaks concentrated and what's driving them?",
+        "config": {
+            "id": "dash-break-analysis",
+            "name": "Break Analysis",
+            "description": "Where are breaks concentrated and what's driving them?",
+            "features": {"crossFilter": True, "drillDown": True},
+            "filters": _GLOBAL_FILTERS[:],
+            "kpis": [
+                _kpi_card("kpi-total-breaks"),
+                _kpi_card("kpi-open-breaks"),
+                _kpi_card("kpi-break-exposure"),
+            ],
+            "charts": [
                 _dash_chart_ref(
                     "chart-breaks-by-type-bar",
                     "Breaks by Type",
                     "bar",
                     "ds-recon-breaks-summary",
+                    _layout(0, 0, 12),
+                    cross_filter=True,
+                    drill_hierarchy=["break_type", "root_cause"],
+                    drill_detail_data_source_id="ds-recon-transaction-detail",
+                ),
+                _dash_chart_ref(
+                    "chart-breaks-usd-by-type",
+                    "Break Exposure by Type",
+                    "bar",
+                    "ds-recon-breaks-summary",
                     _layout(0, 3, 6),
+                ),
+                _dash_chart_ref(
+                    "chart-breaks-region-bar",
+                    "Breaks by Region",
+                    "bar",
+                    "ds-recon-breaks-by-region",
+                    _layout(6, 3, 6),
                     cross_filter=True,
                 ),
                 _dash_chart_ref(
+                    "chart-breaks-desk-treemap",
+                    "Break Volume by Desk",
+                    "treemap",
+                    "ds-recon-breaks-by-desk",
+                    _layout(0, 6, 6),
+                    cross_filter=True,
+                    drill_hierarchy=["asset_class", "desk"],
+                    drill_detail_data_source_id="ds-recon-transaction-detail",
+                ),
+                _dash_chart_ref(
                     "chart-break-flow-sankey",
-                    "Break Flow",
+                    "Break Lifecycle Flow",
                     "sankey",
                     "ds-recon-break-flow-sankey",
-                    _layout(0, 6, 12),
+                    _layout(6, 6, 6),
                 ),
             ],
-            "grids": [],
+            "grids": [
+                {
+                    "id": "grid-break-detail",
+                    "title": "Transaction Detail",
+                    "dataSourceId": "ds-recon-transaction-detail",
+                    "columns": [
+                        {"field": "external_ref", "header": "Ref", "type": "string"},
+                        {"field": "trade_date", "header": "Trade Date", "type": "date"},
+                        {"field": "status", "header": "Status", "type": "string"},
+                        {"field": "region", "header": "Region", "type": "string"},
+                        {"field": "desk", "header": "Desk", "type": "string"},
+                        {"field": "amount_usd", "header": "Amount USD", "type": "number"},
+                        {"field": "counterparty", "header": "Counterparty", "type": "string"},
+                        {"field": "currency", "header": "Currency", "type": "string"},
+                    ],
+                    "layout": _layout(0, 9, 12, 4),
+                }
+            ],
             "layout": {"type": "flow", "sections": ["filters", "kpis", "charts", "grids"]},
             "autoRefreshInterval": 600000,
         },
     },
+    # ------------------------------------------------------------------ #
+    # 4. Match Performance
+    # ------------------------------------------------------------------ #
     {
-        "id": "dash-match-rate",
-        "name": "Phase 10 · Match Rate Tracker",
-        "description": "How well are we auto-matching over time, by desk, by counterparty.",
+        "id": "dash-match-performance",
+        "name": "Match Performance",
+        "description": "How effective is auto-matching? Confidence scores, match types, and trend analysis.",
         "config": {
-            "id": "dash-match-rate",
-            "name": "Phase 10 · Match Rate Tracker",
-            "description": "How well are we auto-matching over time, by desk, by counterparty.",
+            "id": "dash-match-performance",
+            "name": "Match Performance",
+            "description": "How effective is auto-matching? Confidence scores, match types, and trend analysis.",
             "features": {"crossFilter": True, "drillDown": True},
             "filters": _GLOBAL_FILTERS[:],
             "kpis": [
@@ -2885,12 +3003,11 @@ CURATED_DASHBOARDS: list[dict] = [
             ],
             "charts": [
                 _dash_chart_ref(
-                    "chart-daily-txn-volume",
-                    "Transaction Volume — Daily",
+                    "chart-match-rate-trend",
+                    "Daily Match Rate Trend",
                     "line",
-                    "ds-recon-transactions-daily",
+                    "ds-recon-match-rate-daily",
                     _layout(0, 0, 12),
-                    cross_filter=True,
                     drill_hierarchy=["year", "month", "day"],
                     drill_detail_data_source_id="ds-recon-transaction-detail",
                 ),
@@ -2902,18 +3019,268 @@ CURATED_DASHBOARDS: list[dict] = [
                     _layout(0, 3, 6),
                 ),
                 _dash_chart_ref(
-                    "chart-status-donut",
-                    "Match Status",
-                    "donut",
-                    "ds-recon-transactions-by-status",
+                    "chart-match-confidence-bar",
+                    "Match Confidence by Type",
+                    "bar",
+                    "ds-recon-match-events-by-type",
                     _layout(6, 3, 6),
                     cross_filter=True,
                 ),
                 _dash_chart_ref(
+                    "chart-match-rate-region-bar",
+                    "Match Rate by Region",
+                    "bar",
+                    "ds-recon-match-rate-by-region",
+                    _layout(0, 6, 6),
+                    cross_filter=True,
+                ),
+                _dash_chart_ref(
+                    "chart-status-category-pie",
+                    "Status Category Split",
+                    "pie",
+                    "ds-recon-transactions-by-status",
+                    _layout(6, 6, 6),
+                    cross_filter=True,
+                ),
+            ],
+            "grids": [],
+            "layout": {"type": "flow", "sections": ["filters", "kpis", "charts", "grids"]},
+            "autoRefreshInterval": 600000,
+        },
+    },
+    # ------------------------------------------------------------------ #
+    # 5. Volume Trends
+    # ------------------------------------------------------------------ #
+    {
+        "id": "dash-volume-trends",
+        "name": "Volume Trends",
+        "description": "Transaction volume patterns over time -- daily, monthly, and seasonal trends.",
+        "config": {
+            "id": "dash-volume-trends",
+            "name": "Volume Trends",
+            "description": "Transaction volume patterns over time -- daily, monthly, and seasonal trends.",
+            "features": {"crossFilter": True, "drillDown": True},
+            "filters": _GLOBAL_FILTERS[:],
+            "kpis": [
+                _kpi_card("kpi-total-transactions"),
+                _kpi_card("kpi-total-usd-volume"),
+                _kpi_card("kpi-monthly-volume-growth"),
+            ],
+            "charts": [
+                _dash_chart_ref(
+                    "chart-daily-txn-volume",
+                    "Daily Transaction Volume",
+                    "line",
+                    "ds-recon-transactions-daily",
+                    _layout(0, 0, 12),
+                    drill_hierarchy=["year", "month", "day"],
+                    drill_detail_data_source_id="ds-recon-transaction-detail",
+                ),
+                _dash_chart_ref(
+                    "chart-monthly-txn-bar",
+                    "Monthly Transaction Count",
+                    "bar",
+                    "ds-recon-monthly-volume",
+                    _layout(0, 3, 6),
+                    cross_filter=True,
+                ),
+                _dash_chart_ref(
+                    "chart-monthly-usd-area",
+                    "Monthly USD Volume",
+                    "area",
+                    "ds-recon-monthly-volume",
+                    _layout(6, 3, 6),
+                ),
+                _dash_chart_ref(
+                    "chart-daily-usd-volume",
+                    "Daily USD Volume",
+                    "area",
+                    "ds-recon-transactions-daily",
+                    _layout(0, 6, 6),
+                ),
+                _dash_chart_ref(
                     "chart-daily-volume-combo",
-                    "Volume & Amount Combo",
+                    "Volume vs Amount -- Daily Trend",
                     "combo",
                     "ds-recon-transactions-daily",
+                    _layout(6, 6, 6),
+                ),
+            ],
+            "grids": [],
+            "layout": {"type": "flow", "sections": ["filters", "kpis", "charts", "grids"]},
+            "autoRefreshInterval": 600000,
+        },
+    },
+    # ------------------------------------------------------------------ #
+    # 6. Regional Breakdown
+    # ------------------------------------------------------------------ #
+    {
+        "id": "dash-regional-breakdown",
+        "name": "Regional Breakdown",
+        "description": "How do regions compare on volume, breaks, and match rates?",
+        "config": {
+            "id": "dash-regional-breakdown",
+            "name": "Regional Breakdown",
+            "description": "How do regions compare on volume, breaks, and match rates?",
+            "features": {"crossFilter": True, "drillDown": True},
+            "filters": _GLOBAL_FILTERS[:],
+            "kpis": [
+                _kpi_card("kpi-total-transactions"),
+                _kpi_card("kpi-region-break-avg"),
+                _kpi_card("kpi-match-rate"),
+            ],
+            "charts": [
+                _dash_chart_ref(
+                    "chart-region-txn-bar",
+                    "Transaction Count by Region",
+                    "bar",
+                    "ds-recon-transactions-by-region",
+                    _layout(0, 0, 12),
+                    cross_filter=True,
+                    drill_hierarchy=["region", "desk", "account"],
+                    drill_detail_data_source_id="ds-recon-transaction-detail",
+                ),
+                _dash_chart_ref(
+                    "chart-region-usd-bar",
+                    "USD Volume by Region",
+                    "bar",
+                    "ds-recon-transactions-by-region",
+                    _layout(0, 3, 6),
+                    cross_filter=True,
+                ),
+                _dash_chart_ref(
+                    "chart-region-share-pie",
+                    "Regional Volume Share",
+                    "pie",
+                    "ds-recon-transactions-by-region",
+                    _layout(6, 3, 6),
+                    cross_filter=True,
+                ),
+                _dash_chart_ref(
+                    "chart-region-txn-donut",
+                    "Regional Transaction Share",
+                    "donut",
+                    "ds-recon-transactions-by-region",
+                    _layout(0, 6, 6),
+                    cross_filter=True,
+                ),
+                _dash_chart_ref(
+                    "chart-status-region-stacked",
+                    "Status by Region -- Stacked",
+                    "stacked-bar",
+                    "ds-recon-status-by-region",
+                    _layout(6, 6, 6),
+                    cross_filter=True,
+                ),
+            ],
+            "grids": [],
+            "layout": {"type": "flow", "sections": ["filters", "kpis", "charts", "grids"]},
+            "autoRefreshInterval": 600000,
+        },
+    },
+    # ------------------------------------------------------------------ #
+    # 7. Counterparty Risk
+    # ------------------------------------------------------------------ #
+    {
+        "id": "dash-counterparty-risk",
+        "name": "Counterparty Risk",
+        "description": "Which counterparties carry the most exposure and break risk?",
+        "config": {
+            "id": "dash-counterparty-risk",
+            "name": "Counterparty Risk",
+            "description": "Which counterparties carry the most exposure and break risk?",
+            "features": {"crossFilter": True, "drillDown": True},
+            "filters": _GLOBAL_FILTERS[:],
+            "kpis": [
+                _kpi_card("kpi-unique-counterparties"),
+                _kpi_card("kpi-break-exposure"),
+                _kpi_card("kpi-largest-txn"),
+            ],
+            "charts": [
+                _dash_chart_ref(
+                    "chart-counterparty-top-bar",
+                    "Top 20 Counterparties by Volume",
+                    "bar",
+                    "ds-recon-counterparty-top",
+                    _layout(0, 0, 12),
+                    cross_filter=True,
+                ),
+                _dash_chart_ref(
+                    "chart-amount-fee-scatter",
+                    "Amount vs Fee Correlation",
+                    "scatter",
+                    "ds-recon-transactions-scatter",
+                    _layout(0, 3, 6),
+                ),
+                _dash_chart_ref(
+                    "chart-breaks-desk-bar",
+                    "Breaks by Desk",
+                    "bar",
+                    "ds-recon-breaks-by-desk",
+                    _layout(6, 3, 6),
+                    cross_filter=True,
+                ),
+                _dash_chart_ref(
+                    "chart-currency-bar",
+                    "Transaction Count by Currency",
+                    "bar",
+                    "ds-recon-currency-distribution",
+                    _layout(0, 6, 12),
+                    cross_filter=True,
+                ),
+            ],
+            "grids": [],
+            "layout": {"type": "flow", "sections": ["filters", "kpis", "charts", "grids"]},
+            "autoRefreshInterval": 600000,
+        },
+    },
+    # ------------------------------------------------------------------ #
+    # 8. Currency Exposure
+    # ------------------------------------------------------------------ #
+    {
+        "id": "dash-currency-exposure",
+        "name": "Currency Exposure",
+        "description": "USD, EUR, GBP, JPY -- where is our multi-currency risk concentrated?",
+        "config": {
+            "id": "dash-currency-exposure",
+            "name": "Currency Exposure",
+            "description": "USD, EUR, GBP, JPY -- where is our multi-currency risk concentrated?",
+            "features": {"crossFilter": True, "drillDown": True},
+            "filters": _GLOBAL_FILTERS[:],
+            "kpis": [
+                _kpi_card("kpi-currency-count"),
+                _kpi_card("kpi-total-usd-volume"),
+                _kpi_card("kpi-avg-txn-size"),
+            ],
+            "charts": [
+                _dash_chart_ref(
+                    "chart-currency-pie",
+                    "Currency Distribution",
+                    "pie",
+                    "ds-recon-currency-distribution",
+                    _layout(0, 0, 12),
+                    cross_filter=True,
+                ),
+                _dash_chart_ref(
+                    "chart-currency-bar",
+                    "Transaction Count by Currency",
+                    "bar",
+                    "ds-recon-currency-distribution",
+                    _layout(0, 3, 6),
+                    cross_filter=True,
+                ),
+                _dash_chart_ref(
+                    "chart-txn-parallel-coords",
+                    "Transaction Parallel Coordinates",
+                    "parallel",
+                    "ds-recon-transactions-scatter",
+                    _layout(6, 3, 6),
+                ),
+                _dash_chart_ref(
+                    "chart-desk-avg-usd",
+                    "Average Transaction Size by Desk",
+                    "bar",
+                    "ds-recon-volume-by-desk",
                     _layout(0, 6, 12),
                 ),
             ],
@@ -2922,23 +3289,25 @@ CURATED_DASHBOARDS: list[dict] = [
             "autoRefreshInterval": 600000,
         },
     },
+    # ------------------------------------------------------------------ #
+    # 9. Desk Performance
+    # ------------------------------------------------------------------ #
     {
-        "id": "dash-volume",
-        "name": "Phase 10 · Volume Dashboard",
-        "description": "Where is transaction volume concentrated -- by region, desk, counterparty, currency.",
+        "id": "dash-desk-performance",
+        "name": "Desk Performance",
+        "description": "Desk-level productivity -- who's processing the most volume and at what quality?",
         "config": {
-            "id": "dash-volume",
-            "name": "Phase 10 · Volume Dashboard",
-            "description": "Where is transaction volume concentrated -- by region, desk, counterparty, currency.",
+            "id": "dash-desk-performance",
+            "name": "Desk Performance",
+            "description": "Desk-level productivity -- who's processing the most volume and at what quality?",
             "features": {"crossFilter": True, "drillDown": True},
             "filters": _GLOBAL_FILTERS[:],
             "kpis": [
                 _kpi_card("kpi-total-transactions"),
-                _kpi_card("kpi-total-usd-volume"),
-                _kpi_card("kpi-largest-txn"),
+                _kpi_card("kpi-avg-txn-size"),
+                _kpi_card("kpi-match-rate"),
             ],
             "charts": [
-                # Row 1: 12c treemap (cross-filter source)
                 _dash_chart_ref(
                     "chart-desk-volume-treemap",
                     "Desk Volume Treemap",
@@ -2949,52 +3318,35 @@ CURATED_DASHBOARDS: list[dict] = [
                     drill_hierarchy=["asset_class", "desk"],
                     drill_detail_data_source_id="ds-recon-transaction-detail",
                 ),
-                # Row 2: 6c + 6c
                 _dash_chart_ref(
-                    "chart-region-txn-bar",
-                    "Transactions by Region",
+                    "chart-desk-volume-bar",
+                    "Transaction Count by Desk",
                     "bar",
-                    "ds-recon-transactions-by-region",
+                    "ds-recon-volume-by-desk",
                     _layout(0, 3, 6),
                     cross_filter=True,
                 ),
                 _dash_chart_ref(
-                    "chart-currency-pie",
-                    "Currency Distribution",
-                    "pie",
-                    "ds-recon-currency-distribution",
+                    "chart-desk-avg-usd",
+                    "Average Transaction Size by Desk",
+                    "bar",
+                    "ds-recon-volume-by-desk",
                     _layout(6, 3, 6),
                 ),
-                # Row 3: 6c + 6c
                 _dash_chart_ref(
-                    "chart-counterparty-top-bar",
-                    "Top 20 Counterparties",
+                    "chart-breaks-desk-bar",
+                    "Breaks by Desk",
                     "bar",
-                    "ds-recon-counterparty-top",
+                    "ds-recon-breaks-by-desk",
                     _layout(0, 6, 6),
                 ),
                 _dash_chart_ref(
-                    "chart-amount-fee-scatter",
-                    "Amount vs Fee",
-                    "scatter",
-                    "ds-recon-transactions-scatter",
+                    "chart-aging-bar",
+                    "Aging Distribution",
+                    "bar",
+                    "ds-recon-breaks-aging",
                     _layout(6, 6, 6),
-                ),
-                # Row 4: 6c daily usd volume area
-                _dash_chart_ref(
-                    "chart-daily-usd-volume",
-                    "Transaction Amount — Daily",
-                    "area",
-                    "ds-recon-transactions-daily",
-                    _layout(0, 9, 6),
-                ),
-                # Row 5: 12c parallel
-                _dash_chart_ref(
-                    "chart-txn-parallel-coords",
-                    "Transaction Parallel Coords",
-                    "parallel",
-                    "ds-recon-transactions-scatter",
-                    _layout(0, 12, 12),
+                    cross_filter=True,
                 ),
             ],
             "grids": [],
@@ -3002,65 +3354,83 @@ CURATED_DASHBOARDS: list[dict] = [
             "autoRefreshInterval": 600000,
         },
     },
+    # ------------------------------------------------------------------ #
+    # 10. Operational Detail
+    # ------------------------------------------------------------------ #
     {
-        "id": "dash-breaks-summary",
-        "name": "Phase 10 · Breaks Summary",
-        "description": "Executive-level break summary -- counts, trends, top offenders.",
+        "id": "dash-operational-detail",
+        "name": "Operational Detail",
+        "description": "Ground-level transaction data for investigation and drill-down.",
         "config": {
-            "id": "dash-breaks-summary",
-            "name": "Phase 10 · Breaks Summary",
-            "description": "Executive-level break summary -- counts, trends, top offenders.",
+            "id": "dash-operational-detail",
+            "name": "Operational Detail",
+            "description": "Ground-level transaction data for investigation and drill-down.",
             "features": {"crossFilter": True, "drillDown": True},
             "filters": _GLOBAL_FILTERS[:],
             "kpis": [
-                _kpi_card("kpi-total-breaks"),
+                _kpi_card("kpi-total-transactions"),
                 _kpi_card("kpi-open-breaks"),
-                _kpi_card("kpi-break-exposure"),
-                _kpi_card("kpi-unique-counterparties"),
+                _kpi_card("kpi-min-daily-volume"),
             ],
             "charts": [
                 _dash_chart_ref(
-                    "chart-breaks-by-type-bar",
-                    "Breaks by Type",
+                    "chart-status-distribution-bar",
+                    "Transaction Status Distribution",
                     "bar",
-                    "ds-recon-breaks-summary",
-                    _layout(0, 0, 6),
-                    cross_filter=True,
-                    drill_hierarchy=["break_type", "root_cause"],
-                    drill_detail_data_source_id="ds-recon-breaks-summary",
-                ),
-                _dash_chart_ref(
-                    "chart-status-donut",
-                    "Match Status",
-                    "donut",
                     "ds-recon-transactions-by-status",
-                    _layout(6, 0, 6),
+                    _layout(0, 0, 12),
                     cross_filter=True,
+                    drill_hierarchy=["status", "detail"],
+                    drill_detail_data_source_id="ds-recon-transaction-detail",
                 ),
                 _dash_chart_ref(
-                    "chart-breaks-usd-by-type",
-                    "Break Amount by Type",
-                    "bar",
-                    "ds-recon-breaks-summary",
+                    "chart-aging-waterfall",
+                    "Aging Bucket Waterfall",
+                    "waterfall",
+                    "ds-recon-breaks-aging",
                     _layout(0, 3, 6),
                 ),
                 _dash_chart_ref(
-                    "chart-break-flow-sankey",
-                    "Break Flow",
-                    "sankey",
-                    "ds-recon-break-flow-sankey",
+                    "chart-breaks-aging-by-type",
+                    "Average Aging by Break Type",
+                    "bar",
+                    "ds-recon-breaks-summary",
+                    _layout(6, 3, 6),
+                ),
+                _dash_chart_ref(
+                    "chart-aging-usd-bar",
+                    "Aging Exposure by Bucket",
+                    "bar",
+                    "ds-recon-breaks-aging",
                     _layout(0, 6, 12),
                 ),
             ],
-            "grids": [],
+            "grids": [
+                {
+                    "id": "grid-ops-detail",
+                    "title": "Transaction Detail",
+                    "dataSourceId": "ds-recon-transaction-detail",
+                    "columns": [
+                        {"field": "external_ref", "header": "Ref", "type": "string"},
+                        {"field": "trade_date", "header": "Trade Date", "type": "date"},
+                        {"field": "status", "header": "Status", "type": "string"},
+                        {"field": "region", "header": "Region", "type": "string"},
+                        {"field": "desk", "header": "Desk", "type": "string"},
+                        {"field": "amount_usd", "header": "Amount USD", "type": "number"},
+                        {"field": "counterparty", "header": "Counterparty", "type": "string"},
+                        {"field": "currency", "header": "Currency", "type": "string"},
+                    ],
+                    "layout": _layout(0, 9, 12, 4),
+                }
+            ],
             "layout": {"type": "flow", "sections": ["filters", "kpis", "charts", "grids"]},
             "autoRefreshInterval": 600000,
         },
     },
 ]
 
-assert len(CURATED_DASHBOARDS) == 5, (
-    f"CURATED_DASHBOARDS must have 5 entries, got {len(CURATED_DASHBOARDS)}"
+assert len(CURATED_DASHBOARDS) == 10, (
+    f"CURATED_DASHBOARDS must have 10 entries, got {len(CURATED_DASHBOARDS)}"
 )
 
 
