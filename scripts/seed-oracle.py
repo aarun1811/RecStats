@@ -1858,6 +1858,7 @@ CURATED_CHARTS: list[dict] = [
         ["total_usd"],
         show_x_label=False,
         show_y_label=False,
+        type_specific={"seriesColor_0": "--series-1", "seriesColor_1": "--series-6", "seriesColor_2": "--series-7", "seriesColor_3": "--series-8", "seriesColor_4": "--chart-negative"},
     ),
     _chart(  # 9
         "chart-region-txn-donut",
@@ -1869,6 +1870,7 @@ CURATED_CHARTS: list[dict] = [
         ["txn_count"],
         show_x_label=False,
         show_y_label=False,
+        type_specific={"seriesColor_0": "--series-1", "seriesColor_1": "--series-6", "seriesColor_2": "--series-7", "seriesColor_3": "--series-8", "seriesColor_4": "--chart-negative"},
     ),
     # ------------------------------------------------------------------
     # Dataset: ds-recon-transactions-by-status
@@ -1893,6 +1895,7 @@ CURATED_CHARTS: list[dict] = [
         ["txn_count"],
         show_x_label=False,
         show_y_label=False,
+        type_specific={"seriesColor_0": "--series-1", "seriesColor_1": "--series-6", "seriesColor_2": "--series-7", "seriesColor_3": "--series-8", "seriesColor_4": "--chart-negative"},
     ),
     _chart(  # 12
         "chart-status-category-pie",
@@ -1904,6 +1907,7 @@ CURATED_CHARTS: list[dict] = [
         ["txn_count"],
         show_x_label=False,
         show_y_label=False,
+        type_specific={"seriesColor_0": "--series-1", "seriesColor_1": "--series-6", "seriesColor_2": "--series-7", "seriesColor_3": "--series-8", "seriesColor_4": "--chart-negative"},
     ),
     # ------------------------------------------------------------------
     # Dataset: ds-recon-status-by-region
@@ -1940,6 +1944,7 @@ CURATED_CHARTS: list[dict] = [
         "bar",
         "break_type",
         ["break_count"],
+        type_specific={"seriesColor_0": "--series-7", "seriesColor_1": "--chart-negative"},
     ),
     _chart(  # 16
         "chart-breaks-usd-by-type",
@@ -1949,6 +1954,7 @@ CURATED_CHARTS: list[dict] = [
         "bar",
         "break_type",
         ["total_break_usd"],
+        type_specific={"seriesColor_0": "--series-7", "seriesColor_1": "--chart-negative"},
     ),
     _chart(  # 17
         "chart-breaks-resolution-donut",
@@ -1960,6 +1966,7 @@ CURATED_CHARTS: list[dict] = [
         ["break_count"],
         show_x_label=False,
         show_y_label=False,
+        type_specific={"seriesColor_0": "--series-1", "seriesColor_1": "--series-6", "seriesColor_2": "--series-7", "seriesColor_3": "--series-8", "seriesColor_4": "--chart-negative"},
     ),
     _chart(  # 18
         "chart-breaks-aging-by-type",
@@ -1969,6 +1976,7 @@ CURATED_CHARTS: list[dict] = [
         "bar",
         "break_type",
         ["avg_aging"],
+        type_specific={"seriesColor_0": "--chart-negative", "seriesColor_1": "--series-7"},
     ),
     # ------------------------------------------------------------------
     # Dataset: ds-recon-breaks-aging
@@ -1982,6 +1990,7 @@ CURATED_CHARTS: list[dict] = [
         "waterfall",
         "label",
         ["break_count"],
+        type_specific={"seriesColor_0": "--chart-negative", "seriesColor_1": "--series-7"},
     ),
     _chart(  # 20
         "chart-aging-bar",
@@ -1991,6 +2000,7 @@ CURATED_CHARTS: list[dict] = [
         "bar",
         "label",
         ["break_count"],
+        type_specific={"seriesColor_0": "--series-7", "seriesColor_1": "--chart-negative"},
     ),
     _chart(  # 21
         "chart-aging-usd-bar",
@@ -2000,6 +2010,7 @@ CURATED_CHARTS: list[dict] = [
         "bar",
         "label",
         ["total_usd"],
+        type_specific={"seriesColor_0": "--series-7", "seriesColor_1": "--chart-negative"},
     ),
     # ------------------------------------------------------------------
     # Dataset: ds-recon-breaks-by-region (NEW)
@@ -2013,6 +2024,7 @@ CURATED_CHARTS: list[dict] = [
         "bar",
         "region",
         ["break_count"],
+        type_specific={"seriesColor_0": "--series-7", "seriesColor_1": "--chart-negative"},
     ),
     _chart(  # 23
         "chart-breaks-region-usd",
@@ -2022,6 +2034,7 @@ CURATED_CHARTS: list[dict] = [
         "bar",
         "region",
         ["total_break_usd"],
+        type_specific={"seriesColor_0": "--series-7", "seriesColor_1": "--chart-negative"},
     ),
     # ------------------------------------------------------------------
     # Dataset: ds-recon-breaks-by-desk (NEW)
@@ -2035,6 +2048,7 @@ CURATED_CHARTS: list[dict] = [
         "bar",
         "desk_name",
         ["break_count"],
+        type_specific={"seriesColor_0": "--series-7", "seriesColor_1": "--chart-negative"},
     ),
     _chart(  # 25
         "chart-breaks-desk-treemap",
@@ -2060,6 +2074,7 @@ CURATED_CHARTS: list[dict] = [
         "line",
         "trade_date",
         ["match_rate"],
+        type_specific={"seriesColor_0": "--series-6", "seriesColor_1": "--series-1"},
     ),
     _chart(  # 27
         "chart-match-rate-gauge",
@@ -2086,6 +2101,7 @@ CURATED_CHARTS: list[dict] = [
         "bar",
         "region",
         ["match_rate"],
+        type_specific={"seriesColor_0": "--series-6", "seriesColor_1": "--series-1"},
     ),
     # ------------------------------------------------------------------
     # Dataset: ds-sla-breach-summary
@@ -2109,6 +2125,7 @@ CURATED_CHARTS: list[dict] = [
         "bar",
         "sla_type",
         ["breach_count"],
+        type_specific={"seriesColor_0": "--series-6", "seriesColor_1": "--series-1"},
     ),
     _chart(  # 31
         "chart-sla-breach-rate-bar",
@@ -2118,6 +2135,7 @@ CURATED_CHARTS: list[dict] = [
         "bar",
         "region",
         ["breach_rate"],
+        type_specific={"seriesColor_0": "--series-6", "seriesColor_1": "--series-1"},
     ),
     # ------------------------------------------------------------------
     # Dataset: ds-recon-sla-daily (NEW)
@@ -2131,6 +2149,7 @@ CURATED_CHARTS: list[dict] = [
         "line",
         "event_date",
         ["breach_count"],
+        type_specific={"seriesColor_0": "--series-6", "seriesColor_1": "--series-1"},
     ),
     _chart(  # 33
         "chart-sla-daily-combo",
@@ -2140,6 +2159,7 @@ CURATED_CHARTS: list[dict] = [
         "combo",
         "event_date",
         ["total_events", "breach_count"],
+        type_specific={"seriesColor_0": "--series-6", "seriesColor_1": "--series-1"},
     ),
     # ------------------------------------------------------------------
     # Dataset: ds-recon-volume-by-desk
@@ -2165,6 +2185,7 @@ CURATED_CHARTS: list[dict] = [
         "bar",
         "desk_name",
         ["txn_count"],
+        type_specific={"seriesColor_0": "--series-8", "seriesColor_1": "--series-6"},
     ),
     _chart(  # 36
         "chart-desk-avg-usd",
@@ -2174,6 +2195,7 @@ CURATED_CHARTS: list[dict] = [
         "bar",
         "desk_name",
         ["avg_usd"],
+        type_specific={"seriesColor_0": "--series-8", "seriesColor_1": "--series-6"},
     ),
     # ------------------------------------------------------------------
     # Dataset: ds-recon-transactions-scatter
@@ -2211,6 +2233,7 @@ CURATED_CHARTS: list[dict] = [
         ["total_usd"],
         show_x_label=False,
         show_y_label=False,
+        type_specific={"seriesColor_0": "--series-1", "seriesColor_1": "--series-6", "seriesColor_2": "--series-7", "seriesColor_3": "--series-8", "seriesColor_4": "--chart-negative"},
     ),
     _chart(  # 40
         "chart-currency-bar",
@@ -2242,6 +2265,7 @@ CURATED_CHARTS: list[dict] = [
         "bar",
         "match_type",
         ["avg_confidence"],
+        type_specific={"seriesColor_0": "--series-8", "seriesColor_1": "--series-6"},
     ),
     # ------------------------------------------------------------------
     # Dataset: ds-recon-counterparty-top
@@ -2255,6 +2279,7 @@ CURATED_CHARTS: list[dict] = [
         "bar",
         "short_name",
         ["total_usd"],
+        type_specific={"seriesColor_0": "--series-8", "seriesColor_1": "--series-6"},
     ),
     # ------------------------------------------------------------------
     # Dataset: ds-recon-break-flow-sankey
