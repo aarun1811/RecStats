@@ -50,11 +50,11 @@ Plans:
   2. User can open any seeded chart in the builder and it loads without error — columnMapping references real dataset columns, typeSpecific config is valid for the chart type
   3. User can open the KPIs list page and see 15-20 KPIs with correct threshold colors (green/amber/red), trend indicators, diverse aggregation types (SUM, AVG, COUNT, MIN, MAX, COUNT_DISTINCT), and proper format configs (percentage for rates, currency for amounts, number for counts)
   4. Charts cover diverse analytical use cases — time series trends, category comparisons, distributions, part-to-whole, correlations, geographic breakdowns, flow analysis — with no duplicate or placeholder entries
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 02-01: TBD
-- [ ] 02-02: TBD
+- [ ] 02-01-PLAN.md — Add 5 datasets + 45 new charts (all 16 types, typeSpecific configs, valid column mappings)
+- [ ] 02-02-PLAN.md — 18 new KPIs (all 6 aggregation types, thresholds, trends, formats) + dashboard reference fixup
 
 ---
 
@@ -68,7 +68,7 @@ Plans:
   3. User can open any dashboard in builder edit mode and see all panels correctly positioned — no overlapping, no infinite loading, no stale chart references (all chart/KPI IDs match actual seeded records)
   4. Seed completes at 100K rows (default) in under 2 minutes and at 1M rows (demo) without OOM or timeout
   5. Every chart renders with data, every KPI shows a computed value with correct threshold color, and no console errors appear (except AG license warnings)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
 - [ ] 03-01: TBD
