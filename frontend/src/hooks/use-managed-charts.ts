@@ -52,8 +52,8 @@ export function useDeleteChart() {
 
   return useMutation({
     mutationFn: (id: string) => api.delete(`/api/charts/managed/${id}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['managed-charts'] })
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['managed-charts'], refetchType: 'all' })
     },
   })
 }

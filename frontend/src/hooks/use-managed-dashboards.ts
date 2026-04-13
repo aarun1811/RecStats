@@ -51,8 +51,8 @@ export function useDeleteDashboard() {
 
   return useMutation({
     mutationFn: (id: string) => api.delete(`/api/dashboards/managed/${id}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['managed-dashboards'] })
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['managed-dashboards'], refetchType: 'all' })
     },
   })
 }
