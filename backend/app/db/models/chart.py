@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 from sqlalchemy import DateTime, String, func
-from app.db.types import PortableJSON
+from app.db.types import OracleJSON
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -19,7 +19,7 @@ class RecvizChart(Base):
     description: Mapped[str | None] = mapped_column(String(1024), nullable=True, default=None)
     dataset_id: Mapped[str] = mapped_column(String(128), nullable=False)
     chart_type: Mapped[str] = mapped_column(String(64), nullable=False)
-    config: Mapped[dict] = mapped_column(PortableJSON(), nullable=False, default=dict)
+    config: Mapped[dict] = mapped_column(OracleJSON(), nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), default=_utcnow
     )

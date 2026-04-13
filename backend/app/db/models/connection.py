@@ -8,7 +8,7 @@ from sqlalchemy import DateTime, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
-from app.db.types import PortableJSON
+from app.db.types import OracleJSON
 
 
 def _utcnow() -> datetime:
@@ -28,7 +28,7 @@ class RecvizConnection(Base):
     username: Mapped[str] = mapped_column(String(256), nullable=False)
     encrypted_password: Mapped[str] = mapped_column(Text, nullable=False)
     schema_name: Mapped[str | None] = mapped_column(String(256), nullable=True, default=None)
-    extra_params: Mapped[dict | None] = mapped_column(PortableJSON(), nullable=True)
+    extra_params: Mapped[dict | None] = mapped_column(OracleJSON(), nullable=True)
     status: Mapped[str] = mapped_column(String(32), server_default="untested", default="untested")
     last_tested_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True

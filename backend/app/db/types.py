@@ -44,7 +44,3 @@ class OracleJSON(TypeDecorator, SchemaType):
             if isinstance(value, str):
                 return json_lib.loads(value)
         return value
-
-
-# Grace alias -- retained for one milestone; Phase 8 removes this and updates all imports.
-PortableJSON = OracleJSON

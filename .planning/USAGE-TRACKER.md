@@ -283,4 +283,53 @@ None.
 
 ## Phase 8: Alembic Audit + Dead Code Sweep
 
-*(Phase 8 consumes this entire document for the sweep)*
+### Alembic Audit Results
+
+- **Migration:** `001_initial_oracle_schema.py` applies cleanly (no-op when already at head)
+- **Tables verified:** RECVIZ_ALEMBIC_VERSION, RECVIZ_CHARTS, RECVIZ_CONNECTIONS, RECVIZ_DASHBOARDS, RECVIZ_DATASETS, RECVIZ_DATA_SOURCES, RECVIZ_KPIS (6 app tables + 1 alembic version)
+- **Extraneous objects:** None (only TABLE and INDEX types found)
+- **v$parameter COMPATIBLE:** `23.6.0` (Docker Oracle 23ai Free). Supports 128-byte identifiers. Citi prod expected `19.0.0` (also supports 128-byte identifiers since COMPATIBLE >= 12.2.0).
+- **requirements.txt:** All 9 dependencies verified as imported. No pruning needed.
+
+### Files Modified
+
+| File | Plan | Change |
+|------|------|--------|
+| `backend/app/db/types.py` | 08-01 | Removed `PortableJSON = OracleJSON` grace alias |
+| `backend/app/db/models/kpi.py` | 08-01 | `PortableJSON` -> `OracleJSON` import and usage |
+| `backend/app/db/models/connection.py` | 08-01 | `PortableJSON` -> `OracleJSON` import and usage |
+| `backend/app/db/models/chart.py` | 08-01 | `PortableJSON` -> `OracleJSON` import and usage |
+| `backend/app/db/models/dashboard.py` | 08-01 | `PortableJSON` -> `OracleJSON` import and usage |
+| `backend/app/db/models/data_source.py` | 08-01 | `PortableJSON` -> `OracleJSON` import and usage |
+| `backend/app/db/models/dataset.py` | 08-01 | `PortableJSON` -> `OracleJSON` import and usage |
+| `CLAUDE.md` | 08-01 | Fixed local dev section drift (Docker Oracle, rule #4, seed/migration commands) |
+| `.planning/codebase/STRUCTURE.md` | 08-01 | `PortableJSON` -> `OracleJSON` references |
+| `.planning/codebase/ARCHITECTURE.md` | 08-01 | `PortableJSON` -> `OracleJSON` references |
+
+### Files Removed
+
+| File | Plan | Reason |
+|------|------|--------|
+| `backend/app/services/config_migrator.py` | 08-01 | Not imported anywhere in backend/app/, zero registered migrations |
+| `backend/tests/test_connection_model.py` | 08-01 | Async-mocked, stale (references PortableJSON) |
+| `backend/tests/test_portable_json.py` | 08-01 | Tests the PortableJSON alias being removed |
+| `backend/tests/test_query_utils.py` | 08-01 | Async-mocked, stale |
+| `backend/tests/test_schema_introspection.py` | 08-01 | Async-mocked, stale |
+| `backend/tests/test_test_connection_by_id.py` | 08-01 | Async-mocked, stale |
+| `backend/tests/test_uri_builder.py` | 08-01 | Async-mocked, stale |
+| `frontend/src/components/explorer/schema-browser.test.tsx` | 08-01 | Test file, tests deferred this milestone |
+
+### Dead Code Candidates Resolution
+
+| File | Original Concern | Resolution |
+|------|-----------------|------------|
+| `backend/app/services/config_store.py` | Reads recviz_data_sources (broken pipeline) | Resolved Phase 6: rewired to recviz_datasets + recviz_connections |
+| `backend/app/services/config_migrator.py` | Superset-era config migration | Resolved Phase 8: deleted (zero imports, zero registered migrations) |
+| `PortableJSON` alias in `types.py` | Grace alias for OracleJSON | Resolved Phase 8: alias removed, all 6 models updated to OracleJSON |
+| `backend/tests/test_connection_model.py` | Async-mocked test | Resolved Phase 8: deleted |
+| `backend/tests/test_portable_json.py` | Async-mocked test | Resolved Phase 8: deleted |
+| `backend/tests/test_query_utils.py` | Async-mocked test | Resolved Phase 8: deleted |
+| `backend/tests/test_schema_introspection.py` | Async-mocked test | Resolved Phase 8: deleted |
+| `backend/tests/test_test_connection_by_id.py` | Async-mocked test | Resolved Phase 8: deleted |
+| `backend/tests/test_uri_builder.py` | Async-mocked test | Resolved Phase 8: deleted |
+| `frontend/src/components/explorer/schema-browser.test.tsx` | Test file, deferred | Resolved Phase 8: deleted |
