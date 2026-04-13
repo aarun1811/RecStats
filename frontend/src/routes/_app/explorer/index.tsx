@@ -140,16 +140,16 @@ function Explorer() {
           <div className="flex-1 min-h-0 rounded-lg border bg-card overflow-hidden">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
               <div className="px-3 pt-1.5 shrink-0">
-                <TabsList className="h-8 bg-muted/50 p-0.5 rounded-md gap-0.5">
+                <TabsList className="h-8 bg-muted/30 p-0.5 rounded-md gap-0.5 border border-border/30">
                   <TabsTrigger
                     value="results"
-                    className="text-xs px-3 h-7 rounded-sm data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                    className="text-xs px-3 h-7 rounded-sm data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border data-[state=active]:border-primary/30"
                   >
                     Results
                   </TabsTrigger>
                   <TabsTrigger
                     value="history"
-                    className="text-xs px-3 h-7 rounded-sm data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                    className="text-xs px-3 h-7 rounded-sm data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border data-[state=active]:border-primary/30"
                   >
                     History
                   </TabsTrigger>
