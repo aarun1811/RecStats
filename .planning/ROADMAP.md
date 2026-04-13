@@ -33,11 +33,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. After seeding, `recviz_data_sources` has zero rows written by the seed script, while `recviz_datasets` and `recviz_connections` contain the seeded records with non-NULL `schema_name` on every connection row
   4. Dimension tables contain rich data: 8+ regions, 25+ desks, 50+ counterparties, 12+ currencies, 8+ SLA types, 6+ match types, 6+ aging buckets, 20+ accounts
   5. Fact table data exhibits realistic distributions — top 20% counterparties hold ~80% of volume, seasonal patterns on volumes, clustered breaks by region/desk, time-decaying aging
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 01-01: TBD
-- [ ] 01-02: TBD
+- [ ] 01-01-PLAN.md — CLI args + connection factory + enriched dimensions + batch helpers with timing
+- [ ] 01-02-PLAN.md — Fact generators with distributions + main() wiring + data_sources removal + dry-run validation
 
 ---
 
@@ -164,7 +164,7 @@ Phases execute in numeric order: 1 → 2 → 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Seed Script Infrastructure | 0/? | Not started | - |
+| 1. Seed Script Infrastructure | 0/2 | Planned | - |
 | 2. Charts + KPIs Library | 0/? | Not started | - |
 | 3. Dashboards + Verification | 0/? | Not started | - |
 
