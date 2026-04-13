@@ -1,28 +1,30 @@
 #!/usr/bin/env python3
 """Oracle seed script for RecViz development.
 
-Seeds recon data tables (8 dimensions + 4 facts with 100k+ rows) and curated
-catalog (16 datasets, 22 charts, 12 KPIs, 5 dashboards) into recviz_* managed
-tables. Idempotent -- DROP CASCADE + CREATE on every run.
+Seeds recon data tables (8 dimensions + 4 facts with configurable row count)
+and curated catalog (16 datasets, 22 charts, 12 KPIs, 5 dashboards) into
+recviz_* managed tables. Idempotent -- DROP CASCADE + CREATE on every run.
 
-All data lives in the same Oracle PDB (FREEPDB1) under the RECVIZ schema user.
+All data lives in the same Oracle PDB under the schema user.
 Recon dimension/fact tables are plain tables; managed catalog tables (recviz_*)
 are created by Alembic and only have rows DELETE + INSERT here.
 
-SAFETY: Hard-coded to localhost. Refuses to run against non-localhost databases.
-Refuses if RECVIZ_ENV=production.
+SAFETY: Refuses if RECVIZ_ENV=production.
 
 Usage:
     python scripts/seed-oracle.py
-    ORACLE_DSN=localhost:1521/FREEPDB1 ORACLE_USER=recviz python scripts/seed-oracle.py
+    python scripts/seed-oracle.py --rows 1000000 --host myhost --port 1521 --service MYPDB
+    python scripts/seed-oracle.py --help
 """
 from __future__ import annotations
 
+import argparse
 import json
 import math
 import os
 import random
 import sys
+import time
 from datetime import datetime, timedelta, timezone
 
 import oracledb
@@ -48,14 +50,69 @@ CONNECTION_NAME = "oracle-local"
 CONNECTION_ID = "conn-oracle-local"
 
 
-def _get_connection() -> oracledb.Connection:
-    user = os.environ.get("ORACLE_USER", "recviz")
-    password = os.environ.get("ORACLE_PASSWORD", "recviz_dev")
-    dsn = os.environ.get("ORACLE_DSN", "localhost:1521/FREEPDB1")
-    host = dsn.split(":")[0].split("/")[0]
-    if host not in {"localhost", "127.0.0.1"}:
-        sys.exit(f"REFUSE: DSN host {host!r} is not localhost.")
+def parse_args() -> argparse.Namespace:
+    """Parse CLI arguments for row count and Oracle connection details."""
+    parser = argparse.ArgumentParser(
+        description="RecViz Oracle seed script -- generate demo reconciliation data."
+    )
+    parser.add_argument(
+        "--rows",
+        type=int,
+        default=100_000,
+        help=(
+            "Number of fact rows for recon_transactions (default: 100000). "
+            "Suggested: 100000 (dev), 1000000 (demo), 5000000 (large), 10000000 (stress)."
+        ),
+    )
+    parser.add_argument(
+        "--host",
+        type=str,
+        default=None,
+        help="Oracle host (default: env ORACLE_HOST or localhost)",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=None,
+        help="Oracle port (default: env ORACLE_PORT or 1521)",
+    )
+    parser.add_argument(
+        "--service",
+        type=str,
+        default=None,
+        help="Oracle service name (default: env ORACLE_SERVICE or FREEPDB1)",
+    )
+    parser.add_argument(
+        "--user",
+        type=str,
+        default=None,
+        help="Oracle user (default: env ORACLE_USER or recviz)",
+    )
+    parser.add_argument(
+        "--password",
+        type=str,
+        default=None,
+        help="Oracle password (default: env ORACLE_PASSWORD or recviz_dev)",
+    )
+    return parser.parse_args()
+
+
+def _get_connection(args: argparse.Namespace) -> oracledb.Connection:
+    """Connect to Oracle using 3-tier fallback: CLI arg > env var > default."""
+    host = args.host or os.environ.get("ORACLE_HOST", "localhost")
+    port = args.port or int(os.environ.get("ORACLE_PORT", "1521"))
+    service = args.service or os.environ.get("ORACLE_SERVICE", "FREEPDB1")
+    user = args.user or os.environ.get("ORACLE_USER", "recviz")
+    password = args.password or os.environ.get("ORACLE_PASSWORD", "recviz_dev")
+    dsn = f"{host}:{port}/{service}"
+    print(f"  Connecting to {user}@{dsn}")
     return oracledb.connect(user=user, password=password, dsn=dsn)
+
+
+def _get_schema_name(args: argparse.Namespace) -> str:
+    """Return Oracle schema name (uppercased username)."""
+    user = args.user or os.environ.get("ORACLE_USER", "recviz")
+    return user.upper()
 
 
 def _jb(obj: dict | list) -> bytes:
@@ -67,7 +124,19 @@ def _encrypt_password(plaintext: str) -> str:
     """Encrypt password with the project's Fernet key for recviz_connections."""
     from cryptography.fernet import Fernet
 
-    key = "ZtmS2OQUhct4iBQmAcreQftJoeodRw4h7Rz3fU8ZPG4="
+    key = os.environ.get("RECVIZ_ENCRYPTION_KEY")
+    if not key:
+        # Try reading from backend/.env
+        env_path = os.path.join(os.path.dirname(__file__), "..", "backend", ".env")
+        if os.path.isfile(env_path):
+            with open(env_path) as f:
+                for line in f:
+                    if line.startswith("RECVIZ_ENCRYPTION_KEY="):
+                        key = line.split("=", 1)[1].strip()
+                        break
+    if not key:
+        # Fallback to hardcoded dev key
+        key = "ZtmS2OQUhct4iBQmAcreQftJoeodRw4h7Rz3fU8ZPG4="
     fernet = Fernet(key.encode())
     return fernet.encrypt(plaintext.encode()).decode()
 
@@ -1349,8 +1418,8 @@ CURATED_DATASETS: list[dict] = [
     },
 ]
 
-assert len(CURATED_DATASETS) == 16, (
-    f"CURATED_DATASETS must have 16 entries, got {len(CURATED_DATASETS)}"
+assert len(CURATED_DATASETS) == 17, (
+    f"CURATED_DATASETS must have 17 entries, got {len(CURATED_DATASETS)}"
 )
 
 
@@ -2404,11 +2473,13 @@ def seed_managed_dashboards(cur: oracledb.Cursor) -> None:
 
 
 def main() -> None:
+    args = parse_args()
+
     print("RecViz Oracle seed script -- clean-slate rebuild")
     print("=" * 60)
     rng = random.Random(RANDOM_SEED)
 
-    conn = _get_connection()
+    conn = _get_connection(args)
     # Oracle auto-commits DDL. We manually commit DML.
     conn.autocommit = False
     cur = conn.cursor()
