@@ -34,16 +34,16 @@
 
 ### Dashboards (Phase 3)
 
-- [ ] **DASH-01**: 10+ dashboards seeded with story-driven themes: Executive Summary, SLA Health, Break Analysis, Match Performance, Volume Trends, Regional Breakdown, Counterparty Risk, Currency Exposure, Desk Performance, Operational Detail
-- [ ] **DASH-02**: Each dashboard has 3-8 chart panels with proper layout (no overlapping, logical visual flow)
-- [ ] **DASH-03**: Each dashboard has relevant KPI cards (2-4 KPIs per dashboard matching the dashboard theme)
-- [ ] **DASH-04**: Dashboards with filter-worthy data have global filters configured (Region, Status, Currency, Date Range as appropriate)
-- [ ] **DASH-05**: Cross-filter is enabled on charts where click-to-filter makes sense (bar charts, pie charts, heatmaps)
-- [ ] **DASH-06**: Drill-down hierarchies are configured on at least 5 charts across dashboards (Region → Desk → Account, Status → Detail, etc.)
-- [ ] **DASH-07**: At least 2 dashboards have data grid panels showing transaction-level detail
-- [ ] **DASH-08**: Dashboard chart references use the actual seeded chart IDs — no UUID drift, no stale references
-- [ ] **DASH-09**: All dashboard configs validate against the frontend `DashboardConfig` type shape
-- [ ] **DASH-10**: Each dashboard has a descriptive name and description explaining what story it tells
+- [x] **DASH-01**: 10+ dashboards seeded with story-driven themes: Executive Summary, SLA Health, Break Analysis, Match Performance, Volume Trends, Regional Breakdown, Counterparty Risk, Currency Exposure, Desk Performance, Operational Detail
+- [x] **DASH-02**: Each dashboard has 3-8 chart panels with proper layout (no overlapping, logical visual flow)
+- [x] **DASH-03**: Each dashboard has relevant KPI cards (2-4 KPIs per dashboard matching the dashboard theme)
+- [x] **DASH-04**: Dashboards with filter-worthy data have global filters configured (Region, Status, Currency, Date Range as appropriate)
+- [x] **DASH-05**: Cross-filter is enabled on charts where click-to-filter makes sense (bar charts, pie charts, heatmaps)
+- [x] **DASH-06**: Drill-down hierarchies are configured on at least 5 charts across dashboards (Region → Desk → Account, Status → Detail, etc.)
+- [x] **DASH-07**: At least 2 dashboards have data grid panels showing transaction-level detail
+- [x] **DASH-08**: Dashboard chart references use the actual seeded chart IDs — no UUID drift, no stale references
+- [x] **DASH-09**: All dashboard configs validate against the frontend `DashboardConfig` type shape
+- [x] **DASH-10**: Each dashboard has a descriptive name and description explaining what story it tells
 
 ### Verification (Phase 3)
 
@@ -103,16 +103,16 @@
 | KPI-03 | Phase 2 | Pending |
 | KPI-04 | Phase 2 | Pending |
 | KPI-05 | Phase 2 | Pending |
-| DASH-01 | Phase 3 | Pending |
-| DASH-02 | Phase 3 | Pending |
-| DASH-03 | Phase 3 | Pending |
-| DASH-04 | Phase 3 | Pending |
-| DASH-05 | Phase 3 | Pending |
-| DASH-06 | Phase 3 | Pending |
-| DASH-07 | Phase 3 | Pending |
-| DASH-08 | Phase 3 | Pending |
-| DASH-09 | Phase 3 | Pending |
-| DASH-10 | Phase 3 | Pending |
+| DASH-01 | Phase 3 | Complete |
+| DASH-02 | Phase 3 | Complete |
+| DASH-03 | Phase 3 | Complete |
+| DASH-04 | Phase 3 | Complete |
+| DASH-05 | Phase 3 | Complete |
+| DASH-06 | Phase 3 | Complete |
+| DASH-07 | Phase 3 | Complete |
+| DASH-08 | Phase 3 | Complete |
+| DASH-09 | Phase 3 | Complete |
+| DASH-10 | Phase 3 | Complete |
 | VERIF-01 | Phase 3 | Pending |
 | VERIF-02 | Phase 3 | Pending |
 | VERIF-03 | Phase 3 | Pending |
