@@ -27,22 +27,22 @@ export function DashboardToolbar({
   autoRefreshIsActive,
 }: DashboardToolbarProps) {
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex items-center justify-end gap-1.5">
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
-              variant="outline"
-              size="sm"
+              variant="ghost"
+              size="icon"
+              className="size-8"
               onClick={onRefresh}
               disabled={isRefreshing}
-              aria-label={isRefreshing ? 'Refreshing...' : 'Refresh all dashboard data'}
+              aria-label="Refresh all dashboard data"
               aria-busy={isRefreshing}
             >
               <RefreshCw
-                className={`size-4 ${isRefreshing ? 'animate-spin' : ''}`}
+                className={`size-3.5 ${isRefreshing ? 'animate-spin' : ''}`}
               />
-              Refresh
             </Button>
           </TooltipTrigger>
           <TooltipContent>

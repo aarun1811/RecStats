@@ -71,7 +71,7 @@ def create_managed_dataset(
     dataset = RecvizDataset(
         id=str(uuid.uuid4()),
         name=body.name,
-        description=body.description,
+        description=body.description or None,
         database_id=body.database_id,
         sql=body.sql,
         columns=[col.model_dump(by_alias=True) for col in body.columns],
@@ -117,7 +117,7 @@ def update_managed_dataset(
     if body.name is not None:
         dataset.name = body.name
     if body.description is not None:
-        dataset.description = body.description
+        dataset.description = body.description or None
     if body.sql is not None:
         dataset.sql = body.sql
     if body.columns is not None:

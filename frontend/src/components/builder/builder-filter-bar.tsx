@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react'
 
 import { GripVertical, Plus, X } from 'lucide-react'
+import { AnimatePresence, motion } from 'motion/react'
 
 import { Button } from '@/components/ui/button'
 import type { FilterConfig } from '@/types/dashboard-config'
@@ -79,29 +80,36 @@ export function BuilderFilterBar({
 
   return (
     <div className="flex items-center gap-2 border-b bg-muted/30 px-6 py-2">
-      {filters.map((filter) => (
-        <div
-          key={filter.id}
-          draggable
-          onDragStart={(e) => handleDragStart(e, filter.id)}
-          onDragOver={(e) => handleDragOver(e, filter.id)}
-          onDrop={handleDrop}
-          onDragEnd={handleDragEnd}
-          className={`flex items-center gap-1.5 rounded-md border bg-background px-2.5 py-1.5 text-sm ${
-            draggedId === filter.id ? 'opacity-50' : ''
-          }`}
-        >
-          <GripVertical className="size-3 cursor-grab text-muted-foreground" />
-          <span className="text-sm">{filter.label}</span>
-          <button
-            type="button"
-            onClick={() => onRemove(filter.id)}
-            className="ml-1 rounded-sm p-0.5 hover:bg-muted"
+      <AnimatePresence mode="popLayout">
+        {filters.map((filter) => (
+          <motion.div
+            key={filter.id}
+            layout
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ duration: 0.15 }}
+            draggable
+            onDragStart={(e) => handleDragStart(e as unknown as React.DragEvent<HTMLDivElement>, filter.id)}
+            onDragOver={(e) => handleDragOver(e, filter.id)}
+            onDrop={handleDrop}
+            onDragEnd={handleDragEnd}
+            className={`flex items-center gap-1.5 rounded-md border bg-background px-2.5 py-1.5 text-sm ${
+              draggedId === filter.id ? 'opacity-50' : ''
+            }`}
           >
-            <X className="size-3 text-muted-foreground hover:text-destructive" />
-          </button>
-        </div>
-      ))}
+            <GripVertical className="size-3 cursor-grab text-muted-foreground" />
+            <span className="text-sm">{filter.label}</span>
+            <button
+              type="button"
+              onClick={() => onRemove(filter.id)}
+              className="ml-1 rounded-sm p-0.5 hover:bg-muted"
+            >
+              <X className="size-3 text-muted-foreground hover:text-destructive" />
+            </button>
+          </motion.div>
+        ))}
+      </AnimatePresence>
       <Button variant="ghost" size="sm" className="text-xs" onClick={onAddFilter}>
         <Plus className="mr-1 size-3" />
         Add Filter

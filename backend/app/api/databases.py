@@ -28,21 +28,20 @@ from app.services.uri_builder import build_sync_uri
 
 logger = logging.getLogger(__name__)
 
-# Oracle 12.2+ and PostgreSQL both allow identifiers up to 128 bytes.
+# Oracle 12.2+ allows identifiers up to 128 bytes.
 # The pattern allows the standard SQL identifier charset (letter/underscore
-# start, alphanumerics + underscore afterwards) plus Oracle's $ and # which
-# are legal in unquoted Oracle identifiers. We reject anything with
-# whitespace, quotes, semicolons, or other SQL-injection markers.
+# start, alphanumerics + underscore) plus Oracle's $ and # which are legal
+# in unquoted Oracle identifiers. We reject anything with whitespace,
+# quotes, semicolons, or other SQL-injection markers.
 TABLE_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_$#]{0,127}$")
 
 
 def _normalize_nullable(raw) -> bool:
-    """Normalize an Oracle/Postgres nullable column value to a bool.
+    """Normalize an Oracle nullable column value to a bool.
 
     Oracle's all_tab_columns.nullable returns 'Y' / 'N'.
-    Postgres' information_schema.columns.is_nullable returns 'YES' / 'NO'.
     Anything unrecognized (None, empty string, unknown text) defaults to
-    True (permissive — better to over-report nullable than under-report).
+    True (permissive -- better to over-report nullable than under-report).
     """
     if isinstance(raw, bool):
         return raw
@@ -487,16 +486,6 @@ def list_schema_tables(
             ORDER BY 1
             """
         )
-    elif conn.backend == "postgresql":
-        sql = text(
-            """
-            SELECT table_name AS name, table_type AS type
-            FROM information_schema.tables
-            WHERE table_schema = :schema
-              AND table_type IN ('BASE TABLE', 'VIEW')
-            ORDER BY table_name
-            """
-        )
     else:
         raise HTTPException(
             status_code=400,
@@ -514,12 +503,10 @@ def list_schema_tables(
             detail=f"Failed to query schema catalog: {sanitize_detail(exc)}",
         )
 
-    # Normalize the 'type' field: Oracle emits 'TABLE' / 'VIEW' from the literal;
-    # Postgres emits 'BASE TABLE' / 'VIEW' from information_schema.table_type.
     return [
         {
             "name": r[0],
-            "type": "TABLE" if r[1] in ("BASE TABLE", "TABLE") else r[1],
+            "type": "TABLE" if r[1] in ("TABLE",) else r[1],
         }
         for r in rows
     ]
@@ -569,15 +556,6 @@ def list_table_columns(
               AND table_name = UPPER(:table_name)
               AND hidden_column = 'NO'
             ORDER BY column_id
-            """
-        )
-    elif conn.backend == "postgresql":
-        sql = text(
-            """
-            SELECT column_name AS name, data_type AS type, is_nullable AS nullable
-            FROM information_schema.columns
-            WHERE table_schema = :schema AND table_name = :table_name
-            ORDER BY ordinal_position
             """
         )
     else:

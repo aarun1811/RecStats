@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 
 import { Plus, Search } from 'lucide-react'
+import { motion } from 'motion/react'
 import { useNavigate } from '@tanstack/react-router'
 
 import { cn } from '@/lib/utils'
@@ -107,9 +108,12 @@ export function ChartPickerDialog({
             </p>
           ) : (
             <div className="grid grid-cols-2 gap-3">
-              {filtered.map((chart) => (
-                <div
+              {filtered.map((chart, i) => (
+                <motion.div
                   key={chart.id}
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.03, duration: 0.2 }}
                   className={cn(
                     'border rounded-lg p-3 cursor-pointer hover:border-primary/30 hover:bg-accent/50 transition-colors',
                     selectedId === chart.id && 'border-primary bg-primary/5'
@@ -131,7 +135,7 @@ export function ChartPickerDialog({
                   <Badge variant="secondary" className="mt-1.5 text-xs">
                     {CHART_DISPLAY_NAMES[chart.chartType] ?? chart.chartType}
                   </Badge>
-                </div>
+                </motion.div>
               ))}
             </div>
           )}

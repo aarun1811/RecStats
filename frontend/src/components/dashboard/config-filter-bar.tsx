@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronsUpDown, Lock, RotateCcw } from 'lucide-react'
+import { motion } from 'motion/react'
+import { ChevronsUpDown, Lock, RotateCcw, SlidersHorizontal } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -43,6 +44,9 @@ export function ConfigFilterBar({ filters }: ConfigFilterBarProps) {
   const applyFilters = useFilterStore((s) => s.applyFilters)
   const resetFilters = useFilterStore((s) => s.resetFilters)
 
+  // Don't render anything if no filters are configured
+  if (filters.length === 0) return null
+
   const defaults = useMemo(() => {
     const d: Record<string, FilterValue> = {}
     for (const f of filters) {
@@ -58,29 +62,41 @@ export function ConfigFilterBar({ filters }: ConfigFilterBarProps) {
   }
 
   return (
-    <Card className="bg-muted/50 py-3 px-4 gap-0">
-      <div className="flex flex-wrap items-end gap-3">
-        {filters.map((filter) => (
-          <FilterControl
-            key={filter.id}
-            config={filter}
-            value={values[filter.id]}
-            allValues={values}
-            isLocked={locked.has(filter.id)}
-            onChange={(val) => setFilterValue(filter.id, val)}
-          />
-        ))}
-
-        {/* Actions */}
-        <div className="ml-auto flex items-end gap-2">
-          <Button onClick={applyFilters}>Apply</Button>
-          <Button variant="outline" onClick={handleReset}>
-            <RotateCcw className="mr-2 size-4" />
-            Reset
-          </Button>
-        </div>
+    <div>
+      <div className="flex items-center gap-2 mb-2">
+        <SlidersHorizontal size={16} className="text-primary/60" />
+        <span className="text-sm font-semibold">Filters</span>
       </div>
-    </Card>
+      <Card className="bg-muted/50 py-3 px-4 gap-0">
+        <div className="flex flex-wrap items-end gap-3">
+          {filters.map((filter, i) => (
+            <motion.div
+              key={filter.id}
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.03, duration: 0.2 }}
+            >
+              <FilterControl
+                config={filter}
+                value={values[filter.id]}
+                allValues={values}
+                isLocked={locked.has(filter.id)}
+                onChange={(val) => setFilterValue(filter.id, val)}
+              />
+            </motion.div>
+          ))}
+
+          {/* Actions */}
+          <div className="ml-auto flex items-end gap-2">
+            <Button onClick={applyFilters}>Apply</Button>
+            <Button variant="outline" onClick={handleReset}>
+              <RotateCcw className="mr-2 size-4" />
+              Reset
+            </Button>
+          </div>
+        </div>
+      </Card>
+    </div>
   )
 }
 

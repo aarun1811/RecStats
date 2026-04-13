@@ -5,7 +5,7 @@ import { SankeyChart, RadarChart, SunburstChart, GaugeChart, FunnelChart, GraphC
 import { TitleComponent, TooltipComponent, LegendComponent, GridComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import { SVGRenderer } from 'echarts/renderers'
-import { getEChartsTheme, getChartPalette } from '@/lib/chart-themes'
+import { getEChartsTheme, getChartPalette, resolveColor } from '@/lib/chart-themes'
 import { useTheme } from '@/components/layout/theme-provider'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
@@ -53,6 +53,7 @@ function buildEChartsOption(
   data: Record<string, unknown>[],
   metricColumns: string[],
   categoryColumn: string | undefined,
+  appearance?: { typeSpecific?: Record<string, unknown> },
 ): echarts.EChartsCoreOption {
   const palette = getChartPalette()
   // Config-driven resolution (same pattern as AG Charts)
@@ -130,20 +131,26 @@ function buildEChartsOption(
     case 'gauge': {
       // Config-driven: use resolved metricKey instead of columns[1]
       const value = Number(data[0]?.[metricKey] ?? 0)
+      const gaugeMin = (appearance?.typeSpecific?.gaugeMin as number) ?? 0
+      const gaugeMax = (appearance?.typeSpecific?.gaugeMax as number) ?? 100
+      const dangerCutoff = ((appearance?.typeSpecific?.gaugeDangerCutoff as number) ?? 30) / 100
+      const warningCutoff = ((appearance?.typeSpecific?.gaugeWarningCutoff as number) ?? 70) / 100
       return {
         tooltip: { formatter: '{b}: {c}%' },
         series: [
           {
             type: 'gauge',
+            min: gaugeMin,
+            max: gaugeMax,
             detail: { formatter: '{value}%', fontSize: 20 },
             data: [{ value, name: String(data[0]?.[categoryKey] ?? '') }],
             axisLine: {
               lineStyle: {
                 width: 15,
                 color: [
-                  [0.3, '#ef4444'],
-                  [0.7, '#f59e0b'],
-                  [1, '#10b981'],
+                  [dangerCutoff, resolveColor('--chart-negative')],
+                  [warningCutoff, resolveColor('--chart-warning')],
+                  [1, resolveColor('--chart-positive')],
                 ],
               },
             },
@@ -206,15 +213,18 @@ function buildEChartsOption(
     }
 
     case 'parallel': {
-      // Parallel: all columns as dimensions — no change needed
-      const dims = columns.map((col, i) => ({ dim: i, name: col }))
+      // Parallel: use metricColumns as dimensions when available, otherwise all columns
+      const parallelCols = metricColumns.length > 0
+        ? metricColumns.filter((c) => columns.includes(c))
+        : columns
+      const dims = parallelCols.map((col, i) => ({ dim: i, name: col }))
       return {
         parallelAxis: dims,
         series: [
           {
             type: 'parallel',
             lineStyle: { width: 1, opacity: 0.3 },
-            data: data.map((d) => columns.map((c) => d[c])),
+            data: data.map((d) => parallelCols.map((c) => d[c])),
           },
         ],
       }
@@ -306,6 +316,7 @@ export const EChartWrapper = forwardRef<EChartRef, ChartWrapperProps>(function E
       data.data,
       config.metricColumns ?? [],
       config.categoryColumn,
+      config.appearance,
     )
   }, [data, config.vizType, config.metricColumns, config.categoryColumn, themeReady])
 

@@ -3,15 +3,17 @@ import { useState, useEffect, useMemo } from 'react'
 import { toast } from 'sonner'
 import {
   Database,
-  CheckCircle2,
-  XCircle,
   Loader2,
   RefreshCw,
   Pencil,
   Trash2,
   ChevronRight,
   ChevronDown,
+  Plug,
+  CheckCircle2,
+  XCircle,
 } from 'lucide-react'
+import { motion, AnimatePresence } from 'motion/react'
 
 import {
   Sheet,
@@ -38,14 +40,12 @@ import {
   useSyncDatasets,
 } from '@/hooks/use-databases'
 import { useManagedDataset } from '@/hooks/use-managed-datasets'
-import { Badge } from '@/components/ui/badge'
-
 import {
   BACKEND_LABELS,
   BACKEND_COLORS,
-  STATUS_LABELS,
-  StatusDot,
-} from './data-source-card'
+} from '@/lib/style-constants'
+import { AnimatedStatusBadge } from './animated-status-badge'
+import { ConnectionHealthHeader } from './connection-health-header'
 
 import type {
   DatabaseBackend,
@@ -94,37 +94,10 @@ const BACKEND_FIELDS: Record<DatabaseBackend, BackendFieldConfig> = {
       { name: 'password', label: 'Password', placeholder: '', type: 'password', required: true },
     ],
   },
-  hive: {
-    defaultPort: 10000,
-    fields: [
-      { name: 'host', label: 'Host', placeholder: 'hive-host.example.com', type: 'text', required: true, gridSpan: 2 },
-      { name: 'port', label: 'Port', placeholder: '10000', type: 'number', required: true },
-      { name: 'database', label: 'Database', placeholder: 'default', type: 'text', required: true },
-      { name: 'username', label: 'Username', placeholder: 'hive_user', type: 'text', required: false },
-      { name: 'password', label: 'Password', placeholder: '', type: 'password', required: false },
-    ],
-  },
-  postgresql: {
-    defaultPort: 5432,
-    fields: [
-      { name: 'host', label: 'Host', placeholder: 'pg-host.example.com', type: 'text', required: true, gridSpan: 2 },
-      { name: 'port', label: 'Port', placeholder: '5432', type: 'number', required: true },
-      { name: 'database', label: 'Database', placeholder: 'mydb', type: 'text', required: true },
-      { name: 'username', label: 'Username', placeholder: 'db_user', type: 'text', required: true },
-      { name: 'password', label: 'Password', placeholder: '', type: 'password', required: true },
-    ],
-  },
-  elasticsearch: {
-    defaultPort: 9200,
-    fields: [],
-  },
 }
 
 const BACKENDS: { value: DatabaseBackend; label: string; disabled?: boolean }[] = [
-  { value: 'postgresql', label: 'PostgreSQL' },
   { value: 'oracle', label: 'Oracle' },
-  { value: 'hive', label: 'Hive' },
-  { value: 'elasticsearch', label: 'Elasticsearch', disabled: true },
 ]
 
 export function DataSourceSheet({
@@ -135,7 +108,7 @@ export function DataSourceSheet({
   onModeChange,
 }: DataSourceSheetProps) {
   // Form state
-  const [backend, setBackend] = useState<DatabaseBackend>('postgresql')
+  const [backend, setBackend] = useState<DatabaseBackend>('oracle')
   const [displayName, setDisplayName] = useState('')
   const [connectionTab, setConnectionTab] = useState<ConnectionTab>('simple')
   const [formValues, setFormValues] = useState<Record<string, string>>({})
@@ -181,10 +154,10 @@ export function DataSourceSheet({
     setHasPassedTest(false)
     setExpandedDataset(null)
     if (mode === 'create') {
-      setBackend('postgresql')
+      setBackend('oracle')
       setDisplayName('')
       setConnectionTab('simple')
-      setFormValues({ port: String(BACKEND_FIELDS.postgresql.defaultPort) })
+      setFormValues({ port: String(BACKEND_FIELDS.oracle.defaultPort) })
       setSqlalchemyUri('')
     }
   }, [mode, databaseId, open])
@@ -312,54 +285,74 @@ export function DataSourceSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-[540px] sm:max-w-[540px] p-0 flex flex-col">
-        {mode === 'detail' ? (
-          <DetailView
-            database={databaseDetail}
-            datasets={allDatasets}
-            totalDatasets={totalDatasets}
-            datasetsLoading={datasetsLoading}
-            expandedDataset={expandedDataset}
-            onToggleDataset={(id) => setExpandedDataset(expandedDataset === id ? null : id)}
-            hasNextPage={hasNextPage ?? false}
-            isFetchingNextPage={isFetchingNextPage}
-            onLoadMore={() => fetchNextPage()}
-            onEdit={() => onModeChange('edit')}
-            onDelete={handleDelete}
-            onTestConnection={handleTestDetailConnection}
-            testMutation={testMutation}
-            testResult={testResult}
-            onSync={handleSync}
-            syncMutation={syncMutation}
-            isDeleting={deleteMutation.isPending}
-          />
-        ) : (
-          <FormView
-            mode={mode}
-            backend={backend}
-            onBackendChange={setBackend}
-            displayName={displayName}
-            onDisplayNameChange={setDisplayName}
-            connectionTab={connectionTab}
-            onConnectionTabChange={setConnectionTab}
-            formValues={formValues}
-            onFormValueChange={updateFormValue}
-            sqlalchemyUri={sqlalchemyUri}
-            onSqlalchemyUriChange={setSqlalchemyUri}
-            onTestConnection={handleTestConnection}
-            testMutation={testMutation}
-            testResult={testResult}
-            canSave={canSave}
-            isSaving={isSaving}
-            onSave={handleSave}
-            onCancel={() => {
-              if (mode === 'edit') {
-                onModeChange('detail')
-              } else {
-                onOpenChange(false)
-              }
-            }}
-          />
-        )}
+        <AnimatePresence mode="wait">
+          {mode === 'detail' ? (
+            <motion.div
+              key="detail"
+              className="flex flex-col flex-1 min-h-0"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <DetailView
+                database={databaseDetail}
+                datasets={allDatasets}
+                totalDatasets={totalDatasets}
+                datasetsLoading={datasetsLoading}
+                expandedDataset={expandedDataset}
+                onToggleDataset={(id) => setExpandedDataset(expandedDataset === id ? null : id)}
+                hasNextPage={hasNextPage ?? false}
+                isFetchingNextPage={isFetchingNextPage}
+                onLoadMore={() => fetchNextPage()}
+                onEdit={() => onModeChange('edit')}
+                onDelete={handleDelete}
+                onTestConnection={handleTestDetailConnection}
+                testMutation={testMutation}
+                testResult={testResult}
+                onSync={handleSync}
+                syncMutation={syncMutation}
+                isDeleting={deleteMutation.isPending}
+              />
+            </motion.div>
+          ) : (
+            <motion.div
+              key={mode}
+              className="flex flex-col flex-1 min-h-0"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+            >
+              <FormView
+                mode={mode}
+                backend={backend}
+                onBackendChange={setBackend}
+                displayName={displayName}
+                onDisplayNameChange={setDisplayName}
+                connectionTab={connectionTab}
+                onConnectionTabChange={setConnectionTab}
+                formValues={formValues}
+                onFormValueChange={updateFormValue}
+                sqlalchemyUri={sqlalchemyUri}
+                onSqlalchemyUriChange={setSqlalchemyUri}
+                onTestConnection={handleTestConnection}
+                testMutation={testMutation}
+                testResult={testResult}
+                canSave={canSave}
+                isSaving={isSaving}
+                onSave={handleSave}
+                onCancel={() => {
+                  if (mode === 'edit') {
+                    onModeChange('detail')
+                  } else {
+                    onOpenChange(false)
+                  }
+                }}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </SheetContent>
     </Sheet>
   )
@@ -422,154 +415,194 @@ function DetailView({
 
   return (
     <>
-      <SheetHeader className="border-b px-6 py-4">
+      {/* ── Fixed Header ── */}
+      <SheetHeader className="border-b px-6 py-4 shrink-0">
         <div className="flex items-center gap-3">
-          <Database className={cn('size-5', BACKEND_COLORS[backendKey] ?? 'text-muted-foreground')} />
+          <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10">
+            <Database className={cn('size-5', BACKEND_COLORS[backendKey] ?? 'text-muted-foreground')} />
+          </div>
           <div className="flex-1 min-w-0">
-            <SheetTitle className="text-base truncate">{database.databaseName}</SheetTitle>
-            <SheetDescription>
+            <SheetTitle className="text-base font-semibold truncate">{database.databaseName}</SheetTitle>
+            <SheetDescription className="text-xs">
               {BACKEND_LABELS[backendKey] || database.backend}
               {database.createdOn && (
-                <> &middot; Created {new Date(database.createdOn).toLocaleDateString()}</>
-              )}
-              {database.lastTested && (
-                <> &middot; Last tested {new Date(database.lastTested).toLocaleString()}</>
+                <> &middot; {new Date(database.createdOn).toLocaleDateString()}</>
               )}
             </SheetDescription>
           </div>
-          <div className="flex items-center gap-1.5 shrink-0">
-            <StatusDot status={database.status} />
-            <span className="text-xs text-muted-foreground">{STATUS_LABELS[database.status]}</span>
-          </div>
+          <AnimatedStatusBadge status={database.status} />
         </div>
       </SheetHeader>
 
-      <ScrollArea className="flex-1">
-        <div className="p-6 space-y-6">
-          {/* Datasets Section */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-medium">
-                Datasets{' '}
-                <span className="text-muted-foreground font-normal">
-                  ({datasets.length} of {totalDatasets})
-                </span>
-              </h3>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 text-xs"
-                onClick={onSync}
-                disabled={syncMutation.isPending}
-              >
-                <RefreshCw className={cn('mr-1 size-3', syncMutation.isPending && 'animate-spin')} />
-                Sync
-              </Button>
+      {/* ── Fixed Health Summary ── */}
+      <motion.div
+        className="px-6 py-4 border-b bg-muted/30 shrink-0"
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.2 }}
+      >
+        <ConnectionHealthHeader database={database} />
+      </motion.div>
+
+      {/* ── Datasets Header (fixed) ── */}
+      <div className="px-6 pt-4 pb-2 flex items-center justify-between shrink-0">
+        <h3 className="text-sm font-medium">
+          Datasets{' '}
+          <span className="text-muted-foreground font-normal">
+            ({datasets.length} of {totalDatasets})
+          </span>
+        </h3>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 text-xs"
+          onClick={onSync}
+          disabled={syncMutation.isPending}
+        >
+          <RefreshCw className={cn('mr-1 size-3', syncMutation.isPending && 'animate-spin')} />
+          Sync Datasets
+        </Button>
+      </div>
+
+      {/* ── Scrollable Datasets List (only this scrolls) ── */}
+      <ScrollArea className="flex-1 min-h-0">
+        <div className="px-6 pb-4">
+          {datasetsLoading ? (
+            <div className="space-y-2">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-9 w-full" />
+              ))}
             </div>
-
-            {datasetsLoading ? (
-              <div className="space-y-2">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Skeleton key={i} className="h-9 w-full" />
-                ))}
-              </div>
-            ) : datasets.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">
-                No datasets found. Click Sync to refresh.
-              </p>
-            ) : (
-              <div className="space-y-1">
-                {datasets.map((ds) => (
-                  <div key={ds.id}>
-                    <button
-                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted/50 transition-colors"
-                      onClick={() => onToggleDataset(ds.id)}
-                    >
-                      {expandedDataset === ds.id ? (
-                        <ChevronDown className="size-3.5 text-muted-foreground shrink-0" />
-                      ) : (
-                        <ChevronRight className="size-3.5 text-muted-foreground shrink-0" />
-                      )}
-                      <span className="font-mono text-xs truncate flex-1 text-left">
-                        {ds.tableName}
-                      </span>
-                      <span className="text-[10px] text-muted-foreground shrink-0">
-                        {ds.columnCount} cols
-                      </span>
-                    </button>
-                    {expandedDataset === ds.id && (
-                      <ExpandedDatasetColumns datasetId={ds.id} />
-                    )}
-                  </div>
-                ))}
-                {hasNextPage && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full h-8 text-xs text-muted-foreground"
-                    onClick={onLoadMore}
-                    disabled={isFetchingNextPage}
+          ) : datasets.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">
+              No datasets found. Click Sync Datasets to refresh.
+            </p>
+          ) : (
+            <div className="space-y-1">
+              {datasets.map((ds) => (
+                <div key={ds.id}>
+                  <button
+                    className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted/50 transition-colors"
+                    onClick={() => onToggleDataset(ds.id)}
                   >
-                    {isFetchingNextPage ? (
-                      <Loader2 className="mr-1 size-3 animate-spin" />
-                    ) : null}
-                    Load more...
-                  </Button>
-                )}
-              </div>
-            )}
-          </div>
-
-          <Separator />
-
-          {/* Test Connection */}
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onTestConnection}
-              disabled={testMutation.isPending}
-            >
-              {testMutation.isPending ? (
-                <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-              ) : null}
-              Test Connection
-            </Button>
-            {testResult && (
-              <div className="flex items-center gap-1.5 text-xs">
-                {testResult.success ? (
-                  <>
-                    <CheckCircle2 className="size-3.5 text-emerald-500" />
-                    <span className="text-emerald-600 dark:text-emerald-400">{testResult.message}</span>
-                  </>
-                ) : (
-                  <>
-                    <XCircle className="size-3.5 text-red-500" />
-                    <span className="text-red-600 dark:text-red-400">{testResult.message}</span>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
+                    {expandedDataset === ds.id ? (
+                      <ChevronDown className="size-3.5 text-muted-foreground shrink-0" />
+                    ) : (
+                      <ChevronRight className="size-3.5 text-muted-foreground shrink-0" />
+                    )}
+                    <span className="font-mono text-xs truncate flex-1 text-left">
+                      {ds.tableName}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground shrink-0">
+                      {ds.columnCount} cols
+                    </span>
+                  </button>
+                  {expandedDataset === ds.id && (
+                    <ExpandedDatasetColumns datasetId={ds.id} />
+                  )}
+                </div>
+              ))}
+              {hasNextPage && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full h-8 text-xs text-muted-foreground"
+                  onClick={onLoadMore}
+                  disabled={isFetchingNextPage}
+                >
+                  {isFetchingNextPage ? (
+                    <Loader2 className="mr-1 size-3 animate-spin" />
+                  ) : null}
+                  Load more...
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       </ScrollArea>
 
-      {/* Footer Actions */}
-      <div className="border-t p-4 flex items-center justify-between">
-        <Button variant="outline" size="sm" onClick={onEdit}>
-          <Pencil className="mr-1.5 size-3.5" />
-          Edit
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-destructive hover:text-destructive hover:bg-destructive/10"
-          onClick={onDelete}
-          disabled={isDeleting}
-        >
-          <Trash2 className="mr-1.5 size-3.5" />
-          Delete
-        </Button>
+      {/* ── Sticky Footer — Unified Action Bar ── */}
+      <div className="border-t shrink-0">
+        {/* Test result banner — slides in above the action bar when result arrives */}
+        <AnimatePresence>
+          {testResult && !testMutation.isPending && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+              className="overflow-hidden"
+            >
+              <div className={cn(
+                'px-5 py-2.5 text-xs font-medium flex items-center gap-2 border-b',
+                testResult.success
+                  ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400'
+                  : 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400',
+              )}>
+                {testResult.success ? (
+                  <motion.div
+                    initial={{ scale: 0, rotate: -90 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                  >
+                    <CheckCircle2 className="size-3.5" />
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    animate={{ x: [0, -3, 3, -3, 3, 0] }}
+                    transition={{ duration: 0.4 }}
+                  >
+                    <XCircle className="size-3.5" />
+                  </motion.div>
+                )}
+                {testResult.message}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Action bar — all actions on one row */}
+        <div className="px-5 py-3 flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onTestConnection}
+            disabled={testMutation.isPending}
+            className="shrink-0"
+          >
+            {testMutation.isPending ? (
+              <>
+                <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                Testing...
+              </>
+            ) : (
+              <>
+                <Plug className="mr-1.5 size-3.5" />
+                Test Connection
+              </>
+            )}
+          </Button>
+
+          <div className="flex-1" />
+
+          <Button
+            variant="default"
+            size="sm"
+            onClick={onEdit}
+          >
+            <Pencil className="mr-1.5 size-3.5" />
+            Edit Source
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground hover:text-destructive"
+            onClick={onDelete}
+            disabled={isDeleting}
+          >
+            <Trash2 className="size-3.5" />
+          </Button>
+        </div>
       </div>
     </>
   )
@@ -619,6 +652,23 @@ function FormView({
   onCancel,
 }: FormViewProps) {
   const fields = BACKEND_FIELDS[backend].fields
+  const [flashingFields, setFlashingFields] = useState<Set<string>>(new Set())
+
+  const handleRequiredBlur = (fieldName: string, value: string, isRequired: boolean) => {
+    if (!isRequired || value.trim()) return
+    setFlashingFields((prev) => {
+      const next = new Set(prev)
+      next.add(fieldName)
+      return next
+    })
+    setTimeout(() => {
+      setFlashingFields((prev) => {
+        const next = new Set(prev)
+        next.delete(fieldName)
+        return next
+      })
+    }, 300)
+  }
 
   return (
     <>
@@ -636,6 +686,11 @@ function FormView({
       <ScrollArea className="flex-1">
         <div className="p-6 space-y-6">
           {/* Database Type */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, delay: 0 * 0.05 }}
+          >
           <div className="space-y-2">
             <Label>Database Type</Label>
             <div className="grid grid-cols-4 gap-2">
@@ -683,8 +738,14 @@ function FormView({
               ))}
             </div>
           </div>
+          </motion.div>
 
           {/* Display Name */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, delay: 1 * 0.05 }}
+          >
           <div className="space-y-2">
             <Label htmlFor="display-name">Display Name</Label>
             <Input
@@ -692,12 +753,20 @@ function FormView({
               placeholder="e.g. recon_data_prod"
               value={displayName}
               onChange={(e) => onDisplayNameChange(e.target.value)}
+              onBlur={() => handleRequiredBlur('displayName', displayName, true)}
+              className={cn(flashingFields.has('displayName') && 'border-destructive/50')}
             />
           </div>
+          </motion.div>
 
           <Separator />
 
           {/* Connection Tab Toggle */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, delay: 2 * 0.05 }}
+          >
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <Label>Connection</Label>
@@ -742,6 +811,8 @@ function FormView({
                       }
                       value={formValues[field.name] ?? ''}
                       onChange={(e) => onFormValueChange(field.name, e.target.value)}
+                      onBlur={() => handleRequiredBlur(field.name, formValues[field.name] ?? '', field.required)}
+                      className={cn(flashingFields.has(field.name) && 'border-destructive/50')}
                     />
                   </div>
                 ))}
@@ -751,7 +822,7 @@ function FormView({
                 <Label htmlFor="uri" className="text-xs">SQLAlchemy URI</Label>
                 <Textarea
                   id="uri"
-                  placeholder="postgresql://user:pass@host:5432/dbname"
+                  placeholder="oracle+oracledb://user:pass@host:1521/?service_name=SID"
                   className="font-mono text-xs min-h-[80px]"
                   value={sqlalchemyUri}
                   onChange={(e) => onSqlalchemyUriChange(e.target.value)}
@@ -759,50 +830,83 @@ function FormView({
               </div>
             )}
           </div>
+          </motion.div>
 
-          <Separator />
-
-          {/* Test Connection */}
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onTestConnection}
-              disabled={testMutation.isPending}
-            >
-              {testMutation.isPending ? (
-                <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-              ) : null}
-              Test Connection
-            </Button>
-            {testResult && (
-              <div className="flex items-center gap-1.5 text-xs">
-                {testResult.success ? (
-                  <>
-                    <CheckCircle2 className="size-3.5 text-emerald-500" />
-                    <span className="text-emerald-600 dark:text-emerald-400">{testResult.message}</span>
-                  </>
-                ) : (
-                  <>
-                    <XCircle className="size-3.5 text-red-500" />
-                    <span className="text-red-600 dark:text-red-400">{testResult.message}</span>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
         </div>
       </ScrollArea>
 
-      {/* Footer */}
-      <div className="border-t p-4 flex items-center justify-end gap-2">
-        <Button variant="outline" size="sm" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button size="sm" onClick={onSave} disabled={!canSave || isSaving}>
-          {isSaving && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
-          {mode === 'create' ? 'Save' : 'Update'}
-        </Button>
+      {/* ── Sticky Footer — Unified Action Bar ── */}
+      <div className="border-t shrink-0">
+        {/* Test result banner */}
+        <AnimatePresence>
+          {testResult && !testMutation.isPending && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+              className="overflow-hidden"
+            >
+              <div className={cn(
+                'px-5 py-2.5 text-xs font-medium flex items-center gap-2 border-b',
+                testResult.success
+                  ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400'
+                  : 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400',
+              )}>
+                {testResult.success ? (
+                  <motion.div
+                    initial={{ scale: 0, rotate: -90 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                  >
+                    <CheckCircle2 className="size-3.5" />
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    animate={{ x: [0, -3, 3, -3, 3, 0] }}
+                    transition={{ duration: 0.4 }}
+                  >
+                    <XCircle className="size-3.5" />
+                  </motion.div>
+                )}
+                {testResult.message}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Action bar */}
+        <div className="px-5 py-3 flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onTestConnection}
+            disabled={testMutation.isPending}
+            className="shrink-0"
+          >
+            {testMutation.isPending ? (
+              <>
+                <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                Testing...
+              </>
+            ) : (
+              <>
+                <Plug className="mr-1.5 size-3.5" />
+                Test Connection
+              </>
+            )}
+          </Button>
+
+          <div className="flex-1" />
+
+          <Button variant="outline" size="sm" onClick={onCancel}>
+            Discard
+          </Button>
+          <Button size="sm" onClick={onSave} disabled={!canSave || isSaving}>
+            {isSaving && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
+            {mode === 'create' ? 'Save Connection' : 'Update'}
+          </Button>
+        </div>
       </div>
     </>
   )
@@ -850,21 +954,27 @@ function ExpandedDatasetColumns({ datasetId }: ExpandedDatasetColumnsProps) {
   }
 
   return (
-    <div className="ml-6 pl-2 border-l py-1 space-y-0.5">
+    <div className="ml-6 pl-3 border-l border-border py-1.5 space-y-0.5">
       {dataset.columns.map((col) => (
         <div
           key={col.name}
-          className="flex items-center gap-2 text-xs text-muted-foreground"
-          title={`${col.displayName || col.name} — ${col.dataType} (${col.role})`}
+          className="flex items-center gap-1.5 py-1 px-1.5 rounded-md hover:bg-muted/60 transition-colors group"
         >
-          <span className="font-mono truncate flex-1">{col.name}</span>
-          <Badge
-            variant="outline"
-            className="text-[9px] px-1 py-0 h-3.5 shrink-0 font-mono"
-          >
+          <span className="font-mono text-xs truncate flex-1 text-muted-foreground group-hover:text-foreground transition-colors">
+            {col.name}
+          </span>
+          {/* Two badge columns — each fixed width for vertical alignment */}
+          <span className="inline-flex items-center justify-center rounded px-1.5 py-0.5 text-[10px] font-mono bg-muted text-muted-foreground shrink-0 min-w-[60px] text-center">
             {col.dataType}
-          </Badge>
-          <span className="text-[9px] uppercase tracking-wide text-muted-foreground shrink-0">
+          </span>
+          <span className={cn(
+            'inline-flex items-center justify-center rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider shrink-0 min-w-[72px] text-center',
+            col.role === 'measure'
+              ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+              : col.role === 'time'
+                ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
+                : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400',
+          )}>
             {col.role}
           </span>
         </div>

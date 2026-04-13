@@ -32,6 +32,7 @@ export interface ChartAppearance {
   legendPosition: 'top' | 'bottom' | 'left' | 'right'
   showXLabel: boolean
   showYLabel: boolean
+  typeSpecific?: Record<string, unknown>
 }
 
 export interface ChartLibraryConfig {

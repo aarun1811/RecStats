@@ -14,8 +14,8 @@ import type {
  * Compute dashboard KPI values client-side.
  *
  * Previously this hit the legacy `POST /api/dashboards/:id/kpis` endpoint which
- * validated the dashboard JSONB through a snake_case Pydantic model. After the
- * managed dashboard builder (Phase 8) started writing camelCase JSONB, that
+ * validated the dashboard JSON through a snake_case Pydantic model. After the
+ * managed dashboard builder (Phase 8) started writing camelCase JSON, that
  * endpoint started 500-ing, and during Phase 10 legacy cleanup the endpoint +
  * its Pydantic model were deleted entirely.
  *

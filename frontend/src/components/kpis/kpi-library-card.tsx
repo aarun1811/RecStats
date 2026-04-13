@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { formatDistanceToNow } from 'date-fns'
+import { motion } from 'motion/react'
 import { Gauge } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
@@ -13,6 +14,11 @@ import {
   getTrendSubtitle,
   THRESHOLD_STYLES,
 } from '@/lib/kpi-utils'
+import {
+  KPI_AGG_BORDER_COLORS,
+  KPI_AGG_PILL_BG,
+  KPI_AGG_PILL_TEXT,
+} from '@/lib/style-constants'
 import type { RecvizKpi } from '@/types/managed-kpi'
 import type { FormatNumberOptions } from '@/types/formatting'
 
@@ -22,6 +28,7 @@ interface KpiLibraryCardProps {
   datasetDatabaseId: string | undefined
   datasetSql: string | undefined
   onClick: () => void
+  index: number
 }
 
 export function KpiLibraryCard({
@@ -30,6 +37,7 @@ export function KpiLibraryCard({
   datasetDatabaseId,
   datasetSql,
   onClick,
+  index,
 }: KpiLibraryCardProps) {
   const { data: rawResult, isLoading } = useQuery({
     queryKey: ['kpi-card-value', kpi.id, kpi.datasetId],
@@ -66,11 +74,16 @@ export function KpiLibraryCard({
   const timeAgo = formatDistanceToNow(new Date(kpi.updatedAt), { addSuffix: true })
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: 'easeOut', delay: index * 0.05 }}
+      whileHover={{ y: -2 }}
       className={cn(
-        'group relative flex flex-col overflow-hidden rounded-lg border bg-card',
-        'cursor-pointer transition-all duration-200',
-        'hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5',
+        'group relative flex flex-col overflow-hidden rounded-lg border border-l-2 bg-card',
+        'cursor-pointer transition-shadow duration-200',
+        'hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5',
+        KPI_AGG_BORDER_COLORS[kpi.aggregation],
       )}
       onClick={onClick}
       tabIndex={0}
@@ -82,15 +95,19 @@ export function KpiLibraryCard({
         }
       }}
     >
-      {/* Hero area — KPI value display */}
+      {/* Hero area -- KPI value display */}
       <div className="relative h-[100px] flex flex-col items-center justify-center gap-1">
         {isLoading ? (
           <Skeleton className="h-8 w-28 rounded" />
         ) : (
           <>
-            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            <span className={cn(
+              'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider',
+              KPI_AGG_PILL_BG[kpi.aggregation],
+              KPI_AGG_PILL_TEXT[kpi.aggregation],
+            )}>
               {kpi.aggregation}
-            </p>
+            </span>
             <CountAnimation
               number={computedValue}
               formatOptions={formatOptions}
@@ -103,14 +120,14 @@ export function KpiLibraryCard({
           </>
         )}
 
-        {/* KPI type pill — top right */}
+        {/* KPI type pill -- top right */}
         <div className="absolute top-2 right-2 z-10 flex items-center gap-1 rounded-full bg-background/80 px-2 py-0.5 text-[10px] font-medium text-muted-foreground backdrop-blur-sm border border-border/50">
           <Gauge size={10} />
           KPI
         </div>
       </div>
 
-      {/* Metadata strip — matches chart card */}
+      {/* Metadata strip -- matches chart card */}
       <div className="flex flex-col gap-0.5 px-3.5 py-3">
         <p className="text-sm font-semibold truncate leading-snug">{kpi.name}</p>
         <p className="text-[11px] text-muted-foreground truncate">
@@ -119,6 +136,6 @@ export function KpiLibraryCard({
           {timeAgo}
         </p>
       </div>
-    </div>
+    </motion.div>
   )
 }

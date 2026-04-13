@@ -11,12 +11,14 @@ import { DrillDetailGrid } from '@/components/dashboard/drill-detail-grid'
 import { ChartToolbar } from '@/components/dashboard/chart-toolbar'
 import { ChartFullscreenDialog } from '@/components/dashboard/chart-fullscreen-dialog'
 import { useDataSourceQuery } from '@/hooks/use-data-source-query'
+import { useManagedChart } from '@/hooks/use-managed-charts'
 import { useCrossFilter } from '@/hooks/use-cross-filter'
 import { useDrillDown, applyDrillFilters } from '@/hooks/use-drill-down'
 import { useFilterStore } from '@/stores/filter-store'
 import { ApiError } from '@/lib/api-client'
 import type { DashboardChartConfig, KpiResult } from '@/types/dashboard-config'
 import type { ChartClickEvent, ChartConfig, ChartDataResponse, ChartSelection, ChartRef } from '@/types/chart'
+import type { RecvizChart } from '@/types/managed-chart'
 
 interface ConfigChartGridProps {
   charts: DashboardChartConfig[]
@@ -45,20 +47,48 @@ function buildKpiChartData(
   }
 }
 
-/** Converts a DashboardChartConfig to the ChartConfig shape expected by ChartPanel / ChartFactory. */
-function toChartConfig(chart: DashboardChartConfig): ChartConfig {
-  const metricColumns: string[] = []
+/** Converts a DashboardChartConfig to the ChartConfig shape expected by ChartPanel / ChartFactory.
+ *  When a library chart is available (fetched via chartId), its columnMapping and appearance
+ *  are used as defaults. Dashboard-level overrides (sources[].metric, appearance) take precedence. */
+function toChartConfig(chart: DashboardChartConfig, libraryChart?: RecvizChart): ChartConfig {
+  // Metric columns: prefer dashboard inline sources[].metric, fall back to library chart config
+  const inlineMetrics: string[] = []
   for (const source of chart.sources ?? []) {
-    if (source.metric) metricColumns.push(source.metric)
+    if (source.metric) inlineMetrics.push(source.metric)
   }
+  const metricColumns = inlineMetrics.length > 0
+    ? inlineMetrics
+    : libraryChart?.config.columnMapping.metricColumns ?? []
+
+  // Category column: library chart config (dashboard config doesn't carry this)
+  const categoryColumn = libraryChart?.config.columnMapping.categoryColumn ?? undefined
+
+  // Appearance: dashboard overrides > library chart > none
+  const libraryAppearance = libraryChart?.config.appearance
+  const appearance = chart.appearance
+    ? {
+        ...chart.appearance,
+        // Merge typeSpecific from library if dashboard doesn't provide it
+        typeSpecific: chart.appearance.typeSpecific ?? libraryAppearance?.typeSpecific,
+      }
+    : libraryAppearance
+      ? {
+          showLegend: libraryAppearance.showLegend,
+          legendPosition: libraryAppearance.legendPosition,
+          showXLabel: libraryAppearance.showXLabel,
+          showYLabel: libraryAppearance.showYLabel,
+          typeSpecific: libraryAppearance.typeSpecific,
+        }
+      : undefined
+
   return {
     id: chart.id,
     name: chart.title,
     vizType: chart.type,
-    datasourceId: 0, // config-driven charts don't use Superset datasource IDs
+    datasourceId: 0, // unused -- config-driven charts resolve via datasetId
     metricColumns,
-    // categoryColumn intentionally omitted — resolved at render time as first non-metric string column
-    ...(chart.appearance ? { appearance: chart.appearance } : {}),
+    ...(categoryColumn ? { categoryColumn } : {}),
+    ...(appearance ? { appearance } : {}),
   }
 }
 
@@ -82,6 +112,9 @@ function QueryChartItemWithDrill({
   const appliedFilters = useFilterStore((s) => s.applied)
   const crossFilters = useFilterStore((s) => s.crossFilters)
   const addCrossFilter = useFilterStore((s) => s.addCrossFilter)
+
+  // ---- Fetch library chart config (if chartId present) ----
+  const { data: libraryChart } = useManagedChart(chart.chartId ?? null)
 
   // ---- Refs for chart export ----
   const chartRef = useRef<ChartRef>(null)
@@ -151,9 +184,11 @@ function QueryChartItemWithDrill({
 
   const nextHierarchyColumn = hierarchy[depth]
 
-  // Extract metric column names from chart sources (review concern 2):
-  // prefer config metadata over brittle runtime `typeof === 'number'` heuristic
+  // Extract metric column names: prefer library chart config, fall back to inline sources[].metric
   const configMetricColumns = useMemo(() => {
+    if (libraryChart?.config.columnMapping.metricColumns.length) {
+      return libraryChart.config.columnMapping.metricColumns
+    }
     if (!chart.sources?.length) return undefined
     const metrics = new Set<string>()
     for (const source of chart.sources) {
@@ -162,7 +197,7 @@ function QueryChartItemWithDrill({
       }
     }
     return metrics.size > 0 ? Array.from(metrics) : undefined
-  }, [chart.sources])
+  }, [chart.sources, libraryChart])
 
   const drilledData = useMemo(
     () => applyDrillFilters(crossFilteredData, levels, nextHierarchyColumn, configMetricColumns),
@@ -179,7 +214,7 @@ function QueryChartItemWithDrill({
     [drillDownEnabled, canDrill, isAtDetailLevel, hierarchy, depth, drill],
   )
 
-  const config = useMemo(() => toChartConfig(chart), [chart])
+  const config = useMemo(() => toChartConfig(chart, libraryChart ?? undefined), [chart, libraryChart])
 
   if (isLoading) {
     return (
@@ -221,7 +256,10 @@ function QueryChartItemWithDrill({
 
   return (
     <Fragment>
-      <div
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3, delay: 0.1 }}
         style={{
           gridColumn: `span ${chart.layout.width}`,
           gridRow: `span ${chart.layout.height}`,
@@ -272,7 +310,7 @@ function QueryChartItemWithDrill({
             />
           </CardContent>
         </Card>
-      </div>
+      </motion.div>
 
       {/* Fullscreen dialog with IDENTICAL cross-filter state as the dashboard card */}
       <ChartFullscreenDialog
@@ -504,8 +542,11 @@ export function ConfigChartGrid({ charts, kpiResults, crossFilterEnabled, drillD
       {charts.map((chart) => {
         if (chart.sourceType === 'kpi_values') {
           return (
-            <div
+            <motion.div
               key={chart.id}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.3, delay: 0.1 }}
               style={{
                 gridColumn: `span ${chart.layout.width}`,
                 gridRow: `span ${chart.layout.height}`,
@@ -518,7 +559,7 @@ export function ConfigChartGrid({ charts, kpiResults, crossFilterEnabled, drillD
                 onRefresh={onRefreshKpis}
                 isRefreshing={isRefreshingKpis}
               />
-            </div>
+            </motion.div>
           )
         }
         return (

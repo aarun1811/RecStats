@@ -10,8 +10,8 @@ export const Route = createFileRoute('/_app/datasets/new')({
 function DatasetNewPage() {
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2, ease: 'easeOut' }}
     >
       <DatasetEditor mode="create" />

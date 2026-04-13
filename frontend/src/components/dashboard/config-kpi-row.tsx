@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { motion } from 'motion/react'
 import { Info, TrendingDown, TrendingUp } from 'lucide-react'
 
 import { Skeleton } from '@/components/ui/skeleton'
@@ -58,6 +59,9 @@ export function ConfigKpiRow({
   partialMatches,
 }: ConfigKpiRowProps) {
   const appliedFilters = useFilterStore((s) => s.applied)
+
+  // Don't render anything if no KPIs are configured
+  if (kpis.length === 0) return null
   const { data, isLoading, isError, error, refetch } = useDashboardKpis(kpis, appliedFilters)
 
   // Build partial match lookup for quick access
@@ -103,7 +107,7 @@ export function ConfigKpiRow({
 
   return (
     <div className="grid grid-cols-4 gap-3">
-      {kpis.map((kpi) => {
+      {kpis.map((kpi, i) => {
         const result = kpiResultsMap.get(kpi.id)
         const value = result?.value ?? 0
         const percentage = result?.percentage
@@ -113,9 +117,17 @@ export function ConfigKpiRow({
         const missingCols = partialMatchMap.get(kpi.id)
 
         return (
-          <div
+          <motion.div
             key={kpi.id}
-            className="rounded-lg border bg-card px-4 py-3 flex items-center justify-between gap-3"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 24, delay: i * 0.05 }}
+            className={cn(
+              'rounded-lg border border-l-2 bg-card px-4 py-3 flex items-center justify-between gap-3',
+              hasTrend && percentage >= 0 && 'border-l-green-500',
+              hasTrend && percentage < 0 && 'border-l-red-500',
+              !hasTrend && 'border-l-muted',
+            )}
           >
             <div className="min-w-0">
               <div className="flex items-center gap-1">
@@ -169,7 +181,7 @@ export function ConfigKpiRow({
                 {percentage.toFixed(1)}%
               </div>
             )}
-          </div>
+          </motion.div>
         )
       })}
     </div>

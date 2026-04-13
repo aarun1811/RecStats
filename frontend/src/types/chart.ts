@@ -39,6 +39,8 @@ export interface ChartConfig {
     interactive?: boolean
     /** Color gradient for heatmap / treemap (array of hex strings) */
     colorRange?: string[]
+    /** Type-specific overrides from chart builder (e.g., donutInnerRadius, scatterPointShape) */
+    typeSpecific?: Record<string, unknown>
   }
 }
 

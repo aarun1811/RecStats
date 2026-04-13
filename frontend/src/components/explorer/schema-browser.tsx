@@ -16,6 +16,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
+  AlertCircle,
   Database,
   Table2,
   Eye,
@@ -90,7 +91,7 @@ export function SchemaBrowser(props: SchemaBrowserProps) {
     <div className="flex flex-col h-full border-r">
       <div className="px-3 py-2.5 border-b bg-muted/40 shrink-0">
         <div className="flex items-center gap-2">
-          <Database className="size-4 shrink-0 text-muted-foreground" />
+          <Database className="size-4 shrink-0 text-primary/70" />
           <span className="text-sm font-medium truncate">Schema Browser</span>
         </div>
       </div>
@@ -137,8 +138,20 @@ export function SchemaBrowser(props: SchemaBrowserProps) {
             <Skeleton className="h-5 w-1/2" />
           </div>
         ) : tablesError ? (
-          <div className="px-3 py-4 text-xs text-destructive">
-            Failed to load tables. Check backend logs and the connection's Schema field.
+          <div className="flex flex-col items-center gap-2 px-3 py-6 text-center">
+            <AlertCircle className="size-5 text-destructive" />
+            <p className="text-xs font-medium text-destructive">
+              Failed to load tables
+            </p>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Check the connection's <span className="font-medium">Schema</span> field in Settings.
+              {tablesError instanceof ApiError && tablesError.userMessage && (
+                <>
+                  <br />
+                  <span className="text-destructive/80">{tablesError.userMessage}</span>
+                </>
+              )}
+            </p>
           </div>
         ) : filteredTables.length === 0 ? (
           <div className="px-3 py-4 text-xs text-muted-foreground">

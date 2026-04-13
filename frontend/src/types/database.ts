@@ -1,4 +1,4 @@
-export type DatabaseBackend = 'oracle' | 'postgresql' | 'hive' | 'elasticsearch'
+export type DatabaseBackend = 'oracle'
 
 export type ConnectionStatus = 'connected' | 'unreachable' | 'untested'
 

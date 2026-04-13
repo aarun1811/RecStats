@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { Calendar, Database, Layers, Pencil, Trash2 } from 'lucide-react'
+import { motion } from 'motion/react'
+import { Calendar, Database, FileText, Layers, LayoutDashboard, Pencil, Trash2 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 
+import { cn } from '@/lib/utils'
 import {
   Sheet,
   SheetContent,
@@ -19,6 +21,7 @@ import { useManagedChart, useChartReferences } from '@/hooks/use-managed-charts'
 import { useManagedDataset } from '@/hooks/use-managed-datasets'
 import { ChartTypeIcon, CHART_DISPLAY_NAMES } from '@/components/charts/chart-type-icon'
 import { ChartFactory } from '@/components/charts/chart-factory'
+import { CHART_TYPE_BORDER_COLORS } from '@/lib/style-constants'
 import { DeleteChartDialog } from './delete-chart-dialog'
 import type { ChartConfig, ChartDataResponse } from '@/types/chart'
 
@@ -37,7 +40,7 @@ export function ChartDetailPanel({ chartId, datasetName, onClose }: ChartDetailP
   const { data: references } = useChartReferences(chartId)
 
   const { data: rawResult, isLoading: isDataLoading } = useQuery({
-    queryKey: ['chart-preview-data', chart?.datasetId],
+    queryKey: ['chart-preview-data', chart?.datasetId, dataset?.updatedAt],
     queryFn: () =>
       api.post<{ columns: unknown[]; data: Record<string, unknown>[] }>(
         '/api/sql/execute',
@@ -58,7 +61,7 @@ export function ChartDetailPanel({ chartId, datasetName, onClose }: ChartDetailP
         datasourceId: 0,
         metricColumns: chart.config.columnMapping.metricColumns,
         categoryColumn: chart.config.columnMapping.categoryColumn ?? undefined,
-        appearance: { showLegend: false },
+        appearance: { showLegend: false, typeSpecific: chart.config.appearance.typeSpecific },
       }
     : null
 
@@ -108,19 +111,27 @@ export function ChartDetailPanel({ chartId, datasetName, onClose }: ChartDetailP
       >
         <SheetContent
           side="right"
-          className="w-[500px] sm:max-w-[500px] p-0 gap-0 flex flex-col border-l-0"
+          className={cn(
+            'w-[640px] sm:max-w-[640px] p-0 gap-0 flex flex-col',
+            chart ? `border-l-2 ${CHART_TYPE_BORDER_COLORS[chart.chartType]}` : 'border-l-0'
+          )}
         >
           {chartLoading ? (
             <div className="space-y-4 p-6">
               <Skeleton className="h-6 w-2/3" />
               <Skeleton className="h-4 w-1/2" />
-              <Skeleton className="h-[280px] w-full rounded-lg" />
+              <Skeleton className="h-[360px] w-full rounded-lg" />
               <Skeleton className="h-4 w-full" />
               <Skeleton className="h-4 w-3/4" />
             </div>
           ) : chart ? (
             <>
-            <div className="flex-1 overflow-y-auto flex flex-col">
+            <motion.div
+              initial={{ x: 20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+              className="flex-1 overflow-y-auto flex flex-col"
+            >
               {/* Header */}
               <SheetHeader className="px-6 pt-6 pb-2">
                 <SheetTitle className="text-lg font-semibold truncate pr-8">
@@ -137,7 +148,7 @@ export function ChartDetailPanel({ chartId, datasetName, onClose }: ChartDetailP
 
               {/* Live chart — contained in a card */}
               <div className="mx-6 rounded-lg overflow-hidden bg-muted/5">
-                <div className="h-[280px]">
+                <div className="h-[360px]">
                   {isDataLoading ? (
                     <Skeleton className="h-full w-full" />
                   ) : previewConfig && previewData ? (
@@ -161,21 +172,21 @@ export function ChartDetailPanel({ chartId, datasetName, onClose }: ChartDetailP
               <div className="grid grid-cols-2 gap-x-4 gap-y-3 px-6 py-5">
                 <div>
                   <div className="flex items-center gap-1.5 mb-1">
-                    <Database className="size-3 text-muted-foreground" />
+                    <Database className="size-3 text-primary/60" />
                     <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Dataset</span>
                   </div>
                   <p className="text-sm truncate">{datasetName}</p>
                 </div>
                 <div>
                   <div className="flex items-center gap-1.5 mb-1">
-                    <Layers className="size-3 text-muted-foreground" />
+                    <Layers className="size-3 text-primary/60" />
                     <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Columns</span>
                   </div>
                   <p className="text-sm font-mono truncate">{columnSummary}</p>
                 </div>
                 <div>
                   <div className="flex items-center gap-1.5 mb-1">
-                    <Calendar className="size-3 text-muted-foreground" />
+                    <Calendar className="size-3 text-primary/60" />
                     <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Created</span>
                   </div>
                   <p className="text-sm">
@@ -184,7 +195,7 @@ export function ChartDetailPanel({ chartId, datasetName, onClose }: ChartDetailP
                 </div>
                 <div>
                   <div className="flex items-center gap-1.5 mb-1">
-                    <Calendar className="size-3 text-muted-foreground" />
+                    <Calendar className="size-3 text-primary/60" />
                     <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Updated</span>
                   </div>
                   <p className="text-sm">
@@ -195,9 +206,12 @@ export function ChartDetailPanel({ chartId, datasetName, onClose }: ChartDetailP
 
               {/* Dashboards section */}
               <div className="border-t px-6 py-4">
-                <h4 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-2">
-                  Used in Dashboards
-                </h4>
+                <div className="flex items-center gap-1.5 mb-2">
+                  <LayoutDashboard className="size-3 text-primary/60" />
+                  <h4 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                    Used in Dashboards
+                  </h4>
+                </div>
                 {referencingDashboards.length > 0 ? (
                   <div className="flex flex-wrap gap-1.5">
                     {referencingDashboards.map((dashboard) => (
@@ -215,13 +229,16 @@ export function ChartDetailPanel({ chartId, datasetName, onClose }: ChartDetailP
 
               {chart.description && (
                 <div className="border-t px-6 py-4">
-                  <h4 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-2">
-                    Description
-                  </h4>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <FileText className="size-3 text-primary/60" />
+                    <h4 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                      Description
+                    </h4>
+                  </div>
                   <p className="text-sm text-muted-foreground">{chart.description}</p>
                 </div>
               )}
-            </div>
+            </motion.div>
 
             {/* Fixed bottom bar */}
             <div className="shrink-0 border-t px-6 py-3 flex items-center gap-2">

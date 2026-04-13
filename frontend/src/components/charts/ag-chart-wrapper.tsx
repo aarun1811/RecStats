@@ -1,7 +1,7 @@
 import { useMemo, useRef, useEffect, useState, forwardRef, useImperativeHandle } from 'react'
 import { AgCharts } from 'ag-charts-react'
 import type { AgChartOptions, AgChartInstance } from 'ag-charts-enterprise'
-import { getAgChartsTheme } from '@/lib/chart-themes'
+import { getAgChartsTheme, resolveColor } from '@/lib/chart-themes'
 import { useTheme } from '@/components/layout/theme-provider'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
@@ -47,7 +47,7 @@ export function buildSeries(
   metricColumns: string[],
   categoryColumn: string | undefined,
   selection?: ChartSelection,
-  appearance?: { colorRange?: string[] },
+  appearance?: { colorRange?: string[]; typeSpecific?: Record<string, unknown> },
 ) {
   // Resolve category: explicit config > first non-metric string column > columns[0]
   const categoryKey = categoryColumn
@@ -59,31 +59,63 @@ export function buildSeries(
     : columns.filter((c) => c !== categoryKey)
   const styler = makeItemStyler(categoryKey, selection)
 
+  // Resolve per-series colors from typeSpecific (seriesColor_0, seriesColor_1, ...)
+  function getSeriesColor(index: number): Record<string, string> | undefined {
+    const cssVar = appearance?.typeSpecific?.[`seriesColor_${index}`] as string | undefined
+    if (!cssVar) return undefined
+    const hex = resolveColor(cssVar)
+    return { fill: hex, stroke: hex }
+  }
+
+  // Build per-slice fill colors for pie/donut from seriesColor_0..N
+  function buildSliceFills(app: typeof appearance): string[] {
+    const fills: string[] = []
+    for (let i = 0; i < 8; i++) {
+      const cssVar = app?.typeSpecific?.[`seriesColor_${i}`] as string | undefined
+      if (cssVar) fills.push(resolveColor(cssVar))
+      else break
+    }
+    return fills
+  }
+
+  // Resolve colorRange from typeSpecific (for heatmap, treemap)
+  function getColorRange(): string[] | undefined {
+    const tsColorRange = appearance?.typeSpecific?.colorRange as string[] | undefined
+    if (tsColorRange?.length) return tsColorRange
+    const min = appearance?.typeSpecific?.colorRangeMin as string | undefined
+    const max = appearance?.typeSpecific?.colorRangeMax as string | undefined
+    if (min && max) return [resolveColor(min), resolveColor(max)]
+    if (appearance?.colorRange) return appearance.colorRange
+    return undefined
+  }
+
   switch (vizType) {
     case 'bar':
     case 'stacked-bar':
-      return metricKeys.map((key) => ({
+      return metricKeys.map((key, i) => ({
         type: 'bar' as const,
         xKey: categoryKey,
         yKey: key,
         yName: key,
         stacked: vizType === 'stacked-bar',
         cornerRadius: 4,
+        ...getSeriesColor(i),
         ...(styler ? { itemStyler: styler } : {}),
       }))
 
     case 'line':
-      return metricKeys.map((key) => ({
+      return metricKeys.map((key, i) => ({
         type: 'line' as const,
         xKey: categoryKey,
         yKey: key,
         yName: key,
         strokeWidth: 2,
         marker: { size: 4 },
+        ...(getSeriesColor(i) ? { stroke: getSeriesColor(i)!.stroke, marker: { size: 4, fill: getSeriesColor(i)!.fill } } : {}),
       }))
 
     case 'area':
-      return metricKeys.map((key) => ({
+      return metricKeys.map((key, i) => ({
         type: 'area' as const,
         xKey: categoryKey,
         yKey: key,
@@ -91,16 +123,22 @@ export function buildSeries(
         strokeWidth: 2,
         fillOpacity: 0.15,
         marker: { size: 4 },
+        ...getSeriesColor(i),
       }))
 
     case 'pie': {
       const angleKey = metricKeys[0] ?? columns.find((c) => c !== categoryKey) ?? 'count'
+      const pieLabelPos = (appearance?.typeSpecific?.pieLabelPosition as string) ?? 'outside'
+      // Build per-slice fills from series colors if configured
+      const pieFills = buildSliceFills(appearance)
       return [
         {
           type: 'pie' as const,
           angleKey,
-          calloutLabelKey: categoryKey,
-          sectorLabelKey: angleKey,
+          ...(pieLabelPos !== 'none' ? { calloutLabelKey: categoryKey } : {}),
+          ...(pieLabelPos === 'inside' ? { sectorLabelKey: angleKey } : { sectorLabelKey: angleKey }),
+          ...(pieLabelPos === 'none' ? { calloutLabel: { enabled: false }, sectorLabel: { enabled: false } } : {}),
+          ...(pieFills.length > 0 ? { fills: pieFills } : {}),
           ...(styler ? { itemStyler: styler } : {}),
         },
       ]
@@ -108,12 +146,17 @@ export function buildSeries(
 
     case 'donut': {
       const angleKey = metricKeys[0] ?? columns.find((c) => c !== categoryKey) ?? 'count'
+      const innerRadius = (appearance?.typeSpecific?.donutInnerRadius as number) ?? 0.6
+      const donutLabelPos = (appearance?.typeSpecific?.donutLabelPosition as string) ?? 'outside'
+      const donutFills = buildSliceFills(appearance)
       return [
         {
           type: 'donut' as const,
           angleKey,
-          calloutLabelKey: categoryKey,
-          innerRadiusRatio: 0.6,
+          ...(donutLabelPos !== 'none' ? { calloutLabelKey: categoryKey } : {}),
+          innerRadiusRatio: innerRadius,
+          ...(donutLabelPos === 'none' ? { calloutLabel: { enabled: false }, sectorLabel: { enabled: false } } : {}),
+          ...(donutFills.length > 0 ? { fills: donutFills } : {}),
           ...(styler ? { itemStyler: styler } : {}),
         },
       ]
@@ -123,12 +166,14 @@ export function buildSeries(
       const xKey = metricColumns[0] ?? columns[0] ?? 'x'
       const yKey = metricColumns[1] ?? columns[1] ?? 'y'
       const sizeKey = metricColumns[2] ?? columns[2]
+      const pointShape = (appearance?.typeSpecific?.scatterPointShape as string) ?? 'circle'
       return [
         {
           type: 'scatter' as const,
           xKey,
           yKey,
           ...(sizeKey ? { sizeKey } : {}),
+          marker: { shape: pointShape },
         },
       ]
     }
@@ -144,7 +189,7 @@ export function buildSeries(
           : columns[1] ?? 'y'
       return [{
         type: 'heatmap' as const, xKey, yKey, colorKey,
-        ...(appearance?.colorRange ? { colorRange: appearance.colorRange } : {}),
+        colorRange: getColorRange() ?? [resolveColor('--color-ramp-low'), resolveColor('--color-ramp-high')],
       }]
     }
 
@@ -156,18 +201,28 @@ export function buildSeries(
         type: 'treemap' as const,
         labelKey,
         sizeKey,
-        ...(colorKey ? { colorKey, colorRange: appearance?.colorRange ?? ['#43A047', '#FF5722'] } : {}),
+        ...(colorKey ? { colorKey, colorRange: getColorRange() ?? [resolveColor('--chart-positive'), resolveColor('--chart-negative')] } : {}),
       }]
     }
 
-    case 'waterfall':
+    case 'waterfall': {
+      const posColor = appearance?.typeSpecific?.waterfallPositive
+        ? resolveColor(appearance.typeSpecific.waterfallPositive as string)
+        : undefined
+      const negColor = appearance?.typeSpecific?.waterfallNegative
+        ? resolveColor(appearance.typeSpecific.waterfallNegative as string)
+        : undefined
       return [{
         type: 'waterfall' as const,
         xKey: categoryKey,
         yKey: metricKeys[0] ?? 'value',
-        item: { positive: { name: 'Increase' }, negative: { name: 'Decrease' } },
+        item: {
+          positive: { name: 'Increase', ...(posColor ? { fill: posColor } : {}) },
+          negative: { name: 'Decrease', ...(negColor ? { fill: negColor } : {}) },
+        },
         line: { strokeWidth: 2 },
       }]
+    }
 
     case 'histogram':
       return [
@@ -239,7 +294,11 @@ export const AgChartWrapper = forwardRef<AgChartRef, ChartWrapperProps>(function
 
   useImperativeHandle(ref, () => ({
     download(fileName: string) {
-      internalChartRef.current?.download({ fileName, fileFormat: 'image/png' })
+      if (!internalChartRef.current) {
+        console.warn('Chart not ready for download')
+        return
+      }
+      internalChartRef.current.download({ fileName, fileFormat: 'image/png' })
     },
     async getImageDataURL() {
       return (await internalChartRef.current?.getImageDataURL({ fileFormat: 'image/png' })) ?? ''

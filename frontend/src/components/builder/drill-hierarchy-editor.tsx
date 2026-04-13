@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react'
 
 import { GripVertical, X } from 'lucide-react'
 
-import { Label } from '@/components/ui/label'
+import { cn } from '@/lib/utils'
 import {
   Select,
   SelectContent,
@@ -92,81 +92,92 @@ export function DrillHierarchyEditor({
   }, [])
 
   return (
-    <div className="space-y-2">
-      <Label className="text-xs font-medium uppercase text-muted-foreground">
-        Drill Hierarchy
-      </Label>
-
-      {/* Ordered list of selected drill levels */}
-      {hierarchy.length > 0 && (
-        <div className="space-y-1">
-          {hierarchy.map((colName, index) => (
-            <div
-              key={colName}
-              className="flex items-center gap-2 rounded border px-2 py-1.5"
-              draggable
-              onDragStart={(e) => handleDragStart(e, index)}
-              onDragOver={handleDragOver}
-              onDrop={(e) => handleDrop(e, index)}
-              onDragEnd={handleDragEnd}
-            >
-              <GripVertical className="size-3 cursor-grab text-muted-foreground" />
-              <span className="flex-1 text-xs">{getDisplayName(colName)}</span>
-              <button
-                type="button"
-                onClick={() => removeLevel(index)}
-                className="text-muted-foreground hover:text-destructive"
+    <div className="space-y-3">
+      {/* Drill levels */}
+      <div className="space-y-1.5">
+        <p className="text-xs font-medium text-muted-foreground">Drill Levels</p>
+        {hierarchy.length > 0 ? (
+          <div className="space-y-1">
+            {hierarchy.map((colName, index) => (
+              <div
+                key={colName}
+                className={cn(
+                  'flex items-center gap-2 rounded-md border border-border/50 bg-muted/30 px-2.5 py-1.5',
+                  'transition-colors hover:border-border',
+                )}
+                draggable
+                onDragStart={(e) => handleDragStart(e, index)}
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, index)}
+                onDragEnd={handleDragEnd}
               >
-                <X className="size-3" />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
+                <GripVertical className="size-3 cursor-grab text-muted-foreground/50" />
+                <span className="flex items-center gap-1.5 flex-1 text-xs text-foreground">
+                  <span className="flex items-center justify-center size-4 rounded bg-primary/10 text-[9px] font-bold text-primary tabular-nums">
+                    {index + 1}
+                  </span>
+                  {getDisplayName(colName)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => removeLevel(index)}
+                  className="text-muted-foreground/40 hover:text-destructive transition-colors"
+                >
+                  <X className="size-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-[11px] text-muted-foreground/50 italic py-1">
+            No drill levels configured
+          </p>
+        )}
 
-      {/* Add Level select */}
-      {availableColumns.length > 0 && (
+        {/* Add Level select */}
+        {availableColumns.length > 0 && (
+          <Select
+            onValueChange={(colName) =>
+              onHierarchyChange([...hierarchy, colName])
+            }
+            value=""
+          >
+            <SelectTrigger className="h-7 text-xs bg-muted/30 border-border/50 border-dashed">
+              <SelectValue placeholder="+ Add Level" />
+            </SelectTrigger>
+            <SelectContent>
+              {availableColumns.map((col) => (
+                <SelectItem key={col.name} value={col.name}>
+                  {col.displayName || col.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
+
+      {/* Detail Data Source — visually grouped with drill levels */}
+      <div className="space-y-1.5">
+        <p className="text-xs font-medium text-muted-foreground">Detail Data Source</p>
         <Select
-          onValueChange={(colName) =>
-            onHierarchyChange([...hierarchy, colName])
+          value={drillDetailDataSourceId ?? 'none'}
+          onValueChange={(v) =>
+            onDetailDataSourceChange(v === 'none' ? null : v)
           }
-          value=""
         >
-          <SelectTrigger className="h-7 text-xs">
-            <SelectValue placeholder="+ Add Level" />
+          <SelectTrigger className="h-8 text-xs bg-muted/30 border-border/50">
+            <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {availableColumns.map((col) => (
-              <SelectItem key={col.name} value={col.name}>
-                {col.displayName || col.name}
+            <SelectItem value="none">None</SelectItem>
+            {(allDatasets ?? []).map((ds) => (
+              <SelectItem key={ds.id} value={ds.id}>
+                {ds.name}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
-      )}
-
-      {/* Detail Data Source */}
-      <Label className="mt-3 text-xs font-medium uppercase text-muted-foreground">
-        Detail Data Source
-      </Label>
-      <Select
-        value={drillDetailDataSourceId ?? 'none'}
-        onValueChange={(v) =>
-          onDetailDataSourceChange(v === 'none' ? null : v)
-        }
-      >
-        <SelectTrigger className="h-7 text-xs">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="none">None</SelectItem>
-          {(allDatasets ?? []).map((ds) => (
-            <SelectItem key={ds.id} value={ds.id}>
-              {ds.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      </div>
     </div>
   )
 }

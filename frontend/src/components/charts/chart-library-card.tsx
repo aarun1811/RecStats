@@ -1,12 +1,18 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { formatDistanceToNow } from 'date-fns'
+import { motion } from 'motion/react'
 
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import { api } from '@/lib/api-client'
 import { ChartTypeIcon, CHART_DISPLAY_NAMES } from '@/components/charts/chart-type-icon'
 import { ChartFactory } from '@/components/charts/chart-factory'
+import {
+  CHART_TYPE_BORDER_COLORS,
+  CHART_TYPE_PILL_BG,
+  CHART_TYPE_PILL_TEXT,
+} from '@/lib/style-constants'
 import type { RecvizChart } from '@/types/managed-chart'
 import type { RecvizDataset } from '@/types/managed-dataset'
 import type { ChartConfig, ChartDataResponse } from '@/types/chart'
@@ -16,11 +22,12 @@ interface ChartLibraryCardProps {
   dataset?: RecvizDataset
   datasetName: string
   onClick: () => void
+  index: number
 }
 
-export function ChartLibraryCard({ chart, dataset, datasetName, onClick }: ChartLibraryCardProps) {
+export function ChartLibraryCard({ chart, dataset, datasetName, onClick, index }: ChartLibraryCardProps) {
   const { data: rawResult, isLoading } = useQuery({
-    queryKey: ['chart-thumbnail', chart.datasetId],
+    queryKey: ['chart-thumbnail', chart.datasetId, dataset?.updatedAt],
     queryFn: () =>
       api.post<{ columns: unknown[]; data: Record<string, unknown>[] }>(
         '/api/sql/execute',
@@ -42,7 +49,7 @@ export function ChartLibraryCard({ chart, dataset, datasetName, onClick }: Chart
     datasourceId: 0,
     metricColumns: chart.config.columnMapping.metricColumns,
     categoryColumn: chart.config.columnMapping.categoryColumn ?? undefined,
-    appearance: { showLegend: false, interactive: false },
+    appearance: { showLegend: false, interactive: false, typeSpecific: chart.config.appearance.typeSpecific },
   }), [chart])
 
   const chartData = useMemo<ChartDataResponse | undefined>(() => {
@@ -63,11 +70,16 @@ export function ChartLibraryCard({ chart, dataset, datasetName, onClick }: Chart
   const displayType = CHART_DISPLAY_NAMES[chart.chartType] ?? chart.chartType
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05, duration: 0.2, ease: 'easeOut' }}
+      whileHover={{ y: -2 }}
       className={cn(
-        'group relative flex flex-col overflow-hidden rounded-lg border bg-card',
-        'cursor-pointer transition-all duration-200',
-        'hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5',
+        'group relative flex flex-col overflow-hidden rounded-lg border border-l-2 bg-card',
+        'cursor-pointer transition-shadow duration-200',
+        'hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5',
+        CHART_TYPE_BORDER_COLORS[chart.chartType],
       )}
       onClick={onClick}
       tabIndex={0}
@@ -80,7 +92,7 @@ export function ChartLibraryCard({ chart, dataset, datasetName, onClick }: Chart
       }}
     >
       {/* Thumbnail — the hero */}
-      <div className="relative h-[180px] overflow-hidden">
+      <div className="relative h-[240px] overflow-hidden">
         {/* Chart render */}
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-muted/5">
@@ -98,8 +110,8 @@ export function ChartLibraryCard({ chart, dataset, datasetName, onClick }: Chart
           </div>
         )}
         {!isLoading && !chartData && (
-          <div className="absolute inset-0 flex items-center justify-center bg-muted/5">
-            <ChartTypeIcon chartType={chart.chartType} size={40} className="text-muted-foreground/15" />
+          <div className={cn('absolute inset-0 flex items-center justify-center', CHART_TYPE_PILL_BG[chart.chartType])}>
+            <ChartTypeIcon chartType={chart.chartType} size={40} className={CHART_TYPE_PILL_TEXT[chart.chartType]} />
           </div>
         )}
 
@@ -110,14 +122,18 @@ export function ChartLibraryCard({ chart, dataset, datasetName, onClick }: Chart
         <div className="absolute inset-x-0 bottom-0 h-10 z-50 bg-gradient-to-t from-card to-transparent" />
 
         {/* Chart type pill — top right */}
-        <div className="absolute top-2.5 right-2.5 z-50 flex items-center gap-1 rounded-full bg-background/80 px-2 py-0.5 text-[10px] font-medium text-muted-foreground backdrop-blur-sm border border-border/50">
+        <div className={cn(
+          'absolute top-2.5 right-2.5 z-50 flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold backdrop-blur-sm border-0',
+          CHART_TYPE_PILL_BG[chart.chartType],
+          CHART_TYPE_PILL_TEXT[chart.chartType],
+        )}>
           <ChartTypeIcon chartType={chart.chartType} size={10} />
           {displayType}
         </div>
       </div>
 
       {/* Metadata */}
-      <div className="flex flex-col gap-0.5 px-3.5 py-3">
+      <div className="flex flex-col gap-0.5 px-4 py-3">
         <p className="text-sm font-semibold truncate leading-snug">{chart.name}</p>
         <p className="text-[11px] text-muted-foreground truncate">
           {datasetName}
@@ -125,6 +141,6 @@ export function ChartLibraryCard({ chart, dataset, datasetName, onClick }: Chart
           {timeAgo}
         </p>
       </div>
-    </div>
+    </motion.div>
   )
 }

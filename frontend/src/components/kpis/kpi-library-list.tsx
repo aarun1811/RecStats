@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from '@tanstack/react-router'
-import { Gauge, Plus } from 'lucide-react'
+import { AnimatePresence, motion } from 'motion/react'
+import { Gauge, Plus, Search } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -109,36 +110,58 @@ export function KpiLibraryList() {
           </EmptyContent>
         </Empty>
       ) : filtered.length === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">
-          No KPIs matching &ldquo;{searchQuery}&rdquo;
-        </p>
-      ) : viewMode === 'grid' ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filtered.map((kpi) => {
-            const ds = datasetMap.get(kpi.datasetId)
-            return (
-              <KpiLibraryCard
-                key={kpi.id}
-                kpi={kpi}
-                datasetName={ds?.name ?? 'Unknown'}
-                datasetDatabaseId={ds?.dataset.databaseId}
-                datasetSql={ds?.dataset.sql}
-                onClick={() => setSelectedKpiId(kpi.id)}
-              />
-            )
-          })}
-        </div>
+        <Empty className="border rounded-lg">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <Search />
+            </EmptyMedia>
+            <EmptyTitle>No KPIs found</EmptyTitle>
+            <EmptyDescription>
+              No KPIs matching your search. Try a different term or clear filters.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       ) : (
-        <div className="space-y-2">
-          {filtered.map((kpi) => (
-            <KpiLibraryRow
-              key={kpi.id}
-              kpi={kpi}
-              datasetName={datasetMap.get(kpi.datasetId)?.name ?? 'Unknown'}
-              onClick={() => setSelectedKpiId(kpi.id)}
-            />
-          ))}
-        </div>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={viewMode}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            {viewMode === 'grid' ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+                {filtered.map((kpi, i) => {
+                  const ds = datasetMap.get(kpi.datasetId)
+                  return (
+                    <KpiLibraryCard
+                      key={kpi.id}
+                      kpi={kpi}
+                      datasetName={ds?.name ?? 'Unknown'}
+                      datasetDatabaseId={ds?.dataset.databaseId}
+                      datasetSql={ds?.dataset.sql}
+                      onClick={() => setSelectedKpiId(kpi.id)}
+                      index={i}
+                    />
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {filtered.map((kpi, i) => (
+                  <KpiLibraryRow
+                    key={kpi.id}
+                    kpi={kpi}
+                    datasetName={datasetMap.get(kpi.datasetId)?.name ?? 'Unknown'}
+                    onClick={() => setSelectedKpiId(kpi.id)}
+                    index={i}
+                  />
+                ))}
+              </div>
+            )}
+          </motion.div>
+        </AnimatePresence>
       )}
 
       <KpiDetailPanel

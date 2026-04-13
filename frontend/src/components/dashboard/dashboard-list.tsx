@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from '@tanstack/react-router'
-import { LayoutDashboard, Plus } from 'lucide-react'
+import { AnimatePresence, motion } from 'motion/react'
+import { LayoutDashboard, Plus, Search } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -89,41 +90,59 @@ export function DashboardList() {
           </EmptyContent>
         </Empty>
       ) : filtered.length === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">
-          No dashboards matching &ldquo;{searchQuery}&rdquo;
-        </p>
-      ) : viewMode === 'grid' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filtered.map((dashboard) => (
-            <DashboardListCard
-              key={dashboard.id}
-              dashboard={dashboard}
-              onClick={() =>
-                navigate({
-                  to: '/dashboards/$dashboardId',
-                  params: { dashboardId: dashboard.id },
-                })
-              }
-              onDelete={() => setDeleteTarget(dashboard)}
-            />
-          ))}
-        </div>
+        <Empty className="border rounded-lg">
+          <EmptyHeader>
+            <EmptyMedia variant="icon"><Search /></EmptyMedia>
+            <EmptyTitle>No dashboards matching &ldquo;{searchQuery}&rdquo;</EmptyTitle>
+            <EmptyDescription>Try a different search term or clear your filters.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       ) : (
-        <div className="space-y-2">
-          {filtered.map((dashboard) => (
-            <DashboardListRow
-              key={dashboard.id}
-              dashboard={dashboard}
-              onClick={() =>
-                navigate({
-                  to: '/dashboards/$dashboardId',
-                  params: { dashboardId: dashboard.id },
-                })
-              }
-              onDelete={() => setDeleteTarget(dashboard)}
-            />
-          ))}
-        </div>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={viewMode}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            {viewMode === 'grid' ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {filtered.map((dashboard, i) => (
+                  <DashboardListCard
+                    key={dashboard.id}
+                    dashboard={dashboard}
+                    index={i}
+                    onClick={() =>
+                      navigate({
+                        to: '/dashboards/$dashboardId',
+                        params: { dashboardId: dashboard.id },
+                      })
+                    }
+                    onDelete={() => setDeleteTarget(dashboard)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {filtered.map((dashboard, i) => (
+                  <DashboardListRow
+                    key={dashboard.id}
+                    dashboard={dashboard}
+                    index={i}
+                    onClick={() =>
+                      navigate({
+                        to: '/dashboards/$dashboardId',
+                        params: { dashboardId: dashboard.id },
+                      })
+                    }
+                    onDelete={() => setDeleteTarget(dashboard)}
+                  />
+                ))}
+              </div>
+            )}
+          </motion.div>
+        </AnimatePresence>
       )}
 
       <DeleteDashboardDialog

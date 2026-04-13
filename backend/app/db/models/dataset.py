@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 from sqlalchemy import DateTime, Integer, String, Text, func
-from app.db.types import PortableJSON
+from app.db.types import OracleJSON
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -16,10 +16,10 @@ class RecvizDataset(Base):
 
     id: Mapped[str] = mapped_column(String(128), primary_key=True)
     name: Mapped[str] = mapped_column(String(256), nullable=False)
-    description: Mapped[str] = mapped_column(String(1024), server_default="", default="")
+    description: Mapped[str | None] = mapped_column(String(1024), nullable=True, default=None)
     database_id: Mapped[str] = mapped_column(String(128), nullable=False)
     sql: Mapped[str] = mapped_column(Text, nullable=False)
-    columns: Mapped[list] = mapped_column(PortableJSON(), nullable=False, default=list)
+    columns: Mapped[list] = mapped_column(OracleJSON(), nullable=False, default=list)
     schema_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), default=_utcnow

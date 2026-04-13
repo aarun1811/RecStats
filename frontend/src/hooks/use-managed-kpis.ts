@@ -53,8 +53,8 @@ export function useDeleteKpi() {
 
   return useMutation({
     mutationFn: (id: string) => api.delete(`/api/kpis/managed/${id}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['managed-kpis'] })
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['managed-kpis'], refetchType: 'all' })
     },
   })
 }

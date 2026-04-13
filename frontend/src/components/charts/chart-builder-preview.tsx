@@ -322,6 +322,7 @@ export function buildPreviewConfig(state: BuilderPreviewState): ChartConfig {
           legendPosition: state.appearance.legendPosition,
           showXLabel: state.appearance.showXLabel,
           showYLabel: state.appearance.showYLabel,
+          typeSpecific: state.appearance.typeSpecific,
         }
       : undefined,
   }

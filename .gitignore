@@ -75,4 +75,6 @@ docker/**/pgdata/
 .github/
 .opencode/
 .windsurf/
-
+.augment/
+.kilo/
+.trae/

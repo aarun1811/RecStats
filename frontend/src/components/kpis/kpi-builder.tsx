@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { ArrowLeft, Check, Loader2, Save, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { AnimatePresence, motion } from 'motion/react'
 
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -440,7 +441,13 @@ export function KpiBuilder({ editKpi, editDataset, isLoading }: KpiBuilderProps)
                       <div className="flex flex-1 flex-col items-start gap-0.5">
                         <div className="flex items-center gap-2">
                           {completed && !isActive && (
-                            <Check className="size-4 text-primary" />
+                            <motion.div
+                              initial={{ scale: 0 }}
+                              animate={{ scale: 1 }}
+                              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                            >
+                              <Check className="size-4 text-primary" />
+                            </motion.div>
                           )}
                           <span className="text-sm font-semibold">
                             {STEP_LABELS[step]}
@@ -454,101 +461,111 @@ export function KpiBuilder({ editKpi, editDataset, isLoading }: KpiBuilderProps)
                       </div>
                     </AccordionTrigger>
 
-                    <AccordionContent className="p-4 pt-0">
-                      {step === 'dataset' && (
-                        <div className="space-y-3">
-                          <StepDataset
-                            datasetId={state.datasetId}
-                            onSelect={handleDatasetSelect}
-                          />
-                          {state.dataset && (
-                            <div className="flex justify-end">
-                              <Button size="sm" onClick={handleDatasetContinue}>
-                                Continue
-                              </Button>
+                    <AccordionContent className="p-4 pt-0 overflow-hidden">
+                      <AnimatePresence mode="wait">
+                        <motion.div
+                          key={step}
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.15, ease: 'easeOut' }}
+                        >
+                          {step === 'dataset' && (
+                            <div className="space-y-3">
+                              <StepDataset
+                                datasetId={state.datasetId}
+                                onSelect={handleDatasetSelect}
+                              />
+                              {state.dataset && (
+                                <div className="flex justify-end">
+                                  <Button size="sm" onClick={handleDatasetContinue}>
+                                    Continue
+                                  </Button>
+                                </div>
+                              )}
                             </div>
                           )}
-                        </div>
-                      )}
-                      {step === 'column' && (
-                        <div className="space-y-3">
-                          <StepColumn
-                            dataset={state.dataset}
-                            metricColumn={state.metricColumn}
-                            aggregation={state.aggregation}
-                            onColumnChange={(col) =>
-                              setState((prev) => ({ ...prev, metricColumn: col }))
-                            }
-                            onAggregationChange={(agg) =>
-                              setState((prev) => ({ ...prev, aggregation: agg }))
-                            }
-                          />
-                          {state.metricColumn && (
-                            <div className="flex justify-end">
-                              <Button size="sm" onClick={handleColumnContinue}>
-                                Continue
-                              </Button>
+                          {step === 'column' && (
+                            <div className="space-y-3">
+                              <StepColumn
+                                dataset={state.dataset}
+                                metricColumn={state.metricColumn}
+                                aggregation={state.aggregation}
+                                onColumnChange={(col) =>
+                                  setState((prev) => ({ ...prev, metricColumn: col }))
+                                }
+                                onAggregationChange={(agg) =>
+                                  setState((prev) => ({ ...prev, aggregation: agg }))
+                                }
+                              />
+                              {state.metricColumn && (
+                                <div className="flex justify-end">
+                                  <Button size="sm" onClick={handleColumnContinue}>
+                                    Continue
+                                  </Button>
+                                </div>
+                              )}
                             </div>
                           )}
-                        </div>
-                      )}
-                      {step === 'format' && (
-                        <div className="space-y-3">
-                          <StepFormat
-                            format={state.format}
-                            onChange={(format) =>
-                              setState((prev) => ({ ...prev, format }))
-                            }
-                          />
-                          <div className="flex justify-end">
-                            <Button size="sm" onClick={handleFormatContinue}>
-                              Continue
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                      {step === 'trend' && (
-                        <div className="space-y-3">
-                          <StepTrend
-                            trend={state.trend}
-                            subtitle={state.subtitle}
-                            onTrendChange={(trend) =>
-                              setState((prev) => ({ ...prev, trend }))
-                            }
-                            onSubtitleChange={(subtitle) =>
-                              setState((prev) => ({ ...prev, subtitle }))
-                            }
-                          />
-                          <div className="flex justify-end">
-                            <Button size="sm" onClick={handleTrendContinue}>
-                              Continue
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                      {step === 'thresholds' && (
-                        <div className="space-y-3">
-                          <StepThresholds
-                            thresholds={state.thresholds}
-                            name={state.name}
-                            description={state.description}
-                            onThresholdsChange={(thresholds) =>
-                              setState((prev) => ({ ...prev, thresholds }))
-                            }
-                            onNameChange={(name) =>
-                              setState((prev) => ({ ...prev, name }))
-                            }
-                            onDescriptionChange={(description) =>
-                              setState((prev) => ({ ...prev, description }))
-                            }
-                          />
-                          <div className="flex justify-end">
-                            <Button size="sm" onClick={handleThresholdsDone}>
-                              Done
-                            </Button>
-                          </div>
-                        </div>
-                      )}
+                          {step === 'format' && (
+                            <div className="space-y-3">
+                              <StepFormat
+                                format={state.format}
+                                onChange={(format) =>
+                                  setState((prev) => ({ ...prev, format }))
+                                }
+                              />
+                              <div className="flex justify-end">
+                                <Button size="sm" onClick={handleFormatContinue}>
+                                  Continue
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                          {step === 'trend' && (
+                            <div className="space-y-3">
+                              <StepTrend
+                                trend={state.trend}
+                                subtitle={state.subtitle}
+                                onTrendChange={(trend) =>
+                                  setState((prev) => ({ ...prev, trend }))
+                                }
+                                onSubtitleChange={(subtitle) =>
+                                  setState((prev) => ({ ...prev, subtitle }))
+                                }
+                              />
+                              <div className="flex justify-end">
+                                <Button size="sm" onClick={handleTrendContinue}>
+                                  Continue
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                          {step === 'thresholds' && (
+                            <div className="space-y-3">
+                              <StepThresholds
+                                thresholds={state.thresholds}
+                                name={state.name}
+                                description={state.description}
+                                onThresholdsChange={(thresholds) =>
+                                  setState((prev) => ({ ...prev, thresholds }))
+                                }
+                                onNameChange={(name) =>
+                                  setState((prev) => ({ ...prev, name }))
+                                }
+                                onDescriptionChange={(description) =>
+                                  setState((prev) => ({ ...prev, description }))
+                                }
+                              />
+                              <div className="flex justify-end">
+                                <Button size="sm" onClick={handleThresholdsDone}>
+                                  Done
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </motion.div>
+                      </AnimatePresence>
                     </AccordionContent>
                   </AccordionItem>
                 )

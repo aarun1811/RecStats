@@ -62,6 +62,10 @@ export interface DashboardChartConfig {
   title: string
   type: string
   sourceType: 'query' | 'kpi_values'
+  /** Reference to a chart in the chart library. When present, the view renderer
+   *  fetches the stored chart config to resolve metricColumns, categoryColumn,
+   *  and appearance — so the dashboard JSON doesn't need to duplicate them. */
+  chartId?: string
   sources?: ChartSource[]
   kpiSegments?: KpiSegment[]
   layout: ChartLayout
@@ -70,13 +74,15 @@ export interface DashboardChartConfig {
   drillDetailDataSourceId?: string
   /** Per-chart refresh interval override in milliseconds. undefined = use dashboard default. */
   refreshInterval?: number
-  /** Appearance overrides (colorRange, legend, labels) — passed through to chart renderer. */
+  /** Appearance overrides (colorRange, legend, labels) — passed through to chart renderer.
+   *  Takes precedence over library chart appearance when both are present. */
   appearance?: {
     colorRange?: string[]
     showLegend?: boolean
     legendPosition?: 'top' | 'bottom' | 'left' | 'right'
     showXLabel?: boolean
     showYLabel?: boolean
+    typeSpecific?: Record<string, unknown>
   }
 }
 

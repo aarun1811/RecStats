@@ -36,9 +36,8 @@ class ConnectionResolver:
     def sync(self, session: Session) -> None:
         """Load all connections from recviz_connections into the in-memory cache.
 
-        Maps the ``backend`` field to a ``dialect`` string (oracle -> oracle,
-        postgresql -> postgresql). Only metadata is cached -- passwords are
-        never stored in this resolver.
+        Maps the ``backend`` field to a ``dialect`` string (oracle -> oracle).
+        Only metadata is cached -- passwords are never stored in this resolver.
         """
         stmt = select(RecvizConnection)
         result = session.execute(stmt)
@@ -46,7 +45,7 @@ class ConnectionResolver:
 
         self._cache.clear()
         for row in rows:
-            dialect = row.backend  # "oracle" or "postgresql"
+            dialect = row.backend  # "oracle"
             info = ConnectionInfo(
                 id=row.id,
                 backend=row.backend,

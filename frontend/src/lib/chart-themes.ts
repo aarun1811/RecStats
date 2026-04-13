@@ -45,12 +45,43 @@ function cssColorToHex(color: string): string {
   return '#888888'
 }
 
-function resolveColor(cssVar: string): string {
+/**
+ * Hard-coded hex fallbacks for CSS variables, used when getComputedStyle
+ * returns empty (e.g., DOM not yet painted, headless test environment).
+ * Addresses review concern: LOW — getComputedStyle timing safety.
+ */
+const HEX_FALLBACKS: Record<string, string> = {
+  '--series-1': '#93b8e8',
+  '--series-2': '#4d7adb',
+  '--series-3': '#3a5fc9',
+  '--series-4': '#3050b8',
+  '--series-5': '#2641a0',
+  '--series-6': '#2fb898',
+  '--series-7': '#d4a030',
+  '--series-8': '#8b5cf6',
+  '--color-ramp-low': '#93b8e8',
+  '--color-ramp-high': '#2641a0',
+  '--chart-positive': '#22c55e',
+  '--chart-negative': '#ef4444',
+  '--chart-warning': '#d4a030',
+  '--primary-foreground': '#f0f0ff',
+}
+
+export function resolveColor(cssVar: string): string {
   const raw = getCssVar(cssVar)
-  if (!raw) return '#888888'
+  if (!raw || raw.trim() === '') {
+    // Fallback: DOM not yet painted or variable undefined
+    return HEX_FALLBACKS[cssVar] ?? '#888888'
+  }
   if (raw.startsWith('#')) return raw
   if (raw.startsWith('rgb')) return raw
-  if (raw.startsWith('oklch') || raw.startsWith('hsl') || raw.startsWith('lch') || raw.startsWith('lab')) {
+  if (raw.startsWith('oklch') || raw.startsWith('lch') || raw.startsWith('lab')) {
+    // oklch/lch/lab: browsers may not resolve these to rgb in getComputedStyle.
+    // Prefer HEX_FALLBACKS (authoritative for our palette), fall back to cssColorToHex.
+    if (HEX_FALLBACKS[cssVar]) return HEX_FALLBACKS[cssVar]
+    return cssColorToHex(raw)
+  }
+  if (raw.startsWith('hsl')) {
     return cssColorToHex(raw)
   }
   // Legacy: bare "H S% L%" values from older Shadcn setups
@@ -81,18 +112,16 @@ export function getChartPalette(): ChartPalette {
   const mutedForeground = resolveColor('--muted-foreground')
   const border = resolveColor('--border')
 
-  // Series colors — primary + distinct hues for multi-series charts
+  // Series colors — read from CSS variables (Mist+Blue palette)
   const series = [
-    primary,
-    '#3b82f6', // blue
-    '#10b981', // emerald
-    '#f59e0b', // amber
-    '#ef4444', // red
-    '#8b5cf6', // violet
-    '#06b6d4', // cyan
-    '#f97316', // orange
-    '#ec4899', // pink
-    '#14b8a6', // teal
+    resolveColor('--series-1'),
+    resolveColor('--series-2'),
+    resolveColor('--series-3'),
+    resolveColor('--series-4'),
+    resolveColor('--series-5'),
+    resolveColor('--series-6'),
+    resolveColor('--series-7'),
+    resolveColor('--series-8'),
   ]
 
   return {
@@ -153,7 +182,7 @@ export function getAgChartsTheme() {
         series: {
           strokeWidth: 1,
           calloutLabel: { color: p.mutedForeground, fontSize: 11 },
-          sectorLabel: { color: '#ffffff', fontSize: 11 },
+          sectorLabel: { color: resolveColor('--primary-foreground'), fontSize: 11 },
         },
       },
       donut: {
@@ -165,7 +194,7 @@ export function getAgChartsTheme() {
       },
       heatmap: {
         series: {
-          colorRange: [p.series[1], p.series[3], p.series[4]],
+          // colorRange moved to series-level in buildSeries (AG Charts 13 ignores theme.overrides.heatmap.series.colorRange)
           label: { enabled: false },
           stroke: p.background,
           strokeWidth: 2,
@@ -173,7 +202,7 @@ export function getAgChartsTheme() {
       },
       treemap: {
         series: {
-          colorRange: ['#43A047', '#FF5722'],
+          colorRange: [resolveColor('--chart-positive'), resolveColor('--chart-negative')],
           tile: {
             label: { fontSize: 12, minimumFontSize: 9, color: p.foreground },
             padding: 6,

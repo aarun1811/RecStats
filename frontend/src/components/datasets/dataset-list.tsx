@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from '@tanstack/react-router'
-import { Table2 } from 'lucide-react'
+import { Search, Table2 } from 'lucide-react'
+import { AnimatePresence, motion } from 'motion/react'
 
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -93,58 +94,99 @@ export function DatasetList() {
       ) : isEmpty ? (
         <Empty className="border rounded-lg">
           <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <Table2 />
-            </EmptyMedia>
-            <EmptyTitle>No datasets yet</EmptyTitle>
-            <EmptyDescription>
-              Create your first dataset to start building charts. Write SQL,
-              configure column metadata, and publish.
-            </EmptyDescription>
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 0.4 }}
+              transition={{ duration: 0.3, type: 'spring', stiffness: 300, damping: 20 }}
+            >
+              <EmptyMedia variant="icon">
+                <Table2 />
+              </EmptyMedia>
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1, duration: 0.2 }}
+            >
+              <EmptyTitle>No datasets yet</EmptyTitle>
+              <EmptyDescription>
+                Create your first dataset to start building charts. Write SQL,
+                configure column metadata, and publish.
+              </EmptyDescription>
+            </motion.div>
           </EmptyHeader>
           <EmptyContent>
-            <Button
-              size="sm"
-              onClick={() => navigate({ to: '/datasets/new' })}
+            <motion.div
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2, duration: 0.2 }}
             >
-              Create Dataset
-            </Button>
+              <motion.div
+                animate={{ scale: [1, 1.02, 1] }}
+                transition={{ delay: 0.4, duration: 0.6, ease: 'easeInOut' }}
+              >
+                <Button
+                  size="sm"
+                  onClick={() => navigate({ to: '/datasets/new' })}
+                >
+                  Create Dataset
+                </Button>
+              </motion.div>
+            </motion.div>
           </EmptyContent>
         </Empty>
       ) : filtered.length === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">
-          No datasets matching &ldquo;{searchQuery}&rdquo;
-        </p>
-      ) : viewMode === 'grid' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filtered.map((ds) => {
-            const db = databaseMap.get(ds.databaseId)
-            return (
-              <DatasetCard
-                key={ds.id}
-                dataset={ds}
-                databaseName={db?.name}
-                backendType={db?.backend}
-                onClick={() => handleNavigate(ds.id)}
-              />
-            )
-          })}
-        </div>
+        <Empty className="border rounded-lg">
+          <EmptyHeader>
+            <EmptyMedia variant="icon"><Search /></EmptyMedia>
+            <EmptyTitle>No datasets matching &ldquo;{searchQuery}&rdquo;</EmptyTitle>
+            <EmptyDescription>Try a different search term or clear your filters.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       ) : (
-        <div className="space-y-2">
-          {filtered.map((ds) => {
-            const db = databaseMap.get(ds.databaseId)
-            return (
-              <DatasetRow
-                key={ds.id}
-                dataset={ds}
-                databaseName={db?.name}
-                backendType={db?.backend}
-                onClick={() => handleNavigate(ds.id)}
-              />
-            )
-          })}
-        </div>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={viewMode}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            {viewMode === 'grid' ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {filtered.map((ds, i) => {
+                  const db = databaseMap.get(ds.databaseId)
+                  return (
+                    <DatasetCard
+                      key={ds.id}
+                      dataset={ds}
+                      databaseName={db?.name}
+                      backendType={db?.backend}
+                      onClick={() => handleNavigate(ds.id)}
+                      index={i}
+                    />
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {filtered.map((ds, i) => {
+                  const db = databaseMap.get(ds.databaseId)
+                  return (
+                    <DatasetRow
+                      key={ds.id}
+                      dataset={ds}
+                      databaseName={db?.name}
+                      backendType={db?.backend}
+                      onClick={() => handleNavigate(ds.id)}
+                      index={i}
+                    />
+                  )
+                })}
+              </div>
+            )}
+          </motion.div>
+        </AnimatePresence>
       )}
     </div>
   )

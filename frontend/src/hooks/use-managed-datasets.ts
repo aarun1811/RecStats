@@ -52,8 +52,8 @@ export function useDeleteDataset() {
 
   return useMutation({
     mutationFn: (id: string) => api.delete(`/api/datasets/managed/${id}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['managed-datasets'] })
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['managed-datasets'], refetchType: 'all' })
     },
   })
 }
