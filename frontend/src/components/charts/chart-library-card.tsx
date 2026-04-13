@@ -49,7 +49,7 @@ export function ChartLibraryCard({ chart, dataset, datasetName, onClick, index }
     datasourceId: 0,
     metricColumns: chart.config.columnMapping.metricColumns,
     categoryColumn: chart.config.columnMapping.categoryColumn ?? undefined,
-    appearance: { showLegend: false, interactive: false },
+    appearance: { showLegend: false, interactive: false, typeSpecific: chart.config.appearance.typeSpecific },
   }), [chart])
 
   const chartData = useMemo<ChartDataResponse | undefined>(() => {

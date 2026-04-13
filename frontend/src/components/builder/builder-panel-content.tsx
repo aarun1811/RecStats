@@ -94,7 +94,7 @@ function BuilderChartContent({
       datasourceId: 0,
       metricColumns: chart.config.columnMapping.metricColumns,
       categoryColumn: chart.config.columnMapping.categoryColumn ?? undefined,
-      appearance: { showLegend: true },
+      appearance: { showLegend: true, typeSpecific: chart.config.appearance.typeSpecific },
     }
   }, [chart, itemId, chartRef.title])
 

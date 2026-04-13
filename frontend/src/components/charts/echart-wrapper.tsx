@@ -213,15 +213,18 @@ function buildEChartsOption(
     }
 
     case 'parallel': {
-      // Parallel: all columns as dimensions — no change needed
-      const dims = columns.map((col, i) => ({ dim: i, name: col }))
+      // Parallel: use metricColumns as dimensions when available, otherwise all columns
+      const parallelCols = metricColumns.length > 0
+        ? metricColumns.filter((c) => columns.includes(c))
+        : columns
+      const dims = parallelCols.map((col, i) => ({ dim: i, name: col }))
       return {
         parallelAxis: dims,
         series: [
           {
             type: 'parallel',
             lineStyle: { width: 1, opacity: 0.3 },
-            data: data.map((d) => columns.map((c) => d[c])),
+            data: data.map((d) => parallelCols.map((c) => d[c])),
           },
         ],
       }

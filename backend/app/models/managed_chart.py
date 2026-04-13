@@ -22,6 +22,7 @@ class AppearanceSchema(CamelModel):
     legend_position: Literal["top", "bottom", "left", "right"] = "bottom"
     show_x_label: bool = True
     show_y_label: bool = True
+    type_specific: dict[str, object] | None = None
 
 
 class ChartConfigSchema(CamelModel):

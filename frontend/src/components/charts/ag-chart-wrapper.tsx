@@ -78,8 +78,10 @@ export function buildSeries(
     return fills
   }
 
-  // Resolve colorRange from typeSpecific min/max (for heatmap, treemap)
+  // Resolve colorRange from typeSpecific (for heatmap, treemap)
   function getColorRange(): string[] | undefined {
+    const tsColorRange = appearance?.typeSpecific?.colorRange as string[] | undefined
+    if (tsColorRange?.length) return tsColorRange
     const min = appearance?.typeSpecific?.colorRangeMin as string | undefined
     const max = appearance?.typeSpecific?.colorRangeMax as string | undefined
     if (min && max) return [resolveColor(min), resolveColor(max)]

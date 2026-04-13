@@ -61,7 +61,7 @@ export function ChartDetailPanel({ chartId, datasetName, onClose }: ChartDetailP
         datasourceId: 0,
         metricColumns: chart.config.columnMapping.metricColumns,
         categoryColumn: chart.config.columnMapping.categoryColumn ?? undefined,
-        appearance: { showLegend: false },
+        appearance: { showLegend: false, typeSpecific: chart.config.appearance.typeSpecific },
       }
     : null
 

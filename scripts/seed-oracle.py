@@ -1477,6 +1477,24 @@ CURATED_DATASETS: list[dict] = [
         "filter_mappings": [],
     },
     {
+        "id": "ds-recon-parallel-sample",
+        "name": "Transactions — Parallel Sample",
+        "description": "Small multi-dimension sample for parallel coordinates analysis.",
+        "sql_template": (
+            "SELECT t.amount_usd, COALESCE(t.fee, 0) AS fee, "
+            "COALESCE(t.fx_rate, 1.0) AS fx_rate "
+            "FROM recon_transactions t "
+            "WHERE 1=1 AND t.amount_usd BETWEEN 0 AND 100000 {{filters}} "
+            "FETCH FIRST 300 ROWS ONLY"
+        ),
+        "columns": [
+            _col("amount_usd", "Amount USD", "currency", "measure", "NONE", "currency"),
+            _col("fee", "Fee", "currency", "measure", "NONE", "currency"),
+            _col("fx_rate", "FX Rate", "number", "measure", "NONE", "decimal"),
+        ],
+        "filter_mappings": [],
+    },
+    {
         "id": "ds-recon-currency-distribution",
         "name": "Transactions — By Currency",
         "description": "Currency rollup -- top 15 currencies by USD volume.",
@@ -1725,8 +1743,8 @@ CURATED_DATASETS: list[dict] = [
     },
 ]
 
-assert len(CURATED_DATASETS) == 22, (
-    f"CURATED_DATASETS must have 22 entries, got {len(CURATED_DATASETS)}"
+assert len(CURATED_DATASETS) == 23, (
+    f"CURATED_DATASETS must have 23 entries, got {len(CURATED_DATASETS)}"
 )
 
 
@@ -1785,6 +1803,7 @@ CURATED_CHARTS: list[dict] = [
         "line",
         "trade_date",
         ["txn_count"],
+        type_specific={"seriesColor_0": "--series-2"},
     ),
     _chart(  # 2
         "chart-daily-usd-volume",
@@ -1794,6 +1813,7 @@ CURATED_CHARTS: list[dict] = [
         "area",
         "trade_date",
         ["total_usd"],
+        type_specific={"seriesColor_0": "--series-6"},
     ),
     _chart(  # 3
         "chart-daily-volume-combo",
@@ -1803,6 +1823,7 @@ CURATED_CHARTS: list[dict] = [
         "combo",
         "trade_date",
         ["txn_count", "total_usd"],
+        type_specific={"seriesColor_0": "--series-8", "seriesColor_1": "--series-6"},
     ),
     # ------------------------------------------------------------------
     # Dataset: ds-recon-monthly-volume (NEW)
@@ -1816,6 +1837,7 @@ CURATED_CHARTS: list[dict] = [
         "bar",
         "month",
         ["txn_count"],
+        type_specific={"seriesColor_0": "--series-8"},
     ),
     _chart(  # 5
         "chart-monthly-usd-area",
@@ -1825,6 +1847,7 @@ CURATED_CHARTS: list[dict] = [
         "area",
         "month",
         ["total_usd"],
+        type_specific={"seriesColor_0": "--series-6"},
     ),
     # ------------------------------------------------------------------
     # Dataset: ds-recon-transactions-by-region
@@ -1838,6 +1861,7 @@ CURATED_CHARTS: list[dict] = [
         "bar",
         "region",
         ["txn_count"],
+        type_specific={"seriesColor_0": "--series-6"},
     ),
     _chart(  # 7
         "chart-region-usd-bar",
@@ -1847,6 +1871,7 @@ CURATED_CHARTS: list[dict] = [
         "bar",
         "region",
         ["total_usd"],
+        type_specific={"seriesColor_0": "--series-8"},
     ),
     _chart(  # 8
         "chart-region-share-pie",
@@ -1884,6 +1909,7 @@ CURATED_CHARTS: list[dict] = [
         "bar",
         "status_name",
         ["txn_count"],
+        type_specific={"seriesColor_0": "--series-8"},
     ),
     _chart(  # 11
         "chart-status-donut",
@@ -1931,6 +1957,7 @@ CURATED_CHARTS: list[dict] = [
         "bar",
         "region",
         ["unmatched"],
+        type_specific={"seriesColor_0": "--chart-negative"},
     ),
     # ------------------------------------------------------------------
     # Dataset: ds-recon-breaks-summary
@@ -2114,7 +2141,7 @@ CURATED_CHARTS: list[dict] = [
         "ds-sla-breach-summary",
         "heatmap",
         "sla_type",
-        ["region", "breach_rate"],
+        ["breach_rate"],
         type_specific={"colorRange": ["#22c55e", "#eab308", "#ef4444"]},
     ),
     _chart(  # 30
@@ -2209,15 +2236,16 @@ CURATED_CHARTS: list[dict] = [
         "scatter",
         None,
         ["amount_usd", "fee"],
+        type_specific={"seriesColor_0": "--series-6"},
     ),
     _chart(  # 38
         "chart-txn-parallel-coords",
         "Transaction Parallel Coordinates",
-        "Parallel coordinates over amount and fee dimensions -- identify clusters and anomalies.",
-        "ds-recon-transactions-scatter",
+        "Parallel coordinates over amount, fee, and FX rate -- identify clusters and anomalies.",
+        "ds-recon-parallel-sample",
         "parallel",
         None,
-        ["amount_usd", "fee"],
+        ["amount_usd", "fee", "fx_rate"],
     ),
     # ------------------------------------------------------------------
     # Dataset: ds-recon-currency-distribution
@@ -2243,6 +2271,7 @@ CURATED_CHARTS: list[dict] = [
         "bar",
         "currency",
         ["txn_count"],
+        type_specific={"seriesColor_0": "--series-8"},
     ),
     # ------------------------------------------------------------------
     # Dataset: ds-recon-match-events-by-type
@@ -3298,7 +3327,7 @@ CURATED_DASHBOARDS: list[dict] = [
                     "chart-txn-parallel-coords",
                     "Transaction Parallel Coordinates",
                     "parallel",
-                    "ds-recon-transactions-scatter",
+                    "ds-recon-parallel-sample",
                     _layout(6, 3, 6),
                 ),
                 _dash_chart_ref(
