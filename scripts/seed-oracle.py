@@ -1330,7 +1330,7 @@ CURATED_DATASETS: list[dict] = [
             "SELECT b.break_type, b.resolution, "
             "COUNT(*) AS break_count, "
             "SUM(b.break_amount_usd) AS total_break_usd, "
-            "AVG(b.aging_days)::numeric(10,2) AS avg_aging "
+            "ROUND(AVG(b.aging_days), 2) AS avg_aging "
             "FROM recon_breaks b WHERE 1=1 {{filters}} "
             "GROUP BY b.break_type, b.resolution ORDER BY break_count DESC"
         ),
@@ -1372,7 +1372,7 @@ CURATED_DATASETS: list[dict] = [
         "description": "Daily match-rate percentage and transaction count.",
         "sql_template": (
             "SELECT t.trade_date AS date, "
-            "(SUM(CASE WHEN s.category = 'CLOSED' THEN 1 ELSE 0 END)::float "
+            "(CAST(SUM(CASE WHEN s.category = 'CLOSED' THEN 1 ELSE 0 END) AS NUMBER) "
             "/ NULLIF(COUNT(*), 0)) * 100 AS match_rate, "
             "COUNT(*) AS txn_count "
             "FROM recon_transactions t "
@@ -1394,7 +1394,7 @@ CURATED_DATASETS: list[dict] = [
             "SELECT sla_type, r.code AS region, "
             "SUM(CASE WHEN breach THEN 1 ELSE 0 END) AS breach_count, "
             "COUNT(*) AS total_events, "
-            "(SUM(CASE WHEN breach THEN 1 ELSE 0 END)::float "
+            "(CAST(SUM(CASE WHEN breach = 1 THEN 1 ELSE 0 END) AS NUMBER) "
             "/ NULLIF(COUNT(*), 0)) * 100 AS breach_rate "
             "FROM sla_events s "
             "JOIN regions r ON s.region_id = r.id WHERE 1=1 {{filters}} "
@@ -1416,7 +1416,7 @@ CURATED_DATASETS: list[dict] = [
         "sql_template": (
             "SELECT d.asset_class, d.code AS desk, d.name AS desk_name, "
             "COUNT(*) AS txn_count, SUM(t.amount_usd) AS total_usd, "
-            "AVG(t.amount_usd)::numeric(18,2) AS avg_usd "
+            "ROUND(AVG(t.amount_usd), 2) AS avg_usd "
             "FROM recon_transactions t "
             "JOIN desks d ON t.desk_id = d.id WHERE 1=1 {{filters}} "
             "GROUP BY d.asset_class, d.code, d.name ORDER BY total_usd DESC"
@@ -1501,7 +1501,7 @@ CURATED_DATASETS: list[dict] = [
         "description": "Match-event count and average confidence per match type.",
         "sql_template": (
             "SELECT match_type, COUNT(*) AS event_count, "
-            "AVG(confidence_score)::numeric(5,2) AS avg_confidence "
+            "ROUND(AVG(confidence_score), 2) AS avg_confidence "
             "FROM recon_match_events WHERE 1=1 {{filters}} "
             "GROUP BY match_type ORDER BY event_count DESC"
         ),
