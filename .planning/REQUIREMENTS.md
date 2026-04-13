@@ -1,246 +1,130 @@
-# Requirements: RecViz — Oracle-Only Cutover + Frontend Colorization
+# Requirements: RecViz — Production Demo Seed
 
-**Defined:** 2026-04-11
-**Core Value:** Business users can view, interact with, and customize reconciliation dashboards against Citi's production Oracle 19c environment, with zero local-vs-prod drift.
+**Defined:** 2026-04-13
+**Core Value:** Stakeholders can experience the full RecViz platform through a rich, realistic demo with 10+ dashboards, 40-50 charts, and configurable data volumes.
 
-## v1 Requirements (this milestone)
+## v2.0 Requirements (this milestone)
 
-Each requirement maps to exactly one phase. All verification is **manual** (no automated tests). Each page phase shares a common pattern: colorize using the Phase 1 global palette, discover and fix issues during the phase's discuss step, verify manually against Oracle, commit.
+### Seed Script Infrastructure (Phase 1)
 
-### Infrastructure (Phase 1)
+- [ ] **SEED-01**: Seed script accepts `--rows N` CLI arg to control fact table row count (default 100K, demo 1M-5M, stress 10M)
+- [ ] **SEED-02**: Seed script accepts `--host`, `--port`, `--service`, `--user`, `--password` CLI args for DB connection (no hardcoded credentials)
+- [ ] **SEED-03**: Seed script stops writing to `recviz_data_sources` table entirely — only writes to `recviz_datasets` + `recviz_connections`
+- [ ] **SEED-04**: Dimension tables are rich: 8+ regions, 25+ desks, 50+ counterparties, 12+ currencies, 8+ SLA types, 6+ match types, 6+ aging buckets, 20+ accounts
+- [ ] **SEED-05**: Fact table data uses realistic distributions — Pareto on counterparties (80/20), seasonal patterns on volumes, clustered breaks by region/desk, time-decaying aging
+- [ ] **SEED-06**: Seed script is idempotent — safe to re-run (DELETE + INSERT pattern preserved)
+- [ ] **SEED-07**: Seed script prints progress with row counts per table and total time elapsed
+- [ ] **SEED-08**: All seeded `recviz_connections` rows have `schema_name` set (not NULL)
 
-- [x] **INFRA-01**: Oracle Cloud Always Free Autonomous Database 19c provisioned with `recvizdev` name, Transaction Processing workload, admin password recorded
-- [x] **INFRA-02**: Instance wallet downloaded, unpacked to `~/.oracle/wallets/recvizdev/`, `sqlnet.ora` edited to absolute `DIRECTORY` path, permissions locked to 700/600
-- [x] **INFRA-03**: Oracle Instant Client 23.x macOS ARM64 installed natively (not via Rosetta), `libclntsh.dylib` verified as arm64
-- [x] **INFRA-04**: `TNS_ADMIN` exported in `~/.zshrc`, `sqlplus ADMIN@recvizdev_low` smoke test passes (`SELECT sysdate FROM dual;` returns a row)
-- [x] **INFRA-05**: `backend/requirements.txt` pruned — `psycopg2-binary`, `asyncpg`, and `sqlalchemy[asyncio]` extra removed; plain `sqlalchemy==2.0.49` remains
-- [x] **INFRA-06**: `backend/app/config.py` updated with Oracle fields (`oracle_client_lib_dir`, `oracle_config_dir`, `recviz_db_user`, `recviz_db_password: SecretStr`, `recviz_db_dsn`, `oracle_wallet_password: SecretStr`); `recon_db_url` dropped; `recviz_db_url` default = `oracle+oracledb://`
-- [x] **INFRA-07**: `backend/app/db/engine.py` rewritten — uses `thick_mode={config_dir, driver_name, conditional lib_dir}` dict pattern, `connect_args` carries credentials/DSN, pool sized `pool_size=5, max_overflow=5, pool_pre_ping=True, pool_recycle=1800`; `build_oracle_engine()` helper exposed
-- [x] **INFRA-08**: `backend/app/db/types.py` rewritten — `OracleJSON(TypeDecorator, SchemaType)` stores via `BLOB IS JSON` with `_set_table` `CheckConstraint`; `PortableJSON = OracleJSON` alias retained for one-milestone grace
-- [x] **INFRA-09**: `backend/app/db/base.py` has explicit `MetaData(naming_convention=...)` applied to `Base.metadata`
-- [x] **INFRA-10**: `backend/app/services/engine_manager.py` uses `build_oracle_engine()` helper so secondary engines share thick mode (once-per-process constraint)
-- [x] **INFRA-11**: 3 remaining `async def` handlers in `backend/app/api/views.py` converted to plain `def`
-- [x] **INFRA-12**: `backend/app/main.py` lifespan adds thick-mode startup assertion via `v$session_connect_info.client_driver`; boot refuses if `python-oracledb thn` detected
-- [x] **INFRA-13**: `backend/app/migrations/alembic.ini` `sqlalchemy.url` cleared; `env.py` wires thick mode + `connect_args` in online mode with `compare_type`, `compare_server_default`, `transaction_per_migration=True`, `include_schemas=False`, `version_table="recviz_alembic_version"`
-- [x] **INFRA-14**: All 7 existing Postgres-targeted Alembic migrations (`001_initial_schema.py` through `007_dataset_database_id_to_string.py`) deleted
-- [x] **INFRA-15**: New `001_initial_oracle_schema.py` migration generated via `alembic revision --autogenerate`, hand-reviewed against 9-point checklist (six tables, `BLOB IS JSON` on `config`/`columns`/`extra_params`, `VARCHAR2(128 CHAR)` PKs, `CLOB` for `sql`/`encrypted_password`, `TIMESTAMP(6) WITH TIME ZONE` defaults, expected indexes, `UniqueConstraint` on `recviz_connections.name`), applied successfully via `alembic upgrade head`
-- [x] **INFRA-16**: `backend/.env.example` created/updated with all new Oracle env vars
-- [x] **INFRA-17**: Postgres/Docker/Superset/Redis residue deleted — `docker-compose.yml`, `docker/init-db.sql`, `deployment/` (empty dir), `superset/` directory (if present), any Postgres seed SQL; grep audit of `postgresql`, `JSONB`, `asyncpg`, `psycopg2`, `superset`, `redis`, `celery` shows zero hits outside `.git/`
-- [x] **INFRA-18**: Global shadcn palette applied — Phase 1 UI-SPEC gate confirms Mist+Blue (or alternative), CSS variables updated in `frontend/src/index.css` for both light and dark mode
-- [x] **INFRA-19**: `--series-1..8` CSS variable extension added to `index.css` for categorical multi-series chart colors (Strategy B)
-- [x] **INFRA-20**: `.ag-theme-quartz { --ag-*: var(--...) }` override block added to `index.css` so AG Grid reads Shadcn tokens
-- [x] **INFRA-21**: `frontend/src/lib/chart-themes.ts` rewired — hard-coded 10-color series array replaced with CSS-var reads via `getComputedStyle()`; heatmap/treemap/waterfall hex overrides replaced with CSS vars
-- [x] **INFRA-22**: `.planning/USAGE-TRACKER.md` initialized as the running dead-code audit document for the milestone
-- [x] **INFRA-23**: Backend boots successfully against Oracle, `GET /health` returns 200, startup log shows `Oracle client driver: python-oracledb` (no `thn` suffix), frontend loads in browser without crashing (no functional expectations beyond "it starts")
-- [x] **INFRA-24**: `docs/` directory deleted entirely — all stale files (API.md, ARCHITECTURE.md, CODEBASE_GUIDE.md, CONFIGURATION.md, DEPLOYMENT.md, DEVELOPMENT.md, GETTING_STARTED.md, SETUP.md, TESTING.md, `plans/`, `research/`, `testing/`, `superpowers/` subdirs) removed. User will recreate documentation as needed post-milestone.
-- [x] **INFRA-25**: `CLAUDE.md` verified fresh for the milestone — grep shows zero references to `postgresql`, `asyncpg`, `psycopg2`, `superset`, `docker`, `redis`, `celery`, or Tableau/Qlik framing; Oracle-only hard rules section present at top; Oracle 19c + thick mode + NCS 871 gap called out explicitly
+### Charts Library (Phase 2)
 
-### Settings Page (Phase 2)
+- [ ] **CHRT-01**: 40-50 charts seeded across all supported AG Charts types (line, bar, area, pie, donut, scatter, heatmap, treemap, waterfall, combo, stacked-bar) and ECharts types (sankey, radar, gauge, funnel, parallel-coords)
+- [ ] **CHRT-02**: Every chart config matches the builder schema exactly — `columnMapping` has valid `categoryColumn` + `metricColumns` referencing actual dataset columns
+- [ ] **CHRT-03**: Charts cover diverse use cases: time series trends, category comparisons, distributions, part-to-whole, correlations, geographic breakdowns, flow analysis
+- [ ] **CHRT-04**: Each chart has a meaningful name and description (not "Chart 1", "Test Chart")
+- [ ] **CHRT-05**: Chart `typeSpecific` config (heatmap colorRange, gauge min/max, treemap colorKey, etc.) is properly set for chart types that need it
 
-- [x] **SETT-01**: Settings page colorized per global palette — Appearance, Saved Views, and Data Sources tabs all reflect new color tokens in both light and dark mode
-- [x] **SETT-02**: Data Sources tab verified end-to-end against Oracle — list existing sources, create new source, test connection, edit, delete, all operations work against live Oracle 19c
-- [x] **SETT-03**: Saved Views tab verified end-to-end — list, load, delete against Oracle
-- [x] **SETT-04**: Appearance tab theme toggle works in both directions (light/dark) with the new palette applied
-- [x] **SETT-05**: Dead UI stubs in Appearance tab (Density, Font Size buttons) resolved — either implemented or deleted (decided in phase discuss)
-- [x] **SETT-06**: Any fixes/enhancements discovered in phase discuss are implemented and verified
-- [x] **SETT-07**: `.planning/USAGE-TRACKER.md` updated with files touched/added/removed this phase
+### KPI Library (Phase 2)
 
-### Datasets Page (Phase 3)
+- [ ] **KPI-01**: 15-20 KPIs seeded covering key recon metrics: transaction volume, break count, match rate, SLA breach rate, aging, high-value exposure, counterparty concentration
+- [ ] **KPI-02**: Every KPI has proper `threshold` config (green/amber/red levels that make sense for the metric)
+- [ ] **KPI-03**: Every KPI has proper `trend` config (vs previous period or static target)
+- [ ] **KPI-04**: KPI `aggregation` types are diverse (SUM, AVG, COUNT, MIN, MAX, COUNT_DISTINCT all represented)
+- [ ] **KPI-05**: KPI `format` configs are correct (percentage for rates, currency for amounts, number for counts, decimal for scores)
 
-- [x] **DATA-01**: Datasets list page colorized per global palette in both modes
-- [x] **DATA-02**: Dataset create/edit pages colorized per global palette in both modes
-- [x] **DATA-03**: Dataset CRUD verified end-to-end against Oracle — list, create (with parameterized SQL templates), edit, delete, execute sample query
-- [x] **DATA-04**: Dataset parameterized SQL execution (`{{filters}}`, `{{values}}`, `{{date_range_clause}}` placeholders) resolves correctly against Oracle via sync `oracledb`
-- [x] **DATA-05**: Any fixes/enhancements discovered in phase discuss are implemented and verified
-- [x] **DATA-06**: `.planning/USAGE-TRACKER.md` updated
+### Dashboards (Phase 3)
 
-### Charts Page (Phase 4)
+- [ ] **DASH-01**: 10+ dashboards seeded with story-driven themes: Executive Summary, SLA Health, Break Analysis, Match Performance, Volume Trends, Regional Breakdown, Counterparty Risk, Currency Exposure, Desk Performance, Operational Detail
+- [ ] **DASH-02**: Each dashboard has 3-8 chart panels with proper layout (no overlapping, logical visual flow)
+- [ ] **DASH-03**: Each dashboard has relevant KPI cards (2-4 KPIs per dashboard matching the dashboard theme)
+- [ ] **DASH-04**: Dashboards with filter-worthy data have global filters configured (Region, Status, Currency, Date Range as appropriate)
+- [ ] **DASH-05**: Cross-filter is enabled on charts where click-to-filter makes sense (bar charts, pie charts, heatmaps)
+- [ ] **DASH-06**: Drill-down hierarchies are configured on at least 5 charts across dashboards (Region → Desk → Account, Status → Detail, etc.)
+- [ ] **DASH-07**: At least 2 dashboards have data grid panels showing transaction-level detail
+- [ ] **DASH-08**: Dashboard chart references use the actual seeded chart IDs — no UUID drift, no stale references
+- [ ] **DASH-09**: All dashboard configs validate against the frontend `DashboardConfig` type shape
+- [ ] **DASH-10**: Each dashboard has a descriptive name and description explaining what story it tells
 
-- [x] **CHRT-01**: Charts list page colorized per global palette in both modes
-- [x] **CHRT-02**: Chart create/edit pages (builder wizard) colorized per global palette in both modes
-- [x] **CHRT-03**: Chart rendering verified end-to-end — AG Charts (line, bar, area, pie, donut, scatter, heatmap, treemap, waterfall, bullet, box plot, combo) and ECharts (Sankey, sunburst, radar, gauge, parallel coords, funnel) all render correctly with new palette colors
-- [x] **CHRT-04**: Chart factory (`chart-factory.tsx`) correctly routes to AG Charts vs ECharts based on `vizType`
-- [x] **CHRT-05**: Hard-coded hex in `types/chart.ts` and `components/charts/builder/step-appearance.tsx` audited and removed (replaced with CSS variable references)
-- [x] **CHRT-06**: Dashboard config JSON stored in `recviz_charts.config` audited for hex leakage; stale color overrides migrated or purged
-- [x] **CHRT-07**: Any fixes/enhancements discovered in phase discuss are implemented and verified
-- [x] **CHRT-08**: `.planning/USAGE-TRACKER.md` updated
+### Verification (Phase 3)
 
-### KPIs Page (Phase 5)
+- [ ] **VERIF-01**: After seeding, every dashboard renders in the browser with real data — no 404s, no empty charts, no console errors (except AG license warnings)
+- [ ] **VERIF-02**: Every chart in the chart library renders with data from its dataset
+- [ ] **VERIF-03**: Every KPI in the KPI library shows a computed value with correct threshold color
+- [ ] **VERIF-04**: Dashboard builder edit mode shows all panels correctly (no infinite loading)
+- [ ] **VERIF-05**: Global filters, cross-filters, and drill-down all function on configured dashboards
+- [ ] **VERIF-06**: Seed runs successfully at 100K rows (default) in under 2 minutes
+- [ ] **VERIF-07**: Seed runs successfully at 1M rows (demo) without OOM or timeout
 
-- [ ] **KPI-01**: KPIs list page colorized per global palette in both modes
-- [ ] **KPI-02**: KPI create/edit pages colorized per global palette in both modes
-- [ ] **KPI-03**: KPI CRUD + animated counter rendering verified end-to-end against Oracle
-- [ ] **KPI-04**: Any fixes/enhancements discovered in phase discuss are implemented and verified
-- [ ] **KPI-05**: `.planning/USAGE-TRACKER.md` updated
-
-### Dashboards Page (Phase 6)
-
-- [ ] **DASH-01**: Dashboards list, detail, create, edit pages all colorized per global palette in both modes
-- [ ] **DASH-02**: Dashboard CRUD verified end-to-end against Oracle
-- [ ] **DASH-03**: Dashboard renderer `recviz_data_sources` gap fixed — post-Superset broken pipeline no longer blocks chart rendering
-- [ ] **DASH-04**: Dashboards render end-to-end with charts, KPIs, filters, and drill-down all functioning against Oracle
-- [ ] **DASH-05**: Filter bar (global filters, locked filters, URL-synced state) verified
-- [ ] **DASH-06**: Cross-filter + drill-down interactions verified
-- [ ] **DASH-07**: Legacy dead dashboard code (`filter-bar.tsx`, `kpi-row.tsx`, `chart-grid.tsx`, old store shapes) deleted
-- [ ] **DASH-08**: Embed dashboard route (`/embed/dashboards/:id`) verified — renders without sidebar/header, supports `?filter.*`, `?filter.lock`, `?hide=`, `?theme=` URL params
-- [ ] **DASH-09**: Any fixes/enhancements discovered in phase discuss are implemented and verified
-- [ ] **DASH-10**: `.planning/USAGE-TRACKER.md` updated
-
-### Explorer Page (Phase 7)
-
-- [ ] **EXPL-01**: Explorer page colorized per global palette in both modes
-- [ ] **EXPL-02**: SQL execution via sync `oracledb` verified — Monaco editor runs arbitrary SQL against registered Oracle data sources and returns results in AG Grid
-- [ ] **EXPL-03**: Explorer AG Grid migrated from legacy `ag-theme-quartz-dark` CSS class to `themeQuartz.withPart(colorSchemeDark)` Theming API
-- [ ] **EXPL-04**: Schema browser (if present) lists Oracle tables/columns correctly
-- [ ] **EXPL-05**: Query results grid handles large result sets without crashing
-- [ ] **EXPL-06**: Any fixes/enhancements discovered in phase discuss are implemented and verified
-- [ ] **EXPL-07**: `.planning/USAGE-TRACKER.md` updated
-
-### Alembic Audit + Dead Code Sweep + Memory Cleanup (Phase 8, final)
-
-- [ ] **FINAL-01**: Alembic migrations audited fresh against live Oracle 19c — only intended `recviz_*` tables are created, no extraneous schema objects, migration history is clean
-- [ ] **FINAL-02**: `v$parameter` for `COMPATIBLE` checked and documented (ensures identifier length limit is 128 bytes, not 30)
-- [ ] **FINAL-03**: Dead code sweep executed using `.planning/USAGE-TRACKER.md` — candidates listed, user approves deletions, code removed
-- [ ] **FINAL-04**: `backend/requirements.txt` final prune — no unused dependencies remain
-- [ ] **FINAL-05**: `PortableJSON` alias removed, all imports updated to `OracleJSON` directly (one-milestone grace expires)
-- [ ] **FINAL-06**: CLAUDE.md updated if any post-milestone drift has emerged (e.g., new conventions discovered during phases)
-- [ ] **FINAL-07**: Stale memory entries pruned/updated: `project_superset_alembic`, `project_superset_ditched`, `project_broken_dashboard_pipeline`, `project_local_dev_setup` — removed or rewritten to reflect Oracle-only reality
-- [ ] **FINAL-08**: Backend test coverage gap memory note (`project_backend_test_coverage_gap`) remains intact since automated tests are still deferred
-- [ ] **FINAL-09**: Milestone completion smoke test — full app boots, all pages render in both light/dark modes, data sources connect to Oracle, dashboards render with real data
-
-## v2 Requirements (deferred)
+## v3.0 Requirements (deferred)
 
 ### Automated Testing
-
 - **TEST-01**: Frontend unit tests (Vitest) for components
 - **TEST-02**: Frontend E2E tests (Playwright) for critical user paths
 - **TEST-03**: Backend unit tests for services + API routes
 - **TEST-04**: Backend integration tests against real Oracle
-- **TEST-05**: CI pipeline that runs all test suites
 
 ### Authentication
-
-- **AUTH-01**: SSO/SAML/OIDC integration (TBD which)
+- **AUTH-01**: SSO/SAML/OIDC integration
 - **AUTH-02**: Session management
-- **AUTH-03**: Role-based access control (admin vs business user)
+- **AUTH-03**: Role-based access control
 - **AUTH-04**: Audit logging
-
-### Reports Page
-
-- **RPT-01**: Reports page built against real data (currently all mock) — only if deemed valuable post-milestone
-
-### Other
-
-- **OTH-01**: NCS 871 character set parity — requires paid Oracle Base Database Service or Citi staging environment access; not achievable on Always Free
-- **OTH-02**: Production deployment automation (currently manual per memory state)
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| Reports page | Currently all mock data, no production pathway, not colorized this milestone |
-| Automated tests of any kind | Deferred to a future milestone — all verification this milestone is manual |
-| PostgreSQL support | Removed entirely; dev + prod both Oracle 19c |
-| Docker / containerization | Removed entirely; dev + prod both native |
-| Superset | Already ditched; residue removed this milestone |
-| Redis / Celery / background tasks | Not used; removed from deps if present |
-| Authentication / SSO / SAML / OIDC | Deferred to v2; still TBD |
-| Mobile / tablet responsive design | Desktop-only BI tool for large-screen data density |
-| New user-facing features | Only discovered fixes and small enhancements per page — no greenfield feature work |
-| Async DB calls anywhere | Oracle 19c driver doesn't support async; sync SQLAlchemy + Starlette threadpool is the model |
-| NCS 871 character set parity in local dev | Oracle Cloud Always Free cannot set character sets; procedural mitigation only |
-| Thin-mode `oracledb` | Character set NCS 871 unsupported in thin mode; thick mode required everywhere |
-| `run_in_threadpool` wrappers | Cleaner to flip handlers to `def` and let Starlette handle threadpool natively |
-| Changing `recviz_alembic_version` table name | Historical workaround, no functional reason to rename |
-| New branches per phase | Milestone stays on `feature/add-color-remove-postgres` |
+| New UI features or pages | This milestone is seed data only — no frontend code changes |
+| Schema changes or migrations | Existing tables are sufficient for demo data |
+| Backend API changes | Seed script writes directly to Oracle, no API changes needed |
+| Automated tests | Deferred to v3.0 |
+| Authentication | Deferred to v3.0 |
+| Reports page | Still all mock data, not addressed this milestone |
+| recviz_data_sources table DROP | Table is ignored (not read or written) but not dropped — future migration |
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INFRA-01 | Phase 1 | Complete |
-| INFRA-02 | Phase 1 | Complete |
-| INFRA-03 | Phase 1 | Complete |
-| INFRA-04 | Phase 1 | Complete |
-| INFRA-05 | Phase 1 | Complete |
-| INFRA-06 | Phase 1 | Complete |
-| INFRA-07 | Phase 1 | Complete |
-| INFRA-08 | Phase 1 | Complete |
-| INFRA-09 | Phase 1 | Complete |
-| INFRA-10 | Phase 1 | Complete |
-| INFRA-11 | Phase 1 | Complete |
-| INFRA-12 | Phase 1 | Complete |
-| INFRA-13 | Phase 1 | Complete |
-| INFRA-14 | Phase 1 | Complete |
-| INFRA-15 | Phase 1 | Complete |
-| INFRA-16 | Phase 1 | Complete |
-| INFRA-17 | Phase 1 | Complete |
-| INFRA-18 | Phase 1 | Complete |
-| INFRA-19 | Phase 1 | Complete |
-| INFRA-20 | Phase 1 | Complete |
-| INFRA-21 | Phase 1 | Complete |
-| INFRA-22 | Phase 1 | Complete |
-| INFRA-23 | Phase 1 | Complete |
-| INFRA-24 | Phase 1 | Complete |
-| INFRA-25 | Phase 1 | Complete |
-| SETT-01 | Phase 2 | Complete |
-| SETT-02 | Phase 2 | Complete |
-| SETT-03 | Phase 2 | Complete |
-| SETT-04 | Phase 2 | Complete |
-| SETT-05 | Phase 2 | Complete |
-| SETT-06 | Phase 2 | Complete |
-| SETT-07 | Phase 2 | Complete |
-| DATA-01 | Phase 3 | Complete |
-| DATA-02 | Phase 3 | Complete |
-| DATA-03 | Phase 3 | Complete |
-| DATA-04 | Phase 3 | Complete |
-| DATA-05 | Phase 3 | Complete |
-| DATA-06 | Phase 3 | Complete |
-| CHRT-01 | Phase 4 | Complete |
-| CHRT-02 | Phase 4 | Complete |
-| CHRT-03 | Phase 4 | Complete |
-| CHRT-04 | Phase 4 | Complete |
-| CHRT-05 | Phase 4 | Complete |
-| CHRT-06 | Phase 4 | Complete |
-| CHRT-07 | Phase 4 | Complete |
-| CHRT-08 | Phase 4 | Complete |
-| KPI-01 | Phase 5 | Pending |
-| KPI-02 | Phase 5 | Pending |
-| KPI-03 | Phase 5 | Pending |
-| KPI-04 | Phase 5 | Pending |
-| KPI-05 | Phase 5 | Pending |
-| DASH-01 | Phase 6 | Pending |
-| DASH-02 | Phase 6 | Pending |
-| DASH-03 | Phase 6 | Pending |
-| DASH-04 | Phase 6 | Pending |
-| DASH-05 | Phase 6 | Pending |
-| DASH-06 | Phase 6 | Pending |
-| DASH-07 | Phase 6 | Pending |
-| DASH-08 | Phase 6 | Pending |
-| DASH-09 | Phase 6 | Pending |
-| DASH-10 | Phase 6 | Pending |
-| EXPL-01 | Phase 7 | Pending |
-| EXPL-02 | Phase 7 | Pending |
-| EXPL-03 | Phase 7 | Pending |
-| EXPL-04 | Phase 7 | Pending |
-| EXPL-05 | Phase 7 | Pending |
-| EXPL-06 | Phase 7 | Pending |
-| EXPL-07 | Phase 7 | Pending |
-| FINAL-01 | Phase 8 | Pending |
-| FINAL-02 | Phase 8 | Pending |
-| FINAL-03 | Phase 8 | Pending |
-| FINAL-04 | Phase 8 | Pending |
-| FINAL-05 | Phase 8 | Pending |
-| FINAL-06 | Phase 8 | Pending |
-| FINAL-07 | Phase 8 | Pending |
-| FINAL-08 | Phase 8 | Pending |
-| FINAL-09 | Phase 8 | Pending |
+| SEED-01 | Phase 1 | Pending |
+| SEED-02 | Phase 1 | Pending |
+| SEED-03 | Phase 1 | Pending |
+| SEED-04 | Phase 1 | Pending |
+| SEED-05 | Phase 1 | Pending |
+| SEED-06 | Phase 1 | Pending |
+| SEED-07 | Phase 1 | Pending |
+| SEED-08 | Phase 1 | Pending |
+| CHRT-01 | Phase 2 | Pending |
+| CHRT-02 | Phase 2 | Pending |
+| CHRT-03 | Phase 2 | Pending |
+| CHRT-04 | Phase 2 | Pending |
+| CHRT-05 | Phase 2 | Pending |
+| KPI-01 | Phase 2 | Pending |
+| KPI-02 | Phase 2 | Pending |
+| KPI-03 | Phase 2 | Pending |
+| KPI-04 | Phase 2 | Pending |
+| KPI-05 | Phase 2 | Pending |
+| DASH-01 | Phase 3 | Pending |
+| DASH-02 | Phase 3 | Pending |
+| DASH-03 | Phase 3 | Pending |
+| DASH-04 | Phase 3 | Pending |
+| DASH-05 | Phase 3 | Pending |
+| DASH-06 | Phase 3 | Pending |
+| DASH-07 | Phase 3 | Pending |
+| DASH-08 | Phase 3 | Pending |
+| DASH-09 | Phase 3 | Pending |
+| DASH-10 | Phase 3 | Pending |
+| VERIF-01 | Phase 3 | Pending |
+| VERIF-02 | Phase 3 | Pending |
+| VERIF-03 | Phase 3 | Pending |
+| VERIF-04 | Phase 3 | Pending |
+| VERIF-05 | Phase 3 | Pending |
+| VERIF-06 | Phase 3 | Pending |
+| VERIF-07 | Phase 3 | Pending |
 
 **Coverage:**
-- v1 requirements: 68 total
-- Mapped to phases: 68
+- v2.0 requirements: 35 total
+- Mapped to phases: 35
 - Unmapped: 0 ✓
 
 ---
-*Requirements defined: 2026-04-11*
-*Last updated: 2026-04-11 after roadmap creation (traceability expanded to per-REQ-ID granularity)*
+*Requirements defined: 2026-04-13*
