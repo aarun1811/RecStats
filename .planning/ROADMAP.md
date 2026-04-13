@@ -71,8 +71,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 03-01: TBD
-- [ ] 03-02: TBD
+- [ ] 03-01-PLAN.md — 10 story-driven dashboards with layouts, cross-filters, drill-down, grids + chart color diversity
+- [ ] 03-02-PLAN.md — Seed execution at 100K/1M + end-to-end browser verification
 
 ---
 
@@ -166,7 +166,7 @@ Phases execute in numeric order: 1 → 2 → 3
 |-------|----------------|--------|-----------|
 | 1. Seed Script Infrastructure | 0/2 | Planned | - |
 | 2. Charts + KPIs Library | 0/? | Not started | - |
-| 3. Dashboards + Verification | 0/? | Not started | - |
+| 3. Dashboards + Verification | 0/2 | Planned | - |
 
 ---
 *Roadmap created: 2026-04-13*
