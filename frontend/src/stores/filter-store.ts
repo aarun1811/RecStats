@@ -12,7 +12,6 @@ interface FilterStore {
 
   // Actions
   setFilterValue: (filterId: string, value: FilterValue) => void
-  setLocked: (filterIds: string[]) => void
   initializeFilters: (defaults: Record<string, FilterValue>, locked?: string[]) => void
   applyFilters: () => void
   resetFilters: (defaults: Record<string, FilterValue>) => void
@@ -33,9 +32,6 @@ export const useFilterStore = create<FilterStore>((set) => ({
     set((s) => ({
       values: { ...s.values, [filterId]: value },
     })),
-
-  setLocked: (filterIds) =>
-    set({ locked: new Set(filterIds) }),
 
   initializeFilters: (defaults, locked) =>
     set({

@@ -31,7 +31,6 @@ interface BuilderStore {
   ) => void
   addFilter: (filter: FilterConfig) => void
   removeFilter: (filterId: string) => void
-  updateFilter: (filterId: string, updates: Partial<FilterConfig>) => void
   reorderFilters: (orderedIds: string[]) => void
   markClean: () => void
 }
@@ -189,14 +188,6 @@ export const useBuilderStore = create<BuilderStore>((set) => ({
   removeFilter: (filterId) =>
     set((s) => ({
       filters: s.filters.filter((f) => f.id !== filterId),
-      isDirty: true,
-    })),
-
-  updateFilter: (filterId, updates) =>
-    set((s) => ({
-      filters: s.filters.map((f) =>
-        f.id === filterId ? { ...f, ...updates } : f,
-      ),
       isDirty: true,
     })),
 
