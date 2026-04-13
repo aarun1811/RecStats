@@ -8,11 +8,11 @@ RecViz is an internal BI and visualization platform for Citi's Global Reconcilia
 
 Business users can view, interact with, and customize reconciliation dashboards against Citi's production Oracle 19c environment, **with zero local-vs-prod drift** — what works locally must work in Citi's servers.
 
-## Milestone: Oracle-Only Cutover + Frontend Colorization
+## Milestone: Production Demo Seed (v2.0)
 
-This milestone completes the Oracle-only cutover (no PostgreSQL, no Docker, no Superset, no Redis, no async) and adds a globally-consistent color palette to the currently black-and-white shadcn UI. Work is delivered **page-by-page**: pick a page, colorize it, fix any discovered issues, backend routes resolved against Oracle, manually verify, move to the next.
+Rewrite the seed script with production-quality demo data for stakeholder demos. 40-50 charts across 10+ story-driven dashboards, 15-20 KPIs, rich dimension/fact tables with realistic distributions, and configurable row counts (100K default, 1-5M demo, 10M stress test). Eliminate all `recviz_data_sources` writes — seed only writes to `recviz_datasets` + `recviz_connections`. DB connection is configurable via CLI args. All chart configs validated against builder schema — no mismatches.
 
-Automated tests are **deferred to a future milestone**.
+Previous milestone (v1.0: Oracle-Only Cutover + Frontend Colorization) completed — 8 phases, all pages colorized, pipeline fix shipped, dead code swept.
 
 ## Requirements
 
