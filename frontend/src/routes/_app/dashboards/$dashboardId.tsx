@@ -6,7 +6,8 @@ import {
   useMatchRoute,
   useNavigate,
 } from '@tanstack/react-router'
-import { Pencil } from 'lucide-react'
+import { formatDistanceToNow } from 'date-fns'
+import { BarChart3, Gauge, Pencil, Table2 } from 'lucide-react'
 
 import { DashboardRenderer } from '@/components/dashboard/dashboard-renderer'
 import { ShareLinkButton } from '@/components/dashboard/share-link-button'
@@ -26,6 +27,12 @@ export const Route = createFileRoute('/_app/dashboards/$dashboardId')({
   validateSearch: (search: Record<string, unknown>) => search,
   component: DashboardPage,
 })
+
+function countPanels(config: unknown): { kpis: number; charts: number; grids: number } {
+  const cfg = (config ?? {}) as Record<string, unknown>
+  const len = (key: string) => Array.isArray(cfg[key]) ? (cfg[key] as unknown[]).length : 0
+  return { kpis: len('kpis'), charts: len('charts'), grids: len('grids') }
+}
 
 function DashboardPage() {
   const { dashboardId } = Route.useParams()
@@ -106,6 +113,12 @@ function DashboardPage() {
     )
   }
 
+  const counts = useMemo(() => countPanels(config), [config])
+  const totalPanels = counts.kpis + counts.charts + counts.grids
+  const timeAgo = dashboard?.updatedAt
+    ? formatDistanceToNow(new Date(dashboard.updatedAt), { addSuffix: true })
+    : undefined
+
   if (!dashboard || !config) {
     return <div className="p-6 text-muted-foreground">Dashboard not found</div>
   }
@@ -121,6 +134,27 @@ function DashboardPage() {
             <p className="text-sm text-muted-foreground mt-1">
               {dashboard.description}
             </p>
+          )}
+          {(totalPanels > 0 || timeAgo) && (
+            <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
+              {counts.kpis > 0 && (
+                <span className="flex items-center gap-1">
+                  <Gauge size={14} /> {counts.kpis} KPIs
+                </span>
+              )}
+              {counts.charts > 0 && (
+                <span className="flex items-center gap-1">
+                  <BarChart3 size={14} /> {counts.charts} Charts
+                </span>
+              )}
+              {counts.grids > 0 && (
+                <span className="flex items-center gap-1">
+                  <Table2 size={14} /> {counts.grids} Grids
+                </span>
+              )}
+              {totalPanels > 0 && timeAgo && <span>&middot;</span>}
+              {timeAgo && <span>Updated {timeAgo}</span>}
+            </div>
           )}
         </div>
         <div className="flex items-center gap-2">

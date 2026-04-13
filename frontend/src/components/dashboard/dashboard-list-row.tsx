@@ -1,4 +1,6 @@
 import { useMemo } from 'react'
+import { formatDistanceToNow } from 'date-fns'
+import { motion } from 'motion/react'
 import {
   BarChart3,
   ChevronRight,
@@ -8,7 +10,6 @@ import {
   Table2,
   Trash2,
 } from 'lucide-react'
-import { formatDistanceToNow } from 'date-fns'
 
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -18,6 +19,7 @@ interface DashboardListRowProps {
   dashboard: ManagedDashboard
   onClick: () => void
   onDelete?: () => void
+  index: number
 }
 
 function countPanels(config: unknown) {
@@ -31,16 +33,19 @@ function countPanels(config: unknown) {
   }
 }
 
-export function DashboardListRow({ dashboard, onClick, onDelete }: DashboardListRowProps) {
+export function DashboardListRow({ dashboard, onClick, onDelete, index }: DashboardListRowProps) {
   const timeAgo = formatDistanceToNow(new Date(dashboard.updatedAt), {
     addSuffix: true,
   })
   const stats = useMemo(() => countPanels(dashboard.config), [dashboard.config])
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05, duration: 0.2, ease: 'easeOut' }}
       className={cn(
-        'group flex items-center gap-4 rounded-lg border bg-card px-4 py-3',
+        'group flex items-center gap-4 rounded-lg border border-l-2 border-l-primary bg-card px-4 py-3',
         'cursor-pointer transition-all duration-150',
         'hover:border-primary/30 hover:shadow-sm hover:shadow-primary/5',
       )}
@@ -137,6 +142,6 @@ export function DashboardListRow({ dashboard, onClick, onDelete }: DashboardList
         size={14}
         className="shrink-0 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5 group-hover:text-muted-foreground"
       />
-    </div>
+    </motion.div>
   )
 }
