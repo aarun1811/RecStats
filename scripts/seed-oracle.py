@@ -2050,7 +2050,7 @@ CURATED_CHARTS: list[dict] = [
     ),
     # ------------------------------------------------------------------
     # Dataset: ds-recon-match-rate-daily
-    #   columns: date, match_rate, txn_count
+    #   columns: trade_date, match_rate, txn_count
     # ------------------------------------------------------------------
     _chart(  # 26
         "chart-match-rate-trend",
@@ -2058,7 +2058,7 @@ CURATED_CHARTS: list[dict] = [
         "Line chart of daily match rate percentage -- track matching quality over time.",
         "ds-recon-match-rate-daily",
         "line",
-        "date",
+        "trade_date",
         ["match_rate"],
     ),
     _chart(  # 27
@@ -2430,18 +2430,18 @@ CURATED_KPIS: list[dict] = [
         subtitle="Lower is better",
         comment="Inverted metric. Seeded ~8% lands in amber band.",
     ),
-    # ---- 9. Auto-Match Rate (COUNT, percentage) ----
+    # ---- 9. Auto-Match Events (SUM, number) ----
     _kpi(
         "kpi-auto-match-pct",
-        "Auto-Match Rate",
-        "Percentage of match events processed automatically (AUTO type).",
+        "Auto-Match Events",
+        "Total automatic match events -- higher means more automation.",
         "ds-recon-match-events-by-type",
         "event_count",
-        "COUNT",
-        fmt={"type": "percentage", "decimals": 1, "abbreviate": False, "currencyCode": None},
-        trend={"mode": "static_target", "targetValue": 80.0, "targetLabel": "Target"},
-        thresholds={"greenAbove": 75, "amberAbove": 60},
-        subtitle="vs 80% target",
+        "SUM",
+        fmt={"type": "number", "decimals": 0, "abbreviate": True, "currencyCode": None},
+        trend={"mode": "previous_period", "period": "week"},
+        thresholds={"greenAbove": 500, "amberAbove": 200},
+        subtitle="vs last week",
     ),
     # ---- 10. Match Confidence Score (AVG, decimal) ----
     _kpi(
@@ -2482,14 +2482,14 @@ CURATED_KPIS: list[dict] = [
         thresholds={"greenAbove": 100, "amberAbove": 50},
         subtitle="Lowest day count",
     ),
-    # ---- 13. Active Counterparties (COUNT_DISTINCT, number) ----
+    # ---- 13. Active Counterparties (COUNT, number) ----
     _kpi(
         "kpi-unique-counterparties",
         "Active Counterparties",
-        "Count of distinct counterparties transacted -- measures market breadth.",
+        "Count of counterparties in top-20 by volume -- measures market breadth.",
         "ds-recon-counterparty-top",
-        "short_name",
-        "COUNT_DISTINCT",
+        "txn_count",
+        "COUNT",
         fmt={"type": "number", "decimals": 0, "abbreviate": False, "currencyCode": None},
         trend={"mode": "previous_period", "period": "month"},
         thresholds={"greenAbove": 40, "amberAbove": 20},
@@ -2505,8 +2505,8 @@ CURATED_KPIS: list[dict] = [
         "SUM",
         fmt={"type": "number", "decimals": 0, "abbreviate": True, "currencyCode": None},
         trend={"mode": "previous_period", "period": "week"},
-        thresholds={"greenAbove": 500, "amberAbove": 1000},
-        subtitle="Total breaches",
+        thresholds={"greenAbove": 0, "amberAbove": 0},
+        subtitle="Lower is better",
         comment="Inverted metric -- fewer breaches is better.",
     ),
     # ---- 15. Average Transaction Size (AVG, currency) ----
@@ -2522,14 +2522,14 @@ CURATED_KPIS: list[dict] = [
         thresholds={"greenAbove": 50000, "amberAbove": 20000},
         subtitle="Avg USD per txn",
     ),
-    # ---- 16. Active Currencies (COUNT_DISTINCT, number) ----
+    # ---- 16. Active Currencies (COUNT, number) ----
     _kpi(
         "kpi-currency-count",
         "Active Currencies",
         "Count of distinct currencies with transaction activity.",
         "ds-recon-currency-distribution",
-        "currency",
-        "COUNT_DISTINCT",
+        "txn_count",
+        "COUNT",
         fmt={"type": "number", "decimals": 0, "abbreviate": False, "currencyCode": None},
         trend=None,
         thresholds={"greenAbove": 10, "amberAbove": 5},
