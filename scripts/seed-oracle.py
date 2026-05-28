@@ -1741,10 +1741,68 @@ CURATED_DATASETS: list[dict] = [
         ],
         "filter_mappings": [_BASE_FILTER_MAPPINGS[5]],
     },
+    # ---- QuickRec embedded-dashboard datasets (Plan 2) ----
+    # Read from the recportal schema via conn-recportal (registered in Plan 1 Task 8).
+    # filter_mappings use quoted '{{value}}' for string columns (query_engine substitutes
+    # raw values; quoting belongs in the template per the seed convention for strings).
+    {
+        "id": "ds-qr-automatch",
+        "name": "QuickRec — Auto-Match Stats",
+        "description": "QuickRec system match/break stats per recon (reads recportal.quickrec_stats_table).",
+        "database_routing": {"type": "static", "database": "recportal"},
+        "sql_template": (
+            "SELECT reconname, recon_id, rec_portal_id, "
+            "left_record_count, right_record_count, "
+            "left_break_count, right_break_count, "
+            "left_match_count, right_match_count, load_date "
+            "FROM quickrec_stats_table WHERE 1=1 {{filters}} "
+            "ORDER BY load_date DESC, reconname"
+        ),
+        "columns": [
+            _col("reconname", "Recon Name", "string", "dimension"),
+            _col("recon_id", "Recon ID", "string", "dimension"),
+            _col("rec_portal_id", "Rec Portal ID", "string", "dimension"),
+            _col("left_record_count", "Left Records", "number", "measure", "SUM", "number"),
+            _col("right_record_count", "Right Records", "number", "measure", "SUM", "number"),
+            _col("left_break_count", "Left Breaks", "number", "measure", "SUM", "number"),
+            _col("right_break_count", "Right Breaks", "number", "measure", "SUM", "number"),
+            _col("left_match_count", "Left Auto Matches", "number", "measure", "SUM", "number"),
+            _col("right_match_count", "Right Auto Matches", "number", "measure", "SUM", "number"),
+            _col("load_date", "Load Date", "date", "time"),
+        ],
+        "filter_mappings": [
+            {"filter_id": "recon_id", "sql_expr": "recon_id = '{{value}}'"},
+            {"filter_id": "rec_portal_id", "sql_expr": "rec_portal_id = '{{value}}'"},
+            {"filter_id": "date_range_days", "sql_expr": "load_date {{date_range_clause}}"},
+        ],
+    },
+    {
+        "id": "ds-qr-manual",
+        "name": "QuickRec — Manual Match Stats",
+        "description": "QuickRec manual (human) match counts per portal/COB (reads recportal.recportal_manual_match_table).",
+        "database_routing": {"type": "static", "database": "recportal"},
+        "sql_template": (
+            "SELECT rec_portal_id, cob, updated_date, "
+            "left_manual_matches, right_manual_matches "
+            "FROM recportal_manual_match_table WHERE 1=1 {{filters}} "
+            "ORDER BY updated_date DESC, rec_portal_id"
+        ),
+        "columns": [
+            _col("rec_portal_id", "Rec Portal ID", "string", "dimension"),
+            _col("cob", "COB", "date", "time"),
+            _col("updated_date", "Updated", "date", "time"),
+            _col("left_manual_matches", "Left Manual Matches", "number", "measure", "SUM", "number"),
+            _col("right_manual_matches", "Right Manual Matches", "number", "measure", "SUM", "number"),
+        ],
+        "filter_mappings": [
+            {"filter_id": "rec_portal_id", "sql_expr": "rec_portal_id = '{{value}}'"},
+            {"filter_id": "date_range_days", "sql_expr": "updated_date {{date_range_clause}}"},
+        ],
+    },
 ]
 
-assert len(CURATED_DATASETS) == 23, (
-    f"CURATED_DATASETS must have 23 entries, got {len(CURATED_DATASETS)}"
+assert len(CURATED_DATASETS) == 25, (
+    f"CURATED_DATASETS must have 25 entries, got {len(CURATED_DATASETS)}"
 )
 
 
