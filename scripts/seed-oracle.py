@@ -3646,7 +3646,36 @@ def seed_connection(cur, args: argparse.Namespace) -> None:
             "active",
         ),
     )
-    print(f"  recviz_connections: 2 rows (recviz/{schema_name}, recportal/RECPORTAL)")
+    # TLM integration (Plan 3 Task 4): register a connection to the tcosprd schema in the
+    # sibling rectrace-local-dev FREEPDB1 stack. TCOSPRD owns the TLM-instance tables
+    # (bank, message_feed, item, tlm_bdr_relationship_header) that the tlm_automatch
+    # dataset (Plan 4) reaches via dynamic database_routing: {"TLMP_CONSUMER": "conn-tcosprd"}.
+    cur.execute(
+        "INSERT INTO recviz_connections "
+        "(id, name, display_name, backend, host, port, database_name, "
+        "username, encrypted_password, schema_name, extra_params, status, "
+        "created_at, updated_at) "
+        "VALUES (:1, :2, :3, :4, :5, :6, :7, :8, :9, :10, :11, :12, "
+        "SYSTIMESTAMP, SYSTIMESTAMP)",
+        (
+            "conn-tcosprd",
+            "tcosprd",
+            "TLMP_CONSUMER (TCOSPRD)",
+            "oracle",
+            host,
+            port,
+            service,
+            "tcosprd",
+            _encrypt_password("tcosprd_pwd"),
+            "TCOSPRD",
+            _jb({"timeout": 30}),
+            "active",
+        ),
+    )
+    print(
+        f"  recviz_connections: 3 rows "
+        f"(recviz/{schema_name}, recportal/RECPORTAL, tcosprd/TCOSPRD)"
+    )
 
 
 def write_dashboard_names_snapshot() -> None:
