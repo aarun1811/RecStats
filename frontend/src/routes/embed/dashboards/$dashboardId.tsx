@@ -78,14 +78,17 @@ function EmbedDashboardPage() {
   }
 
   return (
-    <div className="h-screen flex flex-col">
+    // overflow-hidden on the outer flex column + min-h-0 on the scrolling child
+    // keeps <html> from also overflowing — otherwise we get TWO scrollbars
+    // (the legitimate inner one + a stray viewport-level one).
+    <div className="h-screen flex flex-col overflow-hidden">
       <EmbedTopbar
         title={dashboard.name}
         dashboardId={dashboardId}
         filterParams={filterParams}
         hideTitle={hideTokens.has('title')}
       />
-      <div className="p-6 flex-1 overflow-auto space-y-6">
+      <div className="p-6 flex-1 min-h-0 overflow-auto space-y-6">
         <DashboardRenderer
           config={config}
           initialFilters={initialFilters}

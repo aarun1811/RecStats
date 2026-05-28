@@ -1,3 +1,4 @@
+// dev: trend-display-ratio v1
 import { useMemo } from 'react'
 import { motion } from 'motion/react'
 import { Info, TrendingDown, TrendingUp } from 'lucide-react'
@@ -115,6 +116,18 @@ export function ConfigKpiRow({
         // 'ratio' display: percentage is a static ratio, not a delta — render
         // neutrally (no border tint, no arrow, no '+' prefix). Default is 'delta'.
         const isRatio = kpi.trend?.display === 'ratio'
+        // accentColor opt-in: a CSS variable name like '--chart-positive' or
+        // '--series-8' that drives both the card's left border and the trend
+        // pill's tint. color-mix lets one token serve as both: text uses the
+        // full color, badge bg is a 14% tint (oklab for perceptual blend).
+        const accentVar = kpi.accentColor ? `var(${kpi.accentColor})` : undefined
+        const accentBorderStyle = accentVar ? { borderLeftColor: accentVar } : undefined
+        const accentBadgeStyle = accentVar
+          ? {
+              backgroundColor: `color-mix(in oklab, ${accentVar} 14%, transparent)`,
+              color: accentVar,
+            }
+          : undefined
         const formatOptions = buildFormatOptions(kpi)
         const fullValueTooltip = formatValueFull(value, formatOptions)
         const missingCols = partialMatchMap.get(kpi.id)
@@ -127,10 +140,12 @@ export function ConfigKpiRow({
             transition={{ type: 'spring', stiffness: 300, damping: 24, delay: i * 0.05 }}
             className={cn(
               'rounded-lg border border-l-2 bg-card px-4 py-3 flex items-center justify-between gap-3',
-              hasTrend && !isRatio && percentage >= 0 && 'border-l-green-500',
-              hasTrend && !isRatio && percentage < 0 && 'border-l-red-500',
-              (!hasTrend || isRatio) && 'border-l-muted',
+              // Default behavior — only applied when no accentColor override.
+              !accentVar && hasTrend && !isRatio && percentage >= 0 && 'border-l-green-500',
+              !accentVar && hasTrend && !isRatio && percentage < 0 && 'border-l-red-500',
+              !accentVar && (!hasTrend || isRatio) && 'border-l-muted',
             )}
+            style={accentBorderStyle}
           >
             <div className="min-w-0">
               <div className="flex items-center gap-1">
@@ -170,12 +185,12 @@ export function ConfigKpiRow({
               <div
                 className={cn(
                   'flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium shrink-0',
-                  isRatio
-                    ? 'bg-muted text-muted-foreground'
-                    : percentage >= 0
-                      ? 'bg-green-500/10 text-green-600 dark:text-green-400'
-                      : 'bg-red-500/10 text-red-600 dark:text-red-400',
+                  // Tailwind palette only applies when no accentColor override.
+                  !accentVar && isRatio && 'bg-muted text-muted-foreground',
+                  !accentVar && !isRatio && percentage >= 0 && 'bg-green-500/10 text-green-600 dark:text-green-400',
+                  !accentVar && !isRatio && percentage < 0 && 'bg-red-500/10 text-red-600 dark:text-red-400',
                 )}
+                style={accentBadgeStyle}
               >
                 {!isRatio && (percentage >= 0 ? (
                   <TrendingUp className="size-3" />
