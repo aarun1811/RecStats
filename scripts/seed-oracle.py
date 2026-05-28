@@ -1881,32 +1881,48 @@ CURATED_DATASETS: list[dict] = [
         "database_routing": {"type": "static", "database": "reconmgmt"},
         "sql_template": (
             # Per-leg COUNT(*) + GROUP BY inside each UNION leg (matches the
-            # legacy buildManualMatchQuery shape — verbatim from
-            # TlmStatsV2Service.java 568-586 and 599-617). The outer SELECT
-            # sums the two per-leg counts. Pre-aggregation inside legs keeps
-            # the UNION ALL row volume small.
+            # legacy buildManualMatchQuery shape from TlmStatsV2Service.java
+            # 568-586 and 599-617). The outer SELECT sums the two per-leg
+            # counts. Pre-aggregation inside legs keeps the UNION ALL row
+            # volume small.
+            #
+            # Each leg wraps the source table in a derived sub-select that
+            # PROMOTES the physical setid/local_acc_no column to the
+            # canonical `set_id` alias BEFORE the WHERE clause runs. This is
+            # required because Oracle does not allow a SELECT-list alias to
+            # be referenced from the WHERE clause of the same SELECT — and
+            # the {{filters}} substitution puts `set_id IN (...)` into the
+            # WHERE of each leg, so `set_id` must already exist as a real
+            # column at WHERE-evaluation time.
             #
             # {{filters}} appears in BOTH legs. RecViz's _build_sql uses
             # str.replace which substitutes ALL occurrences, so the same
-            # filter clauses get applied to both legs (verified in §12.8 spike).
+            # filter clauses get applied to both legs (verified in §12.8
+            # spike).
             "SELECT tlm_instance, agent_code, set_id, stmt_date, bran_code, "
             "       corr_acc_no, SUM(manual_match_count) AS total_manual_match_count "
             "FROM ( "
-            "  SELECT m.tlm_instance, m.agent_code, m.setid AS set_id, "
-            "         m.corr_acc_no, m.bran_code, m.stmt_date, "
-            "         COUNT(*) AS manual_match_count "
-            "  FROM mr_csum_man_match_details m "
-            "  WHERE 1=1 {{filters}} "
-            "  GROUP BY m.tlm_instance, m.agent_code, m.setid, "
+            "  SELECT tlm_instance, agent_code, set_id, corr_acc_no, "
+            "         bran_code, stmt_date, COUNT(*) AS manual_match_count "
+            "  FROM ( "
+            "    SELECT m.tlm_instance, m.agent_code, m.setid AS set_id, "
             "           m.corr_acc_no, m.bran_code, m.stmt_date "
-            "  UNION ALL "
-            "  SELECT n.tlm_instance, n.agent_code, n.local_acc_no AS set_id, "
-            "         n.corr_acc_no, n.bran_code, n.stmt_date, "
-            "         COUNT(*) AS manual_match_count "
-            "  FROM mr_csum_netting_hist n "
+            "    FROM mr_csum_man_match_details m "
+            "  ) leg1 "
             "  WHERE 1=1 {{filters}} "
-            "  GROUP BY n.tlm_instance, n.agent_code, n.local_acc_no, "
+            "  GROUP BY tlm_instance, agent_code, set_id, corr_acc_no, "
+            "           bran_code, stmt_date "
+            "  UNION ALL "
+            "  SELECT tlm_instance, agent_code, set_id, corr_acc_no, "
+            "         bran_code, stmt_date, COUNT(*) AS manual_match_count "
+            "  FROM ( "
+            "    SELECT n.tlm_instance, n.agent_code, n.local_acc_no AS set_id, "
             "           n.corr_acc_no, n.bran_code, n.stmt_date "
+            "    FROM mr_csum_netting_hist n "
+            "  ) leg2 "
+            "  WHERE 1=1 {{filters}} "
+            "  GROUP BY tlm_instance, agent_code, set_id, corr_acc_no, "
+            "           bran_code, stmt_date "
             ") "
             "GROUP BY tlm_instance, agent_code, set_id, stmt_date, bran_code, corr_acc_no"
         ),
