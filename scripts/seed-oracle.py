@@ -3817,7 +3817,12 @@ CURATED_DASHBOARDS: list[dict] = [
                             "donutLabelPosition": "outside",
                         },
                     },
-                    "layout": _layout(3, 1, 6, 4),
+                    # Full-width container — the donut SVG is intrinsically
+                    # centered within its container, so a width=12 span
+                    # yields a horizontally-centered donut. The original
+                    # _layout(3, 1, 6, 4) ignored the col offset under the
+                    # current flow layout and rendered left-anchored.
+                    "layout": _layout(0, 1, 12, 4),
                     "visibleWhen": {"kpi": "kpi-tlm-total-items", "condition": "gt", "value": 0},
                 },
             ],
