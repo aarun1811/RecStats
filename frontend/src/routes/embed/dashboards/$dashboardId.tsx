@@ -57,6 +57,18 @@ function EmbedDashboardPage() {
     }
   }, [themeParam, applyTheme])
 
+  // Embed-only: pin <html> overflow:hidden so AG-Grid's measurement utilities
+  // (ag-measurement-container, ag-aria-description-container) absolutely
+  // positioned at y > viewport don't push html.scrollHeight past the viewport
+  // and spawn a second scrollbar. Restore on unmount so the standalone app
+  // isn't affected.
+  useEffect(() => {
+    const html = document.documentElement
+    const prev = html.style.overflow
+    html.style.overflow = 'hidden'
+    return () => { html.style.overflow = prev }
+  }, [])
+
   if (isLoading) {
     return (
       <div className="h-screen flex flex-col">
