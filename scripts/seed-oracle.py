@@ -3773,7 +3773,54 @@ CURATED_DASHBOARDS: list[dict] = [
                  "trend": {"type": "percentage_of", "referenceKpi": "kpi-tlm-total-items", "display": "ratio"},
                  "accentColor": "--series-8"},
             ],
-            "charts": [],
+            "charts": [
+                # Angular parity (app-tlm-pie-chart-v2): donut showing the
+                # Breaks / Automatch / Manual Match distribution. The legacy
+                # component used `type: 'pie'` with `innerRadiusRatio: 0.5`
+                # which AG Charts renders as a donut; here we use the
+                # first-class `donut` viz type (KpiValuesChartItem ->
+                # ChartFactory -> AgChartWrapper handles it).
+                #
+                # Colors:
+                #   kpiSegments[].color carries the Angular literal hex
+                #   values (#fbbc04 / #34a853 / #8e24aa) for traceability
+                #   to the legacy component. NOTE: the current renderer
+                #   does NOT consume kpiSegments[].color for slice fills --
+                #   it reads appearance.typeSpecific.seriesColor_N which
+                #   resolveColor() interprets as CSS variable names. So
+                #   actual slice fills are wired via theme tokens that
+                #   approximate the Angular palette:
+                #     #fbbc04 (amber)  -> --chart-warning
+                #     #34a853 (green)  -> --chart-positive
+                #     #8e24aa (purple) -> --series-8
+                #
+                # Gated on total_items > 0 -- same condition the Angular
+                # template used to hide the chart section when empty.
+                {
+                    "id": "chart-tlm-distribution",
+                    "title": "Match Distribution",
+                    "type": "donut",
+                    "sourceType": "kpi_values",
+                    "kpiSegments": [
+                        {"kpiId": "kpi-tlm-total-breaks", "label": "Breaks",       "color": "#fbbc04"},
+                        {"kpiId": "kpi-tlm-automatch",    "label": "Automatch",    "color": "#34a853"},
+                        {"kpiId": "kpi-tlm-manual-match", "label": "Manual Match", "color": "#8e24aa"},
+                    ],
+                    "appearance": {
+                        "showLegend": True,
+                        "legendPosition": "bottom",
+                        "typeSpecific": {
+                            "seriesColor_0": "--chart-warning",
+                            "seriesColor_1": "--chart-positive",
+                            "seriesColor_2": "--series-8",
+                            "donutInnerRadius": 0.5,
+                            "donutLabelPosition": "outside",
+                        },
+                    },
+                    "layout": _layout(3, 1, 6, 4),
+                    "visibleWhen": {"kpi": "kpi-tlm-total-items", "condition": "gt", "value": 0},
+                },
+            ],
             "grids": [
                 # Reconciliation grid: cross-DB merge of automatch x manual-match.
                 # Top-level `sources` / `mergeOn` / `mergeType` / `coalesceZero`
@@ -3811,7 +3858,7 @@ CURATED_DASHBOARDS: list[dict] = [
                      {"field": "total_manual_match_count", "header": "Manual Match", "type": "number"},
                  ],
                  "visibleWhen": {"kpi": "kpi-tlm-total-items", "condition": "gt", "value": 0},
-                 "layout": _layout(0, 1, 12, 5)},
+                 "layout": _layout(0, 5, 12, 5)},
                 # Breaks grid: single-source from ds-tlm-breaks. Gated visibleWhen
                 # total_breaks > 0 -- matches legacy `dashboardSummary.total_breaks > 0`
                 # template conditional.
@@ -3825,9 +3872,9 @@ CURATED_DASHBOARDS: list[dict] = [
                      {"field": "breaks_count", "header": "Break Count", "type": "number"},
                  ],
                  "visibleWhen": {"kpi": "kpi-tlm-total-breaks", "condition": "gt", "value": 0},
-                 "layout": _layout(0, 6, 12, 4)},
+                 "layout": _layout(0, 10, 12, 4)},
             ],
-            "layout": {"type": "flow", "sections": ["filters", "kpis", "grids"]},
+            "layout": {"type": "flow", "sections": ["filters", "kpis", "charts", "grids"]},
             "autoRefreshInterval": 0,
         },
     },
