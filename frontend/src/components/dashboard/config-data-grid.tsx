@@ -206,8 +206,9 @@ function MergedSourceGrid({
       sources: (grid.sources ?? []).map((s) => s.dataSourceId),
       mergeOn: grid.mergeOn ?? [],
       mergeType: grid.mergeType ?? 'inner',
+      coalesceZero: grid.coalesceZero ?? false,
     }),
-    [grid.sources, grid.mergeOn, grid.mergeType],
+    [grid.sources, grid.mergeOn, grid.mergeType, grid.coalesceZero],
   )
 
   const { data: queryResponse, isLoading, isError, error, refetch } = useDataSourceMerge(

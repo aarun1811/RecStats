@@ -22,6 +22,7 @@ class MergeRequest(BaseModel):
     sources: list[str]
     merge_on: list[str]
     merge_type: str = "outer_join"
+    coalesce_zero: bool = False
     filters: dict[str, str | int | list[str] | None] = {}
 
 
@@ -60,7 +61,9 @@ def merge_data_sources(
         results.append(result)
 
     try:
-        merged = MergeEngine.merge(results, body.merge_on, body.merge_type)
+        merged = MergeEngine.merge(
+            results, body.merge_on, body.merge_type, body.coalesce_zero
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     return merged
