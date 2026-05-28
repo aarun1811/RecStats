@@ -23,13 +23,17 @@ class OracleJSON(TypeDecorator, SchemaType):
         super().__init__(*args, **kwargs)
 
     def _set_table(self, column, table):
-        """SchemaType hook: add IS JSON check constraint when column is bound to table."""
+        """SchemaType hook: add IS JSON check constraint when column is bound to table.
+
+        The constraint is Oracle-specific (other dialects don't recognise ``IS JSON``)
+        — emit it only when the create_all is targeting an Oracle backend so the same
+        ORM definition works under SQLite-backed unit tests."""
         constraint_name = f"ck_{table.name}_{column.name}_json"
         table.append_constraint(
             CheckConstraint(
                 f"{column.name} IS JSON",
                 name=constraint_name,
-            )
+            ).ddl_if(dialect="oracle")
         )
 
     def process_bind_param(self, value, dialect):
