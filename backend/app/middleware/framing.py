@@ -6,7 +6,9 @@ from __future__ import annotations
 
 
 def frame_headers_for_path(path: str, frame_ancestors: list[str]) -> dict[str, str]:
-    if path.startswith("/embed"):
+    # Boundary on "/embed/" (not "/embed") so future routes like /embedded-foo or
+    # /embeddable aren't silently treated as cross-origin-embeddable.
+    if path == "/embed" or path.startswith("/embed/"):
         ancestors = " ".join(["'self'", *frame_ancestors])
         return {"Content-Security-Policy": f"frame-ancestors {ancestors}"}
     return {"X-Frame-Options": "SAMEORIGIN"}
