@@ -3778,13 +3778,29 @@ CURATED_DASHBOARDS: list[dict] = [
                 # Reconciliation grid: cross-DB merge of automatch x manual-match.
                 # Top-level `sources` / `mergeOn` / `mergeType` / `coalesceZero`
                 # match the GridConfig type (NOT a nested `merge: {...}`).
+                # `tlm_instance` is deliberately NOT in mergeOn (and not in the
+                # column list). Reason: ds-tlm-automatch projects
+                # `sys_context('USERENV','DB_NAME')` for tlm_instance (verbatim
+                # from legacy buildAutomatchQuery). In production every TLM
+                # instance is its own Oracle DB, so sys_context returns the
+                # friendly instance name. Locally both schemas share FREEPDB1,
+                # so sys_context returns "FREEPDB1" while ds-tlm-manual-match
+                # projects the literal `tlm_instance` column from reconmgmt
+                # (e.g. "TLMP_CONSUMER"). With tlm_instance in mergeOn the two
+                # sides keyed differently and the outer_join produced two rows
+                # per business key (one all-zero on each side).
+                # Safe to drop from the key because both sides are already
+                # scoped to a single TLM instance by upstream filters:
+                # ds-tlm-automatch via dynamic DB routing on `tlm_instance`,
+                # ds-tlm-manual-match via the `tlm_instance = '{{value}}'`
+                # filter mapping. The locked filter chip in the toolbar
+                # communicates the scope to the user.
                 {"id": "grid-tlm-reconciliation", "title": "Reconciliation",
                  "sources": [{"dataSourceId": "ds-tlm-automatch"}, {"dataSourceId": "ds-tlm-manual-match"}],
-                 "mergeOn": ["tlm_instance", "agent_code", "set_id", "stmt_date", "bran_code", "corr_acc_no"],
+                 "mergeOn": ["agent_code", "set_id", "stmt_date", "bran_code", "corr_acc_no"],
                  "mergeType": "outer_join",
                  "coalesceZero": True,
                  "columns": [
-                     {"field": "tlm_instance",             "header": "TLM Instance", "type": "string"},
                      {"field": "agent_code",               "header": "Recon", "type": "string"},
                      {"field": "set_id",                   "header": "Set ID", "type": "string"},
                      {"field": "stmt_date",                "header": "Statement Date", "type": "date"},
