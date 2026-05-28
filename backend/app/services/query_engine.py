@@ -264,6 +264,19 @@ class QueryExecutor:
         dialect = self._resolver.get_dialect(db_name)
         sql = self._build_sql(ds, filters, column=column, dialect=dialect, db_name=db_name)
 
+        # Datasets that pre-shape their own SELECT DISTINCT use the {{column}}
+        # placeholder; for general datasets (multi-column SELECTs), wrap the
+        # query so we extract DISTINCT values of the requested column.
+        # `column` is already validated against ds.columns + identifier regex
+        # by _build_sql above, so this interpolation is safe.
+        if "{{column}}" not in ds.query:
+            sql = (
+                f"SELECT DISTINCT {column} AS value "
+                f"FROM ({sql}) sub "
+                f"WHERE {column} IS NOT NULL "
+                f"ORDER BY {column}"
+            )
+
         try:
             result = session.execute(
                 select(ConnModel).where(ConnModel.id == connection_id)
