@@ -20,6 +20,8 @@ class RecvizDataset(Base):
     database_id: Mapped[str] = mapped_column(String(128), nullable=False)
     sql: Mapped[str] = mapped_column(Text, nullable=False)
     columns: Mapped[list] = mapped_column(OracleJSON(), nullable=False, default=list)
+    filter_mappings: Mapped[list] = mapped_column(OracleJSON(), nullable=True, default=None)
+    database_routing: Mapped[dict | None] = mapped_column(OracleJSON(), nullable=True, default=None)
     schema_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), default=_utcnow
