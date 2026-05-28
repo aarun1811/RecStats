@@ -117,6 +117,9 @@ export function ConfigKpiRow({
         const value = result?.value ?? 0
         const percentage = result?.percentage
         const hasTrend = kpi.trend !== undefined && percentage != null
+        // 'ratio' display: percentage is a static ratio, not a delta — render
+        // neutrally (no border tint, no arrow, no '+' prefix). Default is 'delta'.
+        const isRatio = kpi.trend?.display === 'ratio'
         // accentColor opt-in: a CSS variable name like '--chart-1' or
         // '--chart-warning' that drives both the card's left border and the
         // trend pill's tint. color-mix lets one token serve as both: text uses
@@ -142,9 +145,10 @@ export function ConfigKpiRow({
             className={cn(
               'rounded-lg border border-l-2 bg-card px-4 py-3 flex items-center justify-between gap-3',
               // Default trend-based palette only applies when no accentColor override.
-              !accentVar && hasTrend && percentage >= 0 && 'border-l-green-500',
-              !accentVar && hasTrend && percentage < 0 && 'border-l-red-500',
-              !accentVar && !hasTrend && 'border-l-muted',
+              // Ratio trends are not directional so they get the muted border.
+              !accentVar && hasTrend && !isRatio && percentage >= 0 && 'border-l-green-500',
+              !accentVar && hasTrend && !isRatio && percentage < 0 && 'border-l-red-500',
+              !accentVar && (!hasTrend || isRatio) && 'border-l-muted',
             )}
             style={accentBorderStyle}
           >
@@ -186,18 +190,21 @@ export function ConfigKpiRow({
               <div
                 className={cn(
                   'flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium shrink-0',
-                  // Default green/red palette only applies when no accentColor override.
-                  !accentVar && percentage >= 0 && 'bg-green-500/10 text-green-600 dark:text-green-400',
-                  !accentVar && percentage < 0 && 'bg-red-500/10 text-red-600 dark:text-red-400',
+                  // Default palette only applies when no accentColor override.
+                  // Ratio pills get a neutral muted treatment; delta pills get
+                  // the directional green/red.
+                  !accentVar && isRatio && 'bg-muted text-muted-foreground',
+                  !accentVar && !isRatio && percentage >= 0 && 'bg-green-500/10 text-green-600 dark:text-green-400',
+                  !accentVar && !isRatio && percentage < 0 && 'bg-red-500/10 text-red-600 dark:text-red-400',
                 )}
                 style={accentBadgeStyle}
               >
-                {percentage >= 0 ? (
+                {!isRatio && (percentage >= 0 ? (
                   <TrendingUp className="size-3" />
                 ) : (
                   <TrendingDown className="size-3" />
-                )}
-                {percentage >= 0 ? '+' : ''}
+                ))}
+                {!isRatio && percentage >= 0 ? '+' : ''}
                 {percentage.toFixed(1)}%
               </div>
             )}
