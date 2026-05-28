@@ -1267,6 +1267,17 @@ def _col(
     }
 
 
+# Friendly TLM-instance name → RecViz connection NAME (NOT id). The
+# ConnectionResolver cache keys on `recviz_connections.name`. Only
+# TLMP_CONSUMER has a local seed (Plan 3 Task 4 registered conn-tcosprd
+# with name="tcosprd"). Production would seed every entry from
+# TlmStatsV2Service.TLM_INSTANCE_MAP (38-50). A requested filter value
+# not in the mapping surfaces as a clear "no database mapping" error.
+TLM_INSTANCE_MAPPING: dict[str, str] = {
+    "TLMP_CONSUMER": "tcosprd",
+}
+
+
 CURATED_DATASETS: list[dict] = [
     {
         "id": "ds-recon-transactions-daily",
@@ -1741,10 +1752,188 @@ CURATED_DATASETS: list[dict] = [
         ],
         "filter_mappings": [_BASE_FILTER_MAPPINGS[5]],
     },
+    {
+        "id": "ds-tlm-automatch",
+        "name": "TLM Automatch",
+        "description": (
+            "Per-TLM-instance automatch + total-items counts grouped by "
+            "(tlm_instance, agent_code, set_id, stmt_date, bran_code, "
+            "corr_acc_no). Source-of-truth: TlmStatsV2Service.buildAutomatchQuery "
+            "(451-491). Dynamic-routed by tlm_instance filter."
+        ),
+        "database_routing": {
+            "type": "dynamic",
+            "route_by_filter": "tlm_instance",
+            "mapping": TLM_INSTANCE_MAPPING,
+        },
+        "sql_template": (
+            "SELECT "
+            "  sys_context('USERENV', 'DB_NAME') AS tlm_instance, "
+            "  b.agent_code, "
+            "  b.local_acc_no AS set_id, "
+            "  i.stmt_date, "
+            "  i.bran_code, "
+            "  b.corr_acc_no, "
+            "  SUM(CASE WHEN i.flag_2 IN (0,1,11) THEN 1 ELSE 0 END) AS total_items, "
+            "  SUM(CASE WHEN th.last_action_owner IN ('SYSTEM','system','AUTONET') "
+            "       AND i.flag_2 = 1 THEN 1 ELSE 0 END) AS automatch_items "
+            "FROM bank b, message_feed mf, item i, tlm_bdr_relationship_header th "
+            "WHERE b.corr_acc_no = mf.corr_acc_no "
+            "  AND mf.corr_acc_no = i.corr_acc_no "
+            "  AND mf.short_code = i.short_no "
+            "  AND i.relationship_id = th.relationship_id (+) "
+            "  AND mf.mlnv NOT IN ('9060','9066') "
+            "  {{filters}} "
+            "GROUP BY b.agent_code, b.local_acc_no, i.stmt_date, i.bran_code, b.corr_acc_no "
+            "ORDER BY b.agent_code, b.local_acc_no, i.stmt_date, i.bran_code, b.corr_acc_no"
+        ),
+        "columns": [
+            _col("tlm_instance", "TLM Instance", "string", "dimension"),
+            _col("agent_code", "Recon", "string", "dimension"),
+            _col("set_id", "Set ID", "string", "dimension"),
+            _col("stmt_date", "Statement Date", "date", "time"),
+            _col("bran_code", "Branch", "string", "dimension"),
+            _col("corr_acc_no", "Correspondent Acct", "string", "dimension"),
+            _col("total_items", "Total Items", "number", "measure", "SUM", "number"),
+            _col("automatch_items", "Automatch Items", "number", "measure", "SUM", "number"),
+        ],
+        "filter_mappings": [
+            # tlm_instance: consumed by the dynamic router BEFORE substitution.
+            # Listed so the frontend filter bar exposes it; `1=1` keeps the
+            # substitution loop from emitting `AND <empty>` in the SQL.
+            {"filter_id": "tlm_instance", "sql_expr": "1=1"},
+            {"filter_id": "recon",        "sql_expr": "b.agent_code IN ({{values}})"},
+            {"filter_id": "set_id",       "sql_expr": "b.local_acc_no IN ({{values}})"},
+            {
+                "filter_id": "date_range_days",
+                "sql_expr": "i.stmt_date {{date_range_clause}}",
+                "options": {"exclude_today": True},
+            },
+        ],
+    },
+    {
+        "id": "ds-tlm-breaks",
+        "name": "TLM Breaks",
+        "description": (
+            "Per-TLM-instance break counts grouped by (agent_code, set_id, "
+            "stmt_date, bran_code). Source-of-truth: "
+            "TlmStatsV2Service.buildBreaksQuery (388-448). Dynamic-routed by "
+            "tlm_instance filter."
+        ),
+        "database_routing": {
+            "type": "dynamic",
+            "route_by_filter": "tlm_instance",
+            "mapping": TLM_INSTANCE_MAPPING,
+        },
+        "sql_template": (
+            "WITH static AS ( "
+            "  SELECT "
+            "    f.mlnv, f.sub_acc_no, f.short_code, f.latest_stmt_date, "
+            "    f.latest_stmt_no, k.agent_code, k.local_acc_no, k.corr_acc_no "
+            "  FROM bank k, message_feed f "
+            "  WHERE f.corr_acc_no = k.corr_acc_no "
+            ") "
+            "SELECT "
+            "  COUNT(*) AS breaks_count, "
+            "  s.agent_code, "
+            "  s.local_acc_no AS set_id, "
+            "  i.stmt_date, "
+            "  i.bran_code "
+            "FROM item i, static s "
+            "WHERE s.corr_acc_no = i.corr_acc_no "
+            "  AND i.flag_2 = 0 "
+            "  {{filters}} "
+            "GROUP BY s.agent_code, s.local_acc_no, i.stmt_date, i.bran_code"
+        ),
+        "columns": [
+            _col("agent_code",   "Recon", "string", "dimension"),
+            _col("set_id",       "Set ID", "string", "dimension"),
+            _col("stmt_date",    "Statement Date", "date", "time"),
+            _col("bran_code",    "Branch", "string", "dimension"),
+            _col("breaks_count", "Break Count", "number", "measure", "SUM", "number"),
+        ],
+        "filter_mappings": [
+            {"filter_id": "tlm_instance", "sql_expr": "1=1"},
+            # Agent/set reference the `s.` alias (the CTE) because they're
+            # applied in the outer SELECT, not inside the CTE.
+            {"filter_id": "recon",            "sql_expr": "s.agent_code IN ({{values}})"},
+            {"filter_id": "set_id",           "sql_expr": "s.local_acc_no IN ({{values}})"},
+            {
+                "filter_id": "date_range_days",
+                "sql_expr": "i.stmt_date {{date_range_clause}}",
+                "options": {"exclude_today": True},
+            },
+        ],
+    },
+    {
+        "id": "ds-tlm-manual-match",
+        "name": "TLM Manual Match",
+        "description": (
+            "Reconmgmt manual-match counts: UNION ALL of "
+            "mr_csum_man_match_details and mr_csum_netting_hist, grouped by "
+            "(tlm_instance, agent_code, set_id, stmt_date, bran_code, "
+            "corr_acc_no). Static-routed to conn-reconmgmt. Source-of-truth: "
+            "TlmStatsV2Service.buildManualMatchQuery (547-622). Inner SELECTs "
+            "alias setid (leg 1) and local_acc_no (leg 2) to a common set_id "
+            "column so the outer {{filters}} substitution applies cleanly to "
+            "both legs and the merge_on key matches ds-tlm-automatch."
+        ),
+        "database_routing": {"type": "static", "database": "reconmgmt"},
+        "sql_template": (
+            # Per-leg COUNT(*) + GROUP BY inside each UNION leg (matches the
+            # legacy buildManualMatchQuery shape — verbatim from
+            # TlmStatsV2Service.java 568-586 and 599-617). The outer SELECT
+            # sums the two per-leg counts. Pre-aggregation inside legs keeps
+            # the UNION ALL row volume small.
+            #
+            # {{filters}} appears in BOTH legs. RecViz's _build_sql uses
+            # str.replace which substitutes ALL occurrences, so the same
+            # filter clauses get applied to both legs (verified in §12.8 spike).
+            "SELECT tlm_instance, agent_code, set_id, stmt_date, bran_code, "
+            "       corr_acc_no, SUM(manual_match_count) AS total_manual_match_count "
+            "FROM ( "
+            "  SELECT m.tlm_instance, m.agent_code, m.setid AS set_id, "
+            "         m.corr_acc_no, m.bran_code, m.stmt_date, "
+            "         COUNT(*) AS manual_match_count "
+            "  FROM mr_csum_man_match_details m "
+            "  WHERE 1=1 {{filters}} "
+            "  GROUP BY m.tlm_instance, m.agent_code, m.setid, "
+            "           m.corr_acc_no, m.bran_code, m.stmt_date "
+            "  UNION ALL "
+            "  SELECT n.tlm_instance, n.agent_code, n.local_acc_no AS set_id, "
+            "         n.corr_acc_no, n.bran_code, n.stmt_date, "
+            "         COUNT(*) AS manual_match_count "
+            "  FROM mr_csum_netting_hist n "
+            "  WHERE 1=1 {{filters}} "
+            "  GROUP BY n.tlm_instance, n.agent_code, n.local_acc_no, "
+            "           n.corr_acc_no, n.bran_code, n.stmt_date "
+            ") "
+            "GROUP BY tlm_instance, agent_code, set_id, stmt_date, bran_code, corr_acc_no"
+        ),
+        "columns": [
+            _col("tlm_instance", "TLM Instance", "string", "dimension"),
+            _col("agent_code", "Recon", "string", "dimension"),
+            _col("set_id", "Set ID", "string", "dimension"),
+            _col("stmt_date", "Statement Date", "date", "time"),
+            _col("bran_code", "Branch", "string", "dimension"),
+            _col("corr_acc_no", "Correspondent Acct", "string", "dimension"),
+            _col("total_manual_match_count", "Manual Match Count", "number", "measure", "SUM", "number"),
+        ],
+        "filter_mappings": [
+            {"filter_id": "tlm_instance",    "sql_expr": "tlm_instance = '{{value}}'"},
+            {"filter_id": "recon",           "sql_expr": "agent_code IN ({{values}})"},
+            {"filter_id": "set_id",          "sql_expr": "set_id IN ({{values}})"},
+            {
+                "filter_id": "date_range_days",
+                "sql_expr": "stmt_date {{date_range_clause}}",
+                "options": {"exclude_today": True},
+            },
+        ],
+    },
 ]
 
-assert len(CURATED_DATASETS) == 23, (
-    f"CURATED_DATASETS must have 23 entries, got {len(CURATED_DATASETS)}"
+assert len(CURATED_DATASETS) == 26, (
+    f"CURATED_DATASETS must have 26 entries, got {len(CURATED_DATASETS)}"
 )
 
 
@@ -3672,9 +3861,36 @@ def seed_connection(cur, args: argparse.Namespace) -> None:
             "active",
         ),
     )
+    # TLM dashboard integration (Plan 4): register a connection to the
+    # reconmgmt schema in the sibling rectrace-local-dev FREEPDB1 stack.
+    # RECONMGMT owns mr_csum_man_match_details + mr_csum_netting_hist
+    # which the ds-tlm-manual-match dataset reads via static routing for
+    # the cross-DB merge against the dynamic-routed ds-tlm-automatch.
+    cur.execute(
+        "INSERT INTO recviz_connections "
+        "(id, name, display_name, backend, host, port, database_name, "
+        "username, encrypted_password, schema_name, extra_params, status, "
+        "created_at, updated_at) "
+        "VALUES (:1, :2, :3, :4, :5, :6, :7, :8, :9, :10, :11, :12, "
+        "SYSTIMESTAMP, SYSTIMESTAMP)",
+        (
+            "conn-reconmgmt",
+            "reconmgmt",
+            "Reconmgmt Oracle (rectrace-local-dev)",
+            "oracle",
+            host,
+            port,
+            service,
+            "reconmgmt",
+            _encrypt_password("reconmgmt_pwd"),
+            "RECONMGMT",
+            _jb({"timeout": 30}),
+            "active",
+        ),
+    )
     print(
-        f"  recviz_connections: 3 rows "
-        f"(recviz/{schema_name}, recportal/RECPORTAL, tcosprd/TCOSPRD)"
+        f"  recviz_connections: 4 rows "
+        f"(recviz/{schema_name}, recportal/RECPORTAL, tcosprd/TCOSPRD, reconmgmt/RECONMGMT)"
     )
 
 
