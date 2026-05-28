@@ -2673,10 +2673,54 @@ CURATED_KPIS: list[dict] = [
         thresholds={"greenAbove": 30000, "amberAbove": 15000},
         subtitle="Month-over-month",
     ),
+    # ---- QuickRec embedded-dashboard KPIs (Plan 2) ----
+    # trend=None on the library KPI; the dashboard KPI cards (CURATED_DASHBOARDS
+    # below) carry explicit trend:percentage_of inline so `use-dashboard-kpis.ts`
+    # computes per-side break/auto/manual % of records (see §12.9).
+    _kpi("kpi-qr-left-records", "Left Records",
+         "Total left-side record count across the filtered QuickRec scope.",
+         "ds-qr-automatch", "left_record_count", "SUM",
+         fmt={"type": "number", "decimals": 0, "abbreviate": True, "currencyCode": None},
+         trend=None, thresholds=None, subtitle="Left totals"),
+    _kpi("kpi-qr-left-breaks", "Left Breaks",
+         "Left-side breaks; percentage of left records.",
+         "ds-qr-automatch", "left_break_count", "SUM",
+         fmt={"type": "number", "decimals": 0, "abbreviate": True, "currencyCode": None},
+         trend=None, thresholds=None, subtitle="Left totals"),
+    _kpi("kpi-qr-left-auto", "Left Auto Matches",
+         "Left-side system-matched count; percentage of left records.",
+         "ds-qr-automatch", "left_match_count", "SUM",
+         fmt={"type": "number", "decimals": 0, "abbreviate": True, "currencyCode": None},
+         trend=None, thresholds=None, subtitle="Left totals"),
+    _kpi("kpi-qr-left-manual", "Left Manual Matches",
+         "Left-side manual matches; percentage of left records.",
+         "ds-qr-manual", "left_manual_matches", "SUM",
+         fmt={"type": "number", "decimals": 0, "abbreviate": True, "currencyCode": None},
+         trend=None, thresholds=None, subtitle="Left totals"),
+    _kpi("kpi-qr-right-records", "Right Records",
+         "Total right-side record count across the filtered QuickRec scope.",
+         "ds-qr-automatch", "right_record_count", "SUM",
+         fmt={"type": "number", "decimals": 0, "abbreviate": True, "currencyCode": None},
+         trend=None, thresholds=None, subtitle="Right totals"),
+    _kpi("kpi-qr-right-breaks", "Right Breaks",
+         "Right-side breaks; percentage of right records.",
+         "ds-qr-automatch", "right_break_count", "SUM",
+         fmt={"type": "number", "decimals": 0, "abbreviate": True, "currencyCode": None},
+         trend=None, thresholds=None, subtitle="Right totals"),
+    _kpi("kpi-qr-right-auto", "Right Auto Matches",
+         "Right-side system-matched count; percentage of right records.",
+         "ds-qr-automatch", "right_match_count", "SUM",
+         fmt={"type": "number", "decimals": 0, "abbreviate": True, "currencyCode": None},
+         trend=None, thresholds=None, subtitle="Right totals"),
+    _kpi("kpi-qr-right-manual", "Right Manual Matches",
+         "Right-side manual matches; percentage of right records.",
+         "ds-qr-manual", "right_manual_matches", "SUM",
+         fmt={"type": "number", "decimals": 0, "abbreviate": True, "currencyCode": None},
+         trend=None, thresholds=None, subtitle="Right totals"),
 ]
 
-assert len(CURATED_KPIS) == 18, (
-    f"CURATED_KPIS must have 18 entries, got {len(CURATED_KPIS)}"
+assert len(CURATED_KPIS) == 26, (
+    f"CURATED_KPIS must have 26 entries, got {len(CURATED_KPIS)}"
 )
 
 
@@ -3539,10 +3583,101 @@ CURATED_DASHBOARDS: list[dict] = [
             "autoRefreshInterval": 600000,
         },
     },
+    # ---- QuickRec embedded-dashboard (Plan 2) ----
+    # No charts; two grids (auto-match + manual) under a KPI row with six explicit
+    # percentage_of trends so left/right break+auto+manual % of records computes
+    # client-side via use-dashboard-kpis.ts.
+    {
+        "id": "dash-quickrec-stats",
+        "name": "QuickRec Statistics",
+        "description": "QuickRec auto-match and manual-match statistics for the filtered recon/portal.",
+        "config": {
+            "id": "dash-quickrec-stats",
+            "name": "QuickRec Statistics",
+            "description": "QuickRec auto-match and manual-match statistics for the filtered recon/portal.",
+            "features": {"crossFilter": False, "drillDown": False},
+            "filters": [
+                {"id": "recon_id", "label": "Recon ID", "type": "single-select", "lockable": True,
+                 "optionsSource": None, "options": [], "defaultValue": None},
+                {"id": "rec_portal_id", "label": "Rec Portal ID", "type": "single-select", "lockable": True,
+                 "optionsSource": None, "options": [], "defaultValue": None},
+                {"id": "date_range_days", "label": "Date Range", "type": "preset-range", "lockable": False,
+                 "optionsSource": None,
+                 "options": [
+                     {"label": "Last 1 day", "value": 1},
+                     {"label": "Last 7 days", "value": 7},
+                     {"label": "Last 30 days", "value": 30},
+                 ],
+                 "defaultValue": 1},
+            ],
+            "kpis": [
+                {"id": "kpi-qr-left-records", "label": "Left Records", "format": "number",
+                 "sources": [{"dataSourceId": "ds-qr-automatch", "metric": "left_record_count"}],
+                 "aggregation": "SUM"},
+                {"id": "kpi-qr-left-breaks", "label": "Left Breaks", "format": "number",
+                 "sources": [{"dataSourceId": "ds-qr-automatch", "metric": "left_break_count"}],
+                 "aggregation": "SUM",
+                 "trend": {"type": "percentage_of", "referenceKpi": "kpi-qr-left-records"}},
+                {"id": "kpi-qr-left-auto", "label": "Left Auto Matches", "format": "number",
+                 "sources": [{"dataSourceId": "ds-qr-automatch", "metric": "left_match_count"}],
+                 "aggregation": "SUM",
+                 "trend": {"type": "percentage_of", "referenceKpi": "kpi-qr-left-records"}},
+                {"id": "kpi-qr-left-manual", "label": "Left Manual Matches", "format": "number",
+                 "sources": [{"dataSourceId": "ds-qr-manual", "metric": "left_manual_matches"}],
+                 "aggregation": "SUM",
+                 "trend": {"type": "percentage_of", "referenceKpi": "kpi-qr-left-records"}},
+                {"id": "kpi-qr-right-records", "label": "Right Records", "format": "number",
+                 "sources": [{"dataSourceId": "ds-qr-automatch", "metric": "right_record_count"}],
+                 "aggregation": "SUM"},
+                {"id": "kpi-qr-right-breaks", "label": "Right Breaks", "format": "number",
+                 "sources": [{"dataSourceId": "ds-qr-automatch", "metric": "right_break_count"}],
+                 "aggregation": "SUM",
+                 "trend": {"type": "percentage_of", "referenceKpi": "kpi-qr-right-records"}},
+                {"id": "kpi-qr-right-auto", "label": "Right Auto Matches", "format": "number",
+                 "sources": [{"dataSourceId": "ds-qr-automatch", "metric": "right_match_count"}],
+                 "aggregation": "SUM",
+                 "trend": {"type": "percentage_of", "referenceKpi": "kpi-qr-right-records"}},
+                {"id": "kpi-qr-right-manual", "label": "Right Manual Matches", "format": "number",
+                 "sources": [{"dataSourceId": "ds-qr-manual", "metric": "right_manual_matches"}],
+                 "aggregation": "SUM",
+                 "trend": {"type": "percentage_of", "referenceKpi": "kpi-qr-right-records"}},
+            ],
+            "charts": [],
+            "grids": [
+                {"id": "grid-qr-automatch", "title": "Auto-Match Statistics",
+                 "dataSourceId": "ds-qr-automatch",
+                 "columns": [
+                     {"field": "reconname", "header": "Recon Name", "type": "string"},
+                     {"field": "recon_id", "header": "Recon ID", "type": "string"},
+                     {"field": "rec_portal_id", "header": "Rec Portal ID", "type": "string"},
+                     {"field": "left_record_count", "header": "Left Records", "type": "number"},
+                     {"field": "right_record_count", "header": "Right Records", "type": "number"},
+                     {"field": "left_break_count", "header": "Left Breaks", "type": "number"},
+                     {"field": "right_break_count", "header": "Right Breaks", "type": "number"},
+                     {"field": "left_match_count", "header": "Left Auto", "type": "number"},
+                     {"field": "right_match_count", "header": "Right Auto", "type": "number"},
+                     {"field": "load_date", "header": "Load Date", "type": "date"},
+                 ],
+                 "layout": _layout(0, 2, 12, 4)},
+                {"id": "grid-qr-manual", "title": "Manual Match Statistics",
+                 "dataSourceId": "ds-qr-manual",
+                 "columns": [
+                     {"field": "rec_portal_id", "header": "Rec Portal ID", "type": "string"},
+                     {"field": "cob", "header": "COB", "type": "date"},
+                     {"field": "left_manual_matches", "header": "Left Manual", "type": "number"},
+                     {"field": "right_manual_matches", "header": "Right Manual", "type": "number"},
+                     {"field": "updated_date", "header": "Updated", "type": "date"},
+                 ],
+                 "layout": _layout(0, 6, 12, 4)},
+            ],
+            "layout": {"type": "flow", "sections": ["filters", "kpis", "grids"]},
+            "autoRefreshInterval": 0,
+        },
+    },
 ]
 
-assert len(CURATED_DASHBOARDS) == 10, (
-    f"CURATED_DASHBOARDS must have 10 entries, got {len(CURATED_DASHBOARDS)}"
+assert len(CURATED_DASHBOARDS) == 11, (
+    f"CURATED_DASHBOARDS must have 11 entries, got {len(CURATED_DASHBOARDS)}"
 )
 
 
