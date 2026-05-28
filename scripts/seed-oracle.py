@@ -3504,17 +3504,23 @@ def wipe_managed_tables(cur) -> None:
 
 
 def seed_managed_datasets(cur) -> None:
-    """Insert dataset rows into recviz_datasets only (data sources table excluded per D-11)."""
+    """Insert dataset rows into recviz_datasets — keeps {{filters}} so query_engine
+    can substitute them at runtime, and persists filter_mappings + database_routing
+    so ConfigStore can apply them (Plan 1, §12.10)."""
     for ds in CURATED_DATASETS:
-        managed_sql = ds["sql_template"].replace(" {{filters}}", "").replace(
-            "{{filters}}", ""
-        )
+        routing = ds.get("database_routing", {"type": "static", "database": CONNECTION_NAME})
         cur.execute(
             "INSERT INTO recviz_datasets "
             "(id, name, description, database_id, sql, columns, "
-            "schema_version, created_at, updated_at) "
-            "VALUES (:1, :2, :3, :4, :5, :6, 1, SYSTIMESTAMP, SYSTIMESTAMP)",
-            (ds["id"], ds["name"], ds["description"], CONNECTION_ID, managed_sql, _jb(ds["columns"])),
+            "filter_mappings, database_routing, schema_version, created_at, updated_at) "
+            "VALUES (:1, :2, :3, :4, :5, :6, :7, :8, 1, SYSTIMESTAMP, SYSTIMESTAMP)",
+            (
+                ds["id"], ds["name"], ds["description"], CONNECTION_ID,
+                ds["sql_template"],
+                _jb(ds["columns"]),
+                _jb(ds.get("filter_mappings", [])),
+                _jb(routing),
+            ),
         )
 
 
