@@ -56,6 +56,7 @@ from app.api.router import api_router
 from app.config import settings
 from app.db.engine import engine, session_factory
 from app.db.models.connection import RecvizConnection
+from app.middleware.framing import frame_headers_for_path
 from app.services.connection_resolver import ConnectionResolver
 from app.services.connection_status import ConnectionStatusTracker
 from app.services.encryption import EncryptionService
@@ -225,8 +226,9 @@ app.add_middleware(
 class XFrameOptionsMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):  # type: ignore[override]
         response: Response = await call_next(request)
-        # Restrict framing to same origin (internal tool)
-        response.headers["X-Frame-Options"] = "SAMEORIGIN"
+        ancestors = [o.strip() for o in settings.recviz_embed_frame_ancestors.split(",") if o.strip()]
+        for key, value in frame_headers_for_path(request.url.path, ancestors).items():
+            response.headers[key] = value
         return response
 
 
