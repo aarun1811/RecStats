@@ -11,8 +11,9 @@ import { useDataSourceQuery } from '@/hooks/use-data-source-query'
 import { useDataSourceMerge } from '@/hooks/use-data-source-merge'
 import { useFilterStore } from '@/stores/filter-store'
 import { rowPassesCrossFilters } from '@/lib/cross-filter'
+import { isVisible } from '@/lib/visibility'
 import { ApiError } from '@/lib/api-client'
-import type { GridColumn, GridConfig, KpiResult, VisibleWhen } from '@/types/dashboard-config'
+import type { GridColumn, GridConfig, KpiResult } from '@/types/dashboard-config'
 
 interface ConfigDataGridProps {
   grids: GridConfig[]
@@ -27,25 +28,6 @@ const DEFAULT_COL_DEF: ColDef = {
   filter: true,
   resizable: true,
   suppressMovable: false,
-}
-
-function isVisible(
-  visibleWhen: VisibleWhen | undefined,
-  kpiResults?: KpiResult[],
-): boolean {
-  if (!visibleWhen || !kpiResults) return true
-  const kpi = kpiResults.find((k) => k.id === visibleWhen.kpi)
-  if (!kpi) return true
-  switch (visibleWhen.condition) {
-    case 'gt':
-      return kpi.value > visibleWhen.value
-    case 'lt':
-      return kpi.value < visibleWhen.value
-    case 'eq':
-      return kpi.value === visibleWhen.value
-    default:
-      return true
-  }
 }
 
 function buildColDefs(columns: GridColumn[]): ColDef[] {

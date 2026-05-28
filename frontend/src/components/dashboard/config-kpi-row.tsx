@@ -14,6 +14,7 @@ import { ErrorPanel } from '@/components/shared/error-panel'
 import { useDashboardKpis } from '@/hooks/use-dashboard-kpis'
 import { useFilterStore } from '@/stores/filter-store'
 import { formatValueFull } from '@/lib/formatters'
+import { isVisible } from '@/lib/visibility'
 import { cn } from '@/lib/utils'
 import { ApiError } from '@/lib/api-client'
 import type { KpiConfig, KpiResult } from '@/types/dashboard-config'
@@ -108,10 +109,26 @@ export function ConfigKpiRow({
   return (
     <div className="grid grid-cols-4 gap-3">
       {kpis.map((kpi, i) => {
+        // Visibility gate — uses the same effectiveKpis used to compute the
+        // displayed value. Returns null = card unmounted. (Plan 4 §12.1)
+        if (!isVisible(kpi.visibleWhen, effectiveKpis)) return null
+
         const result = kpiResultsMap.get(kpi.id)
         const value = result?.value ?? 0
         const percentage = result?.percentage
         const hasTrend = kpi.trend !== undefined && percentage != null
+        // accentColor opt-in: a CSS variable name like '--chart-1' or
+        // '--chart-warning' that drives both the card's left border and the
+        // trend pill's tint. color-mix lets one token serve as both: text uses
+        // the full color, badge bg is a 14% tint (oklab for perceptual blend).
+        const accentVar = kpi.accentColor ? `var(${kpi.accentColor})` : undefined
+        const accentBorderStyle = accentVar ? { borderLeftColor: accentVar } : undefined
+        const accentBadgeStyle = accentVar
+          ? {
+              backgroundColor: `color-mix(in oklab, ${accentVar} 14%, transparent)`,
+              color: accentVar,
+            }
+          : undefined
         const formatOptions = buildFormatOptions(kpi)
         const fullValueTooltip = formatValueFull(value, formatOptions)
         const missingCols = partialMatchMap.get(kpi.id)
@@ -124,10 +141,12 @@ export function ConfigKpiRow({
             transition={{ type: 'spring', stiffness: 300, damping: 24, delay: i * 0.05 }}
             className={cn(
               'rounded-lg border border-l-2 bg-card px-4 py-3 flex items-center justify-between gap-3',
-              hasTrend && percentage >= 0 && 'border-l-green-500',
-              hasTrend && percentage < 0 && 'border-l-red-500',
-              !hasTrend && 'border-l-muted',
+              // Default trend-based palette only applies when no accentColor override.
+              !accentVar && hasTrend && percentage >= 0 && 'border-l-green-500',
+              !accentVar && hasTrend && percentage < 0 && 'border-l-red-500',
+              !accentVar && !hasTrend && 'border-l-muted',
             )}
+            style={accentBorderStyle}
           >
             <div className="min-w-0">
               <div className="flex items-center gap-1">
@@ -167,10 +186,11 @@ export function ConfigKpiRow({
               <div
                 className={cn(
                   'flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium shrink-0',
-                  percentage >= 0
-                    ? 'bg-green-500/10 text-green-600 dark:text-green-400'
-                    : 'bg-red-500/10 text-red-600 dark:text-red-400',
+                  // Default green/red palette only applies when no accentColor override.
+                  !accentVar && percentage >= 0 && 'bg-green-500/10 text-green-600 dark:text-green-400',
+                  !accentVar && percentage < 0 && 'bg-red-500/10 text-red-600 dark:text-red-400',
                 )}
+                style={accentBadgeStyle}
               >
                 {percentage >= 0 ? (
                   <TrendingUp className="size-3" />
