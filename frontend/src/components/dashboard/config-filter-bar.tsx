@@ -166,12 +166,16 @@ interface SingleSelectFilterProps {
 
 function SingleSelectFilter({ config, value, allValues, disabled, onChange }: SingleSelectFilterProps) {
   const hasOptionsSource = !!config.optionsSource
+  // Skip the distinct-values fetch entirely when the filter is locked: the
+  // control can't be opened, so the option list is invisible. This also
+  // avoids a 400 when the first filter in a dynamic-DB-routing cascade is
+  // locked (its options endpoint requires its own value to pick a DB).
   const { data, isLoading } = useFilterOptions(
     config.optionsSource?.dataSourceId ?? '',
     config.optionsSource?.valueColumn ?? '',
     config.optionsSource?.dependsOn ?? {},
     allValues,
-    hasOptionsSource,
+    hasOptionsSource && !disabled,
   )
 
   const options = hasOptionsSource ? (data?.values ?? []) : (config.options?.map((o) => String(o.value)) ?? [])
@@ -220,12 +224,14 @@ function MultiSelectFilter({ config, value, allValues, disabled, onChange }: Mul
   const selected = value ?? []
 
   const hasOptionsSource = !!config.optionsSource
+  // Locked filters can't be opened — skip the options fetch (mirrors the
+  // SingleSelectFilter gate above).
   const { data, isLoading } = useFilterOptions(
     config.optionsSource?.dataSourceId ?? '',
     config.optionsSource?.valueColumn ?? '',
     config.optionsSource?.dependsOn ?? {},
     allValues,
-    hasOptionsSource,
+    hasOptionsSource && !disabled,
   )
 
   const options = hasOptionsSource ? (data?.values ?? []) : (config.options?.map((o) => String(o.value)) ?? [])
