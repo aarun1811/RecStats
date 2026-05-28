@@ -5,4 +5,6 @@ from __future__ import annotations
 import os
 
 os.environ.setdefault("RECVIZ_ENCRYPTION_KEY", "test-encryption-key-do-not-use-in-prod")
-os.environ.setdefault("RECVIZ_DB_URL", "sqlite:///:memory:")
+os.environ.setdefault(
+    "RECVIZ_DB_URL", "oracle+oracledb://test:test@localhost:1521/?service_name=TEST"
+)
