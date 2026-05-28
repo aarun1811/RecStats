@@ -54,6 +54,37 @@ export function DashboardRenderer({
   const hasAutoApplied = useRef(false)
   const queryClient = useQueryClient()
 
+  // SYNCHRONOUS filter initialization (must happen BEFORE children render).
+  //
+  // Why not useEffect: the previous mount-effect initialization caused a race
+  // where children (dataset queries, filter-options queries) read the empty
+  // initial `applied` on first render and fired requests with no filters set.
+  // For dynamic-routed datasets (e.g. ds-tlm-automatch requires `tlm_instance`
+  // to pick a DB) this surfaced as 5 spurious 400s on every embed page load,
+  // followed by successful re-fires once the effect populated `applied`.
+  //
+  // Initializing during render (guarded by a per-config-id ref) ensures
+  // `applied` is populated BEFORE the first child render, eliminating the
+  // empty-filter request burst.
+  const initializedForConfigId = useRef<string | null>(null)
+  if (initializedForConfigId.current !== config.id) {
+    const defaults: Record<string, FilterValue> = {}
+    for (const filter of config.filters) {
+      if (filter.defaultValue !== undefined) {
+        defaults[filter.id] = filter.defaultValue
+      }
+    }
+    const merged = { ...defaults, ...initialFilters }
+    // Calling a store setter during render is safe in Zustand: it does not
+    // schedule a React state update on THIS component; it updates the store
+    // synchronously so the subsequent selector reads in this same render see
+    // the new value. Child components that subscribe to the same store will
+    // pick up the new value on their first render.
+    initializeFilters(merged, lockedFilters)
+    hasAutoApplied.current = false
+    initializedForConfigId.current = config.id
+  }
+
   // Auto-refresh interval state (persisted in config)
   const [autoRefreshInterval, setAutoRefreshInterval] = useState(
     config.autoRefreshInterval ?? 600_000,
@@ -89,16 +120,11 @@ export function DashboardRenderer({
     handleRefresh,
   )
 
+  // Side effects that must run on config change but cannot run during render
+  // (drill reset writes to a different store; setState would warn). These run
+  // post-commit; the synchronous filter initialization above already covered
+  // the race-prone case (children reading empty `applied` on first render).
   useEffect(() => {
-    const defaults: Record<string, FilterValue> = {}
-    for (const filter of config.filters) {
-      if (filter.defaultValue !== undefined) {
-        defaults[filter.id] = filter.defaultValue
-      }
-    }
-    const merged = { ...defaults, ...initialFilters }
-    initializeFilters(merged, lockedFilters)
-    hasAutoApplied.current = false
     resetAllDrills()
     setAutoRefreshInterval(config.autoRefreshInterval ?? 600_000)
   }, [config.id]) // eslint-disable-line react-hooks/exhaustive-deps

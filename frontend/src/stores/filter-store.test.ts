@@ -76,3 +76,58 @@ describe('filter-store crossFilters', () => {
     })
   })
 })
+
+describe('filter-store initializeFilters', () => {
+  beforeEach(() => {
+    useFilterStore.setState({
+      crossFilters: [],
+      values: {},
+      locked: new Set<string>(),
+      applied: {},
+    })
+  })
+
+  it('populates BOTH values AND applied so child queries do not fire with empty filters', () => {
+    // Regression: previously the embed page fired 5 spurious 400s because
+    // dataset queries read `applied` on first render before any subsequent
+    // applyFilters() ran. The fix requires initializeFilters to seed both
+    // sides synchronously, so any consumer that reads `applied` after init
+    // sees the URL-supplied filters.
+    useFilterStore.getState().initializeFilters({
+      tlm_instance: 'TLMP_CONSUMER',
+      recon: 'RECON-RATES-LATAM-000008',
+    })
+
+    const state = useFilterStore.getState()
+    expect(state.values.tlm_instance).toBe('TLMP_CONSUMER')
+    expect(state.values.recon).toBe('RECON-RATES-LATAM-000008')
+    expect(state.applied.tlm_instance).toBe('TLMP_CONSUMER')
+    expect(state.applied.recon).toBe('RECON-RATES-LATAM-000008')
+  })
+
+  it('filters out null/undefined values from applied (but preserves them in values for the form)', () => {
+    // The signature says Record<string, FilterValue> but in practice optional
+    // URL filters can arrive as `undefined`; the runtime guard `v != null`
+    // is the load-bearing piece for the embed-init race fix.
+    const partial = {
+      tlm_instance: 'TLMP_CONSUMER',
+      recon: undefined as unknown as string,
+    }
+    useFilterStore.getState().initializeFilters(partial)
+
+    const state = useFilterStore.getState()
+    expect(state.applied.tlm_instance).toBe('TLMP_CONSUMER')
+    expect('recon' in state.applied).toBe(false)
+  })
+
+  it('records locked filter ids in the locked Set', () => {
+    useFilterStore.getState().initializeFilters(
+      { tlm_instance: 'TLMP_CONSUMER', recon: 'X' },
+      ['tlm_instance', 'recon'],
+    )
+
+    const state = useFilterStore.getState()
+    expect(state.locked.has('tlm_instance')).toBe(true)
+    expect(state.locked.has('recon')).toBe(true)
+  })
+})
