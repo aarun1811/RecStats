@@ -3620,7 +3620,33 @@ def seed_connection(cur, args: argparse.Namespace) -> None:
             "active",
         ),
     )
-    print(f"  recviz_connections: 1 row (schema_name={schema_name})")
+    # QuickRec/TLM integration (Plan 1 Task 8): register a connection to the recportal
+    # schema in the sibling rectrace-local-dev FREEPDB1 stack. The recportal schema owns
+    # quickrec_stats_table + recportal_manual_match_table that the qr_automatch/qr_manual
+    # datasets (Plan 2) read.
+    cur.execute(
+        "INSERT INTO recviz_connections "
+        "(id, name, display_name, backend, host, port, database_name, "
+        "username, encrypted_password, schema_name, extra_params, status, "
+        "created_at, updated_at) "
+        "VALUES (:1, :2, :3, :4, :5, :6, :7, :8, :9, :10, :11, :12, "
+        "SYSTIMESTAMP, SYSTIMESTAMP)",
+        (
+            "conn-recportal",
+            "recportal",
+            "RecPortal Oracle (rectrace-local-dev)",
+            "oracle",
+            host,
+            port,
+            service,
+            "recportal",
+            _encrypt_password("recportal_pwd"),
+            "RECPORTAL",
+            _jb({"timeout": 30}),
+            "active",
+        ),
+    )
+    print(f"  recviz_connections: 2 rows (recviz/{schema_name}, recportal/RECPORTAL)")
 
 
 def write_dashboard_names_snapshot() -> None:
