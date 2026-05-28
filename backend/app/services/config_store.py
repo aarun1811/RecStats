@@ -11,6 +11,7 @@ from app.models.data_source_config import (
     ColumnDef,
     DatabaseRoutingMapping,
     DataSourceConfig,
+    FilterMapping,
 )
 
 logger = logging.getLogger(__name__)
@@ -48,15 +49,21 @@ class ConfigStore:
                     )
                 )
 
+        if dataset.database_routing:
+            routing = DatabaseRoutingMapping(**dataset.database_routing)
+        else:
+            routing = DatabaseRoutingMapping(type="static", database=connection.name)
+
+        filter_mappings = [
+            FilterMapping(**fm) for fm in (dataset.filter_mappings or [])
+        ]
+
         return DataSourceConfig(
             id=dataset.id,
             name=dataset.name,
-            database_routing=DatabaseRoutingMapping(
-                type="static",
-                database=connection.name,
-            ),
+            database_routing=routing,
             query=dataset.sql,
-            filter_mappings=[],
+            filter_mappings=filter_mappings,
             columns=columns,
         )
 
