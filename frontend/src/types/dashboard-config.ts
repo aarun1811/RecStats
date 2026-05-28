@@ -27,6 +27,15 @@ export interface KpiSource {
 export interface KpiTrend {
   type: string
   referenceKpi: string
+  /** Visual treatment for the trend badge.
+   *  - 'delta' (default): time-series-style — coloured left border (green ↑ /
+   *    red ↓), arrow icon, '+' prefix on positives. Use when the percentage
+   *    represents a CHANGE (e.g. month-over-month).
+   *  - 'ratio': neutral pill — muted background, no arrow, no '+' prefix, no
+   *    border tint. Use when the percentage is a STATIC RATIO between two
+   *    KPIs (e.g. break rate = breaks / records). Avoids implying a positive
+   *    or negative movement when no movement is being expressed. */
+  display?: 'delta' | 'ratio'
 }
 
 export interface KpiConfig {

@@ -112,6 +112,9 @@ export function ConfigKpiRow({
         const value = result?.value ?? 0
         const percentage = result?.percentage
         const hasTrend = kpi.trend !== undefined && percentage != null
+        // 'ratio' display: percentage is a static ratio, not a delta — render
+        // neutrally (no border tint, no arrow, no '+' prefix). Default is 'delta'.
+        const isRatio = kpi.trend?.display === 'ratio'
         const formatOptions = buildFormatOptions(kpi)
         const fullValueTooltip = formatValueFull(value, formatOptions)
         const missingCols = partialMatchMap.get(kpi.id)
@@ -124,9 +127,9 @@ export function ConfigKpiRow({
             transition={{ type: 'spring', stiffness: 300, damping: 24, delay: i * 0.05 }}
             className={cn(
               'rounded-lg border border-l-2 bg-card px-4 py-3 flex items-center justify-between gap-3',
-              hasTrend && percentage >= 0 && 'border-l-green-500',
-              hasTrend && percentage < 0 && 'border-l-red-500',
-              !hasTrend && 'border-l-muted',
+              hasTrend && !isRatio && percentage >= 0 && 'border-l-green-500',
+              hasTrend && !isRatio && percentage < 0 && 'border-l-red-500',
+              (!hasTrend || isRatio) && 'border-l-muted',
             )}
           >
             <div className="min-w-0">
@@ -167,17 +170,19 @@ export function ConfigKpiRow({
               <div
                 className={cn(
                   'flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium shrink-0',
-                  percentage >= 0
-                    ? 'bg-green-500/10 text-green-600 dark:text-green-400'
-                    : 'bg-red-500/10 text-red-600 dark:text-red-400',
+                  isRatio
+                    ? 'bg-muted text-muted-foreground'
+                    : percentage >= 0
+                      ? 'bg-green-500/10 text-green-600 dark:text-green-400'
+                      : 'bg-red-500/10 text-red-600 dark:text-red-400',
                 )}
               >
-                {percentage >= 0 ? (
+                {!isRatio && (percentage >= 0 ? (
                   <TrendingUp className="size-3" />
                 ) : (
                   <TrendingDown className="size-3" />
-                )}
-                {percentage >= 0 ? '+' : ''}
+                ))}
+                {!isRatio && percentage >= 0 ? '+' : ''}
                 {percentage.toFixed(1)}%
               </div>
             )}
