@@ -194,7 +194,16 @@ function SingleSelectFilter({ config, value, allValues, disabled, onChange }: Si
       disabled={disabled}
     >
       <SelectTrigger className="w-[180px]">
-        <SelectValue placeholder={isLoading ? 'Loading...' : `All ${config.label.toLowerCase()}`} />
+        {disabled && value ? (
+          // Locked filter: we skip the options fetch (see useFilterOptions
+          // gate above), so SelectValue has no matching <SelectItem> to read
+          // the label from and would render blank. Render the raw value as
+          // plain text instead — the disabled trigger can't be opened so a
+          // missing options list is fine.
+          <span className="truncate">{value}</span>
+        ) : (
+          <SelectValue placeholder={isLoading ? 'Loading...' : `All ${config.label.toLowerCase()}`} />
+        )}
       </SelectTrigger>
       <SelectContent>
         {options.map((opt) => (
