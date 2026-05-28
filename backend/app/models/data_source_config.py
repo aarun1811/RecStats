@@ -13,6 +13,11 @@ class DatabaseRoutingMapping(BaseModel):
 class FilterMapping(BaseModel):
     filter_id: str
     sql_expr: str
+    options: dict | None = None  # Per-mapping toggles (e.g. {"exclude_today": True}
+                                 # for legacy TLM date semantics). The
+                                 # RecvizDataset.filter_mappings column is
+                                 # OracleJSON, so this field is absorbed
+                                 # without a schema migration.
 
 
 class ColumnDef(BaseModel):
