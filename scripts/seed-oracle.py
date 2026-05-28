@@ -2820,10 +2820,31 @@ CURATED_KPIS: list[dict] = [
         thresholds={"greenAbove": 30000, "amberAbove": 15000},
         subtitle="Month-over-month",
     ),
+    # ---- TLM dashboard KPIs (Plan 4) ----
+    _kpi("kpi-tlm-total-items", "Total Items",
+         "Sum of items across the filtered TLM instance scope.",
+         "ds-tlm-automatch", "total_items", "SUM",
+         fmt={"type": "number", "decimals": 0, "abbreviate": True, "currencyCode": None},
+         trend=None, thresholds=None, subtitle="TLM totals"),
+    _kpi("kpi-tlm-automatch", "Automatched",
+         "System-matched items (flag_2=1 + owner in {SYSTEM,system,AUTONET}); percentage of total items.",
+         "ds-tlm-automatch", "automatch_items", "SUM",
+         fmt={"type": "number", "decimals": 0, "abbreviate": True, "currencyCode": None},
+         trend=None, thresholds=None, subtitle="TLM totals"),
+    _kpi("kpi-tlm-total-breaks", "Total Breaks",
+         "Sum of break counts (flag_2=0) across the filtered TLM instance scope.",
+         "ds-tlm-breaks", "breaks_count", "SUM",
+         fmt={"type": "number", "decimals": 0, "abbreviate": True, "currencyCode": None},
+         trend=None, thresholds=None, subtitle="TLM totals"),
+    _kpi("kpi-tlm-manual-match", "Manual Matched",
+         "Manual matches from reconmgmt; percentage of total items.",
+         "ds-tlm-manual-match", "total_manual_match_count", "SUM",
+         fmt={"type": "number", "decimals": 0, "abbreviate": True, "currencyCode": None},
+         trend=None, thresholds=None, subtitle="TLM totals"),
 ]
 
-assert len(CURATED_KPIS) == 18, (
-    f"CURATED_KPIS must have 18 entries, got {len(CURATED_KPIS)}"
+assert len(CURATED_KPIS) == 22, (
+    f"CURATED_KPIS must have 22 entries, got {len(CURATED_KPIS)}"
 )
 
 
@@ -3686,10 +3707,118 @@ CURATED_DASHBOARDS: list[dict] = [
             "autoRefreshInterval": 600000,
         },
     },
+    # ---- TLM Stats dashboard (Plan 4) ----
+    # Cross-DB merge dashboard. Filter bar: tlm_instance + recon + set_id + date_range.
+    # KPIs: total_items / automatched (with % trend) / total_breaks / manual_matched (with % trend).
+    # Grids: reconciliation (cross-DB merge of automatch + manual-match with coalesceZero)
+    # gated visibleWhen total_items > 0; breaks gated visibleWhen total_breaks > 0.
+    {
+        "id": "dash-tlm-stats",
+        "name": "TLM Statistics",
+        "description": "Per-TLM-instance reconciliation and breaks for the filtered scope.",
+        "config": {
+            "id": "dash-tlm-stats",
+            "name": "TLM Statistics",
+            "description": "Per-TLM-instance reconciliation and breaks for the filtered scope.",
+            "features": {"crossFilter": False, "drillDown": False},
+            "filters": [
+                # tlm_instance: single-select with dynamic options sourced from
+                # the automatch dataset's distinct tlm_instance values. lockable
+                # because the rectrace cell-click flow locks it.
+                {"id": "tlm_instance", "label": "TLM Instance", "type": "single-select", "lockable": True,
+                 "optionsSource": {"dataSourceId": "ds-tlm-automatch", "valueColumn": "tlm_instance", "dependsOn": {}},
+                 "options": [], "defaultValue": None},
+                # recon: multi-select with dynamic options. lockable per set_id
+                # entry-point flow (cell click on set_id locks both tlm_instance
+                # and recon).
+                {"id": "recon", "label": "Recon", "type": "multi-select", "lockable": True,
+                 "optionsSource": {"dataSourceId": "ds-tlm-automatch", "valueColumn": "agent_code", "dependsOn": {"tlm_instance": "tlm_instance"}},
+                 "options": [], "defaultValue": None},
+                # set_id: multi-select with dynamic options that cascade on recon.
+                {"id": "set_id", "label": "Set ID", "type": "multi-select", "lockable": True,
+                 "optionsSource": {"dataSourceId": "ds-tlm-automatch", "valueColumn": "set_id", "dependsOn": {"tlm_instance": "tlm_instance", "recon": "agent_code"}},
+                 "options": [], "defaultValue": None},
+                # date_range: preset-range. Defaults to 1 day per legacy Angular
+                # behavior (DateRange.ONE_DAY in TlmStatsModalV2Component).
+                {"id": "date_range_days", "label": "Date Range", "type": "preset-range", "lockable": False,
+                 "optionsSource": None,
+                 "options": [
+                     {"label": "Last 1 day", "value": 1},
+                     {"label": "Last 7 days", "value": 7},
+                     {"label": "Last 30 days", "value": 30},
+                 ],
+                 "defaultValue": 1},
+            ],
+            "kpis": [
+                # Inline KPI cards (NOT _kpi_card()). _kpi_card doesn't carry
+                # trend or accentColor -- mirror dash-quickrec-stats's inline
+                # pattern instead. accentColor: records=blue, breaks=warning,
+                # auto=positive green, manual=violet.
+                {"id": "kpi-tlm-total-items", "label": "Total Items", "format": "number",
+                 "sources": [{"dataSourceId": "ds-tlm-automatch", "metric": "total_items"}],
+                 "aggregation": "SUM",
+                 "accentColor": "--chart-1"},
+                {"id": "kpi-tlm-automatch", "label": "Automatched", "format": "number",
+                 "sources": [{"dataSourceId": "ds-tlm-automatch", "metric": "automatch_items"}],
+                 "aggregation": "SUM",
+                 "trend": {"type": "percentage_of", "referenceKpi": "kpi-tlm-total-items", "display": "ratio"},
+                 "accentColor": "--chart-positive"},
+                {"id": "kpi-tlm-total-breaks", "label": "Total Breaks", "format": "number",
+                 "sources": [{"dataSourceId": "ds-tlm-breaks", "metric": "breaks_count"}],
+                 "aggregation": "SUM",
+                 "accentColor": "--chart-warning"},
+                {"id": "kpi-tlm-manual-match", "label": "Manual Matched", "format": "number",
+                 "sources": [{"dataSourceId": "ds-tlm-manual-match", "metric": "total_manual_match_count"}],
+                 "aggregation": "SUM",
+                 "trend": {"type": "percentage_of", "referenceKpi": "kpi-tlm-total-items", "display": "ratio"},
+                 "accentColor": "--series-8"},
+            ],
+            "charts": [],
+            "grids": [
+                # Reconciliation grid: cross-DB merge of automatch x manual-match.
+                # Top-level `sources` / `mergeOn` / `mergeType` / `coalesceZero`
+                # match the GridConfig type (NOT a nested `merge: {...}`).
+                {"id": "grid-tlm-reconciliation", "title": "Reconciliation",
+                 "sources": [{"dataSourceId": "ds-tlm-automatch"}, {"dataSourceId": "ds-tlm-manual-match"}],
+                 "mergeOn": ["tlm_instance", "agent_code", "set_id", "stmt_date", "bran_code", "corr_acc_no"],
+                 "mergeType": "outer_join",
+                 "coalesceZero": True,
+                 "columns": [
+                     {"field": "tlm_instance",             "header": "TLM Instance", "type": "string"},
+                     {"field": "agent_code",               "header": "Recon", "type": "string"},
+                     {"field": "set_id",                   "header": "Set ID", "type": "string"},
+                     {"field": "stmt_date",                "header": "Statement Date", "type": "date"},
+                     {"field": "bran_code",                "header": "Branch", "type": "string"},
+                     {"field": "corr_acc_no",              "header": "Correspondent Acct", "type": "string"},
+                     {"field": "total_items",              "header": "Total Items", "type": "number"},
+                     {"field": "automatch_items",          "header": "Automatched", "type": "number"},
+                     {"field": "total_manual_match_count", "header": "Manual Match", "type": "number"},
+                 ],
+                 "visibleWhen": {"kpi": "kpi-tlm-total-items", "condition": "gt", "value": 0},
+                 "layout": _layout(0, 1, 12, 5)},
+                # Breaks grid: single-source from ds-tlm-breaks. Gated visibleWhen
+                # total_breaks > 0 -- matches legacy `dashboardSummary.total_breaks > 0`
+                # template conditional.
+                {"id": "grid-tlm-breaks", "title": "Breaks",
+                 "dataSourceId": "ds-tlm-breaks",
+                 "columns": [
+                     {"field": "agent_code",   "header": "Recon", "type": "string"},
+                     {"field": "set_id",       "header": "Set ID", "type": "string"},
+                     {"field": "stmt_date",    "header": "Statement Date", "type": "date"},
+                     {"field": "bran_code",    "header": "Branch", "type": "string"},
+                     {"field": "breaks_count", "header": "Break Count", "type": "number"},
+                 ],
+                 "visibleWhen": {"kpi": "kpi-tlm-total-breaks", "condition": "gt", "value": 0},
+                 "layout": _layout(0, 6, 12, 4)},
+            ],
+            "layout": {"type": "flow", "sections": ["filters", "kpis", "grids"]},
+            "autoRefreshInterval": 0,
+        },
+    },
 ]
 
-assert len(CURATED_DASHBOARDS) == 10, (
-    f"CURATED_DASHBOARDS must have 10 entries, got {len(CURATED_DASHBOARDS)}"
+assert len(CURATED_DASHBOARDS) == 11, (
+    f"CURATED_DASHBOARDS must have 11 entries, got {len(CURATED_DASHBOARDS)}"
 )
 
 
