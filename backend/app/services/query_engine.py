@@ -136,19 +136,23 @@ class QueryExecutor:
     ) -> str:
         sql = ds.query
 
-        # Replace {{column}} placeholder (used by filter options data sources)
-        if column and "{{column}}" in sql:
-            # Validate column against data source columns
+        # When the caller is the distinct-options endpoint, ALWAYS validate the
+        # column name against the dataset's declared columns + identifier
+        # whitelist (defense in depth) — execute_distinct relies on this guard
+        # before wrapping the column into a SELECT DISTINCT.
+        if column:
             valid_columns = {c.name for c in ds.columns}
             if column not in valid_columns:
                 raise ValueError(
                     f"Column '{column}' not in data source '{ds.id}' "
                     f"columns: {valid_columns}"
                 )
-            # Sanitize: only allow valid SQL identifier characters (defense in depth)
             if not re.match(r'^[A-Za-z_][A-Za-z0-9_]*$', column):
                 raise ValueError(f"Invalid column name: '{column}'")
-            sql = sql.replace("{{column}}", column)
+            # Substitute the optional {{column}} placeholder (filter-options
+            # datasets that pre-shape their own SELECT DISTINCT use this).
+            if "{{column}}" in sql:
+                sql = sql.replace("{{column}}", column)
 
         # Build filter clauses
         filter_clauses = []

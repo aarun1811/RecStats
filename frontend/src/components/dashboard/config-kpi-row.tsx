@@ -1,3 +1,4 @@
+// dev: trend-display-ratio v1
 import { useMemo } from 'react'
 import { motion } from 'motion/react'
 import { Info, TrendingDown, TrendingUp } from 'lucide-react'
@@ -120,10 +121,11 @@ export function ConfigKpiRow({
         // 'ratio' display: percentage is a static ratio, not a delta — render
         // neutrally (no border tint, no arrow, no '+' prefix). Default is 'delta'.
         const isRatio = kpi.trend?.display === 'ratio'
-        // accentColor opt-in: a CSS variable name like '--chart-1' or
-        // '--chart-warning' that drives both the card's left border and the
-        // trend pill's tint. color-mix lets one token serve as both: text uses
-        // the full color, badge bg is a 14% tint (oklab for perceptual blend).
+        // accentColor opt-in: a CSS variable name like '--chart-1' /
+        // '--chart-warning' / '--chart-positive' / '--series-8' that drives
+        // both the card's left border and the trend pill's tint. color-mix
+        // lets one token serve as both: text uses the full color, badge bg
+        // is a 14% tint (oklab for perceptual blend).
         const accentVar = kpi.accentColor ? `var(${kpi.accentColor})` : undefined
         const accentBorderStyle = accentVar ? { borderLeftColor: accentVar } : undefined
         const accentBadgeStyle = accentVar

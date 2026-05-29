@@ -46,9 +46,13 @@ export interface KpiConfig {
   aggregation: string
   trend?: KpiTrend
   visibleWhen?: VisibleWhen
-  /** CSS custom-property name like '--chart-1' / '--chart-warning' that drives
-   *  the KPI card's left-border tint and the trend pill's bg/text via color-mix.
-   *  When undefined, the card uses the default trend-based green/red palette. */
+  /** Optional CSS custom-property name (e.g. `--chart-positive`, `--series-8`)
+   * used as the card's accent — drives the left-border color, the trend pill
+   * background tint, and the trend pill text color. When set it overrides the
+   * default derivation (which colors the border from trend sign). Use this to
+   * give domain meaning to a card regardless of its trend semantics — e.g.
+   * "Breaks" stays amber even though its percentage_of value is positive. The
+   * token must be defined in the theme's index.css. */
   accentColor?: string
 }
 

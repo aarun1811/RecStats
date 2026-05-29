@@ -57,6 +57,18 @@ function EmbedDashboardPage() {
     }
   }, [themeParam, applyTheme])
 
+  // Embed-only: pin <html> overflow:hidden so AG-Grid's measurement utilities
+  // (ag-measurement-container, ag-aria-description-container) absolutely
+  // positioned at y > viewport don't push html.scrollHeight past the viewport
+  // and spawn a second scrollbar. Restore on unmount so the standalone app
+  // isn't affected.
+  useEffect(() => {
+    const html = document.documentElement
+    const prev = html.style.overflow
+    html.style.overflow = 'hidden'
+    return () => { html.style.overflow = prev }
+  }, [])
+
   if (isLoading) {
     return (
       <div className="h-screen flex flex-col">
@@ -78,14 +90,17 @@ function EmbedDashboardPage() {
   }
 
   return (
-    <div className="h-screen flex flex-col">
+    // overflow-hidden on the outer flex column + min-h-0 on the scrolling child
+    // keeps <html> from also overflowing — otherwise we get TWO scrollbars
+    // (the legitimate inner one + a stray viewport-level one).
+    <div className="h-screen flex flex-col overflow-hidden">
       <EmbedTopbar
         title={dashboard.name}
         dashboardId={dashboardId}
         filterParams={filterParams}
         hideTitle={hideTokens.has('title')}
       />
-      <div className="p-6 flex-1 overflow-auto space-y-6">
+      <div className="p-6 flex-1 min-h-0 overflow-auto space-y-6">
         <DashboardRenderer
           config={config}
           initialFilters={initialFilters}
