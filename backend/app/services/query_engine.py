@@ -91,16 +91,37 @@ class QueryExecutor:
             )
         return db_id
 
-    def _build_date_range_clause(self, value: int, dialect: str = "oracle") -> str:
+    def _build_date_range_clause(
+        self,
+        value: int,
+        dialect: str = "oracle",
+        *,
+        exclude_today: bool = False,
+    ) -> str:
+        """Build a SQL BETWEEN clause for a relative date range.
+
+        Default semantics (RecViz / QuickRec): inclusive of today —
+            BETWEEN SYSDATE - N AND SYSDATE
+
+        Legacy TLM semantics (``exclude_today=True``): exclusive of today —
+            BETWEEN SYSDATE - N AND SYSDATE - 1
+        Matches ``TlmStatsV2Service.getDateRangeClause`` (Java) lines 625-632.
+
+        The dataset opts in via ``FilterMapping.options.exclude_today``.
+        """
+        end = "SYSDATE - 1" if exclude_today else "SYSDATE"
+
         if dialect == "oracle":
             if value == 1:
                 return (
                     "BETWEEN TRUNC(SYSDATE) - "
                     "DECODE(TO_CHAR(SYSDATE,'D'), '1',2, '2',3, '7',1, 1) "
-                    "AND SYSDATE"
+                    f"AND {end}"
                 )
-            return f"BETWEEN SYSDATE - {value} AND SYSDATE"
+            return f"BETWEEN SYSDATE - {value} AND {end}"
         elif dialect == "sqlite":
+            # SQLite branch: dev/test only. TLM datasets are Oracle-only, so
+            # the exclude_today toggle currently has no SQLite analogue.
             return f"BETWEEN date('now', '-{value} days') AND date('now')"
         else:
             return f"BETWEEN CURRENT_DATE - INTERVAL '{value} days' AND CURRENT_DATE"
@@ -138,7 +159,11 @@ class QueryExecutor:
 
             expr = fm.sql_expr
             if "{{date_range_clause}}" in expr:
-                clause = self._build_date_range_clause(int(fval), dialect)
+                opts = fm.options or {}
+                exclude_today = bool(opts.get("exclude_today", False))
+                clause = self._build_date_range_clause(
+                    int(fval), dialect, exclude_today=exclude_today
+                )
                 expr = expr.replace("{{date_range_clause}}", clause)
             elif "{{values}}" in expr:
                 if isinstance(fval, list):
@@ -238,6 +263,19 @@ class QueryExecutor:
         connection_id = self._resolver.resolve(db_name)
         dialect = self._resolver.get_dialect(db_name)
         sql = self._build_sql(ds, filters, column=column, dialect=dialect, db_name=db_name)
+
+        # Datasets that pre-shape their own SELECT DISTINCT use the {{column}}
+        # placeholder; for general datasets (multi-column SELECTs), wrap the
+        # query so we extract DISTINCT values of the requested column.
+        # `column` is already validated against ds.columns + identifier regex
+        # by _build_sql above, so this interpolation is safe.
+        if "{{column}}" not in ds.query:
+            sql = (
+                f"SELECT DISTINCT {column} AS value "
+                f"FROM ({sql}) sub "
+                f"WHERE {column} IS NOT NULL "
+                f"ORDER BY {column}"
+            )
 
         try:
             result = session.execute(

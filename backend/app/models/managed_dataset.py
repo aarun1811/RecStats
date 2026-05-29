@@ -22,12 +22,26 @@ class ColumnMetaSchema(CamelModel):
     format_string: str = ""
 
 
+class FilterMappingSchema(CamelModel):
+    filter_id: str
+    sql_expr: str
+
+
+class DatabaseRoutingSchema(CamelModel):
+    type: str
+    database: str | None = None
+    route_by_filter: str | None = None
+    mapping: dict[str, str] | None = None
+
+
 class DatasetCreate(CamelModel):
     name: str = Field(min_length=1, max_length=256)
     description: str = Field(default="", max_length=1024)
     database_id: str
     sql: str = Field(min_length=1)
     columns: list[ColumnMetaSchema]
+    filter_mappings: list[FilterMappingSchema] = []
+    database_routing: DatabaseRoutingSchema | None = None
 
 
 class DatasetUpdate(CamelModel):
@@ -35,6 +49,8 @@ class DatasetUpdate(CamelModel):
     description: str | None = Field(default=None, max_length=1024)
     sql: str | None = Field(default=None, min_length=1)
     columns: list[ColumnMetaSchema] | None = None
+    filter_mappings: list[FilterMappingSchema] | None = None
+    database_routing: DatabaseRoutingSchema | None = None
 
 
 class DatasetResponse(CamelModel):
@@ -47,6 +63,8 @@ class DatasetResponse(CamelModel):
     schema_version: int
     created_at: datetime
     updated_at: datetime
+    filter_mappings: list[FilterMappingSchema] = []
+    database_routing: DatabaseRoutingSchema | None = None
 
     @field_serializer("created_at", "updated_at")
     def _serialize_datetime_with_utc_offset(self, dt: datetime) -> str:

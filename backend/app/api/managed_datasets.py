@@ -44,6 +44,8 @@ def _to_response(ds: RecvizDataset) -> DatasetResponse:
         schema_version=ds.schema_version,
         created_at=ds.created_at,
         updated_at=ds.updated_at,
+        filter_mappings=ds.filter_mappings or [],
+        database_routing=ds.database_routing,
     )
 
 
@@ -75,6 +77,8 @@ def create_managed_dataset(
         database_id=body.database_id,
         sql=body.sql,
         columns=[col.model_dump(by_alias=True) for col in body.columns],
+        filter_mappings=[fm.model_dump() for fm in body.filter_mappings],
+        database_routing=body.database_routing.model_dump(exclude_none=True) if body.database_routing else None,
         schema_version=1,
         created_at=now,
         updated_at=now,
@@ -122,6 +126,10 @@ def update_managed_dataset(
         dataset.sql = body.sql
     if body.columns is not None:
         dataset.columns = [col.model_dump(by_alias=True) for col in body.columns]
+    if body.filter_mappings is not None:
+        dataset.filter_mappings = [fm.model_dump() for fm in body.filter_mappings]
+    if body.database_routing is not None:
+        dataset.database_routing = body.database_routing.model_dump(exclude_none=True)
 
     return _to_response(dataset)
 

@@ -166,12 +166,16 @@ interface SingleSelectFilterProps {
 
 function SingleSelectFilter({ config, value, allValues, disabled, onChange }: SingleSelectFilterProps) {
   const hasOptionsSource = !!config.optionsSource
+  // Skip the distinct-values fetch entirely when the filter is locked: the
+  // control can't be opened, so the option list is invisible. This also
+  // avoids a 400 when the first filter in a dynamic-DB-routing cascade is
+  // locked (its options endpoint requires its own value to pick a DB).
   const { data, isLoading } = useFilterOptions(
     config.optionsSource?.dataSourceId ?? '',
     config.optionsSource?.valueColumn ?? '',
     config.optionsSource?.dependsOn ?? {},
     allValues,
-    hasOptionsSource,
+    hasOptionsSource && !disabled,
   )
 
   const options = hasOptionsSource ? (data?.values ?? []) : (config.options?.map((o) => String(o.value)) ?? [])
@@ -190,7 +194,16 @@ function SingleSelectFilter({ config, value, allValues, disabled, onChange }: Si
       disabled={disabled}
     >
       <SelectTrigger className="w-[180px]">
-        <SelectValue placeholder={isLoading ? 'Loading...' : `All ${config.label.toLowerCase()}`} />
+        {disabled && value ? (
+          // Locked filter: we skip the options fetch (see useFilterOptions
+          // gate above), so SelectValue has no matching <SelectItem> to read
+          // the label from and would render blank. Render the raw value as
+          // plain text instead — the disabled trigger can't be opened so a
+          // missing options list is fine.
+          <span className="truncate">{value}</span>
+        ) : (
+          <SelectValue placeholder={isLoading ? 'Loading...' : `All ${config.label.toLowerCase()}`} />
+        )}
       </SelectTrigger>
       <SelectContent>
         {options.map((opt) => (
@@ -220,12 +233,14 @@ function MultiSelectFilter({ config, value, allValues, disabled, onChange }: Mul
   const selected = value ?? []
 
   const hasOptionsSource = !!config.optionsSource
+  // Locked filters can't be opened — skip the options fetch (mirrors the
+  // SingleSelectFilter gate above).
   const { data, isLoading } = useFilterOptions(
     config.optionsSource?.dataSourceId ?? '',
     config.optionsSource?.valueColumn ?? '',
     config.optionsSource?.dependsOn ?? {},
     allValues,
-    hasOptionsSource,
+    hasOptionsSource && !disabled,
   )
 
   const options = hasOptionsSource ? (data?.values ?? []) : (config.options?.map((o) => String(o.value)) ?? [])

@@ -27,6 +27,15 @@ export interface KpiSource {
 export interface KpiTrend {
   type: string
   referenceKpi: string
+  /** Visual treatment for the trend badge.
+   *  - 'delta' (default): time-series-style — coloured left border (green ↑ /
+   *    red ↓), arrow icon, '+' prefix on positives. Use when the percentage
+   *    represents a CHANGE (e.g. month-over-month).
+   *  - 'ratio': neutral pill — muted background, no arrow, no '+' prefix, no
+   *    border tint. Use when the percentage is a STATIC RATIO between two
+   *    KPIs (e.g. break rate = breaks / records). Avoids implying a positive
+   *    or negative movement when no movement is being expressed. */
+  display?: 'delta' | 'ratio'
 }
 
 export interface KpiConfig {
@@ -36,6 +45,11 @@ export interface KpiConfig {
   sources: KpiSource[]
   aggregation: string
   trend?: KpiTrend
+  visibleWhen?: VisibleWhen
+  /** CSS custom-property name like '--chart-1' / '--chart-warning' that drives
+   *  the KPI card's left-border tint and the trend pill's bg/text via color-mix.
+   *  When undefined, the card uses the default trend-based green/red palette. */
+  accentColor?: string
 }
 
 export interface KpiSegment {
@@ -84,6 +98,7 @@ export interface DashboardChartConfig {
     showYLabel?: boolean
     typeSpecific?: Record<string, unknown>
   }
+  visibleWhen?: VisibleWhen
 }
 
 export interface GridColumn {
@@ -113,6 +128,10 @@ export interface GridConfig {
   visibleWhen?: VisibleWhen
   layout: ChartLayout
   crossFilterColumn?: string
+  /** When merging multiple sources, fill missing numeric cells in left-only /
+   *  right-only rows with `0` instead of leaving them absent/null. Consumed
+   *  by MergedSourceGrid → useDataSourceMerge → backend MergeRequest. */
+  coalesceZero?: boolean
 }
 
 export interface DashboardFeatures {

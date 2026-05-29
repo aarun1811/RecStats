@@ -8,5 +8,6 @@
   "dash-counterparty-risk": "Counterparty Risk",
   "dash-currency-exposure": "Currency Exposure",
   "dash-desk-performance": "Desk Performance",
-  "dash-operational-detail": "Operational Detail"
+  "dash-operational-detail": "Operational Detail",
+  "dash-tlm-stats": "TLM Statistics"
 }

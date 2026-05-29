@@ -16,6 +16,7 @@ import { useCrossFilter } from '@/hooks/use-cross-filter'
 import { useDrillDown, applyDrillFilters } from '@/hooks/use-drill-down'
 import { useFilterStore } from '@/stores/filter-store'
 import { ApiError } from '@/lib/api-client'
+import { isVisible } from '@/lib/visibility'
 import type { DashboardChartConfig, KpiResult } from '@/types/dashboard-config'
 import type { ChartClickEvent, ChartConfig, ChartDataResponse, ChartSelection, ChartRef } from '@/types/chart'
 import type { RecvizChart } from '@/types/managed-chart'
@@ -540,6 +541,9 @@ export function ConfigChartGrid({ charts, kpiResults, crossFilterEnabled, drillD
       }}
     >
       {charts.map((chart) => {
+        // Visibility gate — Plan 4 §12.1.
+        if (!isVisible(chart.visibleWhen, kpiResults)) return null
+
         if (chart.sourceType === 'kpi_values') {
           return (
             <motion.div

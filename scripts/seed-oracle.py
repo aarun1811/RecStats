@@ -1267,6 +1267,17 @@ def _col(
     }
 
 
+# Friendly TLM-instance name → RecViz connection NAME (NOT id). The
+# ConnectionResolver cache keys on `recviz_connections.name`. Only
+# TLMP_CONSUMER has a local seed (Plan 3 Task 4 registered conn-tcosprd
+# with name="tcosprd"). Production would seed every entry from
+# TlmStatsV2Service.TLM_INSTANCE_MAP (38-50). A requested filter value
+# not in the mapping surfaces as a clear "no database mapping" error.
+TLM_INSTANCE_MAPPING: dict[str, str] = {
+    "TLMP_CONSUMER": "tcosprd",
+}
+
+
 CURATED_DATASETS: list[dict] = [
     {
         "id": "ds-recon-transactions-daily",
@@ -1741,10 +1752,204 @@ CURATED_DATASETS: list[dict] = [
         ],
         "filter_mappings": [_BASE_FILTER_MAPPINGS[5]],
     },
+    {
+        "id": "ds-tlm-automatch",
+        "name": "TLM Automatch",
+        "description": (
+            "Per-TLM-instance automatch + total-items counts grouped by "
+            "(tlm_instance, agent_code, set_id, stmt_date, bran_code, "
+            "corr_acc_no). Source-of-truth: TlmStatsV2Service.buildAutomatchQuery "
+            "(451-491). Dynamic-routed by tlm_instance filter."
+        ),
+        "database_routing": {
+            "type": "dynamic",
+            "route_by_filter": "tlm_instance",
+            "mapping": TLM_INSTANCE_MAPPING,
+        },
+        "sql_template": (
+            "SELECT "
+            "  sys_context('USERENV', 'DB_NAME') AS tlm_instance, "
+            "  b.agent_code, "
+            "  b.local_acc_no AS set_id, "
+            "  i.stmt_date, "
+            "  i.bran_code, "
+            "  b.corr_acc_no, "
+            "  SUM(CASE WHEN i.flag_2 IN (0,1,11) THEN 1 ELSE 0 END) AS total_items, "
+            "  SUM(CASE WHEN th.last_action_owner IN ('SYSTEM','system','AUTONET') "
+            "       AND i.flag_2 = 1 THEN 1 ELSE 0 END) AS automatch_items "
+            "FROM bank b, message_feed mf, item i, tlm_bdr_relationship_header th "
+            "WHERE b.corr_acc_no = mf.corr_acc_no "
+            "  AND mf.corr_acc_no = i.corr_acc_no "
+            "  AND mf.short_code = i.short_no "
+            "  AND i.relationship_id = th.relationship_id (+) "
+            "  AND mf.mlnv NOT IN ('9060','9066') "
+            "  {{filters}} "
+            "GROUP BY b.agent_code, b.local_acc_no, i.stmt_date, i.bran_code, b.corr_acc_no "
+            "ORDER BY b.agent_code, b.local_acc_no, i.stmt_date, i.bran_code, b.corr_acc_no"
+        ),
+        "columns": [
+            _col("tlm_instance", "TLM Instance", "string", "dimension"),
+            _col("agent_code", "Recon", "string", "dimension"),
+            _col("set_id", "Set ID", "string", "dimension"),
+            _col("stmt_date", "Statement Date", "date", "time"),
+            _col("bran_code", "Branch", "string", "dimension"),
+            _col("corr_acc_no", "Correspondent Acct", "string", "dimension"),
+            _col("total_items", "Total Items", "number", "measure", "SUM", "number"),
+            _col("automatch_items", "Automatch Items", "number", "measure", "SUM", "number"),
+        ],
+        "filter_mappings": [
+            # tlm_instance: consumed by the dynamic router BEFORE substitution.
+            # Listed so the frontend filter bar exposes it; `1=1` keeps the
+            # substitution loop from emitting `AND <empty>` in the SQL.
+            {"filter_id": "tlm_instance", "sql_expr": "1=1"},
+            {"filter_id": "recon",        "sql_expr": "b.agent_code IN ({{values}})"},
+            {"filter_id": "set_id",       "sql_expr": "b.local_acc_no IN ({{values}})"},
+            {
+                "filter_id": "date_range_days",
+                "sql_expr": "i.stmt_date {{date_range_clause}}",
+                "options": {"exclude_today": True},
+            },
+        ],
+    },
+    {
+        "id": "ds-tlm-breaks",
+        "name": "TLM Breaks",
+        "description": (
+            "Per-TLM-instance break counts grouped by (agent_code, set_id, "
+            "stmt_date, bran_code). Source-of-truth: "
+            "TlmStatsV2Service.buildBreaksQuery (388-448). Dynamic-routed by "
+            "tlm_instance filter."
+        ),
+        "database_routing": {
+            "type": "dynamic",
+            "route_by_filter": "tlm_instance",
+            "mapping": TLM_INSTANCE_MAPPING,
+        },
+        "sql_template": (
+            "WITH static AS ( "
+            "  SELECT "
+            "    f.mlnv, f.sub_acc_no, f.short_code, f.latest_stmt_date, "
+            "    f.latest_stmt_no, k.agent_code, k.local_acc_no, k.corr_acc_no "
+            "  FROM bank k, message_feed f "
+            "  WHERE f.corr_acc_no = k.corr_acc_no "
+            ") "
+            "SELECT "
+            "  COUNT(*) AS breaks_count, "
+            "  s.agent_code, "
+            "  s.local_acc_no AS set_id, "
+            "  i.stmt_date, "
+            "  i.bran_code "
+            "FROM item i, static s "
+            "WHERE s.corr_acc_no = i.corr_acc_no "
+            "  AND i.flag_2 = 0 "
+            "  {{filters}} "
+            "GROUP BY s.agent_code, s.local_acc_no, i.stmt_date, i.bran_code"
+        ),
+        "columns": [
+            _col("agent_code",   "Recon", "string", "dimension"),
+            _col("set_id",       "Set ID", "string", "dimension"),
+            _col("stmt_date",    "Statement Date", "date", "time"),
+            _col("bran_code",    "Branch", "string", "dimension"),
+            _col("breaks_count", "Break Count", "number", "measure", "SUM", "number"),
+        ],
+        "filter_mappings": [
+            {"filter_id": "tlm_instance", "sql_expr": "1=1"},
+            # Agent/set reference the `s.` alias (the CTE) because they're
+            # applied in the outer SELECT, not inside the CTE.
+            {"filter_id": "recon",            "sql_expr": "s.agent_code IN ({{values}})"},
+            {"filter_id": "set_id",           "sql_expr": "s.local_acc_no IN ({{values}})"},
+            {
+                "filter_id": "date_range_days",
+                "sql_expr": "i.stmt_date {{date_range_clause}}",
+                "options": {"exclude_today": True},
+            },
+        ],
+    },
+    {
+        "id": "ds-tlm-manual-match",
+        "name": "TLM Manual Match",
+        "description": (
+            "Reconmgmt manual-match counts: UNION ALL of "
+            "mr_csum_man_match_details and mr_csum_netting_hist, grouped by "
+            "(tlm_instance, agent_code, set_id, stmt_date, bran_code, "
+            "corr_acc_no). Static-routed to conn-reconmgmt. Source-of-truth: "
+            "TlmStatsV2Service.buildManualMatchQuery (547-622). Inner SELECTs "
+            "alias setid (leg 1) and local_acc_no (leg 2) to a common set_id "
+            "column so the outer {{filters}} substitution applies cleanly to "
+            "both legs and the merge_on key matches ds-tlm-automatch."
+        ),
+        "database_routing": {"type": "static", "database": "reconmgmt"},
+        "sql_template": (
+            # Per-leg COUNT(*) + GROUP BY inside each UNION leg (matches the
+            # legacy buildManualMatchQuery shape from TlmStatsV2Service.java
+            # 568-586 and 599-617). The outer SELECT sums the two per-leg
+            # counts. Pre-aggregation inside legs keeps the UNION ALL row
+            # volume small.
+            #
+            # Each leg wraps the source table in a derived sub-select that
+            # PROMOTES the physical setid/local_acc_no column to the
+            # canonical `set_id` alias BEFORE the WHERE clause runs. This is
+            # required because Oracle does not allow a SELECT-list alias to
+            # be referenced from the WHERE clause of the same SELECT — and
+            # the {{filters}} substitution puts `set_id IN (...)` into the
+            # WHERE of each leg, so `set_id` must already exist as a real
+            # column at WHERE-evaluation time.
+            #
+            # {{filters}} appears in BOTH legs. RecViz's _build_sql uses
+            # str.replace which substitutes ALL occurrences, so the same
+            # filter clauses get applied to both legs (verified in §12.8
+            # spike).
+            "SELECT tlm_instance, agent_code, set_id, stmt_date, bran_code, "
+            "       corr_acc_no, SUM(manual_match_count) AS total_manual_match_count "
+            "FROM ( "
+            "  SELECT tlm_instance, agent_code, set_id, corr_acc_no, "
+            "         bran_code, stmt_date, COUNT(*) AS manual_match_count "
+            "  FROM ( "
+            "    SELECT m.tlm_instance, m.agent_code, m.setid AS set_id, "
+            "           m.corr_acc_no, m.bran_code, m.stmt_date "
+            "    FROM mr_csum_man_match_details m "
+            "  ) leg1 "
+            "  WHERE 1=1 {{filters}} "
+            "  GROUP BY tlm_instance, agent_code, set_id, corr_acc_no, "
+            "           bran_code, stmt_date "
+            "  UNION ALL "
+            "  SELECT tlm_instance, agent_code, set_id, corr_acc_no, "
+            "         bran_code, stmt_date, COUNT(*) AS manual_match_count "
+            "  FROM ( "
+            "    SELECT n.tlm_instance, n.agent_code, n.local_acc_no AS set_id, "
+            "           n.corr_acc_no, n.bran_code, n.stmt_date "
+            "    FROM mr_csum_netting_hist n "
+            "  ) leg2 "
+            "  WHERE 1=1 {{filters}} "
+            "  GROUP BY tlm_instance, agent_code, set_id, corr_acc_no, "
+            "           bran_code, stmt_date "
+            ") "
+            "GROUP BY tlm_instance, agent_code, set_id, stmt_date, bran_code, corr_acc_no"
+        ),
+        "columns": [
+            _col("tlm_instance", "TLM Instance", "string", "dimension"),
+            _col("agent_code", "Recon", "string", "dimension"),
+            _col("set_id", "Set ID", "string", "dimension"),
+            _col("stmt_date", "Statement Date", "date", "time"),
+            _col("bran_code", "Branch", "string", "dimension"),
+            _col("corr_acc_no", "Correspondent Acct", "string", "dimension"),
+            _col("total_manual_match_count", "Manual Match Count", "number", "measure", "SUM", "number"),
+        ],
+        "filter_mappings": [
+            {"filter_id": "tlm_instance",    "sql_expr": "tlm_instance = '{{value}}'"},
+            {"filter_id": "recon",           "sql_expr": "agent_code IN ({{values}})"},
+            {"filter_id": "set_id",          "sql_expr": "set_id IN ({{values}})"},
+            {
+                "filter_id": "date_range_days",
+                "sql_expr": "stmt_date {{date_range_clause}}",
+                "options": {"exclude_today": True},
+            },
+        ],
+    },
 ]
 
-assert len(CURATED_DATASETS) == 23, (
-    f"CURATED_DATASETS must have 23 entries, got {len(CURATED_DATASETS)}"
+assert len(CURATED_DATASETS) == 26, (
+    f"CURATED_DATASETS must have 26 entries, got {len(CURATED_DATASETS)}"
 )
 
 
@@ -2615,10 +2820,31 @@ CURATED_KPIS: list[dict] = [
         thresholds={"greenAbove": 30000, "amberAbove": 15000},
         subtitle="Month-over-month",
     ),
+    # ---- TLM dashboard KPIs (Plan 4) ----
+    _kpi("kpi-tlm-total-items", "Total Items",
+         "Sum of items across the filtered TLM instance scope.",
+         "ds-tlm-automatch", "total_items", "SUM",
+         fmt={"type": "number", "decimals": 0, "abbreviate": True, "currencyCode": None},
+         trend=None, thresholds=None, subtitle="TLM totals"),
+    _kpi("kpi-tlm-automatch", "Automatched",
+         "System-matched items (flag_2=1 + owner in {SYSTEM,system,AUTONET}); percentage of total items.",
+         "ds-tlm-automatch", "automatch_items", "SUM",
+         fmt={"type": "number", "decimals": 0, "abbreviate": True, "currencyCode": None},
+         trend=None, thresholds=None, subtitle="TLM totals"),
+    _kpi("kpi-tlm-total-breaks", "Total Breaks",
+         "Sum of break counts (flag_2=0) across the filtered TLM instance scope.",
+         "ds-tlm-breaks", "breaks_count", "SUM",
+         fmt={"type": "number", "decimals": 0, "abbreviate": True, "currencyCode": None},
+         trend=None, thresholds=None, subtitle="TLM totals"),
+    _kpi("kpi-tlm-manual-match", "Manual Matched",
+         "Manual matches from reconmgmt; percentage of total items.",
+         "ds-tlm-manual-match", "total_manual_match_count", "SUM",
+         fmt={"type": "number", "decimals": 0, "abbreviate": True, "currencyCode": None},
+         trend=None, thresholds=None, subtitle="TLM totals"),
 ]
 
-assert len(CURATED_KPIS) == 18, (
-    f"CURATED_KPIS must have 18 entries, got {len(CURATED_KPIS)}"
+assert len(CURATED_KPIS) == 22, (
+    f"CURATED_KPIS must have 22 entries, got {len(CURATED_KPIS)}"
 )
 
 
@@ -3481,10 +3707,186 @@ CURATED_DASHBOARDS: list[dict] = [
             "autoRefreshInterval": 600000,
         },
     },
+    # ---- TLM Stats dashboard (Plan 4) ----
+    # Cross-DB merge dashboard. Filter bar: tlm_instance + recon + set_id + date_range.
+    # KPIs: total_items / automatched (with % trend) / total_breaks / manual_matched (with % trend).
+    # Grids: reconciliation (cross-DB merge of automatch + manual-match with coalesceZero)
+    # gated visibleWhen total_items > 0; breaks gated visibleWhen total_breaks > 0.
+    {
+        "id": "dash-tlm-stats",
+        "name": "TLM Statistics",
+        "description": "Per-TLM-instance reconciliation and breaks for the filtered scope.",
+        "config": {
+            "id": "dash-tlm-stats",
+            "name": "TLM Statistics",
+            "description": "Per-TLM-instance reconciliation and breaks for the filtered scope.",
+            "features": {"crossFilter": False, "drillDown": False},
+            "filters": [
+                # tlm_instance: single-select with dynamic options sourced from
+                # the automatch dataset's distinct tlm_instance values. lockable
+                # because the rectrace cell-click flow locks it.
+                {"id": "tlm_instance", "label": "TLM Instance", "type": "single-select", "lockable": True,
+                 "optionsSource": {"dataSourceId": "ds-tlm-automatch", "valueColumn": "tlm_instance", "dependsOn": {}},
+                 "options": [], "defaultValue": None},
+                # recon: multi-select with dynamic options. lockable per set_id
+                # entry-point flow (cell click on set_id locks both tlm_instance
+                # and recon).
+                {"id": "recon", "label": "Recon", "type": "multi-select", "lockable": True,
+                 "optionsSource": {"dataSourceId": "ds-tlm-automatch", "valueColumn": "agent_code", "dependsOn": {"tlm_instance": "tlm_instance"}},
+                 "options": [], "defaultValue": None},
+                # set_id: multi-select with dynamic options that cascade on recon.
+                {"id": "set_id", "label": "Set ID", "type": "multi-select", "lockable": True,
+                 "optionsSource": {"dataSourceId": "ds-tlm-automatch", "valueColumn": "set_id", "dependsOn": {"tlm_instance": "tlm_instance", "recon": "agent_code"}},
+                 "options": [], "defaultValue": None},
+                # date_range: preset-range. Defaults to 1 day per legacy Angular
+                # behavior (DateRange.ONE_DAY in TlmStatsModalV2Component).
+                {"id": "date_range_days", "label": "Date Range", "type": "preset-range", "lockable": False,
+                 "optionsSource": None,
+                 "options": [
+                     {"label": "Last 1 day", "value": 1},
+                     {"label": "Last 7 days", "value": 7},
+                     {"label": "Last 30 days", "value": 30},
+                 ],
+                 "defaultValue": 1},
+            ],
+            "kpis": [
+                # Inline KPI cards (NOT _kpi_card()). _kpi_card doesn't carry
+                # trend or accentColor -- mirror dash-quickrec-stats's inline
+                # pattern instead. accentColor: records=blue, breaks=warning,
+                # auto=positive green, manual=violet.
+                {"id": "kpi-tlm-total-items", "label": "Total Items", "format": "number",
+                 "sources": [{"dataSourceId": "ds-tlm-automatch", "metric": "total_items"}],
+                 "aggregation": "SUM",
+                 "accentColor": "--chart-1"},
+                {"id": "kpi-tlm-automatch", "label": "Automatched", "format": "number",
+                 "sources": [{"dataSourceId": "ds-tlm-automatch", "metric": "automatch_items"}],
+                 "aggregation": "SUM",
+                 "trend": {"type": "percentage_of", "referenceKpi": "kpi-tlm-total-items", "display": "ratio"},
+                 "accentColor": "--chart-positive"},
+                {"id": "kpi-tlm-total-breaks", "label": "Total Breaks", "format": "number",
+                 "sources": [{"dataSourceId": "ds-tlm-breaks", "metric": "breaks_count"}],
+                 "aggregation": "SUM",
+                 "accentColor": "--chart-warning"},
+                {"id": "kpi-tlm-manual-match", "label": "Manual Matched", "format": "number",
+                 "sources": [{"dataSourceId": "ds-tlm-manual-match", "metric": "total_manual_match_count"}],
+                 "aggregation": "SUM",
+                 "trend": {"type": "percentage_of", "referenceKpi": "kpi-tlm-total-items", "display": "ratio"},
+                 "accentColor": "--series-8"},
+            ],
+            "charts": [
+                # Angular parity (app-tlm-pie-chart-v2): donut showing the
+                # Breaks / Automatch / Manual Match distribution. The legacy
+                # component used `type: 'pie'` with `innerRadiusRatio: 0.5`
+                # which AG Charts renders as a donut; here we use the
+                # first-class `donut` viz type (KpiValuesChartItem ->
+                # ChartFactory -> AgChartWrapper handles it).
+                #
+                # Colors:
+                #   kpiSegments[].color carries the Angular literal hex
+                #   values (#fbbc04 / #34a853 / #8e24aa) for traceability
+                #   to the legacy component. NOTE: the current renderer
+                #   does NOT consume kpiSegments[].color for slice fills --
+                #   it reads appearance.typeSpecific.seriesColor_N which
+                #   resolveColor() interprets as CSS variable names. So
+                #   actual slice fills are wired via theme tokens that
+                #   approximate the Angular palette:
+                #     #fbbc04 (amber)  -> --chart-warning
+                #     #34a853 (green)  -> --chart-positive
+                #     #8e24aa (purple) -> --series-8
+                #
+                # Gated on total_items > 0 -- same condition the Angular
+                # template used to hide the chart section when empty.
+                {
+                    "id": "chart-tlm-distribution",
+                    "title": "Match Distribution",
+                    "type": "donut",
+                    "sourceType": "kpi_values",
+                    "kpiSegments": [
+                        {"kpiId": "kpi-tlm-total-breaks", "label": "Breaks",       "color": "#fbbc04"},
+                        {"kpiId": "kpi-tlm-automatch",    "label": "Automatch",    "color": "#34a853"},
+                        {"kpiId": "kpi-tlm-manual-match", "label": "Manual Match", "color": "#8e24aa"},
+                    ],
+                    "appearance": {
+                        "showLegend": True,
+                        "legendPosition": "bottom",
+                        "typeSpecific": {
+                            "seriesColor_0": "--chart-warning",
+                            "seriesColor_1": "--chart-positive",
+                            "seriesColor_2": "--series-8",
+                            "donutInnerRadius": 0.5,
+                            "donutLabelPosition": "outside",
+                        },
+                    },
+                    # Full-width container — the donut SVG is intrinsically
+                    # centered within its container, so a width=12 span
+                    # yields a horizontally-centered donut. The original
+                    # _layout(3, 1, 6, 4) ignored the col offset under the
+                    # current flow layout and rendered left-anchored.
+                    "layout": _layout(0, 1, 12, 4),
+                    "visibleWhen": {"kpi": "kpi-tlm-total-items", "condition": "gt", "value": 0},
+                },
+            ],
+            "grids": [
+                # Reconciliation grid: cross-DB merge of automatch x manual-match.
+                # Top-level `sources` / `mergeOn` / `mergeType` / `coalesceZero`
+                # match the GridConfig type (NOT a nested `merge: {...}`).
+                # `tlm_instance` is deliberately NOT in mergeOn (and not in the
+                # column list). Reason: ds-tlm-automatch projects
+                # `sys_context('USERENV','DB_NAME')` for tlm_instance (verbatim
+                # from legacy buildAutomatchQuery). In production every TLM
+                # instance is its own Oracle DB, so sys_context returns the
+                # friendly instance name. Locally both schemas share FREEPDB1,
+                # so sys_context returns "FREEPDB1" while ds-tlm-manual-match
+                # projects the literal `tlm_instance` column from reconmgmt
+                # (e.g. "TLMP_CONSUMER"). With tlm_instance in mergeOn the two
+                # sides keyed differently and the outer_join produced two rows
+                # per business key (one all-zero on each side).
+                # Safe to drop from the key because both sides are already
+                # scoped to a single TLM instance by upstream filters:
+                # ds-tlm-automatch via dynamic DB routing on `tlm_instance`,
+                # ds-tlm-manual-match via the `tlm_instance = '{{value}}'`
+                # filter mapping. The locked filter chip in the toolbar
+                # communicates the scope to the user.
+                {"id": "grid-tlm-reconciliation", "title": "Reconciliation",
+                 "sources": [{"dataSourceId": "ds-tlm-automatch"}, {"dataSourceId": "ds-tlm-manual-match"}],
+                 "mergeOn": ["agent_code", "set_id", "stmt_date", "bran_code", "corr_acc_no"],
+                 "mergeType": "outer_join",
+                 "coalesceZero": True,
+                 "columns": [
+                     {"field": "agent_code",               "header": "Recon", "type": "string"},
+                     {"field": "set_id",                   "header": "Set ID", "type": "string"},
+                     {"field": "stmt_date",                "header": "Statement Date", "type": "date"},
+                     {"field": "bran_code",                "header": "Branch", "type": "string"},
+                     {"field": "corr_acc_no",              "header": "Correspondent Acct", "type": "string"},
+                     {"field": "total_items",              "header": "Total Items", "type": "number"},
+                     {"field": "automatch_items",          "header": "Automatched", "type": "number"},
+                     {"field": "total_manual_match_count", "header": "Manual Match", "type": "number"},
+                 ],
+                 "visibleWhen": {"kpi": "kpi-tlm-total-items", "condition": "gt", "value": 0},
+                 "layout": _layout(0, 5, 12, 5)},
+                # Breaks grid: single-source from ds-tlm-breaks. Gated visibleWhen
+                # total_breaks > 0 -- matches legacy `dashboardSummary.total_breaks > 0`
+                # template conditional.
+                {"id": "grid-tlm-breaks", "title": "Breaks",
+                 "dataSourceId": "ds-tlm-breaks",
+                 "columns": [
+                     {"field": "agent_code",   "header": "Recon", "type": "string"},
+                     {"field": "set_id",       "header": "Set ID", "type": "string"},
+                     {"field": "stmt_date",    "header": "Statement Date", "type": "date"},
+                     {"field": "bran_code",    "header": "Branch", "type": "string"},
+                     {"field": "breaks_count", "header": "Break Count", "type": "number"},
+                 ],
+                 "visibleWhen": {"kpi": "kpi-tlm-total-breaks", "condition": "gt", "value": 0},
+                 "layout": _layout(0, 10, 12, 4)},
+            ],
+            "layout": {"type": "flow", "sections": ["filters", "kpis", "charts", "grids"]},
+            "autoRefreshInterval": 0,
+        },
+    },
 ]
 
-assert len(CURATED_DASHBOARDS) == 10, (
-    f"CURATED_DASHBOARDS must have 10 entries, got {len(CURATED_DASHBOARDS)}"
+assert len(CURATED_DASHBOARDS) == 11, (
+    f"CURATED_DASHBOARDS must have 11 entries, got {len(CURATED_DASHBOARDS)}"
 )
 
 
@@ -3504,17 +3906,23 @@ def wipe_managed_tables(cur) -> None:
 
 
 def seed_managed_datasets(cur) -> None:
-    """Insert dataset rows into recviz_datasets only (data sources table excluded per D-11)."""
+    """Insert dataset rows into recviz_datasets — keeps {{filters}} so query_engine
+    can substitute them at runtime, and persists filter_mappings + database_routing
+    so ConfigStore can apply them (Plan 1, §12.10)."""
     for ds in CURATED_DATASETS:
-        managed_sql = ds["sql_template"].replace(" {{filters}}", "").replace(
-            "{{filters}}", ""
-        )
+        routing = ds.get("database_routing", {"type": "static", "database": CONNECTION_NAME})
         cur.execute(
             "INSERT INTO recviz_datasets "
             "(id, name, description, database_id, sql, columns, "
-            "schema_version, created_at, updated_at) "
-            "VALUES (:1, :2, :3, :4, :5, :6, 1, SYSTIMESTAMP, SYSTIMESTAMP)",
-            (ds["id"], ds["name"], ds["description"], CONNECTION_ID, managed_sql, _jb(ds["columns"])),
+            "filter_mappings, database_routing, schema_version, created_at, updated_at) "
+            "VALUES (:1, :2, :3, :4, :5, :6, :7, :8, 1, SYSTIMESTAMP, SYSTIMESTAMP)",
+            (
+                ds["id"], ds["name"], ds["description"], CONNECTION_ID,
+                ds["sql_template"],
+                _jb(ds["columns"]),
+                _jb(ds.get("filter_mappings", [])),
+                _jb(routing),
+            ),
         )
 
 
@@ -3614,7 +4022,89 @@ def seed_connection(cur, args: argparse.Namespace) -> None:
             "active",
         ),
     )
-    print(f"  recviz_connections: 1 row (schema_name={schema_name})")
+    # QuickRec/TLM integration (Plan 1 Task 8): register a connection to the recportal
+    # schema in the sibling rectrace-local-dev FREEPDB1 stack. The recportal schema owns
+    # quickrec_stats_table + recportal_manual_match_table that the qr_automatch/qr_manual
+    # datasets (Plan 2) read.
+    cur.execute(
+        "INSERT INTO recviz_connections "
+        "(id, name, display_name, backend, host, port, database_name, "
+        "username, encrypted_password, schema_name, extra_params, status, "
+        "created_at, updated_at) "
+        "VALUES (:1, :2, :3, :4, :5, :6, :7, :8, :9, :10, :11, :12, "
+        "SYSTIMESTAMP, SYSTIMESTAMP)",
+        (
+            "conn-recportal",
+            "recportal",
+            "RecPortal Oracle (rectrace-local-dev)",
+            "oracle",
+            host,
+            port,
+            service,
+            "recportal",
+            _encrypt_password("recportal_pwd"),
+            "RECPORTAL",
+            _jb({"timeout": 30}),
+            "active",
+        ),
+    )
+    # TLM integration (Plan 3 Task 4): register a connection to the tcosprd schema in the
+    # sibling rectrace-local-dev FREEPDB1 stack. TCOSPRD owns the TLM-instance tables
+    # (bank, message_feed, item, tlm_bdr_relationship_header) that the tlm_automatch
+    # dataset (Plan 4) reaches via dynamic database_routing: {"TLMP_CONSUMER": "conn-tcosprd"}.
+    cur.execute(
+        "INSERT INTO recviz_connections "
+        "(id, name, display_name, backend, host, port, database_name, "
+        "username, encrypted_password, schema_name, extra_params, status, "
+        "created_at, updated_at) "
+        "VALUES (:1, :2, :3, :4, :5, :6, :7, :8, :9, :10, :11, :12, "
+        "SYSTIMESTAMP, SYSTIMESTAMP)",
+        (
+            "conn-tcosprd",
+            "tcosprd",
+            "TLMP_CONSUMER (TCOSPRD)",
+            "oracle",
+            host,
+            port,
+            service,
+            "tcosprd",
+            _encrypt_password("tcosprd_pwd"),
+            "TCOSPRD",
+            _jb({"timeout": 30}),
+            "active",
+        ),
+    )
+    # TLM dashboard integration (Plan 4): register a connection to the
+    # reconmgmt schema in the sibling rectrace-local-dev FREEPDB1 stack.
+    # RECONMGMT owns mr_csum_man_match_details + mr_csum_netting_hist
+    # which the ds-tlm-manual-match dataset reads via static routing for
+    # the cross-DB merge against the dynamic-routed ds-tlm-automatch.
+    cur.execute(
+        "INSERT INTO recviz_connections "
+        "(id, name, display_name, backend, host, port, database_name, "
+        "username, encrypted_password, schema_name, extra_params, status, "
+        "created_at, updated_at) "
+        "VALUES (:1, :2, :3, :4, :5, :6, :7, :8, :9, :10, :11, :12, "
+        "SYSTIMESTAMP, SYSTIMESTAMP)",
+        (
+            "conn-reconmgmt",
+            "reconmgmt",
+            "Reconmgmt Oracle (rectrace-local-dev)",
+            "oracle",
+            host,
+            port,
+            service,
+            "reconmgmt",
+            _encrypt_password("reconmgmt_pwd"),
+            "RECONMGMT",
+            _jb({"timeout": 30}),
+            "active",
+        ),
+    )
+    print(
+        f"  recviz_connections: 4 rows "
+        f"(recviz/{schema_name}, recportal/RECPORTAL, tcosprd/TCOSPRD, reconmgmt/RECONMGMT)"
+    )
 
 
 def write_dashboard_names_snapshot() -> None:
