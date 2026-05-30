@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { AgGridReact } from 'ag-grid-react'
-import { type ColDef, type GridApi, type GridReadyEvent, themeQuartz, colorSchemeDark } from 'ag-grid-community'
+import { type ColDef, type GridApi, type GridReadyEvent } from 'ag-grid-community'
+import { gridTheme } from '@/lib/grid-theme'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -63,7 +64,6 @@ export function DrillDetailGrid({
   }, [columns])
 
   const rowData = useMemo(() => rows ?? [], [rows])
-  const gridTheme = resolvedTheme === 'dark' ? themeQuartz.withPart(colorSchemeDark) : themeQuartz
 
   const onGridReady = useCallback((event: GridReadyEvent) => {
     setGridApi(event.api)
@@ -140,7 +140,7 @@ export function DrillDetailGrid({
         </span>
       </CardHeader>
       <CardContent className="px-4 pb-4">
-        <div style={{ height: Math.min(Math.max(MIN_HEIGHT, rowData.length * 32 + 48), MAX_HEIGHT), width: '100%' }}>
+        <div style={{ height: Math.min(Math.max(MIN_HEIGHT, rowData.length * 32 + 48), MAX_HEIGHT), width: '100%' }} data-ag-theme-mode={resolvedTheme}>
           <AgGridReact
             theme={gridTheme}
             rowData={rowData}
