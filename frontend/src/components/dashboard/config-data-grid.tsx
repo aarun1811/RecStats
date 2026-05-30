@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AgGridReact } from 'ag-grid-react'
-import { type ColDef, type GridApi, type GridReadyEvent, themeQuartz, colorSchemeDark } from 'ag-grid-community'
+import { type ColDef, type GridApi, type GridReadyEvent } from 'ag-grid-community'
+import { gridTheme } from '@/lib/grid-theme'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -77,7 +78,6 @@ function SingleSourceGrid({
 
   const columnDefs = useMemo(() => buildColDefs(grid.columns), [grid.columns])
   const rowData = useMemo(() => queryResponse?.rows ?? [], [queryResponse])
-  const gridTheme = resolvedTheme === 'dark' ? themeQuartz.withPart(colorSchemeDark) : themeQuartz
 
   // Resolve cross-filter column for row-click emission
   const crossFilterField = useMemo(
@@ -143,7 +143,7 @@ function SingleSourceGrid({
           quickFilter={quickFilter}
           onQuickFilterChange={handleQuickFilter}
         />
-        <div style={{ height: 400, width: '100%' }}>
+        <div style={{ height: 400, width: '100%' }} data-ag-theme-mode={resolvedTheme}>
           <AgGridReact
             theme={gridTheme}
             rowData={rowData}
@@ -219,7 +219,6 @@ function MergedSourceGrid({
 
   const columnDefs = useMemo(() => buildColDefs(grid.columns), [grid.columns])
   const rowData = useMemo(() => queryResponse?.rows ?? [], [queryResponse])
-  const gridTheme = resolvedTheme === 'dark' ? themeQuartz.withPart(colorSchemeDark) : themeQuartz
 
   // Resolve cross-filter column for row-click emission
   const crossFilterField = useMemo(
@@ -285,7 +284,7 @@ function MergedSourceGrid({
           quickFilter={quickFilter}
           onQuickFilterChange={handleQuickFilter}
         />
-        <div style={{ height: 400, width: '100%' }}>
+        <div style={{ height: 400, width: '100%' }} data-ag-theme-mode={resolvedTheme}>
           <AgGridReact
             theme={gridTheme}
             rowData={rowData}
