@@ -77,12 +77,20 @@ def get_distinct_values(
     query_engine: QueryEngineDep,
     session: DbSessionDep,
 ):
-    # Parse filter.* query params
-    filters = {}
-    for key, val in request.query_params.items():
+    # Parse filter.* query params. Multi-select cascade dependency: the
+    # frontend uses `.append` for array filters, so a parent with 2+ selected
+    # values arrives as repeated `filter.<key>=<value>` entries. Use
+    # `multi_items()` to gather every entry, then collapse 1->string so
+    # existing single-value paths (resolve_database, build_sql) are unchanged
+    # while ≥2 entries flow through as a list (handled by the SQL builder).
+    filters: dict[str, str | list[str]] = {}
+    collected: dict[str, list[str]] = {}
+    for key, val in request.query_params.multi_items():
         if key.startswith("filter."):
             filter_id = key.replace("filter.", "")
-            filters[filter_id] = val
+            collected.setdefault(filter_id, []).append(val)
+    for filter_id, vals in collected.items():
+        filters[filter_id] = vals[0] if len(vals) == 1 else vals
 
     try:
         values = query_engine.execute_distinct(
