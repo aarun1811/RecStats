@@ -266,7 +266,11 @@ function MultiSelectFilter({ config, value, allValues, disabled, onChange }: Mul
           disabled={disabled}
           className="w-[200px] justify-between font-normal"
         >
-          {selected.length > 0 ? (
+          {/* Post-B5: locked single-selection filters showed an opaque "1 selected" badge.
+              Render the value text directly when exactly one is selected so it's legible. */}
+          {selected.length === 1 ? (
+            <span className="truncate" title={selected[0]}>{selected[0]}</span>
+          ) : selected.length > 1 ? (
             <span className="flex items-center gap-1.5">
               <Badge variant="secondary" className="px-1.5 py-0 text-xs">
                 {selected.length}
