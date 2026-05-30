@@ -75,6 +75,23 @@ export function DashboardRenderer({
       }
     }
     const merged = { ...defaults, ...initialFilters }
+    // Normalize multi-select values to arrays.
+    // `parseFilterParams` (lib/dashboard-url-state.ts) returns `string | string[]`
+    // per URL filter: comma-separated values become `string[]`, single values stay
+    // as a bare `string`. For a `multi-select`-typed filter receiving a single
+    // value (e.g. `?filter.recon=R123`), the merged value is the raw string.
+    // MultiSelectFilter renders `${selected.length} selected` and `String.length`
+    // returns the character count, producing badges like "24 selected" for a
+    // 24-char recon name. Wrap bare strings as single-element arrays here so the
+    // store is seeded with the correct shape; idempotent for already-array values.
+    for (const filter of config.filters) {
+      if (filter.type === 'multi-select') {
+        const value = merged[filter.id]
+        if (typeof value === 'string') {
+          merged[filter.id] = [value]
+        }
+      }
+    }
     // Calling a store setter during render is safe in Zustand: it does not
     // schedule a React state update on THIS component; it updates the store
     // synchronously so the subsequent selector reads in this same render see
