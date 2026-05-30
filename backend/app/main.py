@@ -232,7 +232,29 @@ class XFrameOptionsMiddleware(BaseHTTPMiddleware):
         return response
 
 
+class NoCacheHtmlMiddleware(BaseHTTPMiddleware):
+    """Force HTML responses to never be cached by the browser.
+
+    Vite produces content-hashed bundle filenames (``/assets/index-<hash>.js``)
+    that the served ``index.html`` references. On redeploy, the hash changes
+    but a cached ``index.html`` still points at the previous bundle URL --
+    the browser then 404s on the missing asset and renders blank until a hard
+    refresh. By asserting ``no-cache`` on every ``text/html`` response we make
+    HTML always revalidate, while leaving the (already content-hashed and
+    long-lived) bundle assets and JSON API responses untouched.
+    """
+
+    async def dispatch(self, request: Request, call_next):  # type: ignore[override]
+        response: Response = await call_next(request)
+        content_type = response.headers.get("content-type", "")
+        if content_type.lower().startswith("text/html"):
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+        return response
+
+
 app.add_middleware(XFrameOptionsMiddleware)
+app.add_middleware(NoCacheHtmlMiddleware)
 
 app.include_router(api_router)
 
