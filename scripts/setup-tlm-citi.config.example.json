@@ -1,0 +1,31 @@
+{
+  "_comment_": "Citi TLM dashboard setup config. Copy to scripts/citi-tlm.json (or any path you pass via --config) and fill in real values. The 'reconmgmt' block is the single central manual-match DB. Each 'tlm_instances' entry is one per-TLM-instance schema — the key (TLMP_INV, TLMP_SNPB) is the value the dashboard's tlm_instance filter will pick from.",
+
+  "reconmgmt": {
+    "host": "<CITI_RECONMGMT_HOST>",
+    "port": 1521,
+    "service_name": "<CITI_RECONMGMT_SERVICE>",
+    "username": "<CITI_RECONMGMT_USER>",
+    "password": "<CITI_RECONMGMT_PASSWORD>",
+    "schema_name": "<CITI_RECONMGMT_SCHEMA_OPTIONAL>"
+  },
+
+  "tlm_instances": {
+    "TLMP_INV": {
+      "host": "<CITI_TLMP_INV_HOST>",
+      "port": 1521,
+      "service_name": "<CITI_TLMP_INV_SERVICE>",
+      "username": "<CITI_TLMP_INV_USER>",
+      "password": "<CITI_TLMP_INV_PASSWORD>",
+      "schema_name": "<CITI_TLMP_INV_SCHEMA_OPTIONAL>"
+    },
+    "TLMP_SNPB": {
+      "host": "<CITI_TLMP_SNPB_HOST>",
+      "port": 1521,
+      "service_name": "<CITI_TLMP_SNPB_SERVICE>",
+      "username": "<CITI_TLMP_SNPB_USER>",
+      "password": "<CITI_TLMP_SNPB_PASSWORD>",
+      "schema_name": "<CITI_TLMP_SNPB_SCHEMA_OPTIONAL>"
+    }
+  }
+}
