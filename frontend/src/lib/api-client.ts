@@ -1,4 +1,8 @@
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
+// Default to empty string (relative paths) so the bundle works from any host
+// when the backend serves the frontend same-origin. Override via
+// VITE_API_BASE_URL=http://localhost:8000 at build time only if you're running
+// the Vite dev server (5173) cross-origin to uvicorn (8000) during local dev.
+const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 
 function tryParseJson(text: string): unknown {
   try {
