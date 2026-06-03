@@ -2,7 +2,7 @@
 """Citi-environment setup for the dash-tlm-stats dashboard.
 
 Creates 3 RecViz connections (1 reconmgmt + N per-TLM-instance), 3 datasets
-(automatch, breaks, manual-match), and the dash-tlm-stats dashboard — all
+(automatch, breaks, manual-match), and the dash-tlm-stats dashboard -- all
 with the explicit IDs the rectrace cell-click embed URL hardcodes
 (`dash-tlm-stats`, `ds-tlm-automatch`, `ds-tlm-breaks`, `ds-tlm-manual-match`).
 
@@ -14,7 +14,7 @@ rectrace-side code change to look up dashboards by name. Direct SQL keeps
 this isolated to the RecViz side.
 
 Fail-fast contract: ANY error in the pre-flight phase aborts before any
-write. Writes themselves are wrapped in a single transaction — if the
+write. Writes themselves are wrapped in a single transaction -- if the
 dashboard insert fails after the connections + datasets have been
 inserted, the whole transaction rolls back.
 
@@ -26,7 +26,7 @@ The config file shape is documented in scripts/setup-tlm-citi.config.example.jso
 
 Requires the following env vars (typically loaded from .env):
     RECVIZ_DB_URL          # SQLAlchemy URL for the RecViz catalog DB
-    RECVIZ_ENCRYPTION_KEY  # Fernet key — must match the running RecViz server
+    RECVIZ_ENCRYPTION_KEY  # Fernet key -- must match the running RecViz server
     ORACLE_CLIENT_LIB_DIR  # Oracle Instant Client path (thick mode)
 """
 from __future__ import annotations
@@ -66,9 +66,9 @@ logging.basicConfig(
 logger = logging.getLogger("setup-tlm-citi")
 
 
-# ───────────────────────────────────────────────────────────────────────────────
-# Constants — IDs that must match the rectrace embed URL + dashboard config
-# ───────────────────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------------------
+# Constants -- IDs that must match the rectrace embed URL + dashboard config
+# -------------------------------------------------------------------------------
 
 DASHBOARD_ID = "dash-tlm-stats"
 DS_AUTOMATCH_ID = "ds-tlm-automatch"
@@ -81,9 +81,9 @@ TLM_PER_INSTANCE_TABLES = ["BANK", "MESSAGE_FEED", "ITEM", "TLM_BDR_RELATIONSHIP
 RECONMGMT_TABLES = ["MR_CSUM_MAN_MATCH_DETAILS", "MR_CSUM_NETTING_HIST"]
 
 
-# ───────────────────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------------------
 # Config dataclasses
-# ───────────────────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------------------
 
 
 DEFAULT_PASSWORD_SCRIPT_PATH = "/opt/rectify/control/scripts/get_password.sh"
@@ -113,7 +113,7 @@ class CitiConnection:
         """Return the resolved password. Raises if resolve_passwords() wasn't called."""
         if self.resolved_password is None:
             raise RuntimeError(
-                f"Password for '{self.label}' not yet resolved — "
+                f"Password for '{self.label}' not yet resolved -- "
                 "call resolve_passwords(plan) before using the connection."
             )
         return self.resolved_password
@@ -133,7 +133,7 @@ class Plan:
 
     @property
     def tlm_instance_mapping(self) -> dict[str, str]:
-        """TLM_INSTANCE_MAPPING for dynamic routing — maps tlm_instance values
+        """TLM_INSTANCE_MAPPING for dynamic routing -- maps tlm_instance values
         (the labels in the filter) to RecViz connection names."""
         return {label: conn.name for label, conn in self.tlm_instances.items()}
 
@@ -142,10 +142,10 @@ class Plan:
         return [self.reconmgmt] + list(self.tlm_instances.values())
 
 
-# ───────────────────────────────────────────────────────────────────────────────
-# Dataset configs — embedded as Python literals so they match the seed-oracle.py
+# -------------------------------------------------------------------------------
+# Dataset configs -- embedded as Python literals so they match the seed-oracle.py
 # source-of-truth verbatim. mapping populated at apply-time from the Plan.
-# ───────────────────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------------------
 
 
 def _col(name, display, dtype, role, agg="NONE", fp="none", fs=""):
@@ -161,7 +161,7 @@ def _col(name, display, dtype, role, agg="NONE", fp="none", fs=""):
 
 
 def build_dataset_automatch(default_database_id: str, mapping: dict[str, str]) -> dict:
-    """ds-tlm-automatch — dynamic-routed by tlm_instance filter."""
+    """ds-tlm-automatch -- dynamic-routed by tlm_instance filter."""
     return {
         "id": DS_AUTOMATCH_ID,
         "name": "TLM Automatch",
@@ -221,7 +221,7 @@ def build_dataset_automatch(default_database_id: str, mapping: dict[str, str]) -
 
 
 def build_dataset_breaks(default_database_id: str, mapping: dict[str, str]) -> dict:
-    """ds-tlm-breaks — dynamic-routed by tlm_instance filter."""
+    """ds-tlm-breaks -- dynamic-routed by tlm_instance filter."""
     return {
         "id": DS_BREAKS_ID,
         "name": "TLM Breaks",
@@ -276,7 +276,7 @@ def build_dataset_breaks(default_database_id: str, mapping: dict[str, str]) -> d
 
 
 def build_dataset_manual_match(database_id: str) -> dict:
-    """ds-tlm-manual-match — static-routed to the `reconmgmt` connection."""
+    """ds-tlm-manual-match -- static-routed to the `reconmgmt` connection."""
     return {
         "id": DS_MANUAL_MATCH_ID,
         "name": "TLM Manual Match",
@@ -338,10 +338,10 @@ def build_dataset_manual_match(database_id: str) -> dict:
     }
 
 
-# ───────────────────────────────────────────────────────────────────────────────
-# Dashboard config — the dash-tlm-stats payload that goes into
+# -------------------------------------------------------------------------------
+# Dashboard config -- the dash-tlm-stats payload that goes into
 # recviz_dashboards.config (JSON column).
-# ───────────────────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------------------
 
 
 def _layout(col, row, w, h):
@@ -452,9 +452,9 @@ DASHBOARD_CONFIG = {
 }
 
 
-# ───────────────────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------------------
 # Config loading
-# ───────────────────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------------------
 
 
 def load_config(path: Path) -> Plan:
@@ -465,7 +465,7 @@ def load_config(path: Path) -> Plan:
 
     def _conn(label: str, block: dict) -> CitiConnection:
         # Required: host, service_name, username, schema_name.
-        # Password is OPTIONAL — if absent, fetched via the password script.
+        # Password is OPTIONAL -- if absent, fetched via the password script.
         missing = [k for k in ("host", "service_name", "username") if not block.get(k)]
         if missing:
             raise ValueError(f"Connection '{label}' missing required fields: {missing}")
@@ -502,9 +502,9 @@ def load_config(path: Path) -> Plan:
     )
 
 
-# ───────────────────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------------------
 # Pre-flight verification
-# ───────────────────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------------------
 
 
 def fetch_password_via_script(script_path: str, service_name: str, db_schema: str) -> str:
@@ -538,7 +538,7 @@ def fetch_password_via_script(script_path: str, service_name: str, db_schema: st
     except subprocess.TimeoutExpired as exc:
         raise RuntimeError(f"Password script '{script_path}' timed out after 30s") from exc
     if result.returncode != 0:
-        # Don't echo stdout (might leak a partial password) — only stderr.
+        # Don't echo stdout (might leak a partial password) -- only stderr.
         raise RuntimeError(
             f"Password script '{script_path}' exited {result.returncode}. "
             f"stderr: {result.stderr.strip() or '<empty>'}"
@@ -571,7 +571,7 @@ def resolve_passwords(plan: Plan) -> None:
     for conn in plan.all_connections:
         if conn.password_literal:
             conn.resolved_password = conn.password_literal
-            logger.info("  ✓ %s: using literal from JSON config", conn.label)
+            logger.info("  OK %s: using literal from JSON config", conn.label)
         else:
             try:
                 conn.resolved_password = fetch_password_via_script(
@@ -585,7 +585,7 @@ def resolve_passwords(plan: Plan) -> None:
                     f"(service={conn.service_name}, schema={conn.schema_name}): {exc}"
                 ) from exc
             logger.info(
-                "  ✓ %s: fetched via script (%s %s)",
+                "  OK %s: fetched via script (%s %s)",
                 conn.label,
                 conn.service_name.upper(),
                 conn.schema_name.upper(),
@@ -593,13 +593,13 @@ def resolve_passwords(plan: Plan) -> None:
 
 
 def init_oracle_thick(client_lib_dir: str) -> None:
-    """Initialize Oracle thick mode — required by python-oracledb for TLS / wallet."""
+    """Initialize Oracle thick mode -- required by python-oracledb for TLS / wallet."""
     try:
         oracledb.init_oracle_client(lib_dir=client_lib_dir)
         logger.info("Oracle thick mode initialized (lib_dir=%s)", client_lib_dir)
     except Exception as exc:
         if "already initialized" in str(exc).lower() or "DPI-1072" in str(exc):
-            logger.debug("Oracle client already initialized — skipping")
+            logger.debug("Oracle client already initialized -- skipping")
             return
         raise
 
@@ -611,7 +611,7 @@ def verify_recviz_db(url: str) -> Engine:
     with engine.connect() as conn:
         result = conn.execute(text("SELECT 1 FROM dual"))
         result.scalar()
-    logger.info("  ✓ RecViz catalog DB reachable")
+    logger.info("  OK RecViz catalog DB reachable")
     # Verify the recviz_* tables exist
     expected_tables = {"RECVIZ_CONNECTIONS", "RECVIZ_DATASETS", "RECVIZ_DASHBOARDS"}
     with engine.connect() as conn:
@@ -626,7 +626,7 @@ def verify_recviz_db(url: str) -> Engine:
                 f"RecViz catalog tables missing: {missing}. "
                 "Run alembic migrations or ask your DBA to create the schema."
             )
-    logger.info("  ✓ recviz_connections / recviz_datasets / recviz_dashboards present")
+    logger.info("  OK recviz_connections / recviz_datasets / recviz_dashboards present")
     return engine
 
 
@@ -637,7 +637,7 @@ def verify_citi_connection(conn: CitiConnection, expected_tables: list[str]) -> 
         engine = create_engine(conn.sqlalchemy_url(), pool_pre_ping=False, pool_size=1, max_overflow=0)
         with engine.connect() as c:
             c.execute(text("SELECT 1 FROM dual")).scalar()
-        logger.info("    ✓ %s reachable", conn.label)
+        logger.info("    OK %s reachable", conn.label)
     except SQLAlchemyError as exc:
         raise RuntimeError(f"Cannot connect to '{conn.label}': {exc}") from exc
 
@@ -660,14 +660,14 @@ def verify_citi_connection(conn: CitiConnection, expected_tables: list[str]) -> 
             f"(found {sorted(found)}). Username '{conn.username}' may lack SELECT "
             "privileges or the tables live in a different schema."
         )
-    logger.info("    ✓ expected tables present: %s", ", ".join(sorted(found)))
+    logger.info("    OK expected tables present: %s", ", ".join(sorted(found)))
     engine.dispose()
 
 
 def check_recviz_collisions(engine: Engine, plan: Plan) -> dict[str, str]:
     """Return existing rows that would conflict.
 
-    Surfaces — but does not abort on — existing rows. The user passes
+    Surfaces -- but does not abort on -- existing rows. The user passes
     --skip-existing OR --overwrite to choose behavior; abort is the default
     when collisions exist.
     """
@@ -699,9 +699,9 @@ def check_recviz_collisions(engine: Engine, plan: Plan) -> dict[str, str]:
     return collisions
 
 
-# ───────────────────────────────────────────────────────────────────────────────
-# Apply phase — direct SQL INSERTs wrapped in a single transaction
-# ───────────────────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------------------
+# Apply phase -- direct SQL INSERTs wrapped in a single transaction
+# -------------------------------------------------------------------------------
 
 
 def encrypt_password(password: str, fernet_key: str) -> bytes:
@@ -715,7 +715,7 @@ def apply_plan(engine: Engine, plan: Plan, fernet_key: str, *, overwrite: bool) 
     now = datetime.now(timezone.utc)
 
     with engine.begin() as conn:  # transaction; commits on success, rolls back on exception
-        # ── Connections ───────────────────────────────────────────────────────
+        # -- Connections -------------------------------------------------------
         for citi_conn in plan.all_connections:
             conn_id = str(uuid.uuid4())
             encrypted = encrypt_password(citi_conn.password, fernet_key)
@@ -749,11 +749,11 @@ def apply_plan(engine: Engine, plan: Plan, fernet_key: str, *, overwrite: bool) 
                     "updated": now,
                 },
             )
-            logger.info("  ✓ INSERT recviz_connections name=%s id=%s", citi_conn.name, conn_id)
+            logger.info("  OK INSERT recviz_connections name=%s id=%s", citi_conn.name, conn_id)
             # Cache the generated ID so datasets can FK to it
             citi_conn.__dict__["_id"] = conn_id  # transient
 
-        # ── Datasets ──────────────────────────────────────────────────────────
+        # -- Datasets ----------------------------------------------------------
         # Pick the first TLM connection ID as the "default" database_id for the
         # dynamic-routed datasets. Dynamic routing overrides this at query time.
         first_tlm_id = next(iter(plan.tlm_instances.values())).__dict__["_id"]
@@ -791,9 +791,9 @@ def apply_plan(engine: Engine, plan: Plan, fernet_key: str, *, overwrite: bool) 
                     "updated": now,
                 },
             )
-            logger.info("  ✓ INSERT recviz_datasets id=%s name='%s'", ds["id"], ds["name"])
+            logger.info("  OK INSERT recviz_datasets id=%s name='%s'", ds["id"], ds["name"])
 
-        # ── Dashboard ─────────────────────────────────────────────────────────
+        # -- Dashboard ---------------------------------------------------------
         if overwrite:
             conn.execute(
                 text("DELETE FROM recviz_dashboards WHERE id = :i"),
@@ -815,12 +815,12 @@ def apply_plan(engine: Engine, plan: Plan, fernet_key: str, *, overwrite: bool) 
                 "updated": now,
             },
         )
-        logger.info("  ✓ INSERT recviz_dashboards id=%s name='%s'", DASHBOARD_ID, DASHBOARD_CONFIG["name"])
+        logger.info("  OK INSERT recviz_dashboards id=%s name='%s'", DASHBOARD_ID, DASHBOARD_CONFIG["name"])
 
 
-# ───────────────────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------------------
 # Main
-# ───────────────────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------------------
 
 
 def main() -> int:
@@ -833,7 +833,7 @@ def main() -> int:
     parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt")
     args = parser.parse_args()
 
-    # ── Required env vars ─────────────────────────────────────────────────────
+    # -- Required env vars -----------------------------------------------------
     recviz_db_url = os.environ.get("RECVIZ_DB_URL")
     fernet_key = os.environ.get("RECVIZ_ENCRYPTION_KEY")
     oracle_lib = os.environ.get("ORACLE_CLIENT_LIB_DIR")
@@ -863,12 +863,12 @@ def main() -> int:
     logger.info("  TLM_INSTANCE_MAPPING: %s", plan.tlm_instance_mapping)
     logger.info("=" * 72)
 
-    # ── Phase 1: pre-flight ───────────────────────────────────────────────────
+    # -- Phase 1: pre-flight ---------------------------------------------------
     logger.info("Phase 1: pre-flight verification (no writes)")
     init_oracle_thick(oracle_lib)
 
     # Phase 1a: resolve every password BEFORE attempting Oracle connects.
-    # Mirrors tlm-stats DatabaseConfig — literal in config wins; otherwise
+    # Mirrors tlm-stats DatabaseConfig -- literal in config wins; otherwise
     # call the password script with (SERVICE_NAME_UPPER, DB_SCHEMA_UPPER).
     try:
         resolve_passwords(plan)
@@ -901,15 +901,15 @@ def main() -> int:
                 "manually or rerun with --overwrite."
             )
             return 4
-        logger.warning("--overwrite specified — will DELETE these rows before insert.")
+        logger.warning("--overwrite specified -- will DELETE these rows before insert.")
     else:
-        logger.info("  ✓ no existing-row collisions")
+        logger.info("  OK no existing-row collisions")
 
     if args.dry_run:
         logger.info("Pre-flight passed. --dry-run set; skipping writes. Done.")
         return 0
 
-    # ── Phase 2: confirmation ─────────────────────────────────────────────────
+    # -- Phase 2: confirmation -------------------------------------------------
     if not args.yes:
         sys.stdout.write(
             f"\nAbout to insert {len(plan.all_connections)} connections, 3 datasets, "
@@ -921,8 +921,8 @@ def main() -> int:
             logger.error("Aborted by user (response='%s', expected 'yes').", resp)
             return 5
 
-    # ── Phase 3: apply ────────────────────────────────────────────────────────
-    logger.info("Phase 3: applying changes (single transaction — rolls back on any error)")
+    # -- Phase 3: apply --------------------------------------------------------
+    logger.info("Phase 3: applying changes (single transaction -- rolls back on any error)")
     try:
         apply_plan(recviz_engine, plan, fernet_key, overwrite=args.overwrite)
     except SQLAlchemyError as exc:
@@ -931,9 +931,9 @@ def main() -> int:
 
     logger.info("=" * 72)
     logger.info("Done. Verify:")
-    logger.info("  • Open http://localhost:8000/dashboards in RecViz UI — dash-tlm-stats should appear")
-    logger.info("  • From rectrace, search for a recon with one of the seeded TLM instances")
-    logger.info("    (%s) and click a recon cell → modal embeds dash-tlm-stats", ", ".join(plan.tlm_instances))
+    logger.info("  * Open http://localhost:8000/dashboards in RecViz UI -- dash-tlm-stats should appear")
+    logger.info("  * From rectrace, search for a recon with one of the seeded TLM instances")
+    logger.info("    (%s) and click a recon cell -> modal embeds dash-tlm-stats", ", ".join(plan.tlm_instances))
     return 0
 
 

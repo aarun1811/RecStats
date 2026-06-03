@@ -1,7 +1,7 @@
 {
-  "_comment_": "Citi TLM dashboard setup config. Copy to scripts/citi-tlm.json (or any path you pass via --config) and fill in real values. The 'reconmgmt' block is the single central manual-match DB. Each 'tlm_instances' entry is one per-TLM-instance schema — the key (TLMP_INV, TLMP_SNPB) is the value the dashboard's tlm_instance filter will pick from.",
+  "_comment_": "Citi TLM dashboard setup config. Copy to scripts/citi-tlm.json (or any path you pass via --config) and fill in real values. The 'reconmgmt' block is the single central manual-match DB. Each 'tlm_instances' entry is one per-TLM-instance schema -- the key (TLMP_INV, TLMP_SNPB) is the value the dashboard's tlm_instance filter will pick from.",
 
-  "_password_handling_": "Passwords mirror tlm-stats DatabaseConfig: either set 'password' explicitly per connection (local override, like the local Spring profile), OR omit it and the script fetches via password_script_path (Citi VM pattern — runs <script> <SERVICE_NAME_UPPER> <DB_SCHEMA_UPPER>). Default script path is /opt/rectify/control/scripts/get_password.sh, matching tlm-stats. Override globally with the top-level password_script_path field.",
+  "_password_handling_": "Passwords mirror tlm-stats DatabaseConfig: either set 'password' explicitly per connection (local override, like the local Spring profile), OR omit it and the script fetches via password_script_path (Citi VM pattern -- runs <script> <SERVICE_NAME_UPPER> <DB_SCHEMA_UPPER>). Default script path is /opt/rectify/control/scripts/get_password.sh, matching tlm-stats. Override globally with the top-level password_script_path field.",
 
   "password_script_path": "/opt/rectify/control/scripts/get_password.sh",
 
