@@ -704,10 +704,15 @@ def check_recviz_collisions(engine: Engine, plan: Plan) -> dict[str, str]:
 # -------------------------------------------------------------------------------
 
 
-def encrypt_password(password: str, fernet_key: str) -> bytes:
-    """Match the EncryptionService.encrypt convention used by app/api/databases.py."""
+def encrypt_password(password: str, fernet_key: str) -> str:
+    """Match the EncryptionService.encrypt convention used by app/api/databases.py
+    EXACTLY. Returns a URL-safe base64 string (NOT bytes). The
+    encrypted_password column is Text/CLOB on Oracle -- binding bytes there
+    would round-trip as the literal Python repr "b'gAAA...'" which Fernet
+    can't decrypt at uvicorn read-time. Mirror the API: encode plaintext,
+    encrypt, decode the resulting token to a str."""
     fernet = Fernet(fernet_key.encode() if isinstance(fernet_key, str) else fernet_key)
-    return fernet.encrypt(password.encode())
+    return fernet.encrypt(password.encode()).decode()
 
 
 def apply_plan(engine: Engine, plan: Plan, fernet_key: str, *, overwrite: bool) -> None:
