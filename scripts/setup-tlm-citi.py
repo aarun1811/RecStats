@@ -35,9 +35,10 @@ import argparse
 import json
 import logging
 import os
+import subprocess
 import sys
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -85,6 +86,9 @@ RECONMGMT_TABLES = ["MR_CSUM_MAN_MATCH_DETAILS", "MR_CSUM_NETTING_HIST"]
 # ───────────────────────────────────────────────────────────────────────────────
 
 
+DEFAULT_PASSWORD_SCRIPT_PATH = "/opt/rectify/control/scripts/get_password.sh"
+
+
 @dataclass
 class CitiConnection:
     label: str  # e.g. "reconmgmt", "TLMP_INV"
@@ -95,7 +99,24 @@ class CitiConnection:
     service_name: str
     schema_name: str
     username: str
-    password: str
+    # Password is RESOLVED, not necessarily literal. If the JSON config sets
+    # "password", use that verbatim (local override). If not, call the
+    # password script at apply time using SERVICE_NAME.upper() +
+    # SCHEMA_NAME.upper() as args, mirroring tlm-stats ScriptExecutor
+    # (rectrace-tlm-stats/.../util/ScriptExecutor.java + DatabaseConfig.java).
+    password_literal: str | None = None
+    # Populated by resolve_passwords() before any Oracle connection attempt.
+    resolved_password: str | None = field(default=None, repr=False)
+
+    @property
+    def password(self) -> str:
+        """Return the resolved password. Raises if resolve_passwords() wasn't called."""
+        if self.resolved_password is None:
+            raise RuntimeError(
+                f"Password for '{self.label}' not yet resolved — "
+                "call resolve_passwords(plan) before using the connection."
+            )
+        return self.resolved_password
 
     def sqlalchemy_url(self) -> str:
         return (
@@ -108,6 +129,7 @@ class CitiConnection:
 class Plan:
     reconmgmt: CitiConnection
     tlm_instances: dict[str, CitiConnection]  # tlm_instance_label -> conn
+    password_script_path: str = DEFAULT_PASSWORD_SCRIPT_PATH
 
     @property
     def tlm_instance_mapping(self) -> dict[str, str]:
@@ -442,9 +464,12 @@ def load_config(path: Path) -> Plan:
         raw = json.load(f)
 
     def _conn(label: str, block: dict) -> CitiConnection:
-        missing = [k for k in ("host", "service_name", "username", "password") if not block.get(k)]
+        # Required: host, service_name, username, schema_name.
+        # Password is OPTIONAL — if absent, fetched via the password script.
+        missing = [k for k in ("host", "service_name", "username") if not block.get(k)]
         if missing:
-            raise ValueError(f"Connection '{label}' missing fields: {missing}")
+            raise ValueError(f"Connection '{label}' missing required fields: {missing}")
+        schema = block.get("schema_name") or block["username"]
         # name = lowercase + underscore (matches POST /api/databases convention)
         name = label.lower().replace(" ", "_")
         return CitiConnection(
@@ -454,9 +479,9 @@ def load_config(path: Path) -> Plan:
             host=block["host"],
             port=int(block.get("port", 1521)),
             service_name=block["service_name"],
-            schema_name=block.get("schema_name", block["username"]).upper(),
+            schema_name=schema.upper(),
             username=block["username"],
-            password=block["password"],
+            password_literal=block.get("password") or None,
         )
 
     if "reconmgmt" not in raw:
@@ -469,12 +494,102 @@ def load_config(path: Path) -> Plan:
         label.upper(): _conn(label.upper(), block)
         for label, block in raw["tlm_instances"].items()
     }
-    return Plan(reconmgmt=reconmgmt, tlm_instances=tlm_instances)
+    script_path = raw.get("password_script_path") or DEFAULT_PASSWORD_SCRIPT_PATH
+    return Plan(
+        reconmgmt=reconmgmt,
+        tlm_instances=tlm_instances,
+        password_script_path=script_path,
+    )
 
 
 # ───────────────────────────────────────────────────────────────────────────────
 # Pre-flight verification
 # ───────────────────────────────────────────────────────────────────────────────
+
+
+def fetch_password_via_script(script_path: str, service_name: str, db_schema: str) -> str:
+    """Mirror of tlm-stats ScriptExecutor.executeScript / DatabaseConfig
+    password fallback. Runs:
+        <script_path> <SERVICE_NAME_UPPER> <DB_SCHEMA_UPPER>
+    and returns trimmed stdout as the password. Raises if the script
+    exits non-zero, stderr empty, or stdout empty.
+
+    Mirroring the Java pattern exactly: positional args are
+    serviceName.upper() + dbSchema.upper(). The script must echo the
+    plaintext password to stdout.
+    """
+    if not Path(script_path).exists():
+        raise RuntimeError(
+            f"Password script not found at: {script_path}. "
+            "Either set `password_script_path` in the config JSON OR populate "
+            "the `password` field on every connection block."
+        )
+    args = [script_path, service_name.upper(), db_schema.upper()]
+    # Don't log args (would surface service/schema patterns). Log the path only.
+    logger.debug("Invoking password script: %s ...", script_path)
+    try:
+        result = subprocess.run(
+            args,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=30,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(f"Password script '{script_path}' timed out after 30s") from exc
+    if result.returncode != 0:
+        # Don't echo stdout (might leak a partial password) — only stderr.
+        raise RuntimeError(
+            f"Password script '{script_path}' exited {result.returncode}. "
+            f"stderr: {result.stderr.strip() or '<empty>'}"
+        )
+    password = result.stdout.strip()
+    if not password:
+        raise RuntimeError(
+            f"Password script '{script_path}' returned empty stdout. "
+            f"stderr: {result.stderr.strip() or '<empty>'}"
+        )
+    # Log length only, never the password value.
+    logger.debug("  password script returned %d chars", len(password))
+    return password
+
+
+def resolve_passwords(plan: Plan) -> None:
+    """Resolve every connection's password before any Oracle connection attempt.
+
+    For each CitiConnection in the plan: if `password_literal` is set in the
+    JSON, use it; else call the password script (tlm-stats pattern). Mutates
+    each connection's `resolved_password`.
+
+    Fail-fast: if ANY connection's resolver fails, raises and aborts before
+    we attempt any Oracle connection.
+    """
+    logger.info(
+        "Resolving passwords (literal-in-config OR via script %s)...",
+        plan.password_script_path,
+    )
+    for conn in plan.all_connections:
+        if conn.password_literal:
+            conn.resolved_password = conn.password_literal
+            logger.info("  ✓ %s: using literal from JSON config", conn.label)
+        else:
+            try:
+                conn.resolved_password = fetch_password_via_script(
+                    plan.password_script_path,
+                    conn.service_name,
+                    conn.schema_name,
+                )
+            except RuntimeError as exc:
+                raise RuntimeError(
+                    f"Could not resolve password for '{conn.label}' "
+                    f"(service={conn.service_name}, schema={conn.schema_name}): {exc}"
+                ) from exc
+            logger.info(
+                "  ✓ %s: fetched via script (%s %s)",
+                conn.label,
+                conn.service_name.upper(),
+                conn.schema_name.upper(),
+            )
 
 
 def init_oracle_thick(client_lib_dir: str) -> None:
@@ -751,6 +866,15 @@ def main() -> int:
     # ── Phase 1: pre-flight ───────────────────────────────────────────────────
     logger.info("Phase 1: pre-flight verification (no writes)")
     init_oracle_thick(oracle_lib)
+
+    # Phase 1a: resolve every password BEFORE attempting Oracle connects.
+    # Mirrors tlm-stats DatabaseConfig — literal in config wins; otherwise
+    # call the password script with (SERVICE_NAME_UPPER, DB_SCHEMA_UPPER).
+    try:
+        resolve_passwords(plan)
+    except RuntimeError as exc:
+        logger.error("Pre-flight failed at password-resolution step: %s", exc)
+        return 3
 
     try:
         recviz_engine = verify_recviz_db(recviz_db_url)

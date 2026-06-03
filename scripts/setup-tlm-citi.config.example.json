@@ -1,13 +1,17 @@
 {
   "_comment_": "Citi TLM dashboard setup config. Copy to scripts/citi-tlm.json (or any path you pass via --config) and fill in real values. The 'reconmgmt' block is the single central manual-match DB. Each 'tlm_instances' entry is one per-TLM-instance schema — the key (TLMP_INV, TLMP_SNPB) is the value the dashboard's tlm_instance filter will pick from.",
 
+  "_password_handling_": "Passwords mirror tlm-stats DatabaseConfig: either set 'password' explicitly per connection (local override, like the local Spring profile), OR omit it and the script fetches via password_script_path (Citi VM pattern — runs <script> <SERVICE_NAME_UPPER> <DB_SCHEMA_UPPER>). Default script path is /opt/rectify/control/scripts/get_password.sh, matching tlm-stats. Override globally with the top-level password_script_path field.",
+
+  "password_script_path": "/opt/rectify/control/scripts/get_password.sh",
+
   "reconmgmt": {
     "host": "<CITI_RECONMGMT_HOST>",
     "port": 1521,
     "service_name": "<CITI_RECONMGMT_SERVICE>",
     "username": "<CITI_RECONMGMT_USER>",
-    "password": "<CITI_RECONMGMT_PASSWORD>",
-    "schema_name": "<CITI_RECONMGMT_SCHEMA_OPTIONAL>"
+    "schema_name": "<CITI_RECONMGMT_SCHEMA>",
+    "_password_optional_": "Omit 'password' to fetch via password_script_path. Add a 'password' field if you want to hardcode (local override)."
   },
 
   "tlm_instances": {
@@ -16,16 +20,14 @@
       "port": 1521,
       "service_name": "<CITI_TLMP_INV_SERVICE>",
       "username": "<CITI_TLMP_INV_USER>",
-      "password": "<CITI_TLMP_INV_PASSWORD>",
-      "schema_name": "<CITI_TLMP_INV_SCHEMA_OPTIONAL>"
+      "schema_name": "<CITI_TLMP_INV_SCHEMA>"
     },
     "TLMP_SNPB": {
       "host": "<CITI_TLMP_SNPB_HOST>",
       "port": 1521,
       "service_name": "<CITI_TLMP_SNPB_SERVICE>",
       "username": "<CITI_TLMP_SNPB_USER>",
-      "password": "<CITI_TLMP_SNPB_PASSWORD>",
-      "schema_name": "<CITI_TLMP_SNPB_SCHEMA_OPTIONAL>"
+      "schema_name": "<CITI_TLMP_SNPB_SCHEMA>"
     }
   }
 }
