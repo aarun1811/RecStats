@@ -802,9 +802,9 @@ def apply_plan(engine: Engine, plan: Plan, fernet_key: str, *, overwrite: bool) 
         conn.execute(
             text(
                 "INSERT INTO recviz_dashboards "
-                "(id, name, description, config, created_at, updated_at) "
+                "(id, name, description, schema_version, config, created_at, updated_at) "
                 "VALUES "
-                "(:id, :name, :desc, :cfg, :created, :updated)"
+                "(:id, :name, :desc, 1, :cfg, :created, :updated)"
             ),
             {
                 "id": DASHBOARD_ID,
