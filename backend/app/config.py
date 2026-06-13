@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     oracle_client_lib_dir: str  # No default -- REQUIRED. Path to Oracle Instant Client.
     recviz_encryption_key: SecretStr  # No default -- REQUIRED. Fernet key for DB credential encryption.
     recviz_embed_frame_ancestors: str = "http://localhost:5173"
+    # Cross-origin API allow-list. Comma- or space-separated. The iframe embed itself
+    # does not exercise CORS (it is same-origin inside the frame), but direct API
+    # callers / non-localhost prod origins need this. Was previously hardcoded in main.py.
+    recviz_cors_allowed_origins: str = "http://localhost:5173,http://localhost:3000,http://localhost:4200"
 
     model_config = {"env_file": _ENV_FILE, "env_file_encoding": "utf-8", "extra": "ignore"}
 

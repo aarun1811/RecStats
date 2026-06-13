@@ -14,6 +14,7 @@ from __future__ import annotations
 # --------------------------------------------------------------------------- #
 import logging
 import os
+import re
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -214,9 +215,12 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="RecViz API", version="0.1.0", lifespan=lifespan)
 
+# CORS origins from RECVIZ_CORS_ALLOWED_ORIGINS (comma- or space-separated), with the
+# dev localhost defaults baked into the setting. Previously hardcoded here.
+_cors_origins = [o.strip() for o in re.split(r"[,\s]+", settings.recviz_cors_allowed_origins) if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:4200"],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -226,7 +230,7 @@ app.add_middleware(
 class XFrameOptionsMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):  # type: ignore[override]
         response: Response = await call_next(request)
-        ancestors = [o.strip() for o in settings.recviz_embed_frame_ancestors.split(",") if o.strip()]
+        ancestors = [o.strip() for o in re.split(r"[,\s]+", settings.recviz_embed_frame_ancestors) if o.strip()]
         for key, value in frame_headers_for_path(request.url.path, ancestors).items():
             response.headers[key] = value
         return response
