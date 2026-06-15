@@ -42,6 +42,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote_plus
 
 try:
     import oracledb
@@ -120,7 +121,7 @@ class CitiConnection:
 
     def sqlalchemy_url(self) -> str:
         return (
-            f"oracle+oracledb://{self.username}:{self.password}"
+            f"oracle+oracledb://{quote_plus(self.username)}:{quote_plus(self.password)}"
             f"@{self.host}:{self.port}/?service_name={self.service_name}"
         )
 
