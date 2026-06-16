@@ -11,6 +11,14 @@ import {
   parseHideTokens,
   parseLockedFilters,
 } from '@/lib/dashboard-url-state'
+import { parseHideOpenInLinkFlag } from '@/lib/embed-config'
+
+// Build-time flag (baked at build): when `VITE_EMBED_HIDE_OPEN_IN_LINK=true`,
+// the embed topbar omits the "Open in RecViz" link so embedded users can't
+// navigate out to the standalone app. Default shows it. See lib/embed-config.ts.
+const HIDE_OPEN_IN_LINK = parseHideOpenInLinkFlag(
+  import.meta.env.VITE_EMBED_HIDE_OPEN_IN_LINK,
+)
 
 export const Route = createFileRoute('/embed/dashboards/$dashboardId')({
   component: EmbedDashboardPage,
@@ -99,6 +107,7 @@ function EmbedDashboardPage() {
         dashboardId={dashboardId}
         filterParams={filterParams}
         hideTitle={hideTokens.has('title')}
+        hideOpenInLink={HIDE_OPEN_IN_LINK}
       />
       <div className="p-6 flex-1 min-h-0 overflow-auto space-y-6">
         <DashboardRenderer

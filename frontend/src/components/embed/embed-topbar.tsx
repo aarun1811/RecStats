@@ -11,6 +11,13 @@ interface EmbedTopbarProps {
    * D-06 (no fully chromeless mode).
    */
   hideTitle?: boolean
+  /**
+   * When true, omit the "Open in RecViz" link (the only thing that lets a user
+   * jump from the embedded iframe out to the standalone RecViz app). Driven by
+   * the build-time flag `VITE_EMBED_HIDE_OPEN_IN_LINK` (see
+   * `lib/embed-config.ts`); default is to show it.
+   */
+  hideOpenInLink?: boolean
 }
 
 export function EmbedTopbar({
@@ -18,6 +25,7 @@ export function EmbedTopbar({
   dashboardId,
   filterParams,
   hideTitle,
+  hideOpenInLink,
 }: EmbedTopbarProps) {
   const recvizUrl = `/dashboards/${dashboardId}${filterParams ? `?${filterParams}` : ''}`
 
@@ -33,15 +41,17 @@ export function EmbedTopbar({
       {!hideTitle && (
         <span className="text-sm font-medium text-foreground">{title}</span>
       )}
-      <a
-        href={recvizUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 border border-primary/30 bg-primary/10 rounded px-2.5 py-1"
-      >
-        <ExternalLink className="h-3 w-3" />
-        Open in RecViz
-      </a>
+      {!hideOpenInLink && (
+        <a
+          href={recvizUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 border border-primary/30 bg-primary/10 rounded px-2.5 py-1"
+        >
+          <ExternalLink className="h-3 w-3" />
+          Open in RecViz
+        </a>
+      )}
     </div>
   )
 }
