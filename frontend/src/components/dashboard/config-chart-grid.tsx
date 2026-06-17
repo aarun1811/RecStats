@@ -24,6 +24,10 @@ import type { RecvizChart } from '@/types/managed-chart'
 interface ConfigChartGridProps {
   charts: DashboardChartConfig[]
   kpiResults?: KpiResult[]
+  /** True while the dashboard KPI queries are still in flight. kpi_values charts
+   *  (e.g. the TLM Stats donut) derive their segments from kpiResults; without
+   *  this flag they render an empty shell until the data arrives. */
+  kpisLoading?: boolean
   crossFilterEnabled?: boolean
   drillDownEnabled?: boolean
   dashboardHasFilters?: boolean
@@ -378,12 +382,14 @@ function QueryChartItemWithDrill({
 function KpiValuesChartItem({
   chart,
   kpiResults,
+  isLoading,
   crossFilterEnabled,
   onRefresh,
   isRefreshing,
 }: {
   chart: DashboardChartConfig
   kpiResults: KpiResult[]
+  isLoading?: boolean
   crossFilterEnabled?: boolean
   onRefresh?: () => void
   isRefreshing?: boolean
@@ -430,6 +436,14 @@ function KpiValuesChartItem({
   )
 
   const config = useMemo(() => toChartConfig(chart), [chart])
+
+  // While the dashboard KPI queries are loading, kpiResults is empty and
+  // buildKpiChartData would yield all-zero segments — an empty donut that sits
+  // there for the duration of the (slow) Oracle query. Show the same skeleton the
+  // query-sourced charts use instead.
+  if (isLoading) {
+    return <ChartItemSkeleton title={chart.title} />
+  }
 
   return (
     <div
@@ -532,7 +546,7 @@ function ChartItemSkeleton({ title }: { title?: string }) {
  * breadcrumb shows inside chart header, and a full-width detail grid
  * slides in below the drilled chart row via CSS grid `gridColumn: 1 / -1`.
  */
-export function ConfigChartGrid({ charts, kpiResults, crossFilterEnabled, drillDownEnabled, dashboardHasFilters, onRefreshKpis, isRefreshingKpis }: ConfigChartGridProps) {
+export function ConfigChartGrid({ charts, kpiResults, kpisLoading, crossFilterEnabled, drillDownEnabled, dashboardHasFilters, onRefreshKpis, isRefreshingKpis }: ConfigChartGridProps) {
   return (
     <div
       className="grid gap-4"
@@ -559,6 +573,7 @@ export function ConfigChartGrid({ charts, kpiResults, crossFilterEnabled, drillD
               <KpiValuesChartItem
                 chart={chart}
                 kpiResults={kpiResults ?? []}
+                isLoading={kpisLoading}
                 crossFilterEnabled={crossFilterEnabled}
                 onRefresh={onRefreshKpis}
                 isRefreshing={isRefreshingKpis}

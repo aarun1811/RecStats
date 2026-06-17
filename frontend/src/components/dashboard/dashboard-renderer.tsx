@@ -168,7 +168,7 @@ export function DashboardRenderer({
     prevAppliedRef.current = appliedFilters
   }, [appliedFilters, crossFilters.length, clearCrossFilters, resetAllDrills])
 
-  const { data: kpisData } = useDashboardKpis(config.kpis, appliedFilters)
+  const { data: kpisData, isLoading: kpisLoading } = useDashboardKpis(config.kpis, appliedFilters)
   const kpiResults = kpisData?.kpis
 
   // Cross-filter data layer: client-side KPI re-aggregation
@@ -210,6 +210,7 @@ export function DashboardRenderer({
       <ConfigChartGrid
         charts={config.charts}
         kpiResults={crossFilteredKpis ?? kpiResults}
+        kpisLoading={kpisLoading && !crossFilteredKpis}
         crossFilterEnabled={crossFilterEnabled}
         drillDownEnabled={drillDownEnabled}
         dashboardHasFilters={config.filters.length > 0}
