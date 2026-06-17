@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Citi-environment setup for the dash-tlm-stats dashboard.
 
-Creates 3 RecViz connections (1 reconmgmt + N per-TLM-instance), 3 datasets
-(automatch, breaks, manual-match), and the dash-tlm-stats dashboard -- all
-with the explicit IDs the rectrace cell-click embed URL hardcodes
-(`dash-tlm-stats`, `ds-tlm-automatch`, `ds-tlm-breaks`, `ds-tlm-manual-match`).
+Creates 3 RecViz connections (1 reconmgmt + N per-TLM-instance), 4 datasets
+(automatch, breaks, manual-match, and a lightweight options source for the
+filter dropdowns), and the dash-tlm-stats dashboard -- all with the explicit
+IDs the rectrace cell-click embed URL hardcodes (`dash-tlm-stats`,
+`ds-tlm-automatch`, `ds-tlm-breaks`, `ds-tlm-manual-match`, `ds-tlm-options`).
 
 Why direct SQL instead of the /api/databases + /api/datasets/managed +
 /api/dashboards/managed endpoints: those routes generate fresh UUIDs for
@@ -75,6 +76,7 @@ DASHBOARD_ID = "dash-tlm-stats"
 DS_AUTOMATCH_ID = "ds-tlm-automatch"
 DS_BREAKS_ID = "ds-tlm-breaks"
 DS_MANUAL_MATCH_ID = "ds-tlm-manual-match"
+DS_OPTIONS_ID = "ds-tlm-options"  # lightweight bank-only source for filter dropdowns
 RECONMGMT_CONN_NAME = "reconmgmt"  # Static-routed dataset hardcodes this name
 
 # Tables we expect to find in each Citi schema (pre-flight verification).
@@ -212,6 +214,59 @@ def build_dataset_automatch(default_database_id: str, mapping: dict[str, str]) -
                 "sql_expr": "i.stmt_date {{date_range_clause}}",
                 "options": {"exclude_today": True},
             },
+        ],
+        "database_routing": {
+            "type": "dynamic",
+            "route_by_filter": "tlm_instance",
+            "mapping": mapping,
+        },
+    }
+
+
+def build_dataset_options(default_database_id: str, mapping: dict[str, str]) -> dict:
+    """ds-tlm-options -- lightweight distinct-values source for the recon/set_id
+    filter dropdowns.
+
+    The dropdowns populate via GET /distinct/{column}, which wraps this dataset's
+    SQL as `SELECT DISTINCT {column} FROM (<sql>) ...`. Pointing them at
+    ds-tlm-automatch meant every dropdown re-ran the full 4-table automatch
+    aggregation (bank + message_feed + item + tlm_bdr_relationship_header,
+    GROUP BY, SUM(CASE...)) with NO date bound -- the date_range_days filter is
+    not part of the dropdown's dependsOn, so it scans all history. On real Citi
+    volumes that exceeds the internal portal's 60s HTTP cap and the dropdown
+    hangs on "Loading...".
+
+    This dataset hits ONLY `bank`, where both agent_code (recon) and
+    local_acc_no (set_id) live, so the dropdown query is a cheap SELECT DISTINCT
+    over a single table. Same values, no join/aggregation/history scan.
+    Dynamic-routed by tlm_instance, exactly like ds-tlm-automatch."""
+    return {
+        "id": DS_OPTIONS_ID,
+        "name": "TLM Filter Options",
+        "description": (
+            "Distinct recon (agent_code) and set_id (local_acc_no) values from "
+            "the bank table, for the filter dropdowns. Lightweight (no join / "
+            "aggregation / date scan); dynamic-routed by tlm_instance."
+        ),
+        "database_id": default_database_id,
+        "sql": (
+            "SELECT "
+            "  sys_context('USERENV', 'DB_NAME') AS tlm_instance, "
+            "  b.agent_code, "
+            "  b.local_acc_no AS set_id "
+            "FROM bank b "
+            "WHERE 1=1 "
+            "  {{filters}}"
+        ),
+        "columns": [
+            _col("tlm_instance", "TLM Instance", "string", "dimension"),
+            _col("agent_code", "Recon", "string", "dimension"),
+            _col("set_id", "Set ID", "string", "dimension"),
+        ],
+        "filter_mappings": [
+            {"filter_id": "tlm_instance", "sql_expr": "1=1"},
+            {"filter_id": "recon", "sql_expr": "b.agent_code IN ({{values}})"},
+            {"filter_id": "set_id", "sql_expr": "b.local_acc_no IN ({{values}})"},
         ],
         "database_routing": {
             "type": "dynamic",
@@ -359,11 +414,11 @@ DASHBOARD_CONFIG = {
          "optionsSource": {"dataSourceId": DS_AUTOMATCH_ID, "valueColumn": "tlm_instance", "dependsOn": {}},
          "options": [], "defaultValue": None},
         {"id": "recon", "label": "Recon", "type": "multi-select", "lockable": True,
-         "optionsSource": {"dataSourceId": DS_AUTOMATCH_ID, "valueColumn": "agent_code",
+         "optionsSource": {"dataSourceId": DS_OPTIONS_ID, "valueColumn": "agent_code",
                            "dependsOn": {"tlm_instance": "tlm_instance"}},
          "options": [], "defaultValue": None},
         {"id": "set_id", "label": "Set ID", "type": "multi-select", "lockable": True,
-         "optionsSource": {"dataSourceId": DS_AUTOMATCH_ID, "valueColumn": "set_id",
+         "optionsSource": {"dataSourceId": DS_OPTIONS_ID, "valueColumn": "set_id",
                            "dependsOn": {"tlm_instance": "tlm_instance", "recon": "agent_code"}},
          "options": [], "defaultValue": None},
         {"id": "date_range_days", "label": "Date Range", "type": "preset-range", "lockable": False,
@@ -683,10 +738,11 @@ def check_recviz_collisions(engine: Engine, plan: Plan) -> dict[str, str]:
         for r in rows:
             collisions[f"recviz_connections.name='{r[0]}'"] = "exists"
 
-        ds_ids = [DS_AUTOMATCH_ID, DS_BREAKS_ID, DS_MANUAL_MATCH_ID]
+        ds_ids = [DS_AUTOMATCH_ID, DS_BREAKS_ID, DS_MANUAL_MATCH_ID, DS_OPTIONS_ID]
+        ds_placeholders = ", ".join(f":d{i}" for i in range(len(ds_ids)))
         rows = conn.execute(
-            text("SELECT id FROM recviz_datasets WHERE id IN (:a, :b, :c)"),
-            {"a": ds_ids[0], "b": ds_ids[1], "c": ds_ids[2]},
+            text(f"SELECT id FROM recviz_datasets WHERE id IN ({ds_placeholders})"),
+            {f"d{i}": v for i, v in enumerate(ds_ids)},
         ).fetchall()
         for r in rows:
             collisions[f"recviz_datasets.id='{r[0]}'"] = "exists"
@@ -769,6 +825,7 @@ def apply_plan(engine: Engine, plan: Plan, fernet_key: str, *, overwrite: bool) 
             build_dataset_automatch(first_tlm_id, plan.tlm_instance_mapping),
             build_dataset_breaks(first_tlm_id, plan.tlm_instance_mapping),
             build_dataset_manual_match(recon_id),
+            build_dataset_options(first_tlm_id, plan.tlm_instance_mapping),
         ]
         for ds in datasets:
             if overwrite:
@@ -918,7 +975,7 @@ def main() -> int:
     # -- Phase 2: confirmation -------------------------------------------------
     if not args.yes:
         sys.stdout.write(
-            f"\nAbout to insert {len(plan.all_connections)} connections, 3 datasets, "
+            f"\nAbout to insert {len(plan.all_connections)} connections, 4 datasets, "
             f"and 1 dashboard into recviz_*. Continue? [yes/N] "
         )
         sys.stdout.flush()
