@@ -137,7 +137,7 @@ _DI_FROM_WHERE = (
 _DI_FILTER_MAPPINGS = [
     {"filter_id": "tlm_instance", "sql_expr": "1=1"},
     {"filter_id": "recon", "sql_expr": "b.agent_code = '{{value}}'"},
-    {"filter_id": "set_id", "sql_expr": "b.local_acc_no = '{{value}}'"},
+    {"filter_id": "set_id", "sql_expr": "b.local_acc_no IN ({{values}})"},
 ]
 
 # Category SQL expressions for the 5 grouped/distribution datasets.
@@ -272,20 +272,34 @@ def build_dataset_di_kpis(default_database_id: str, mapping: dict[str, str]) -> 
 
 
 def build_dataset_di_group(
-    ds_id: str, name: str, category_expr: str, default_database_id: str, mapping: dict[str, str]
+    ds_id: str, name: str, category_expr: str, default_database_id: str,
+    mapping: dict[str, str], top_n: int | None = None
 ) -> dict:
     """A pre-grouped distribution dataset: (category, count). Server-side GROUP BY
     so the result is tiny (cap-safe). `category_expr` is one of the _DI_CAT_* exprs.
     Composes the decode CTE + a `base` CTE explicitly (no string-splicing). The
     category is COALESCEd so a decode miss shows as '(unknown)' rather than a NULL
-    slice that GROUP BY would otherwise produce."""
-    sql = (
+    slice that GROUP BY would otherwise produce. When `top_n` is set, only the top-N
+    categories by count are kept and the rest are bucketed into 'Others' server-side
+    (so high-cardinality dimensions like set_id / file don't render 50+ slices)."""
+    base_cte = (
         "WITH " + _DI_DECODE_BODY
         + ", base AS ( SELECT COALESCE(" + category_expr + ", '(unknown)') AS category "
         + _DI_FROM_WHERE
         + ") "
-        "SELECT category, COUNT(*) AS count FROM base GROUP BY category ORDER BY count DESC"
     )
+    if top_n is None:
+        sql = base_cte + "SELECT category, COUNT(*) AS count FROM base GROUP BY category ORDER BY count DESC"
+    else:
+        n = str(int(top_n))
+        sql = (
+            base_cte
+            + ", grouped AS ( SELECT category, COUNT(*) AS cnt FROM base GROUP BY category ) "
+            + ", ranked AS ( SELECT category, cnt, ROW_NUMBER() OVER (ORDER BY cnt DESC) AS rn FROM grouped ) "
+            + "SELECT CASE WHEN rn <= " + n + " THEN category ELSE 'Others' END AS category, SUM(cnt) AS count "
+            + "FROM ranked GROUP BY CASE WHEN rn <= " + n + " THEN category ELSE 'Others' END "
+            + "ORDER BY count DESC"
+        )
     return {
         "id": ds_id,
         "name": name,
@@ -321,8 +335,8 @@ def _di_chart(chart_id: str, name: str, dataset_id: str, chart_type: str,
                 "title": name,
                 "showLegend": True,
                 "legendPosition": "bottom",
-                "showXLabel": chart_type != "donut",
-                "showYLabel": chart_type != "donut",
+                "showXLabel": chart_type == "bar",
+                "showYLabel": chart_type == "bar",
                 "typeSpecific": type_specific,
             },
         },
@@ -338,7 +352,7 @@ DI_CHARTS = [
               ["--chart-1", "--series-2", "--series-3", "--series-4", "--series-5"]),
     _di_chart(CHART_DI_SETID_ID, "Messages per Set ID", DS_DI_BY_SETID_ID, "bar",
               ["--chart-1"]),
-    _di_chart(CHART_DI_FILE_ID, "Messages per File", DS_DI_BY_FILE_ID, "bar",
+    _di_chart(CHART_DI_FILE_ID, "Messages per File", DS_DI_BY_FILE_ID, "treemap",
               ["--series-2"]),
 ]
 
@@ -346,7 +360,7 @@ DI_DASHBOARD_CONFIG = {
     "id": DI_DASHBOARD_ID,
     "name": "DI Statistics",
     "description": "Per-recon message-level statistics (status, type, set_id, file) for the filtered scope.",
-    "features": {"crossFilter": True, "drillDown": False},
+    "features": {"crossFilter": False, "drillDown": False},
     "filters": [
         {"id": "tlm_instance", "label": "TLM Instance", "type": "single-select", "lockable": True,
          "optionsSource": {"dataSourceId": DS_DI_MESSAGES_ID, "valueColumn": "tlm_instance", "dependsOn": {}},
@@ -355,7 +369,7 @@ DI_DASHBOARD_CONFIG = {
          "optionsSource": {"dataSourceId": DS_DI_MESSAGES_ID, "valueColumn": "agent_code",
                            "dependsOn": {"tlm_instance": "tlm_instance"}},
          "options": [], "defaultValue": None},
-        {"id": "set_id", "label": "Set ID", "type": "single-select", "lockable": True,
+        {"id": "set_id", "label": "Set ID", "type": "multi-select", "lockable": True,
          "optionsSource": {"dataSourceId": DS_DI_MESSAGES_ID, "valueColumn": "set_id",
                            "dependsOn": {"tlm_instance": "tlm_instance", "recon": "agent_code"}},
          "options": [], "defaultValue": None},
@@ -377,19 +391,19 @@ DI_DASHBOARD_CONFIG = {
     "charts": [
         {"id": CHART_DI_STATUS_ID, "title": "Status", "type": "donut", "sourceType": "query",
          "chartId": CHART_DI_STATUS_ID, "sources": [{"dataSourceId": DS_DI_BY_STATUS_ID}],
-         "crossFilter": True, "layout": _layout(0, 1, 4, 4)},
+         "layout": _layout(0, 1, 4, 4)},
         {"id": CHART_DI_ERROR_ID, "title": "Error Status", "type": "donut", "sourceType": "query",
          "chartId": CHART_DI_ERROR_ID, "sources": [{"dataSourceId": DS_DI_BY_ERROR_ID}],
-         "crossFilter": True, "layout": _layout(4, 1, 4, 4)},
+         "layout": _layout(4, 1, 4, 4)},
         {"id": CHART_DI_TYPE_ID, "title": "Message Type", "type": "donut", "sourceType": "query",
          "chartId": CHART_DI_TYPE_ID, "sources": [{"dataSourceId": DS_DI_BY_TYPE_ID}],
-         "crossFilter": True, "layout": _layout(8, 1, 4, 4)},
+         "layout": _layout(8, 1, 4, 4)},
         {"id": CHART_DI_SETID_ID, "title": "Messages per Set ID", "type": "bar", "sourceType": "query",
          "chartId": CHART_DI_SETID_ID, "sources": [{"dataSourceId": DS_DI_BY_SETID_ID}],
-         "crossFilter": True, "layout": _layout(0, 5, 6, 4)},
-        {"id": CHART_DI_FILE_ID, "title": "Messages per File", "type": "bar", "sourceType": "query",
+         "layout": _layout(0, 5, 6, 4)},
+        {"id": CHART_DI_FILE_ID, "title": "Messages per File", "type": "treemap", "sourceType": "query",
          "chartId": CHART_DI_FILE_ID, "sources": [{"dataSourceId": DS_DI_BY_FILE_ID}],
-         "crossFilter": True, "layout": _layout(6, 5, 6, 4)},
+         "layout": _layout(6, 5, 6, 4)},
     ],
     "grids": [
         {"id": "grid-di-messages", "title": "Messages",
@@ -425,8 +439,8 @@ def apply_di(engine: Engine, mapping: dict[str, str], database_id: str, *, overw
         build_dataset_di_group(DS_DI_BY_STATUS_ID, "DI by Status", _DI_CAT_STATUS, database_id, mapping),
         build_dataset_di_group(DS_DI_BY_ERROR_ID, "DI by Error Status", _DI_CAT_ERROR, database_id, mapping),
         build_dataset_di_group(DS_DI_BY_TYPE_ID, "DI by Message Type", _DI_CAT_TYPE, database_id, mapping),
-        build_dataset_di_group(DS_DI_BY_SETID_ID, "DI by Set ID", _DI_CAT_SETID, database_id, mapping),
-        build_dataset_di_group(DS_DI_BY_FILE_ID, "DI by File", _DI_CAT_FILE, database_id, mapping),
+        build_dataset_di_group(DS_DI_BY_SETID_ID, "DI by Set ID", _DI_CAT_SETID, database_id, mapping, top_n=10),
+        build_dataset_di_group(DS_DI_BY_FILE_ID, "DI by File", _DI_CAT_FILE, database_id, mapping, top_n=10),
     ]
     with engine.begin() as conn:  # one transaction; commit on success, rollback on error
         for ds in datasets:
