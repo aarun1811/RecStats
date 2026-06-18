@@ -196,7 +196,7 @@ recviz/
 - **Docker Oracle** (`gvenzl/oracle-free:latest`) -- local dev database. Oracle 23ai Free in container, code targets 19c compatibility. Start: `docker run -d --name oracle-free -p 1521:1521 -e ORACLE_PASSWORD=RecViz2026 -e APP_USER=recviz -e APP_USER_PASSWORD=recviz_dev gvenzl/oracle-free:latest`
 - **Oracle Instant Client** installed locally for thick mode parity with prod.
 - **Backend**: `uvicorn app.main:app --reload`
-- **Frontend**: `pnpm dev`
+- **Frontend**: `npm run dev`
 - **Seed data**: `cd backend && PYTHONPATH=. python ../scripts/seed-oracle.py`
 - **Migrations**: `cd backend && PYTHONPATH=. alembic -c app/migrations/alembic.ini upgrade head`
 - **No Postgres. No Redis. No Celery.**

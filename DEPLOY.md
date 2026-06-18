@@ -11,8 +11,7 @@ End-to-end steps to clone, configure, build, and run **RecViz** on a Citi Linux 
 | Item | Version | Why |
 |---|---|---|
 | Python | 3.11+ | RecViz backend |
-| Node.js | 20+ | Build the React frontend |
-| pnpm | 9+ | Frontend package manager (`npm i -g pnpm@9`) |
+| Node.js | 20+ | Build the React frontend (npm ships with Node) |
 | Oracle Instant Client (thick mode) | 21+ | RecViz uses `python-oracledb` in thick mode |
 | Oracle wallet directory | n/a | TLS connection to Citi Oracle |
 | Citi CA truststore | n/a | For HTTPS Oracle connections |
@@ -167,8 +166,8 @@ From `/opt/recviz/recviz`:
 ```bash
 # 6.1 Build the React frontend
 cd frontend
-pnpm install --frozen-lockfile
-pnpm build
+npm ci
+npm run build
 # Output: frontend/dist/ — FastAPI's static mount picks this up automatically
 
 # 6.2 Backend: create venv and install deps
@@ -303,7 +302,7 @@ cd /opt/recviz/recviz
 git pull origin main
 
 # Frontend
-cd frontend && pnpm install --frozen-lockfile && pnpm build
+cd frontend && npm ci && npm run build
 
 # Backend deps (if requirements.txt changed)
 cd ../backend && ./venv/bin/pip install -r requirements.txt

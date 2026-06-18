@@ -4,10 +4,9 @@ This is the minimal path to get RecViz (FastAPI backend + Vite frontend) running
 
 **Prereqs on the laptop**
 - Python 3.11+
-- Node 20+
-- pnpm 9+ (`npm install -g pnpm`)
+- Node 20+ (npm ships with Node — no separate package-manager install needed)
 - Oracle Instant Client 21+ (Basic + SDK), Windows x64 build, installed somewhere like `C:\oracle\instantclient_21_x`
-- Git Bash (for running shell scripts; PowerShell works for pnpm/python alone)
+- Git Bash (for running shell scripts; PowerShell works for npm/python alone)
 - Network access to Citi Oracle host:port
 
 ## 1. Clone the repo
@@ -73,23 +72,23 @@ In another terminal:
 
 ```bash
 cd frontend
-pnpm install
-pnpm dev
+npm ci
+npm run dev
 ```
 
 Vite serves on `http://localhost:5173` (separate from rectrace's `:5173` — they collide if both run on the same port). Actually — wait, this **conflicts** with the rectrace frontend port. Two options:
 
-- **Option A (recommended on the laptop)**: skip Vite dev for RecViz; instead, run `pnpm build` once and let the FastAPI backend serve the built bundle from `backend/app/static/` at `http://localhost:8000/`. You'll iterate on rectrace far more than on RecViz, so this is the natural split.
+- **Option A (recommended on the laptop)**: skip Vite dev for RecViz; instead, run `npm run build` once and let the FastAPI backend serve the built bundle from `backend/app/static/` at `http://localhost:8000/`. You'll iterate on rectrace far more than on RecViz, so this is the natural split.
   ```bash
   cd frontend
-  pnpm build
+  npm run build
   ```
   Then refresh `http://localhost:8000/` — RecViz UI renders from the built bundle.
 
 - **Option B**: run RecViz Vite on a different port and update rectrace's `VITE_RECVIZ_ORIGIN` to match.
   ```bash
   cd frontend
-  pnpm dev --port 5174
+  npm run dev -- --port 5174
   ```
   In rectrace `frontend-react/.env`:
   ```
@@ -138,7 +137,7 @@ Once dashboards are repointed, navigate `http://localhost:5173/search?q=<a-real-
 
 - **Git Bash for the uvicorn env-load** — the `set -a && . .env && set +a` pattern is bash syntax. On PowerShell you'd use `Get-Content .env | ForEach-Object { ... }` which is uglier. Use Git Bash.
 - **Oracle Instant Client requires the Visual C++ Redistributable** — most Citi Windows builds already have it; if `oracledb` fails to load the client with "DPI-1047", install the redist from Microsoft's download page.
-- **`pnpm dev` on Windows + Git Bash** — works fine. PowerShell also works.
+- **`npm run dev` on Windows** — works fine in Git Bash, PowerShell, or CMD.
 
 ## 9. Reference
 

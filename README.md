@@ -26,7 +26,7 @@ React SPA (frontend)  -->  FastAPI (backend/proxy)  -->  Superset (headless engi
 
 ### Prerequisites
 
-- **Node.js** 20+ and **pnpm**
+- **Node.js** 20+ (npm ships with Node)
 - **Python** 3.12+
 - **Docker** 24+ (for PostgreSQL and Redis)
 
@@ -41,7 +41,7 @@ Install frontend dependencies:
 
 ```bash
 cd frontend
-pnpm install
+npm ci
 cd ..
 ```
 
@@ -90,7 +90,7 @@ cd ..
 3. **Start the frontend** (in a separate terminal):
    ```bash
    cd frontend
-   pnpm dev
+   npm run dev
    ```
 
 4. **Open the app** at [http://localhost:5173](http://localhost:5173).
